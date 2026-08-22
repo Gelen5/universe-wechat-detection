@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>公众号账号诊断</title>
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <div class="app-shell landing">
+      <header class="report-nav">
+        <a class="account-brand" href="/"><span id="nav-avatar" class="fixed-avatar" aria-hidden="true">诊</span><span class="brand-copy"><strong id="nav-name">宇宙第一公众号检测</strong><small id="nav-subtitle">一键体验</small></span></a>
+        <nav class="nav-links" aria-label="报告章节"><a class="active" href="#overview">诊断总览</a><a href="#lenses">深度分析</a><a href="#evidence">内容证据</a><a href="#route">成长路线</a></nav>
+        <div class="nav-actions"><span class="report-meta">报告编号 <b>WP-<span id="report-id">20260822</span></b></span><button id="download-report" class="download-button" type="button">下载报告</button></div>
+      </header>
+
+      <section id="entry" class="entry-panel">
+        <div class="entry-copy">
+          <span class="micro-label">公众号账号诊断</span>
+          <h1>发了很多内容，<em>为什么还是没人看？</em></h1>
+          <p>不是你不够努力，而是账号可能卡在了内容、互动或定位上。输入公众号名称，马上找出最该先解决的那个问题。</p>
+        </div>
+        <form id="diagnose-form" class="entry-form">
+          <label for="account-name">输入公众号名称</label>
+          <div><input id="account-name" name="account_name" placeholder="例如：滚去睡" autocomplete="organization" required /><button id="submit-button" type="submit">开始诊断 <span>↗</span></button></div>
+        </form>
+      </section>
+
+      <main id="report" class="report-page" hidden>
+        <section id="overview" class="report-hero">
+          <aside class="score-rail">
+            <span class="micro-label">综合诊断分</span><strong id="hero-score">—</strong><span class="out-of">/100</span><div class="score-line"><i id="hero-score-line"></i></div><p id="hero-compare">等待账号数据</p>
+            <blockquote><span class="quote-mark">“</span><p id="quote-copy">正在把数据翻译成一句真正有用的话。</p><cite>诊断结论</cite></blockquote>
+          </aside>
+          <div class="diagnosis-hero">
+            <div class="vertical-marker"><i></i><span>一句话诊断</span></div>
+            <h1 id="diagnosis-title">输入公众号名称，开始诊断。</h1>
+            <p id="diagnosis-copy">报告会从内容健康度、用户互动、核心数据和运营规范四个角度，说明账号目前真正卡在哪里。</p>
+            <div class="positioning"><span class="micro-label">定位方向</span><strong id="positioning-title">睡前情感陪伴</strong><p id="positioning-copy">用连续的内容场景，让用户在关注后知道下一次还会获得什么。</p></div>
+          </div>
+          <div class="sprig-wrap"><img src="/static/assets/diagnostic-sprig.png" alt="淡绿色植物插画" /></div>
+        </section>
+
+        <section id="lenses" class="lenses-section"><div class="section-title"><h2>四个诊断镜头</h2><span>从数据看账号，不从感觉下结论</span></div><div id="lens-grid" class="lens-grid"></div></section>
+
+        <section id="evidence" class="evidence-route">
+          <div class="content-evidence"><div class="section-title"><h2>内容证据</h2><span>近期作品 · 可追溯数据</span></div><div id="works-table" class="works-table"></div><p class="evidence-footnote">ⓘ 数据样本越少，结论置信度越低；先积累样本，再判断长期方向。</p></div>
+          <div id="route" class="route-panel"><div class="section-title"><h2>接下来 30 天</h2><span>按优先级从高到低</span></div><div id="route-list" class="route-list"></div></div>
+        </section>
+        <section id="benchmark" class="benchmark-section">
+          <div class="section-title"><h2>相似账号</h2><span>同一内容赛道里的可参考样本</span></div>
+          <p class="benchmark-intro">这些账号与当前账号集中在情感陪伴、故事表达和短句文案方向。对标的重点不是照搬内容，而是观察它们如何固定栏目、包装场景并形成用户记忆。</p>
+          <div id="benchmark-list" class="benchmark-list"></div>
+        </section>
+        <section class="bottom-note"><span>ⓘ</span><p>这份报告的价值不是告诉你“账号好不好”，而是帮你找到下一步最值得投入的动作。</p></section>
+      </main>
+      <footer>公众号账号诊断 · 数据来自红狐数据接口 · 仅作运营参考</footer>
+    </div>
+    <script src="/static/app.js"></script>
+  </body>
+</html>
