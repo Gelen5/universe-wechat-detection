@@ -79,13 +79,13 @@ def _dynamic_recommendations(header, scores, works, dimensions, avg_read, intera
     sample = len(works)
 
     if not works:
-        verdict = f"{name}目前没有足够的红狐作品数据，暂时不能判断内容方向和运营效果。"
+        verdict = f"{name}目前没有足够的作品数据，暂时不能判断内容方向和运营效果。"
     elif weakest_name == "用户活跃度":
         verdict = f"{name}已有 {sample} 篇可分析作品，但互动反馈偏弱，当前应先围绕高阅读内容设计可回应的问题。"
     elif weakest_name == "内容核心数据表现":
         verdict = f"{name}的内容样本已经形成，但平均阅读约 {int(avg_read)}，目前瓶颈在曝光和单篇表现。"
     elif weakest_name == "内容健康度":
-        verdict = f"{name}近期内容有发布样本，但主题和表达还不够稳定，先从红狐数据里表现较好的主题做连续栏目。"
+        verdict = f"{name}近期内容有发布样本，但主题和表达还不够稳定，先从数据里表现较好的主题做连续栏目。"
     elif weakest_name == "运营规范性":
         verdict = f"{name}的内容基础尚可，主要问题是更新节奏或账号基础信号不稳定，需要先建立可持续的发布周期。"
     else:
@@ -96,14 +96,14 @@ def _dynamic_recommendations(header, scores, works, dimensions, avg_read, intera
         routes.append({
             "priority": "紧急",
             "title": f"围绕《{top_title[:18]}》设计一个回应入口",
-            "evidence": f"红狐近期样本互动率 {interaction_rate:.1f}%，点赞、评论和在看合计反馈有限。",
+            "evidence": f"近期样本互动率 {interaction_rate:.1f}%，点赞、评论和在看合计反馈有限。",
             "action": "下一篇只设置一个具体问题，并把问题放在正文结尾或标题承诺之后，连续观察回应变化。",
             "target": "成功信号：互动率较当前基线提高，并出现稳定评论或在看反馈。",
         })
     if weakest_name == "内容核心数据表现" or avg_read <= 1000:
         routes.append({
             "priority": "紧急",
-            "title": "复用红狐数据里阅读最高的内容结构",
+            "title": "复用阅读最高的内容结构",
             "evidence": f"当前平均阅读约 {int(avg_read)}，样本中最高阅读为 {int(max([_num(w.get('阅读数')) for w in works] or [0]))}。",
             "action": f"以《{top_title[:22]}》的主题、标题长度和发布时段为参照，连续做 3 个同场景变体。",
             "target": "成功信号：同一内容结构出现至少 2 次高于账号平均阅读的作品。",
@@ -112,14 +112,14 @@ def _dynamic_recommendations(header, scores, works, dimensions, avg_read, intera
         routes.append({
             "priority": "重点",
             "title": "从近期标题中提炼一个可重复栏目",
-            "evidence": f"红狐返回的 {sample} 个标题平均长度约 {avg_title_length:.1f} 字，主题稳定性需要继续验证。",
+            "evidence": f"当前返回的 {sample} 个标题平均长度约 {avg_title_length:.1f} 字，主题稳定性需要继续验证。",
             "action": "把高频对象、场景或情绪词组合成固定栏目名，接下来连续发布同一场景，不要每篇更换定位。",
             "target": "成功信号：连续作品标题都能被归入同一主题，且阅读波动收窄。",
         })
     if weakest_name == "运营规范性" or span_days > 0 and sample < 5:
         routes.append({
             "priority": "重点",
-            "title": "按红狐返回的发布时间建立发布节奏",
+            "title": "按近期发布时间建立发布节奏",
             "evidence": f"当前可见 {sample} 篇作品，时间跨度约 {span_days} 天，更新节奏仍需形成样本。",
             "action": "选择一个固定发布日和时段，连续执行 4 周，并记录每篇发布后 24 小时的数据。",
             "target": "成功信号：每周都有稳定发布，能比较不同主题和时段的表现。",
@@ -127,11 +127,22 @@ def _dynamic_recommendations(header, scores, works, dimensions, avg_read, intera
     routes.append({
         "priority": "持续",
         "title": "建立一张真实数据复盘卡",
-        "evidence": f"本次红狐返回 {sample} 篇作品，已知总阅读 {int(sum(_num(w.get('阅读数')) for w in works))}，互动率 {interaction_rate:.1f}%。",
+        "evidence": f"本次返回 {sample} 篇作品，已知总阅读 {int(sum(_num(w.get('阅读数')) for w in works))}，互动率 {interaction_rate:.1f}%。",
         "action": "每周记录标题、发布时间、阅读、点赞、评论和在看，只保留有数据证据的主题结论。",
         "target": "成功信号：累计更多同口径样本后，能明确下一周继续什么、停止什么。",
     })
     return routes[:5], verdict
+
+
+def _public_text(value):
+    """Remove provider branding from all user-facing report text."""
+    if isinstance(value, str):
+        return value.replace("红狐", "数据接口")
+    if isinstance(value, list):
+        return [_public_text(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _public_text(item) for key, item in value.items()}
+    return value
 
 
 def _enrich_report(report):
@@ -169,13 +180,34 @@ def _enrich_report(report):
     recommendations, verdict = _dynamic_recommendations(
         header, scores, works, dimensions, avg_read, interaction_rate
     )
+    highest_work = max(works, key=lambda work: _num(work.get("阅读数")), default={})
+    lowest_work = min(works, key=lambda work: _num(work.get("阅读数")), default={})
+    top_dimensions = sorted(dimensions, key=lambda item: item["score"], reverse=True)
+    low_dimensions = sorted(dimensions, key=lambda item: item["score"])
+    industry = scores.get("行业对标", {}) or {}
+    overview_judgment = (
+        f"账号已经持续更新，但当前平均阅读约 {int(avg_read)}，内容尚未转化成稳定的阅读和互动。"
+        if works and avg_read < 1000
+        else f"账号已有 {len(works)} 篇近期作品，下一步应围绕数据表现最好的主题继续验证。"
+    )
+    strengths = [
+        f"{top_dimensions[0]['name']}得分 {top_dimensions[0]['score']:.1f}，是当前相对稳定的基础。",
+        f"近期保持 {len(works)} 篇作品样本，最高阅读为 {int(_num(highest_work.get('阅读数')))}。",
+    ] if works and top_dimensions else []
+    weaknesses = [
+        f"{low_dimensions[0]['name']}得分 {low_dimensions[0]['score']:.1f}，是当前最需要优先修复的维度。",
+        f"最高阅读 {int(_num(highest_work.get('阅读数')))}、最低阅读 {int(_num(lowest_work.get('阅读数')))}，单篇表现波动明显。",
+    ] if works and low_dimensions else ["当前样本不足，暂时不能判断长期方向。"]
 
     report["web_insights"] = {
         "verdict": verdict,
-        "summary": f"本次分析基于红狐返回的 {len(works)} 篇近期作品、平均阅读 {int(avg_read)} 和 {interaction_rate:.1f}% 互动率；当前最低维度为 {min(dimensions, key=lambda item: item['score'])['name'] if dimensions else '暂无'}。",
+        "summary": f"本次判断基于 {len(works)} 篇近期作品、平均阅读 {int(avg_read)} 和 {interaction_rate:.1f}% 互动率；当前最低维度为 {min(dimensions, key=lambda item: item['score'])['name'] if dimensions else '暂无'}。",
+        "overview_judgment": overview_judgment,
         "sample_size": len(works),
         "avg_read": int(avg_read),
         "total_reads": int(total_reads),
+        "highest_read": int(_num(highest_work.get("阅读数"))),
+        "lowest_read": int(_num(lowest_work.get("阅读数"))),
         "likes": int(likes),
         "comments": int(comments),
         "watch": int(watch),
@@ -183,9 +215,17 @@ def _enrich_report(report):
         "last_publish": last_publish or "暂无",
         "dimensions": dimensions,
         "recommendations": recommendations,
+        "strengths": strengths,
+        "weaknesses": weaknesses,
+        "benchmark": {
+            "overall": industry.get("综合评分", {}),
+            "average_read": industry.get("平均阅读量", {}),
+            "interaction": industry.get("互动率", {}),
+            "frequency": industry.get("更新频率", {}),
+        },
         "confidence": "低" if len(works) < 5 else ("中" if len(works) < 10 else "高"),
     }
-    return report
+    return _public_text(report)
 
 
 @app.get("/health")

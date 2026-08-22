@@ -35,10 +35,26 @@
           <div class="diagnosis-hero">
             <div class="vertical-marker"><i></i><span>一句话诊断</span></div>
             <h1 id="diagnosis-title">输入公众号名称，开始诊断。</h1>
-            <p id="diagnosis-copy">报告会从内容健康度、用户互动、核心数据和运营规范四个角度，说明账号目前真正卡在哪里。</p>
+            <p id="diagnosis-copy">报告会从真实作品和账号数据中，说明目前最值得优先解决的问题。</p>
             <div class="positioning"><span class="micro-label">定位方向</span><strong id="positioning-title">睡前情感陪伴</strong><p id="positioning-copy">用连续的内容场景，让用户在关注后知道下一次还会获得什么。</p></div>
           </div>
           <div class="sprig-wrap"><img src="/static/assets/diagnostic-sprig.png" alt="淡绿色植物插画" /></div>
+        </section>
+
+        <section id="signals" class="signal-section">
+          <div class="section-title"><h2>账号信号</h2><span>先看结论，再回到证据</span></div>
+          <div class="signal-grid">
+            <article class="judgment-card"><span class="card-label">核心判断</span><p id="overview-judgment">—</p></article>
+            <article class="metric-card"><span class="card-label">近期样本</span><strong id="sample-size">—</strong><small>篇作品</small></article>
+            <article class="metric-card"><span class="card-label">平均阅读</span><strong id="avg-read">—</strong><small>单篇约</small></article>
+            <article class="metric-card"><span class="card-label">互动率</span><strong id="interaction-rate">—</strong><small>点赞 · 评论 · 在看</small></article>
+          </div>
+          <div class="profile-strip">
+            <div><span>账号简介</span><strong id="profile-description">未获取</strong></div>
+            <div><span>账号类型</span><strong id="profile-type">未知</strong></div>
+            <div><span>更新频率</span><strong id="profile-frequency">—</strong></div>
+            <div><span>数据置信度</span><strong id="profile-confidence">—</strong></div>
+          </div>
         </section>
 
         <section id="lenses" class="lenses-section"><div class="section-title"><h2>四个诊断镜头</h2><span>从数据看账号，不从感觉下结论</span></div><div id="lens-grid" class="lens-grid"></div></section>
@@ -49,12 +65,16 @@
         </section>
         <section id="benchmark" class="benchmark-section">
           <div class="section-title"><h2>相似账号</h2><span>同一内容赛道里的可参考样本</span></div>
-          <p class="benchmark-intro">这些账号与当前账号集中在情感陪伴、故事表达和短句文案方向。对标的重点不是照搬内容，而是观察它们如何固定栏目、包装场景并形成用户记忆。</p>
+          <p id="benchmark-intro" class="benchmark-intro">对标的重点不是照搬内容，而是观察相似账号如何固定栏目、包装场景并形成用户记忆。</p>
           <div id="benchmark-list" class="benchmark-list"></div>
+        </section>
+        <section id="takeaways" class="takeaways-section">
+          <div class="takeaway-column"><div class="section-title"><h2>账号当前优势</h2><span>值得继续保留</span></div><ul id="strength-list"></ul></div>
+          <div class="takeaway-column weakness"><div class="section-title"><h2>当前主要短板</h2><span>优先修复</span></div><ul id="weakness-list"></ul></div>
         </section>
         <section class="bottom-note"><span>ⓘ</span><p>这份报告的价值不是告诉你“账号好不好”，而是帮你找到下一步最值得投入的动作。</p></section>
       </main>
-      <footer>公众号账号诊断 · 数据来自红狐数据接口 · 仅作运营参考</footer>
+      <footer>公众号账号诊断 · 数据来自公开数据接口 · 仅作运营参考</footer>
     </div>
     <script src="/static/app.js"></script>
   </body>

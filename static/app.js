@@ -24,7 +24,7 @@ function renderWorks(works) {
     const url = safeUrl(work.workUrl || work.url || work.link);
     const titleHtml = url
       ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(title)}</a>`
-      : `<span title="红狐未返回文章链接">${esc(title)}</span>`;
+      : `<span title="接口未返回文章链接">${esc(title)}</span>`;
     return `<tr><td>${titleHtml}</td><td>${esc(work['发布时间'] || work.publishTime || '暂无')}</td><td>${number(work['阅读数'])}</td><td>${number(work['在看数'])}</td><td>${number(work['评论数'])}</td><td>${number(work['点赞数'])}</td></tr>`;
   }).join('');
   return `<table><thead><tr><th>标题</th><th>发布时间</th><th>阅读数</th><th>在看数</th><th>评论数</th><th>点赞数</th></tr></thead><tbody>${rows}</tbody></table>`;
@@ -44,6 +44,11 @@ function renderRoute(recommendations) {
   return items.map((item, index) => `<article class="route-item"><span class="route-number">${String(index + 1).padStart(2, '0')}</span><div class="route-copy"><div class="route-kicker">${esc(periods[index] || '持续执行')} · ${esc(item.priority || '重点')}</div><h3>${esc(item.title)}</h3><p class="route-evidence"><b>当前问题：</b>${esc(item.evidence || '根据当前账号数据制定执行动作。')}</p><p class="route-action"><b>执行动作：</b>${esc(item.action)}</p></div><div class="route-target"><strong>成功信号</strong>${esc(item.target)}</div></article>`).join('');
 }
 
+function renderTakeaways(items, emptyText) {
+  const list = (items || []).map((item) => `<li>${esc(item)}</li>`).join('');
+  return list || `<li>${esc(emptyText)}</li>`;
+}
+
 function renderBenchmarks(accounts) {
   return (accounts || []).map((account, index) => {
     const name = account['账号名称'] || account.name || '未命名账号';
@@ -60,21 +65,33 @@ function renderReport(report) {
   const dimensions = insight.dimensions || [];
   const weakest = [...dimensions].sort((a, b) => a.score - b.score)[0];
   const score = Number(scores['综合评分'] || 0);
-  const subtitle = header['账号简介'] || '红狐暂未返回账号简介';
+  const subtitle = header['账号简介'] || '接口暂未返回账号简介';
   const direction = header['账号类型'] || header['认证信息'] || (header['账号简介'] ? header['账号简介'].slice(0, 24) : '待从内容样本确认定位');
   document.querySelector('#report-id').textContent = `${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${String(header['账号ID'] || '').slice(-4)}`;
   document.querySelector('#hero-score').textContent = one(score);
   document.querySelector('#hero-score-line').style.setProperty('--score', `${Math.max(0, Math.min(100, score))}%`);
-  document.querySelector('#hero-compare').textContent = `低于同类账号 ${Math.max(0, 100 - score)}%`;
+  const industryOverall = scores['行业对标']?.['综合评分']?.['行业均值'] || '行业均值暂缺';
+  document.querySelector('#hero-compare').textContent = `行业均值 ${industryOverall}`;
   document.querySelector('#quote-copy').textContent = insight.verdict || '先把数据做成连续样本，再判断长期方向。';
   document.querySelector('#diagnosis-title').textContent = insight.verdict?.split('，')[0] || '账号还在冷启动阶段。';
-  document.querySelector('#diagnosis-copy').textContent = insight.summary || `${weakest ? `${weakest.name}是当前最低分维度。` : ''}以上判断来自红狐返回的近期作品和账号数据。`;
+  document.querySelector('#diagnosis-copy').textContent = insight.summary || `${weakest ? `${weakest.name}是当前最低分维度。` : ''}以上判断来自近期作品和账号数据。`;
   document.querySelector('#positioning-title').textContent = direction;
-  document.querySelector('#positioning-copy').textContent = `${subtitle} 当前最适合通过连续栏目建立识别度，让用户知道关注后下一次还会获得什么。`;
+  document.querySelector('#positioning-copy').textContent = insight.overview_judgment || `${subtitle} 当前需要继续用作品数据验证定位。`;
+  document.querySelector('#overview-judgment').textContent = insight.overview_judgment || insight.summary || '暂未形成足够数据结论。';
+  document.querySelector('#sample-size').textContent = number(insight.sample_size);
+  document.querySelector('#avg-read').textContent = number(insight.avg_read);
+  document.querySelector('#interaction-rate').textContent = `${one(insight.interaction_rate)}%`;
+  document.querySelector('#profile-description').textContent = subtitle;
+  document.querySelector('#profile-type').textContent = header['账号类型'] || header['认证信息'] || '未知';
+  document.querySelector('#profile-frequency').textContent = scores['行业对标']?.['更新频率']?.['本账号'] || `${number(insight.sample_size)}篇/近期`;
+  document.querySelector('#profile-confidence').textContent = insight.confidence || '低';
+  document.querySelector('#benchmark-intro').textContent = `${header['账号名'] || '当前账号'}的对标重点不是照搬内容，而是比较相似账号的选题结构、标题方式和更新机制。`;
   document.querySelector('#lens-grid').innerHTML = renderLenses(dimensions);
   document.querySelector('#works-table').innerHTML = renderWorks(report.works);
   document.querySelector('#route-list').innerHTML = renderRoute(insight.recommendations);
   document.querySelector('#benchmark-list').innerHTML = renderBenchmarks(report.similar_accounts);
+  document.querySelector('#strength-list').innerHTML = renderTakeaways(insight.strengths, '当前样本不足，暂未提炼优势。');
+  document.querySelector('#weakness-list').innerHTML = renderTakeaways(insight.weaknesses, '当前样本不足，暂未提炼短板。');
   document.querySelector('#entry').hidden = true;
   reportRoot.hidden = false;
   appShell?.classList.remove('landing');
