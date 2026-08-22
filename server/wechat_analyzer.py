@@ -994,7 +994,11 @@ def _analyze_single_account(raw, has_works=True):
         },
         "works": [
             {
-                "标题": ("[{0}]({1})".format(w.get("title", ""), w.get("workUrl", "")) if w.get("workUrl") else w.get("title", "")),
+                # 保留纯标题和原始链接，展示层再负责 HTML 编码和跳转。
+                # 之前这里把标题拼成 Markdown 字符串，导致 workUrl 丢失，
+                # 前端拿不到真实文章地址，只能跳到 #。
+                "标题": w.get("title", ""),
+                "workUrl": w.get("workUrl", "") or w.get("url", ""),
                 "阅读数": _work_read(w),
                 "点赞数": _work_like(w),
                 "评论数": _work_comment(w),

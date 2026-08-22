@@ -4,6 +4,7 @@ import json
 import os
 import tempfile
 import threading
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -45,6 +46,94 @@ def _num(value):
         return 0.0
 
 
+def _work_text(work):
+    return str(work.get("标题") or work.get("title") or "").strip()
+
+
+def _time_value(value):
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return None
+
+
+def _dynamic_recommendations(header, scores, works, dimensions, avg_read, interaction_rate):
+    """Turn the Redfox evidence into account-specific actions.
+
+    This intentionally stays deterministic and evidence-bound: no diagnosis
+    sentence or route card is selected from a global fixed list.
+    """
+    name = header.get("账号名") or "这个账号"
+    description = str(header.get("账号简介") or "").strip()
+    titles = [_work_text(work) for work in works if _work_text(work)]
+    title_lengths = [len(title) for title in titles]
+    avg_title_length = sum(title_lengths) / len(title_lengths) if title_lengths else 0
+    latest = _time_value(works[0].get("发布时间")) if works else None
+    oldest = _time_value(works[-1].get("发布时间")) if works else None
+    span_days = (latest - oldest).days if latest and oldest else 0
+    top_title = titles[0] if titles else "暂无有效标题"
+    weakest = min(dimensions, key=lambda item: item["score"]) if dimensions else {"name": "数据", "score": 0}
+    weakest_name = weakest["name"]
+    sample = len(works)
+
+    if not works:
+        verdict = f"{name}目前没有足够的红狐作品数据，暂时不能判断内容方向和运营效果。"
+    elif weakest_name == "用户活跃度":
+        verdict = f"{name}已有 {sample} 篇可分析作品，但互动反馈偏弱，当前应先围绕高阅读内容设计可回应的问题。"
+    elif weakest_name == "内容核心数据表现":
+        verdict = f"{name}的内容样本已经形成，但平均阅读约 {int(avg_read)}，目前瓶颈在曝光和单篇表现。"
+    elif weakest_name == "内容健康度":
+        verdict = f"{name}近期内容有发布样本，但主题和表达还不够稳定，先从红狐数据里表现较好的主题做连续栏目。"
+    elif weakest_name == "运营规范性":
+        verdict = f"{name}的内容基础尚可，主要问题是更新节奏或账号基础信号不稳定，需要先建立可持续的发布周期。"
+    else:
+        verdict = f"{name}当前综合表现为 {float(scores.get('综合评分') or 0):.1f} 分，下一步应围绕最低分的{weakest_name}持续验证。"
+
+    routes = []
+    if weakest_name == "用户活跃度" or interaction_rate < 1:
+        routes.append({
+            "priority": "紧急",
+            "title": f"围绕《{top_title[:18]}》设计一个回应入口",
+            "evidence": f"红狐近期样本互动率 {interaction_rate:.1f}%，点赞、评论和在看合计反馈有限。",
+            "action": "下一篇只设置一个具体问题，并把问题放在正文结尾或标题承诺之后，连续观察回应变化。",
+            "target": "成功信号：互动率较当前基线提高，并出现稳定评论或在看反馈。",
+        })
+    if weakest_name == "内容核心数据表现" or avg_read <= 1000:
+        routes.append({
+            "priority": "紧急",
+            "title": "复用红狐数据里阅读最高的内容结构",
+            "evidence": f"当前平均阅读约 {int(avg_read)}，样本中最高阅读为 {int(max([_num(w.get('阅读数')) for w in works] or [0]))}。",
+            "action": f"以《{top_title[:22]}》的主题、标题长度和发布时段为参照，连续做 3 个同场景变体。",
+            "target": "成功信号：同一内容结构出现至少 2 次高于账号平均阅读的作品。",
+        })
+    if weakest_name == "内容健康度" or avg_title_length < 12:
+        routes.append({
+            "priority": "重点",
+            "title": "从近期标题中提炼一个可重复栏目",
+            "evidence": f"红狐返回的 {sample} 个标题平均长度约 {avg_title_length:.1f} 字，主题稳定性需要继续验证。",
+            "action": "把高频对象、场景或情绪词组合成固定栏目名，接下来连续发布同一场景，不要每篇更换定位。",
+            "target": "成功信号：连续作品标题都能被归入同一主题，且阅读波动收窄。",
+        })
+    if weakest_name == "运营规范性" or span_days > 0 and sample < 5:
+        routes.append({
+            "priority": "重点",
+            "title": "按红狐返回的发布时间建立发布节奏",
+            "evidence": f"当前可见 {sample} 篇作品，时间跨度约 {span_days} 天，更新节奏仍需形成样本。",
+            "action": "选择一个固定发布日和时段，连续执行 4 周，并记录每篇发布后 24 小时的数据。",
+            "target": "成功信号：每周都有稳定发布，能比较不同主题和时段的表现。",
+        })
+    routes.append({
+        "priority": "持续",
+        "title": "建立一张真实数据复盘卡",
+        "evidence": f"本次红狐返回 {sample} 篇作品，已知总阅读 {int(sum(_num(w.get('阅读数')) for w in works))}，互动率 {interaction_rate:.1f}%。",
+        "action": "每周记录标题、发布时间、阅读、点赞、评论和在看，只保留有数据证据的主题结论。",
+        "target": "成功信号：累计更多同口径样本后，能明确下一周继续什么、停止什么。",
+    })
+    return routes[:5], verdict
+
+
 def _enrich_report(report):
     """Add decision-friendly evidence for the visual report page.
 
@@ -77,53 +166,13 @@ def _enrich_report(report):
         status = "优势项" if value >= 70 else ("观察项" if value >= 50 else "优先修复")
         dimensions.append({"name": name, "description": description, "score": value, "status": status})
 
-    if overall < 45:
-        verdict = "账号还在冷启动阶段，当前最重要的不是继续包装，而是连续发布并拿到第一批真实反馈。"
-    elif overall < 65:
-        verdict = "账号已经有基本方向，但内容稳定性和用户反馈还没有形成可重复的增长信号。"
-    else:
-        verdict = "账号已经具备一定运营基础，下一步应围绕高表现主题做系列化放大。"
-
-    recommendations = [
-        {
-            "priority": "紧急",
-            "title": "先建立 10 篇有效样本",
-            "evidence": f"近期开文 {len(works)} 篇，平均阅读 {int(avg_read)}，当前样本不足以判断长期表现。",
-            "action": "固定一个主栏目和一个发布时间，连续发布 10 篇同一场景内容，再比较阅读和互动变化。",
-            "target": "目标：形成可比较的数据基线，而不是追求单篇爆款。",
-        },
-        {
-            "priority": "紧急",
-            "title": "把互动问题写进正文结尾",
-            "evidence": f"当前互动率 {interaction_rate:.1f}%，点赞 {int(likes)}、评论 {int(comments)}、在看 {int(watch)}。",
-            "action": "每篇只保留一个具体问题，例如“你会把这句话发给谁？”并给出可直接转发的短句。",
-            "target": "目标：先让互动率达到 1%，再继续优化内容表达。",
-        },
-        {
-            "priority": "重点",
-            "title": "把情绪定位变成使用场景",
-            "evidence": "账号名称和简介有情绪辨识度，但用户还不清楚关注后能持续获得什么。",
-            "action": "从睡前情感陪伴、情侣沟通、关系修复中选一个主场景，连续做成栏目。",
-            "target": "目标：让用户在 3 秒内知道这个账号为什么值得关注。",
-        },
-        {
-            "priority": "重点",
-            "title": "标题从表达情绪改成命中处境",
-            "evidence": "当前作品标题偏情绪表达，缺少明确的关系冲突和读者代入入口。",
-            "action": "使用“具体对象 + 关系场景 + 情绪结果”的标题结构，减少泛泛的抒情句。",
-            "target": "目标：提高点击意愿，并为后续复盘留下可比较的标题变量。",
-        },
-        {
-            "priority": "持续",
-            "title": "建立每周复盘卡片",
-            "evidence": "当前账号数据样本少，暂时不能把偶然表现当成稳定规律。",
-            "action": "每周记录阅读、点赞、评论、在看和发布时间，只保留表现最好的 2 个主题继续迭代。",
-            "target": "目标：20 篇后再做一次方向判断，避免凭感觉换定位。",
-        },
-    ]
+    recommendations, verdict = _dynamic_recommendations(
+        header, scores, works, dimensions, avg_read, interaction_rate
+    )
 
     report["web_insights"] = {
         "verdict": verdict,
+        "summary": f"本次分析基于红狐返回的 {len(works)} 篇近期作品、平均阅读 {int(avg_read)} 和 {interaction_rate:.1f}% 互动率；当前最低维度为 {min(dimensions, key=lambda item: item['score'])['name'] if dimensions else '暂无'}。",
         "sample_size": len(works),
         "avg_read": int(avg_read),
         "total_reads": int(total_reads),

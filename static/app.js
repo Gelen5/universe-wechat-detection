@@ -8,13 +8,25 @@ const appShell = document.querySelector('.app-shell');
 const esc = (value) => String(value ?? '无').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
 const number = (value) => new Intl.NumberFormat('zh-CN').format(Number(value || 0));
 const one = (value) => Number(value || 0).toFixed(1);
-const safeUrl = (value) => /^https?:\/\//i.test(String(value || '')) ? String(value) : '#';
+const safeUrl = (value) => {
+  const raw = String(value || '').trim();
+  if (/^https?:\/\//i.test(raw)) return raw;
+  if (/^\/\//.test(raw)) return `https:${raw}`;
+  return '';
+};
 
 function scoreState(score) { return Number(score) < 45 ? ['偏低', 'low'] : Number(score) < 70 ? ['中等', 'mid'] : ['较好', 'good']; }
 
 function renderWorks(works) {
   if (!works?.length) return '<p class="evidence-footnote">近 7 天暂未获取到作品数据。</p>';
-  const rows = works.slice(0, 5).map((work) => `<tr><td><a href="${esc(safeUrl(work.workUrl || work.url))}" target="_blank" rel="noreferrer">${esc(work['标题'] || '未命名作品')}</a></td><td>${esc(work['发布时间'])}</td><td>${number(work['阅读数'])}</td><td>${number(work['在看数'])}</td><td>${number(work['评论数'])}</td><td>${number(work['点赞数'])}</td></tr>`).join('');
+  const rows = works.slice(0, 5).map((work) => {
+    const title = work['标题'] || work.title || '未命名作品';
+    const url = safeUrl(work.workUrl || work.url || work.link);
+    const titleHtml = url
+      ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(title)}</a>`
+      : `<span title="红狐未返回文章链接">${esc(title)}</span>`;
+    return `<tr><td>${titleHtml}</td><td>${esc(work['发布时间'] || work.publishTime || '暂无')}</td><td>${number(work['阅读数'])}</td><td>${number(work['在看数'])}</td><td>${number(work['评论数'])}</td><td>${number(work['点赞数'])}</td></tr>`;
+  }).join('');
   return `<table><thead><tr><th>标题</th><th>发布时间</th><th>阅读数</th><th>在看数</th><th>评论数</th><th>点赞数</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
@@ -48,15 +60,15 @@ function renderReport(report) {
   const dimensions = insight.dimensions || [];
   const weakest = [...dimensions].sort((a, b) => a.score - b.score)[0];
   const score = Number(scores['综合评分'] || 0);
-  const subtitle = header['账号简介'] || '情感陪伴 · 睡前文字';
-  const direction = header['账号名'] === '滚去睡' ? '睡前情感陪伴' : '内容陪伴型账号';
+  const subtitle = header['账号简介'] || '红狐暂未返回账号简介';
+  const direction = header['账号类型'] || header['认证信息'] || (header['账号简介'] ? header['账号简介'].slice(0, 24) : '待从内容样本确认定位');
   document.querySelector('#report-id').textContent = `${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${String(header['账号ID'] || '').slice(-4)}`;
   document.querySelector('#hero-score').textContent = one(score);
   document.querySelector('#hero-score-line').style.setProperty('--score', `${Math.max(0, Math.min(100, score))}%`);
   document.querySelector('#hero-compare').textContent = `低于同类账号 ${Math.max(0, 100 - score)}%`;
   document.querySelector('#quote-copy').textContent = insight.verdict || '先把数据做成连续样本，再判断长期方向。';
   document.querySelector('#diagnosis-title').textContent = insight.verdict?.split('，')[0] || '账号还在冷启动阶段。';
-  document.querySelector('#diagnosis-copy').textContent = `内容调性清晰，但${weakest ? `${weakest.name}得分偏低，` : ''}互动与传播还没有形成可持续的反馈回路。建议先固定更新节奏，补齐内容证据，再考虑品牌化包装。`;
+  document.querySelector('#diagnosis-copy').textContent = insight.summary || `${weakest ? `${weakest.name}是当前最低分维度。` : ''}以上判断来自红狐返回的近期作品和账号数据。`;
   document.querySelector('#positioning-title').textContent = direction;
   document.querySelector('#positioning-copy').textContent = `${subtitle} 当前最适合通过连续栏目建立识别度，让用户知道关注后下一次还会获得什么。`;
   document.querySelector('#lens-grid').innerHTML = renderLenses(dimensions);
