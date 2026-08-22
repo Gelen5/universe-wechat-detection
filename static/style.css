@@ -50,13 +50,13 @@ blockquote p { margin: 4px 0 16px; font-family: Georgia, "Songti SC", serif; fon
 blockquote cite { color: #917e66; font-size: 11px; font-style: normal; }
 .diagnosis-hero { position: relative; padding-top: 2px; }
 .vertical-marker { display: flex; align-items: center; gap: 14px; height: 30px; color: var(--sub); font-size: 12px; }
-.vertical-marker i { display: block; width: 2px; height: 170px; margin-top: 142px; background: var(--blue); position: absolute; left: 1px; top: 0; }
+.vertical-marker i { display: block; width: 2px; height: 124px; margin-top: 142px; background: var(--blue); position: absolute; left: 1px; top: 0; }
 .vertical-marker i::before { content: ""; display: block; width: 8px; height: 8px; margin-left: -3px; border-radius: 50%; background: var(--blue); }
 .vertical-marker span { padding-left: 31px; }
-.diagnosis-hero h1 { max-width: 730px; margin: 24px 0 20px 31px; font-family: Georgia, "Songti SC", "STSong", serif; font-size: clamp(34px, 4vw, 57px); line-height: 1.15; letter-spacing: -.055em; font-weight: 500; }
+.diagnosis-hero h1 { max-width: 700px; margin: 24px 0 20px 31px; font-family: Georgia, "Songti SC", "STSong", serif; font-size: clamp(31px, 3.35vw, 48px); line-height: 1.18; letter-spacing: -.045em; font-weight: 500; }
 .diagnosis-hero > p { max-width: 680px; margin: 0 0 0 31px; color: var(--sub); font-size: 14px; line-height: 1.9; }
 .positioning { max-width: 570px; margin: 42px 0 0 31px; padding: 15px 18px; background: #f2f5f1; border-left: 3px solid var(--sage); }
-.positioning strong { display: block; margin-top: 7px; color: var(--sage); font-size: 15px; }
+.positioning strong { display: block; margin-top: 7px; color: var(--sage); font-size: 15px; line-height: 1.5; }
 .positioning p { margin: 7px 0 0; color: var(--sub); font-size: 12px; line-height: 1.7; }
 .sprig-wrap { display: flex; align-items: center; justify-content: center; }
 .sprig-wrap img { width: 132px; height: 230px; object-fit: contain; mix-blend-mode: multiply; opacity: .82; }
@@ -167,7 +167,7 @@ footer { padding: 20px 44px 28px; color: #9aa0a5; font-size: 11px; }
   blockquote { max-width: none; margin: 30px 0 0; }
   .diagnosis-hero { margin-top: 37px; padding: 0; }
   .vertical-marker span, .diagnosis-hero h1, .diagnosis-hero > p, .positioning { margin-left: 23px; }
-  .vertical-marker i { height: 235px; margin-top: 138px; }
+  .vertical-marker i { height: 150px; margin-top: 138px; }
   .diagnosis-hero h1 { max-width: none; margin-top: 22px; margin-bottom: 16px; font-size: clamp(32px, 10vw, 48px); line-height: 1.17; }
   .diagnosis-hero > p { font-size: 13px; line-height: 1.8; }
   .positioning { margin-top: 30px; margin-right: 0; padding: 14px 15px; }

@@ -50,6 +50,20 @@ def _work_text(work):
     return str(work.get("标题") or work.get("title") or "").strip()
 
 
+def _topic_signature(titles):
+    """Extract a short, evidence-bound topic label from returned titles."""
+    groups = [
+        ("车型、价格和对比", ("价格", "元", "对比", "怎么选", "配置", "换代", "车型", "新车", "四缸", "摩托")),
+        ("工具、效率和方法", ("工具", "效率", "自动化", "教程", "方法", "实测", "AI")),
+        ("关系、情绪和处境", ("感情", "关系", "爱", "分手", "情绪", "孤独", "婚姻", "恋爱")),
+        ("职场、工作和成长", ("职场", "工作", "面试", "领导", "副业", "创业", "成长")),
+        ("消费、产品和购买判断", ("测评", "推荐", "购买", "体验", "产品", "价格", "优惠")),
+    ]
+    scores = [(label, sum(1 for title in titles for word in words if word.lower() in title.lower())) for label, words in groups]
+    label, hits = max(scores, key=lambda item: item[1], default=("近期内容", 0))
+    return label if hits else "近期内容"
+
+
 def _time_value(value):
     if not value:
         return None
@@ -66,7 +80,6 @@ def _dynamic_recommendations(header, scores, works, dimensions, avg_read, intera
     sentence or route card is selected from a global fixed list.
     """
     name = header.get("账号名") or "这个账号"
-    description = str(header.get("账号简介") or "").strip()
     titles = [_work_text(work) for work in works if _work_text(work)]
     title_lengths = [len(title) for title in titles]
     avg_title_length = sum(title_lengths) / len(title_lengths) if title_lengths else 0
@@ -74,22 +87,50 @@ def _dynamic_recommendations(header, scores, works, dimensions, avg_read, intera
     oldest = _time_value(works[-1].get("发布时间")) if works else None
     span_days = (latest - oldest).days if latest and oldest else 0
     top_title = titles[0] if titles else "暂无有效标题"
+    topic = _topic_signature(titles)
     weakest = min(dimensions, key=lambda item: item["score"]) if dimensions else {"name": "数据", "score": 0}
     weakest_name = weakest["name"]
     sample = len(works)
 
+    highest_read = int(max([_num(work.get("阅读数")) for work in works] or [0]))
+    comment_count = int(sum(_num(work.get("评论数")) for work in works))
     if not works:
-        verdict = f"{name}目前没有足够的作品数据，暂时不能判断内容方向和运营效果。"
-    elif weakest_name == "用户活跃度":
-        verdict = f"{name}已有 {sample} 篇可分析作品，但互动反馈偏弱，当前应先围绕高阅读内容设计可回应的问题。"
-    elif weakest_name == "内容核心数据表现":
-        verdict = f"{name}的内容样本已经形成，但平均阅读约 {int(avg_read)}，目前瓶颈在曝光和单篇表现。"
+        diagnosis = {
+            "headline": f"{name}目前还没有足够内容样本",
+            "evidence": "当前没有可分析的近期作品，暂时不能判断内容方向、传播表现和用户反馈。",
+            "action": "先积累至少 5 篇同口径作品，再开始判断主题和数据变化。",
+        }
+    elif weakest_name == "用户活跃度" or interaction_rate < 1:
+        diagnosis = {
+            "headline": f"{topic}方向已经出现，但用户还没有被带入判断",
+            "evidence": f"近期 {sample} 篇作品平均阅读 {int(avg_read)}，评论 {comment_count} 条，互动率 {interaction_rate:.1f}%；内容被看见后，回应没有跟上。",
+            "action": f"围绕《{top_title[:24]}》这类高阅读选题，下一篇加入一个具体的二选一问题，让读者有明确的回应入口。",
+        }
+    elif weakest_name == "内容核心数据表现" or avg_read < 1000:
+        diagnosis = {
+            "headline": f"{topic}选题已经成形，但传播效率还没有跑起来",
+            "evidence": f"近期 {sample} 篇作品平均阅读 {int(avg_read)}，最高 {highest_read}，单篇表现仍主要依赖偶然的选题和标题。",
+            "action": f"拆解《{top_title[:24]}》的主题、标题和发布时间，连续做 3 篇同场景变体，验证能否复制阅读表现。",
+        }
     elif weakest_name == "内容健康度":
-        verdict = f"{name}近期内容有发布样本，但主题和表达还不够稳定，先从数据里表现较好的主题做连续栏目。"
+        diagnosis = {
+            "headline": f"{topic}内容有样本，但主题还没有收窄",
+            "evidence": f"当前有 {sample} 篇近期作品，标题主题分散，内容健康度为 {weakest['score']:.1f} 分，长期方向仍需要同类样本验证。",
+            "action": f"先围绕《{top_title[:24]}》代表的场景连续发布，不要同时扩大到新的内容方向。",
+        }
     elif weakest_name == "运营规范性":
-        verdict = f"{name}的内容基础尚可，主要问题是更新节奏或账号基础信号不稳定，需要先建立可持续的发布周期。"
+        diagnosis = {
+            "headline": f"{topic}基础已经具备，但发布节奏还不够稳定",
+            "evidence": f"近期只有 {sample} 篇可比较作品，运营规范性为 {weakest['score']:.1f} 分，暂时难以判断固定时段的真实效果。",
+            "action": "固定一个发布日和时段连续执行 4 周，再比较主题、发布时间和阅读反馈。",
+        }
     else:
-        verdict = f"{name}当前综合表现为 {float(scores.get('综合评分') or 0):.1f} 分，下一步应围绕最低分的{weakest_name}持续验证。"
+        diagnosis = {
+            "headline": f"{topic}已经有基础，下一步要验证什么能够复制",
+            "evidence": f"当前综合评分 {float(scores.get('综合评分') or 0):.1f} 分，最低维度为{weakest_name}，已有 {sample} 篇作品可以继续做对照。",
+            "action": f"以《{top_title[:24]}》为样本，保持主题不变，只调整一个变量后继续发布。",
+        }
+    verdict = diagnosis["headline"]
 
     routes = []
     if weakest_name == "用户活跃度" or interaction_rate < 1:
@@ -131,7 +172,7 @@ def _dynamic_recommendations(header, scores, works, dimensions, avg_read, intera
         "action": "每周记录标题、发布时间、阅读、点赞、评论和在看，只保留有数据证据的主题结论。",
         "target": "成功信号：累计更多同口径样本后，能明确下一周继续什么、停止什么。",
     })
-    return routes[:5], verdict
+    return routes[:5], verdict, diagnosis
 
 
 def _public_text(value):
@@ -161,7 +202,7 @@ def _enrich_report(report):
     watch = sum(_num(work.get("在看数")) for work in works)
     total_reads = sum(reads)
     interaction_rate = ((likes + comments + watch) / total_reads * 100) if total_reads else 0
-    avg_read = _num(header.get("平均阅读数"))
+    avg_read = _num(header.get("平均阅读数")) or (sum(reads) / len(reads) if reads else 0)
     overall = _num(scores.get("综合评分"))
     last_publish = works[0].get("发布时间") if works else None
 
@@ -177,7 +218,7 @@ def _enrich_report(report):
         status = "优势项" if value >= 70 else ("观察项" if value >= 50 else "优先修复")
         dimensions.append({"name": name, "description": description, "score": value, "status": status})
 
-    recommendations, verdict = _dynamic_recommendations(
+    recommendations, verdict, diagnosis = _dynamic_recommendations(
         header, scores, works, dimensions, avg_read, interaction_rate
     )
     highest_work = max(works, key=lambda work: _num(work.get("阅读数")), default={})
@@ -201,6 +242,7 @@ def _enrich_report(report):
 
     report["web_insights"] = {
         "verdict": verdict,
+        "diagnosis": diagnosis,
         "summary": f"本次判断基于 {len(works)} 篇近期作品、平均阅读 {int(avg_read)} 和 {interaction_rate:.1f}% 互动率；当前最低维度为 {min(dimensions, key=lambda item: item['score'])['name'] if dimensions else '暂无'}。",
         "overview_judgment": overview_judgment,
         "sample_size": len(works),
