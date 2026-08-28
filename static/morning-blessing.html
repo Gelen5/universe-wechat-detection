@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI 祝福图文生成器</title>
+  <style>
+    :root{--text:#1d1d1f;--muted:#6e6e73;--line:rgba(0,0,0,.08);--panel:rgba(255,255,255,.76);--blue:#0071e3;--shadow:0 18px 60px rgba(0,0,0,.12);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Segoe UI",sans-serif}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;color:var(--text);background:radial-gradient(circle at 18% 0%,#fff 0,#f5f5f7 34%,#eceef3 100%)}header{position:sticky;top:0;z-index:10;backdrop-filter:blur(24px);background:rgba(245,245,247,.78);border-bottom:1px solid var(--line)}
+    .bar{max-width:1500px;margin:0 auto;padding:14px 24px;display:flex;justify-content:space-between;gap:16px;align-items:center}h1{font-size:22px;margin:0;letter-spacing:0}.sub{color:var(--muted);font-size:13px;margin-top:3px}
+    main{max-width:1500px;margin:0 auto;padding:24px;display:grid;grid-template-columns:450px 1fr;gap:24px}.panel{background:var(--panel);border:1px solid rgba(255,255,255,.86);box-shadow:var(--shadow);backdrop-filter:blur(26px);border-radius:8px}.controls{padding:18px;align-self:start;position:sticky;top:86px}
+    .section-title{font-size:13px;color:var(--muted);margin:18px 0 10px;font-weight:650}.section-title:first-child{margin-top:0}label{display:block;font-size:13px;color:var(--muted);margin:0 0 6px}
+    input,select,textarea{width:100%;border:1px solid var(--line);background:rgba(255,255,255,.92);border-radius:8px;padding:10px 11px;color:var(--text);font:inherit;outline:none}textarea{resize:vertical;min-height:72px}
+    input:focus,select:focus,textarea:focus{border-color:rgba(0,113,227,.55);box-shadow:0 0 0 4px rgba(0,113,227,.12)}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+    .check{display:flex;align-items:center;gap:8px;color:var(--text);font-size:14px}.check input{width:18px;height:18px}button{border:0;border-radius:8px;padding:11px 14px;font-weight:650;cursor:pointer;background:#e8e8ed;color:var(--text)}button.primary{background:var(--blue);color:white}button.danger{background:#fff1f0;color:#c7362f}button:disabled{opacity:.48;cursor:not-allowed}.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}
+    .seg{display:grid;grid-template-columns:1fr 1fr;gap:8px;background:#ececf1;border-radius:8px;padding:4px}.seg input{display:none}.seg label{margin:0;text-align:center;padding:9px 10px;border-radius:7px;color:var(--muted);cursor:pointer;font-weight:650}.seg input:checked+label{background:white;color:var(--text);box-shadow:0 6px 18px rgba(0,0,0,.08)}
+    .is-sticker .article-only{display:none}.is-sticker #copyHtmlBtn,.is-sticker #downloadHtmlBtn{display:none}.is-article #downloadTextBtn,.is-article #downloadImagesBtn{display:none}.custom-size{display:none}.is-custom-size .custom-size{display:grid}
+    .preview{padding:22px;min-height:calc(100vh - 132px)}.status{min-height:42px;border-bottom:1px solid var(--line);padding-bottom:18px;display:grid;grid-template-columns:1fr auto;gap:12px 18px;color:var(--muted);font-size:14px}.progress-wrap{grid-column:1/-1;height:8px;background:#e8e8ed;border-radius:999px;overflow:hidden}.progress-bar{height:100%;width:0;background:var(--blue);border-radius:999px;transition:width .24s ease}.article{margin-top:20px;padding:24px;background:rgba(255,255,255,.88);border:1px solid var(--line);border-radius:8px}.article h2{margin:0 0 22px;text-align:center;color:#338ba8;font-size:28px;line-height:1.25;letter-spacing:0}.article p{color:#26343b;font-size:17px;line-height:1.9;margin:0 0 18px}
+    .image-grid{display:grid;grid-template-columns:repeat(var(--cols,4),minmax(0,1fr));gap:14px;margin:22px 0}.image-grid img{width:100%;aspect-ratio:2/3;object-fit:cover;border-radius:8px;box-shadow:0 10px 28px rgba(0,0,0,.1);background:#f2f2f2}.image-grid.placeholder{border:1px dashed rgba(0,0,0,.12);border-radius:8px;min-height:120px;display:grid;place-items:center;color:var(--muted);font-size:14px}.ending{color:#2499ad;font-weight:700;font-size:18px}.prompt{margin-top:16px;white-space:pre-wrap;max-height:280px;overflow:auto;font-size:12px;line-height:1.55;color:#424245;background:rgba(255,255,255,.68);border:1px solid var(--line);border-radius:8px;padding:12px}.hint,.warn{font-size:12px;color:var(--muted);line-height:1.55;margin-top:8px}.warn{color:#9b5b00;background:#fff7e6;border:1px solid #ffe1a6;border-radius:8px;padding:10px}
+    .modal-mask{position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.22);backdrop-filter:blur(8px);display:grid;place-items:center;padding:20px}.modal-mask[hidden]{display:none}.modal{width:min(420px,100%);background:rgba(255,255,255,.96);border:1px solid rgba(255,255,255,.9);border-radius:12px;box-shadow:0 24px 70px rgba(0,0,0,.2);padding:22px}.modal h3{margin:0 0 8px;font-size:20px}.modal p{margin:0 0 18px;color:var(--muted);line-height:1.65}.modal button{width:100%}
+    @media(max-width:960px){main{grid-template-columns:1fr;padding:16px}.controls{position:static}.bar{padding:12px 16px}.image-grid{grid-template-columns:repeat(min(var(--cols,2),2),minmax(0,1fr))}}
+  </style>
+</head>
+<body>
+  <header><div class="bar"><div><h1>AI 祝福图文生成器</h1><div class="sub">随机类型 · 多条文案 · 图片插入位置可控</div></div><button id="clearKey">清除本地 Key</button></div></header>
+  <main>
+    <aside class="panel controls">
+      <div class="section-title">输出模式</div>
+      <div class="seg"><input id="modeArticle" name="mode" type="radio" value="article" checked><label for="modeArticle">文章</label><input id="modeSticker" name="mode" type="radio" value="sticker"><label for="modeSticker">贴图</label></div>
+      <div class="section-title">接口</div>
+      <label>API Key</label><input id="apiKey" type="password" placeholder="输入 API Key，保存在当前浏览器 localStorage">
+      <div class="hint">静态部署版会在浏览器里直接请求图片 API。不要把 Key 硬编码进公开页面。</div>
+      <div class="grid2" style="margin-top:12px"><div><label>Base URL</label><input id="baseUrl" value="https://img.rjm.us.ci"></div><div><label>模型</label><select id="model"><option>gpt-image-1.5</option><option>gpt-image-2</option></select></div></div>
+
+      <div class="section-title">类型（默认随机）</div>
+      <div class="grid3">
+        <div><label>图片类型</label><select id="imageType"><option value="random">随机</option><option value="beauty" selected>美女早安</option><option value="flower">花卉山水</option><option value="guofeng">国风吉祥</option><option value="health">养生健康</option><option value="festival">节日节气</option><option value="night">晚安祝福</option><option value="quote">每日金句</option><option value="custom">自定义</option></select></div>
+        <div><label>标题类型</label><select id="titleType"><option value="random">随机</option><option value="morning" selected>早安问候</option><option value="luck">好运福气</option><option value="health">健康平安</option><option value="festival">节日节气</option><option value="quote">金句标题</option><option value="custom">自定义</option></select></div>
+        <div><label>文案类型</label><select id="copyType"><option value="random">随机</option><option value="warm" selected>温柔问候</option><option value="health">健康祝福</option><option value="luck">好运福气</option><option value="moments">朋友圈长文</option><option value="wechat">公众号短文</option><option value="custom">自定义</option></select></div>
+      </div>
+      <label style="margin-top:12px">自定义类型补充</label><input id="customType" placeholder="例如：佛系莲花、妈妈群祝福、节气海报">
+
+      <div class="section-title">内容</div>
+      <div class="grid2"><div><label>主标题</label><input id="title" placeholder="留空则按标题类型随机"></div><div><label>日期</label><input id="date" type="date"></div></div>
+      <label style="margin-top:12px">自定义文案（可选，每行或空行分隔为一条）</label><textarea id="customCopy" placeholder="留空则按文案类型自动生成多条文案"></textarea>
+      <div class="row" style="margin-top:12px"><label class="check"><input id="showDate" type="checkbox" checked> 显示日期</label><label class="check"><input id="showLunar" type="checkbox" checked> 显示农历</label></div>
+
+      <div class="section-title article-only">文案与图片位置</div>
+      <div class="grid3 article-only">
+        <div><label>本次生成文案条数</label><input id="copyCount" type="number" min="1" max="8" value="3"></div>
+        <div><label>图片插入到第几条</label><input id="imageAt" type="number" min="1" max="8" value="2"></div>
+        <div><label>图片在文案的</label><select id="imagePosition"><option value="after" selected>下方</option><option value="before">上方</option></select></div>
+      </div>
+
+      <div class="section-title">生成与排版</div>
+      <div class="grid3"><div><label>生成图片张数</label><input id="count" type="number" min="1" max="8" value="4"></div><div class="article-only"><label>每行图片数</label><select id="columns"><option>1</option><option>2</option><option>3</option><option selected>4</option></select></div><div><label>图片比例</label><select id="sizeMode"><option value="3:4" selected>3:4 竖图</option><option value="9:16">9:16 手机竖图</option><option value="custom">自定义</option></select></div></div>
+      <div class="grid2 custom-size" style="margin-top:12px"><div><label>自定义宽</label><input id="customWidth" type="number" min="256" max="4096" value="1024"></div><div><label>自定义高</label><input id="customHeight" type="number" min="256" max="4096" value="1365"></div></div>
+      <div class="actions"><button id="previewBtn">预览提示词</button><button class="primary" id="generateBtn">开始生成</button><button class="danger" id="cancelBtn" hidden>取消生成</button><button id="copyHtmlBtn">复制公众号HTML</button><button id="downloadHtmlBtn">下载HTML</button><button id="downloadTextBtn">下载文案TXT</button><button id="downloadImagesBtn">下载图片说明</button></div>
+      <div id="copyWarn" class="warn" hidden></div>
+    </aside>
+    <section class="panel preview">
+      <div class="status"><span id="status">就绪</span><span id="summary"></span><div class="progress-wrap" id="progressWrap" hidden><div class="progress-bar" id="progressBar"></div></div></div>
+      <div id="prompt" class="prompt" hidden></div>
+      <article id="article" class="article"><h2 id="articleTitle"></h2><div id="articleBody"></div></article>
+    </section>
+  </main>
+  <div class="modal-mask" id="doneModal" hidden>
+    <div class="modal">
+      <h3 id="modalTitle">生成完成</h3>
+      <p id="modalText">图片已经生成完成。</p>
+      <button class="primary" id="modalOk">知道了</button>
+    </div>
+  </div>
+  <script>
+    const $=id=>document.getElementById(id),pick=a=>a[Math.floor(Math.random()*a.length)],sample=(a,n)=>[...a].sort(()=>Math.random()-.5).slice(0,n),storeKey="image_api_key_v3";
+    const concreteImageTypes=["beauty","flower","guofeng","health","festival","quote"],concreteTitleTypes=["morning","luck","health","festival","quote"],concreteCopyTypes=["warm","health","luck","moments","wechat"];
+    const imageTypeData={beauty:{name:"美女早安",subjects:["一位20多岁年轻成年气质美女手捧鲜花微笑","一位年轻成年国风美女穿端庄浅色旗袍送上早安祝福","一位年轻成年温柔美女站在晨光花园中"],scenes:["清晨花园中","明亮国风庭院前","湖边晨光下"],rule:"画面必须出现一位年轻成年女性，气质清新、端庄、亲和、自然，不暴露、不性感化、不低俗，禁止未成年人或幼态形象。"},flower:{name:"花卉山水",subjects:["牡丹花与晨光","荷塘晨曦","山水远景与花枝"],scenes:["荷塘边","山间晨雾中","花园步道上"],rule:"以花卉、山水、清晨自然景观为主体，不需要人物。"},guofeng:{name:"国风吉祥",subjects:["福字挂饰与红灯笼","中式庭院与祥云","国风窗棂与茶桌"],scenes:["中式庭院","古典亭台前","窗前茶桌边"],rule:"国风、吉祥、喜庆，适合微信群和公众号。"},health:{name:"养生健康",subjects:["茶杯热茶与花草","清晨公园步道","健康生活静物"],scenes:["公园花径","阳台花架前","窗前茶桌边"],rule:"健康、舒适、温暖，不做医疗承诺。"},festival:{name:"节日节气",subjects:["节气花卉与祝福卡","喜庆灯笼与节日装饰","国风节日海报"],scenes:["中式小院","古典亭台前","花树掩映的小院"],rule:"突出节日或节气氛围，但不要自行添加未指定的日期事件。"},night:{name:"晚安祝福",subjects:["月光花园","温柔夜色与灯光","安静窗边"],scenes:["夜晚庭院","窗前灯光下","月色花园中"],rule:"晚安、安静、治愈、柔和，不出现早晨元素。"},quote:{name:"每日金句",subjects:["极简花卉背景","国风留白背景","暖色光影背景"],scenes:["留白背景","窗边光影","淡雅山水前"],rule:"重点突出金句文字，画面简洁高级。"},custom:{name:"自定义",subjects:["按用户自定义类型生成主体"],scenes:["按用户自定义类型生成场景"],rule:"严格按用户自定义类型补充执行。"}};
+    const titlePools={morning:["早安吉祥","早上好","清晨问候","新的一天 早安"],luck:["天天好运来","福气满满","吉祥如意","好运常伴"],health:["幸福安康","平安就是福","愿你安康","健康平安"],festival:["节日安康","节气吉祥","顺时安好","岁时有福"],quote:["心有阳光 一路芬芳","慢慢来 也很好","把日子过成喜欢的样子"],custom:["早安吉祥"]};
+    const copyPools={warm:["愿今天的你，心里有暖，眼里有光，身边有爱，脚下有路。","晨光洒满窗台，日子满载希望。","把烦恼看淡，把幸福看重，把心放宽，把路走稳。","愿每一个普通日子，都有一点温柔和一点好运。"],health:["愿你新的一天身体健康，平安顺遂，笑容常在。","生活就是要吃好、喝好、取悦自己。","开心添健康，问候添温暖，祝福送吉祥。","愿你精神饱满，身体硬朗，日子舒心。"],luck:["愿你今天福气满满，好运连连，喜事不断。","愿你开门见喜，抬头见福。","愿你心想事成，万事顺意。","愿好运悄悄靠近，幸福常常相伴。"],moments:["愿今天的你，心里有暖，眼里有光，身边有爱，脚下有路。","晨光洒满窗台，日子满载希望。把烦恼看淡，把幸福看重，把心放宽，把路走稳。","所有美好都会慢慢靠近，所有牵挂都会有温柔回应。","生活就是要吃好、喝好、取悦自己。开心添健康，问候添温暖，祝福送吉祥。"],wechat:["愿今天的你，心里有暖，眼里有光，身边有爱，脚下有路。","晨光洒满窗台，日子满载希望。把烦恼看淡，把幸福看重，把心放宽，把路走稳。","新的一天，愿你平安健康，喜乐常伴，万事顺意，好运连连。"],custom:["愿你平安健康，喜乐常伴，万事顺意，好运连连。"]};
+    const elements=["晨光","朝霞","露珠","花瓣飘落","牡丹花","荷花","百合花","月季花","中国结","福字","红灯笼","祥云","金色光晕","绿叶点缀","茶香蒸汽","书法标题","水面倒影"];
+    const variationSets=[
+      {clothes:"米白色端庄旗袍或浅色连衣裙",pose:"正面微笑手捧鲜花",action:"轻轻递出早安祝福卡",scene:"清晨中式庭院花树旁",lens:"半身近景"},
+      {clothes:"浅蓝色国风上衣或温柔长裙",pose:"侧身回眸微笑",action:"手持茶杯或花篮",scene:"湖边晨光与荷花旁",lens:"中景人像"},
+      {clothes:"淡粉色优雅裙装",pose:"站姿自然看向镜头",action:"整理花束或轻扶花枝",scene:"阳台花架与朝霞前",lens:"全身构图"},
+      {clothes:"浅绿色清新套装",pose:"坐在窗前微笑",action:"端起热茶问候",scene:"窗前茶桌与晨光中",lens:"生活感中近景"},
+      {clothes:"红金点缀的喜庆服饰",pose:"双手捧福字挂饰",action:"送福问候",scene:"灯笼与国风门廊前",lens:"居中对称构图"},
+      {clothes:"素雅古风长裙",pose:"亭台前侧身站立",action:"手持折扇或花枝",scene:"山水晨雾与亭台前",lens:"远近层次构图"},
+      {clothes:"暖黄色温柔针织或裙装",pose:"自然行走回头微笑",action:"漫步花园小径",scene:"花海小径与阳光光束中",lens:"动态抓拍感"},
+      {clothes:"白色简洁长裙",pose:"安静坐姿微笑",action:"翻看祝福卡片",scene:"露台花园与远山前",lens:"留白海报构图"}
+    ];
+    let generatedImages=[],lastResolved={image:"beauty",title:"morning",copy:"warm"},activeController=null,isGenerating=false;
+    function cleanApiKey(value){return String(value||"").replace(/[\s\u00a0\u200b-\u200d\ufeff]/g,"")}
+    function getApiKey(){const cleaned=cleanApiKey($("apiKey").value);if($("apiKey").value!==cleaned)$("apiKey").value=cleaned;if(!cleaned)throw new Error("请先填写 API Key");if(!/^[\x20-\x7e]+$/.test(cleaned))throw new Error("API Key 里混入了中文字符、全角符号或不可见字符，请重新复制纯英文数字格式的 Key");localStorage.setItem(storeKey,cleaned);return cleaned}
+    $("date").value=new Date().toISOString().slice(0,10);$("apiKey").value=cleanApiKey(localStorage.getItem(storeKey)||"");$("apiKey").addEventListener("input",()=>{const cleaned=cleanApiKey($("apiKey").value);localStorage.setItem(storeKey,cleaned)});$("apiKey").addEventListener("blur",()=>{$("apiKey").value=cleanApiKey($("apiKey").value)});$("clearKey").onclick=()=>{localStorage.removeItem(storeKey);$("apiKey").value="";$("status").textContent="已清除本地 Key"};["columns","copyCount","imageAt","imagePosition","imageType","titleType","copyType","title","customCopy","modeArticle","modeSticker","sizeMode","customWidth","customHeight"].forEach(id=>$(id).addEventListener("input",()=>{updateMode();renderArticle()}));
+    function mode(){return $("modeSticker").checked?"sticker":"article"}
+    function updateMode(){document.body.classList.toggle("is-sticker",mode()==="sticker");document.body.classList.toggle("is-article",mode()==="article");document.body.classList.toggle("is-custom-size",$("sizeMode").value==="custom");$("summary").textContent=mode()==="sticker"?"贴图模式：只输出图片和文案":"文章模式：输出文章 HTML"}
+    function resolveTypes(){lastResolved={image:$("imageType").value==="random"?pick(concreteImageTypes):$("imageType").value,title:$("titleType").value==="random"?pick(concreteTitleTypes):$("titleType").value,copy:$("copyType").value==="random"?pick(concreteCopyTypes):$("copyType").value};return lastResolved}
+    function weekdayText(v){return["星期日","星期一","星期二","星期三","星期四","星期五","星期六"][new Date(v+"T00:00:00").getDay()]}function cnDate(v){const d=new Date(v+"T00:00:00");return`${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日 ${weekdayText(v)}`}function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+    function currentTitle(types=lastResolved){return $("title").value.trim()||pick(titlePools[types.title]||titlePools.morning)}
+    function currentCopies(types=lastResolved){const custom=$("customCopy").value.trim();if(custom)return custom.split(/\n+/).map(x=>x.trim()).filter(Boolean);const pool=copyPools[types.copy]||copyPools.warm,count=Math.max(1,Math.min(8,Number($("copyCount").value||3)));let arr=[];while(arr.length<count)arr.push(...sample(pool,pool.length));return arr.slice(0,count)}
+    function articleTitle(types=lastResolved){return`${$("count").value||1}张${imageTypeData[types.image].name}图 | 新的一天，愿你喜乐平安`}
+    function imageSize(){if($("sizeMode").value==="3:4")return"1024x1365";if($("sizeMode").value==="9:16")return"2160x3840";return`${Math.max(256,Number($("customWidth").value||1024))}x${Math.max(256,Number($("customHeight").value||1365))}`}
+    function imageRatio(){if($("sizeMode").value==="3:4")return"3 / 4";if($("sizeMode").value==="9:16")return"9 / 16";return`${Math.max(1,Number($("customWidth").value||1024))} / ${Math.max(1,Number($("customHeight").value||1365))}`}
+    function gridHtml(placeholder=false){const cols=mode()==="sticker"?Math.min(4,Number($("count").value||4)):$("columns").value,ratio=imageRatio(),imgs=generatedImages.map((img,i)=>`<img src="${img.src}" alt="生成图 ${i+1}" style="aspect-ratio:${ratio}">`).join("");return placeholder&&!imgs?`<div class="image-grid placeholder" style="--cols:${cols}">图片将插入在这里 · ${mode()==="sticker"?"贴图模式自动排列":`每行 ${cols} 张`}</div>`:`<div class="image-grid" style="--cols:${cols}">${imgs}</div>`}
+    function renderArticle(){const types=lastResolved,copies=currentCopies(types);$("articleTitle").textContent=mode()==="sticker"?`${$("count").value||1}张${imageTypeData[types.image].name}贴图 + ${copies.length}条文案`:articleTitle(types);let html="";if(mode()==="sticker"){html+=gridHtml(true);html+=`<p class="ending">文案</p>`+copies.map((p,i)=>`<p>${i+1}. ${escapeHtml(p)}</p>`).join("");$("articleBody").innerHTML=html;return}const at=Math.max(1,Math.min(copies.length,Number($("imageAt").value||1))),pos=$("imagePosition").value;copies.forEach((p,i)=>{const n=i+1;if(n===at&&pos==="before")html+=gridHtml(true);html+=`<p>${escapeHtml(p)}</p>`;if(n===at&&pos==="after")html+=gridHtml(true)});$("articleBody").innerHTML=html}
+    function variationText(index){const v=variationSets[(index-1)%variationSets.length];return`本张是第 ${index} 张，必须与同批其他图片明显不同：服装=${v.clothes}；姿势=${v.pose}；动作=${v.action}；场景=${v.scene}；镜头=${v.lens}。同一批图片禁止重复同款衣服、同样捧花姿势、同一亭台/荷塘背景。人物气质保持统一：端庄、亲和、自然、明亮。`}
+    function promptText(index=1){const types=index===1?resolveTypes():lastResolved,type=imageTypeData[types.image],rawTitle=currentTitle(types),title=rawTitle.includes("早安")?rawTitle:`早安 ${rawTitle}`,copies=currentCopies(types),copy=copies[(index-1)%copies.length]||copies[copies.length-1]||"愿你平安健康，喜乐常伴。",showDate=$("showDate").checked,lunarLine=$("showLunar").checked?'第三行小字写："农历今日吉祥"。\\n':"",writeBlock=showDate?`第一行主标题必须写："早安" 两个大字，可搭配副标题："${title}"。\\n第二行日期写："${cnDate($("date").value)}"。\\n${lunarLine}底部祝福语写："${copy}"。`:`第一行主标题必须写："早安" 两个大字，可搭配副标题："${title}"。\\n底部祝福语写："${copy}"。`,els=sample(elements,3).join("、");return`你是一名专业中文祝福海报视觉设计师。
+请直接生成一张完整的中文祝福海报，适合微信群、朋友圈、公众号分享。
+
+图片类型：${type.name}
+自定义补充：${$("customType").value.trim()||"无"}
+
+核心要求：
+1. 一定要把中文文案直接生成在图片里，不要留给后期添加。
+2. 中文文字必须准确、清晰、工整、无错别字、无乱码、无变形。
+3. ${type.rule}
+4. 图片顶部或视觉中心必须清楚出现“早安”两个中文大字，不能写成晚安、午安、慢慢来、每日金句等其他主标题。
+5. 画面不要任何外边框、描边框、金色边框、国风角花边框、相框、卡片边框，图片四周保持自然完整画面。
+6. 竖版海报，适合手机观看，参考尺寸 ${imageSize()}，画面比例为 ${$("sizeMode").value}。
+
+画面设定：
+- 场景环境：${pick(type.scenes)}
+- 主体内容：${pick(type.subjects)}
+- 辅助元素：${els}
+- 风格：温暖、明亮、吉祥、自然、高清、耐看
+- 构图：主体清晰，文字区域干净，年轻成年女性为主要视觉中心；底部祝福语不能压住主体；不要边框式排版
+- 批量差异要求：${variationText(index)}
+
+必须写入图片中的文案如下：
+${writeBlock}
+
+禁止出现：
+- 多余文字、英文、拼音、乱码、错别字，尤其禁止把主标题写成“晚安”“午安”“慢慢来”“也很好”
+- 水印、logo、签名、二维码
+- 外边框、金色边框、国风角花边框、相框、装饰边框、底部卡片边框
+- 暴露服装、性感姿势、擦边内容、未成年人形象、幼态形象
+- 暗黑压抑、赛博朋克、怪异抽象
+- 低清晰度、模糊、重影、文字难辨认
+- ${showDate?"必须准确写入日期，不要改写。":"绝对禁止出现任何日期、星期、农历、年月日、阿拉伯数字、今天、今日、时间、日历等信息。"}`}
+    function setProgress(done,total){$("progressWrap").hidden=false;$("progressBar").style.width=`${total?Math.round(done/total*100):0}%`;$("summary").textContent=`${done}/${total} 张`}
+    function resetProgress(){ $("progressWrap").hidden=true;$("progressBar").style.width="0" }
+    function setGenerating(on){isGenerating=on;$("generateBtn").disabled=on;$("previewBtn").disabled=on;$("cancelBtn").hidden=!on}
+    function showModal(title,text){$("modalTitle").textContent=title;$("modalText").textContent=text;$("doneModal").hidden=false}
+    $("modalOk").onclick=()=>{$("doneModal").hidden=true};
+    $("doneModal").onclick=e=>{if(e.target===$("doneModal"))$("doneModal").hidden=true};
+    $("cancelBtn").onclick=()=>{if(activeController){$("status").textContent="正在取消，请稍等";activeController.abort()}};
+    function apiEndpoint(base){if(location.protocol==="http:"||location.protocol==="https:")return"/api/images/generations";return(base.endsWith("/v1")?base:base+"/v1")+"/images/generations"}
+    function friendlyFetchError(e){if(e&&e.message==="Failed to fetch")return"请求没有发出去。当前图片接口不允许浏览器跨域直连，请用本地服务版打开页面：运行 start.bat 后访问 http://127.0.0.1:8787/";return e.message||String(e)}
+    function normalizeImageSrc(value,base){if(typeof value!=="string")return null;const s=value.trim();if(!s||/\/images\/tasks\//i.test(s))return null;if(/^data:image\//i.test(s))return{src:s,publicUrl:false};const md=s.match(/!\[[^\]]*]\((https?:\/\/[^)\s]+)\)/i);if(md&&!/\/images\/tasks\//i.test(md[1]))return{src:md[1],publicUrl:true};if(/^https?:\/\/.+/i.test(s)&&/\.(png|jpe?g|webp|gif)(\?|#|$)|\/images\/assets|\/image\/|\/file|\/files|\/download/i.test(s))return{src:s,publicUrl:true};if(/^\/[^/]/.test(s)&&base){try{return{src:new URL(s,base).href,publicUrl:true}}catch{} }if(s.length>500&&/^[A-Za-z0-9+/=]+$/.test(s))return{src:"data:image/png;base64,"+s,publicUrl:false};return null}
+    function extractImage(data,base){const seen=new Set(),priority=["url","image_url","imageUrl","b64_json","base64","image_base64","image","result","result_url","output_url","file_url"];function walk(node){if(!node||seen.has(node))return null;if(typeof node==="string")return normalizeImageSrc(node,base);if(typeof node!=="object")return null;seen.add(node);for(const key of priority){if(key in node){const found=normalizeImageSrc(node[key],base)||walk(node[key]);if(found)return found}}if(Array.isArray(node)){for(const item of node){const found=walk(item);if(found)return found}}else{for(const key of Object.keys(node)){const found=walk(node[key]);if(found)return found}}return null}return walk(data)}
+    function responseErrorText(data){if(!data||typeof data!=="object")return"";const err=data.error;if(typeof err==="string")return err;if(err&&typeof err==="object")return err.message||err.code||JSON.stringify(err).slice(0,300);return data.message||data.msg||data.detail||""}
+    async function callApi(prompt,signal){const key=getApiKey(),base=$("baseUrl").value.trim().replace(/\/$/,""),useProxy=location.protocol==="http:"||location.protocol==="https:",url=apiEndpoint(base),body={model:$("model").value,prompt,size:imageSize(),n:1};if(useProxy)body.baseUrl=base;const headers={"Content-Type":"application/json"};if(useProxy)body.apiKey=key;else headers.Authorization=`Bearer ${key}`;let res;try{res=await fetch(url,{method:"POST",headers,body:JSON.stringify(body),signal})}catch(e){throw new Error(friendlyFetchError(e))}const text=await res.text();let data;try{data=JSON.parse(text||"{}")}catch{const head=text.trim().slice(0,80);if(/^<!doctype|^<html/i.test(head))throw new Error("线上部署没有启动 Node 后端，/api 返回了 HTML 页面。请按 Node Web App 部署，并确认启动命令是 npm start。");throw new Error(`接口返回不是 JSON：${head||"空响应"}`)}const apiErr=responseErrorText(data);if(!res.ok||apiErr)throw new Error(`HTTP ${res.status}: ${apiErr||text.slice(0,300)}`);const image=extractImage(data,base);if(image)return image;throw new Error(`接口返回中没有图片数据。返回字段：${Object.keys(data||{}).join("、")||"空响应"}`)}
+    function wechatGridHtml(){const cols=Number($("columns").value),width=Math.max(1,Math.floor(100/cols)-1);return generatedImages.map((img,i)=>{const mr=(i+1)%cols===0?"0":"1%";return`<img src="${img.src}" style="display:inline-block;width:${width}%;max-width:${width}%;height:auto;margin:0 ${mr} 12px 0;border:0;outline:none;padding:0;border-radius:8px;" />`}).join("")}
+    function wechatHtml(){const copies=currentCopies(lastResolved),at=Math.max(1,Math.min(copies.length,Number($("imageAt").value||1))),pos=$("imagePosition").value;let body="";copies.forEach((p,i)=>{const n=i+1;if(n===at&&pos==="before")body+=`<section style="text-align:left;font-size:0;line-height:0;white-space:normal;margin:22px 0;">${wechatGridHtml()}</section>`;body+=`<p style="font-size:17px;line-height:1.9;margin:0 0 18px;">${escapeHtml(p)}</p>`;if(n===at&&pos==="after")body+=`<section style="text-align:left;font-size:0;line-height:0;white-space:normal;margin:22px 0;">${wechatGridHtml()}</section>`});return`<section style="max-width:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#26343b;line-height:1.9;"><h2 style="text-align:center;color:#338ba8;font-size:26px;line-height:1.35;margin:0 0 22px;">${escapeHtml(articleTitle(lastResolved))}</h2>${body}</section>`}
+    function warnIfNeeded(){const hasData=generatedImages.some(x=>!x.publicUrl);$("copyWarn").hidden=false;$("copyWarn").textContent=hasData?"注意：当前接口返回的是 base64 图片。公众号后台通常会过滤这种图片，所以复制 HTML 可能仍然没图。请先下载图片，再在公众号后台手动上传；或换成返回公网 URL 的图片接口/上传到公众号素材库。":"当前图片是公网 URL，复制到公众号后台更可能保留图片；若微信仍过滤，请先上传到公众号素材库。"}
+    function downloadText(name,text,type="text/plain;charset=utf-8"){const blob=new Blob([text],{type}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;a.click();URL.revokeObjectURL(a.href)}
+    function stickerText(){const copies=currentCopies(lastResolved);return `${$("count").value||1}张${imageTypeData[lastResolved.image].name}贴图文案\n\n`+copies.map((p,i)=>`${i+1}. ${p}`).join("\n\n")}
+    function imagesManifest(){return "图片下载说明\n\n静态网页不能直接把多张远程图打包成 zip。请在页面预览区右键图片另存，或逐个打开图片保存。\n\n"+generatedImages.map((img,i)=>`图片${i+1}: ${img.publicUrl?img.src:"base64 图片，需在页面中右键保存"}`).join("\n")}
+    $("previewBtn").onclick=()=>{const p=promptText(1);$("prompt").hidden=false;$("prompt").textContent=p;renderArticle();$("status").textContent=`提示词已生成 · 随机结果：${imageTypeData[lastResolved.image].name}`};
+    $("generateBtn").onclick=async()=>{if(isGenerating)return;activeController=new AbortController();setGenerating(true);generatedImages=[];const firstPrompt=promptText(1);$("prompt").hidden=false;$("prompt").textContent=firstPrompt;renderArticle();const count=Math.max(1,Math.min(8,Number($("count").value||1)));setProgress(0,count);try{for(let i=1;i<=count;i++){$("status").textContent=`正在生成第 ${i}/${count} 张`;generatedImages.push(await callApi(i===1?firstPrompt:promptText(i),activeController.signal));renderArticle();setProgress(i,count)}$("status").textContent="生成完成";$("summary").textContent=mode()==="sticker"?`${count} 张贴图 · ${currentCopies(lastResolved).length} 条文案`:`${count} 张 · ${$("copyCount").value} 条文案 · 每行 ${$("columns").value} 张`;warnIfNeeded();showModal("生成完成",`已生成 ${count} 张图片，${mode()==="sticker"?"可以下载文案和图片说明。":"可以复制公众号 HTML 或下载 HTML。"}`)}catch(e){if(e.name==="AbortError"){$("status").textContent=`已取消，保留已生成的 ${generatedImages.length} 张`;setProgress(generatedImages.length,count);showModal("已取消",`本次生成已停止，当前保留 ${generatedImages.length} 张已完成图片。`)}else{const msg=friendlyFetchError(e);$("status").textContent=msg;showModal("生成失败",msg)}}finally{activeController=null;setGenerating(false)}};
+    $("copyHtmlBtn").onclick=async()=>{await navigator.clipboard.writeText(wechatHtml());$("status").textContent="公众号 HTML 已复制";warnIfNeeded()};
+    $("downloadHtmlBtn").onclick=()=>{downloadText("公众号图文.html",wechatHtml(),"text/html;charset=utf-8");warnIfNeeded()};
+    $("downloadTextBtn").onclick=()=>downloadText("贴图文案.txt",stickerText());
+    $("downloadImagesBtn").onclick=()=>downloadText("图片下载说明.txt",imagesManifest());
+    resolveTypes();updateMode();renderArticle();
+  </script>
+</body>
+</html>

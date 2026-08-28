@@ -3,15 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>公众号账号诊断</title>
+    <title>宇宙第一公众号 · AI 工作台</title>
     <link rel="stylesheet" href="/static/style.css" />
   </head>
   <body>
-    <div class="app-shell landing">
+    <div class="app-shell">
       <header class="report-nav">
-        <a class="account-brand" href="/"><span id="nav-avatar" class="fixed-avatar" aria-hidden="true">诊</span><span class="brand-copy"><strong id="nav-name">宇宙第一公众号检测</strong><small id="nav-subtitle">一键体验</small></span></a>
-        <nav class="nav-links" aria-label="报告章节"><a class="active" href="#overview">诊断总览</a><a href="#lenses">深度分析</a><a href="#evidence">内容证据</a><a href="#route">成长路线</a></nav>
-        <div class="nav-actions"><span class="report-meta">报告编号 <b>WP-<span id="report-id">20260822</span></b></span><button id="download-report" class="download-button" type="button">下载报告</button></div>
+        <a class="account-brand" href="/"><span id="nav-avatar" class="fixed-avatar" aria-hidden="true">诊</span><span class="brand-copy"><strong id="nav-name">宇宙第一公众号</strong><small id="nav-subtitle">AI 诊断与内容创作工作台</small></span></a>
+        <nav class="nav-links app-tabs" aria-label="产品模块"><a class="active" data-view="diagnose" href="#entry">公众号诊断</a><a data-view="workbench" href="#workbench">内容工作台</a><a data-view="morning" href="#morning-generator">早安祝福</a></nav>
+        <div class="nav-actions"><span class="report-meta">AI 工作台</span><button id="download-report" class="download-button" type="button">下载报告</button></div>
       </header>
 
       <section id="entry" class="entry-panel">
@@ -24,6 +24,46 @@
           <label for="account-name">输入公众号名称</label>
           <div><input id="account-name" name="account_name" placeholder="例如：滚去睡" autocomplete="organization" required /><button id="submit-button" type="submit">开始诊断 <span>↗</span></button></div>
         </form>
+      </section>
+
+      <section id="workbench" class="workbench-page" hidden>
+        <div class="workbench-intro">
+          <span class="micro-label">内容创作工作台</span>
+          <h1>从一个主题，开始一篇好文章</h1>
+          <p>AI 陪你完成选题、写作、反 AI、配图、排版和预览。你可以一次完成，也可以在每一步亲自确认。</p>
+        </div>
+        <div class="mode-switch" role="tablist" aria-label="创作模式">
+          <button class="mode-option active" data-mode="interactive" type="button"><strong>交互模式</strong><small>每个关键节点由你确认</small></button>
+          <button class="mode-option" data-mode="auto" type="button"><strong>全自动模式</strong><small>从主题一路生成到预览</small></button>
+          <button class="mode-option" data-mode="single" type="button"><strong>单步模式</strong><small>只做你当前需要的一步</small></button>
+        </div>
+        <div class="workbench-grid">
+          <section class="creator-card">
+            <div class="card-topline"><span class="card-label">开始创作</span><span id="workbench-status" class="status-pill">等待输入</span></div>
+            <label for="workbench-topic">你想写什么？</label>
+            <textarea id="workbench-topic" placeholder="输入一个主题、一个问题，或者一句还没想完整的念头"></textarea>
+            <div class="creator-options"><label>人格 <select id="workbench-persona"><option>深度观察者</option><option>亲切分享者</option><option>锐评手</option><option>故事大王</option><option>暖心治愈</option></select></label><label>排版主题 <select id="workbench-theme"><option value="default">极简白</option><option value="tech-card-green">科技卡片绿</option><option value="minimal-elegant">极简优雅</option></select></label></div>
+            <button id="start-workbench" class="primary-action" type="button">开始创作 <span>↗</span></button>
+            <p class="helper-copy">你可以先输入一个模糊想法，后面每一步都能修改。</p>
+          </section>
+          <aside class="workflow-card"><div class="card-topline"><span class="card-label">创作流程</span><span>8 个步骤</span></div><div id="workflow-steps" class="workflow-steps"></div><div class="workflow-note"><strong>怎么使用</strong><span>先输入主题，选择模式。交互模式会在选题、框架和配图处停下来等你确认。</span></div></aside>
+        </div>
+        <section id="workbench-result" class="workbench-result" hidden>
+          <div class="result-head"><div><span class="micro-label">当前创作</span><h2 id="result-title">正在准备</h2></div><div class="result-actions"><button id="run-next" class="secondary-action" type="button">继续下一步</button><button id="open-preview" class="primary-action compact" type="button">打开预览 ↗</button></div></div>
+          <div id="topic-list" class="topic-list"></div>
+          <div id="generated-images" class="generated-images" hidden></div>
+          <div class="editor-wrap"><div class="editor-head"><span>文章正文（可直接编辑）</span><span id="score-label">反 AI 评分将在第 4 步生成</span></div><textarea id="article-editor" aria-label="文章正文"></textarea></div>
+          <div class="result-foot"><span id="result-meta">—</span><button id="publish-draft" class="text-action" type="button">写入公众号草稿箱</button></div>
+        </section>
+      </section>
+
+      <section id="morning-generator" class="morning-generator-page" hidden>
+        <div class="workbench-intro">
+          <span class="micro-label">早安祝福自动生成器</span>
+          <h1>生成早安图和祝福文案</h1>
+          <p>支持文章和贴图两种模式，图片生成走本站后端代理，适合部署到云服务器后直接使用。</p>
+        </div>
+        <iframe class="generator-frame" src="/static/morning-blessing.html" title="早安祝福自动生成器"></iframe>
       </section>
 
       <main id="report" class="report-page" hidden>

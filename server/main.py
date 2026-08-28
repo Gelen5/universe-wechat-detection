@@ -4,15 +4,18 @@ import json
 import os
 import tempfile
 import threading
+import time
 from datetime import datetime
 from pathlib import Path
 
+import requests
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from . import wechat_analyzer as analyzer
+from . import workbench
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -28,6 +31,39 @@ app = FastAPI(
 
 class DiagnoseRequest(BaseModel):
     account_name: str = Field(min_length=1, max_length=80)
+
+
+class WorkbenchCreateRequest(BaseModel):
+    topic: str = Field(default="", max_length=240)
+    mode: str = Field(default="interactive", pattern="^(auto|interactive|single)$")
+    persona: str = Field(default="深度观察者", max_length=80)
+    theme: str = Field(default="default", max_length=80)
+
+
+class WorkbenchStepRequest(BaseModel):
+    session_id: str = Field(min_length=8, max_length=80)
+    step: int = Field(ge=1, le=8)
+    selection: int | None = Field(default=None, ge=1, le=10)
+    article: str | None = Field(default=None, max_length=200000)
+
+
+class WorkbenchPreviewRequest(BaseModel):
+    session_id: str = Field(min_length=8, max_length=80)
+    article: str | None = Field(default=None, max_length=200000)
+
+
+class WorkbenchPublishRequest(BaseModel):
+    session_id: str = Field(min_length=8, max_length=80)
+    draft: bool = True
+
+
+class ImageGenerationRequest(BaseModel):
+    apiKey: str = Field(min_length=1, max_length=300)
+    baseUrl: str = Field(default="https://img.rjm.us.ci", max_length=300)
+    model: str = Field(default="gpt-image-2", max_length=80)
+    prompt: str = Field(min_length=1, max_length=20000)
+    size: str = Field(default="1024x1365", max_length=40)
+    n: int = Field(default=1, ge=1, le=4)
 
 
 def _last_json_line(output: str):
@@ -318,6 +354,135 @@ def diagnose(payload: DiagnoseRequest):
                 "message": "未生成诊断报告",
             }
             return JSONResponse(status_code=404 if result.get("query_type") == "not_found" else 502, content=result)
+
+
+def _image_api_url(base_url: str) -> str:
+    base = str(base_url or "https://img.rjm.us.ci").strip().rstrip("/")
+    return f"{base if base.endswith('/v1') else base + '/v1'}/images/generations"
+
+
+def _wait_for_image_task(status_url: str, api_key: str):
+    deadline = time.time() + 180
+    last_payload = {}
+    while time.time() < deadline:
+        time.sleep(3)
+        try:
+            response = requests.get(status_url, headers={"Authorization": f"Bearer {api_key}"}, timeout=35)
+        except requests.RequestException as exc:
+            raise HTTPException(status_code=502, detail=f"图片任务查询失败：{exc}") from exc
+        try:
+            payload = response.json()
+        except ValueError as exc:
+            raise HTTPException(status_code=502, detail=f"图片任务返回不是 JSON：{response.text[:300]}") from exc
+        last_payload = payload
+        if not response.ok:
+            raise HTTPException(status_code=response.status_code, detail=payload.get("message") or payload.get("error") or response.text[:300])
+        status = str(payload.get("status") or "").lower()
+        if status in {"completed", "succeeded", "success"}:
+            return payload
+        if status in {"failed", "cancelled", "canceled", "error"}:
+            error = payload.get("error")
+            if isinstance(error, dict):
+                error = error.get("message") or error.get("code")
+            raise HTTPException(status_code=502, detail=error or payload.get("message") or f"图片任务失败：{status}")
+    raise HTTPException(status_code=504, detail=f"图片任务等待超时，最后状态：{last_payload.get('status') or '未知'}")
+
+
+@app.post("/api/images/generations")
+def generate_image(payload: ImageGenerationRequest):
+    api_key = payload.apiKey.strip()
+    if not api_key:
+        raise HTTPException(status_code=422, detail="缺少 API Key")
+    body = {
+        "model": payload.model,
+        "prompt": payload.prompt,
+        "size": payload.size,
+        "n": payload.n,
+    }
+    try:
+        response = requests.post(
+            _image_api_url(payload.baseUrl),
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json=body,
+            timeout=120,
+        )
+    except requests.RequestException as exc:
+        raise HTTPException(status_code=502, detail=f"图片接口请求失败：{exc}") from exc
+    try:
+        data = response.json()
+    except ValueError as exc:
+        raise HTTPException(status_code=502, detail=f"图片接口返回不是 JSON：{response.text[:300]}") from exc
+    if response.status_code == 202 and data.get("statusUrl"):
+        return _wait_for_image_task(data["statusUrl"], api_key)
+    if not response.ok:
+        error = data.get("error")
+        if isinstance(error, dict):
+            error = error.get("message") or error.get("code")
+        raise HTTPException(status_code=response.status_code, detail=error or data.get("message") or response.text[:300])
+    if data.get("statusUrl") and not data.get("data"):
+        return _wait_for_image_task(data["statusUrl"], api_key)
+    return data
+
+
+@app.post("/api/workbench/sessions")
+def create_workbench_session(payload: WorkbenchCreateRequest):
+    try:
+        return {"status": "success", "session": workbench.create(payload.topic, payload.mode, payload.persona, payload.theme)}
+    except workbench.ProviderError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@app.get("/api/workbench/provider-status")
+def get_workbench_provider_status():
+    return {"status": "success", "provider": workbench.provider_status()}
+
+
+@app.post("/api/workbench/steps")
+def advance_workbench(payload: WorkbenchStepRequest):
+    try:
+        return {"status": "success", "session": workbench.step(payload.session_id, payload.step, payload.selection, payload.article)}
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except workbench.ProviderError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"工作台执行失败：{exc}") from exc
+
+
+@app.post("/api/workbench/preview")
+def preview_workbench(payload: WorkbenchPreviewRequest):
+    try:
+        return {"status": "success", "session": workbench.preview(payload.session_id, payload.article)}
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"预览失败：{exc}") from exc
+
+
+@app.get("/api/workbench/preview/{session_id}")
+def get_workbench_preview(session_id: str):
+    path = workbench.preview_file(session_id)
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="预览尚未生成")
+    return FileResponse(path, media_type="text/html")
+
+
+@app.get("/api/workbench/assets/{session_id}/{filename}")
+def get_workbench_asset(session_id: str, filename: str):
+    path = workbench.asset_file(session_id, filename)
+    if not path.exists() or path.suffix.lower() not in {".jpg", ".jpeg", ".png", ".webp"}:
+        raise HTTPException(status_code=404, detail="图片不存在")
+    return FileResponse(path)
+
+
+@app.post("/api/workbench/publish")
+def publish_workbench(payload: WorkbenchPublishRequest):
+    try:
+        return {"status": "success", "session": workbench.publish(payload.session_id, payload.draft)}
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"发布失败：{exc}") from exc
 
 
 @app.get("/", include_in_schema=False)

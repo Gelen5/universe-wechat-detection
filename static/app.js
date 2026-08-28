@@ -4,6 +4,7 @@ const button = document.querySelector('#submit-button');
 const reportRoot = document.querySelector('#report');
 const downloadButton = document.querySelector('#download-report');
 const appShell = document.querySelector('.app-shell');
+const morningGenerator = document.querySelector('#morning-generator');
 
 const esc = (value) => String(value ?? '无').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
 const number = (value) => new Intl.NumberFormat('zh-CN').format(Number(value || 0));
@@ -93,6 +94,7 @@ function renderReport(report) {
   document.querySelector('#strength-list').innerHTML = renderTakeaways(insight.strengths, '当前样本不足，暂未提炼优势。');
   document.querySelector('#weakness-list').innerHTML = renderTakeaways(insight.weaknesses, '当前样本不足，暂未提炼短板。');
   document.querySelector('#entry').hidden = true;
+  morningGenerator.hidden = true;
   reportRoot.hidden = false;
   appShell?.classList.remove('landing');
   appShell?.classList.add('has-report');
@@ -115,3 +117,92 @@ form?.addEventListener('submit', async (event) => {
 });
 
 downloadButton?.addEventListener('click', () => window.print());
+
+// Content workbench: a thin, stateful UI over the installed Skill adapter.
+const workbench = document.querySelector('#workbench');
+const entry = document.querySelector('#entry');
+const modeButtons = [...document.querySelectorAll('.mode-option')];
+const workflowSteps = document.querySelector('#workflow-steps');
+const topicInput = document.querySelector('#workbench-topic');
+const startWorkbench = document.querySelector('#start-workbench');
+const workbenchResult = document.querySelector('#workbench-result');
+const topicList = document.querySelector('#topic-list');
+const articleEditor = document.querySelector('#article-editor');
+const generatedImages = document.querySelector('#generated-images');
+let workbenchMode = 'interactive';
+let workbenchSession = null;
+
+function paintWorkflow(current = 1) {
+  workflowSteps.innerHTML = ['选题', '框架', '写作', '反 AI', '配图', '排版', '预览', '发布'].map((name, index) => {
+    const n = index + 1;
+    const state = n < current ? 'done' : n === current ? 'active' : '';
+    return `<div class="workflow-step ${state}"><span>${String(n).padStart(2, '0')}</span><div><strong>${name}</strong><small>${n === 1 ? '找到值得写的方向' : n === 2 ? '确定文章骨架' : n === 3 ? '形成完整初稿' : n === 4 ? '检查 AI 痕迹' : n === 5 ? '规划视觉表达' : n === 6 ? '生成公众号排版' : n === 7 ? '手机端预览效果' : '确认后进入草稿箱'}</small></div></div>`;
+  }).join('');
+}
+
+function renderWorkbenchSession(session) {
+  workbenchSession = session;
+  workbenchResult.hidden = false;
+  paintWorkflow(session.current_step || 1);
+  const statusLabels = { calling_text_api: '文本 API 生成中', calling_image_api: '图片 API 生成中', rendering: '正在排版', awaiting_topic: '等待选择', ready_for_review: '等待确认', complete: '已完成', running: `第 ${session.current_step || 1} 步` };
+  document.querySelector('#workbench-status').textContent = statusLabels[session.status] || `第 ${session.current_step || 1} 步`;
+  document.querySelector('#result-title').textContent = session.topic || '未命名创作';
+  articleEditor.value = session.article || '';
+  const score = session.score?.score;
+  document.querySelector('#score-label').textContent = score == null ? '反 AI 评分将在第 4 步生成' : `反 AI 综合评分 ${Number(score).toFixed(1)} · ${session.score.status === 'success' ? '统计层与模式层已完成' : '评分不可用'}`;
+  const textModel = session.provider?.text?.model || '文本模型';
+  const imageModel = session.provider?.image?.model || '图片模型';
+  document.querySelector('#result-meta').textContent = session.framework ? `${session.framework.name} 框架 · ${session.persona || '默认人格'} · 文本 ${textModel} · 图片 ${imageModel}` : `选题由 ${textModel} 实时生成`;
+  const suggestions = session.suggestions || [];
+  topicList.innerHTML = session.current_step === 1 && suggestions.length ? `<div class="topic-head"><strong>先选一个方向</strong><span>也可以直接编辑下方文章</span></div>${suggestions.map(item => `<button class="topic-item" data-topic-id="${item.id}" type="button"><span class="topic-number">${String(item.id).padStart(2, '0')}</span><span><strong>${esc(item.title)}</strong><small>${esc(item.type)} · 热度 ${item.heat} · ${esc(item.reason)}</small></span><span>↗</span></button>`).join('')}` : session.framework ? `<div class="framework-summary"><span class="micro-label">当前框架</span><strong>${esc(session.framework.name)}</strong><p>${esc(session.framework.reason)}</p><div>${session.framework.outline.map((item, i) => `<span>${i + 1}. ${esc(item)}</span>`).join('')}</div></div>` : '';
+  topicList.querySelectorAll('.topic-item').forEach(item => item.addEventListener('click', () => advance(Number(item.dataset.topicId), 2)));
+  const images = session.images || [];
+  generatedImages.hidden = !images.length;
+  generatedImages.innerHTML = images.length ? `<div class="image-section-head"><div><span class="micro-label">API 生成配图</span><h3>封面与正文配图</h3></div><span>${images.length} 张 · 已自动压缩至微信限制内</span></div><div class="image-grid">${images.map(image => `<a href="${esc(image.url)}" target="_blank" rel="noopener"><img src="${esc(image.url)}" alt="${image.kind === 'cover' ? '文章封面' : '正文配图'}" /><span><strong>${image.kind === 'cover' ? '文章封面' : '正文配图'}</strong><small>${esc(image.model)} · ${Math.round(Number(image.bytes || 0) / 1024)} KB</small></span></a>`).join('')}</div>` : '';
+}
+
+async function callWorkbench(path, payload) {
+  const response = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.detail || data.message || '工作台执行失败');
+  return data.session;
+}
+
+async function advance(selection = null, nextStep = null) {
+  if (!workbenchSession) return;
+  const target = nextStep || Math.min(8, (workbenchSession.current_step || 1) + 1);
+  workbenchSession = await callWorkbench('/api/workbench/steps', { session_id: workbenchSession.id, step: target, selection, article: articleEditor.value });
+  renderWorkbenchSession(workbenchSession);
+}
+
+modeButtons.forEach(button => button.addEventListener('click', () => { modeButtons.forEach(item => item.classList.remove('active')); button.classList.add('active'); workbenchMode = button.dataset.mode; }));
+startWorkbench?.addEventListener('click', async () => {
+  startWorkbench.disabled = true;
+  const originalLabel = startWorkbench.innerHTML;
+  startWorkbench.innerHTML = workbenchMode === 'auto' ? '正在完成全链路…' : '正在调用文本 API…';
+  try {
+    const session = await callWorkbench('/api/workbench/sessions', { topic: topicInput.value.trim(), mode: workbenchMode, persona: document.querySelector('#workbench-persona').value, theme: document.querySelector('#workbench-theme').value });
+    renderWorkbenchSession(session);
+    workbenchResult.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (error) { alert(error.message); } finally { startWorkbench.disabled = false; startWorkbench.innerHTML = originalLabel; }
+});
+document.querySelector('#run-next')?.addEventListener('click', async (event) => { const btn = event.currentTarget; const label = btn.textContent; btn.disabled = true; btn.textContent = 'API 执行中…'; try { await advance(); } catch (error) { alert(error.message); } finally { btn.disabled = false; btn.textContent = label; } });
+document.querySelector('#open-preview')?.addEventListener('click', async () => {
+  if (!workbenchSession) return;
+  try { const session = await callWorkbench('/api/workbench/preview', { session_id: workbenchSession.id, article: articleEditor.value }); renderWorkbenchSession(session); window.open(session.preview_url, '_blank', 'noopener'); } catch (error) { alert(error.message); }
+});
+document.querySelector('#publish-draft')?.addEventListener('click', async () => {
+  if (!workbenchSession) return;
+  try { const session = await callWorkbench('/api/workbench/publish', { session_id: workbenchSession.id, draft: true }); renderWorkbenchSession(session); alert(session.publish?.message || '已完成'); } catch (error) { alert(error.message); }
+});
+articleEditor?.addEventListener('input', () => { if (workbenchSession) workbenchSession.article = articleEditor.value; });
+
+document.querySelectorAll('.app-tabs [data-view]').forEach(tab => tab.addEventListener('click', event => {
+  event.preventDefault();
+  const view = tab.dataset.view;
+  document.querySelectorAll('.app-tabs [data-view]').forEach(item => item.classList.toggle('active', item === tab));
+  if (view === 'workbench') { workbench.hidden = false; morningGenerator.hidden = true; entry.hidden = true; reportRoot.hidden = true; appShell?.classList.add('workbench-active'); workbench.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+  else if (view === 'morning') { workbench.hidden = true; morningGenerator.hidden = false; entry.hidden = true; reportRoot.hidden = true; appShell?.classList.add('workbench-active'); morningGenerator.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+  else { workbench.hidden = true; morningGenerator.hidden = true; entry.hidden = false; reportRoot.hidden = true; appShell?.classList.remove('workbench-active'); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+}));
+paintWorkflow();
