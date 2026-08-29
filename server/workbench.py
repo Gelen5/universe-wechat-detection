@@ -119,6 +119,17 @@ def _response_text(data: dict[str, Any]) -> str:
     direct = data.get("output_text")
     if isinstance(direct, str) and direct.strip():
         return direct.strip()
+    choices = data.get("choices") or []
+    if choices:
+        message = choices[0].get("message") or {}
+        content = message.get("content")
+        if isinstance(content, str) and content.strip():
+            return content.strip()
+        if isinstance(content, list):
+            parts = [item.get("text", "") for item in content if isinstance(item, dict)]
+            text = "".join(part for part in parts if isinstance(part, str)).strip()
+            if text:
+                return text
     chunks: list[str] = []
     for item in data.get("output", []) or []:
         for content in item.get("content", []) or []:
@@ -132,9 +143,9 @@ def _response_text(data: dict[str, Any]) -> str:
 
 def _text(prompt: str, *, reasoning: str = "medium") -> str:
     model = _setting("WECHAT_TEXT_MODEL", "gpt-4.1-mini")
-    data = _post("text", "responses", {
-        "model": model, "input": prompt, "store": False,
-        "reasoning": {"effort": reasoning},
+    data = _post("text", "chat/completions", {
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
     }, timeout=180)
     return _response_text(data)
 
