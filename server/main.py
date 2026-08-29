@@ -7,6 +7,7 @@ import threading
 import time
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 import requests
 from fastapi import FastAPI, HTTPException
@@ -15,6 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from . import wechat_analyzer as analyzer
+from . import creator_tools
 from . import workbench
 
 
@@ -25,8 +27,17 @@ ANALYZER_LOCK = threading.RLock()
 app = FastAPI(
     title="公众号账号诊断",
     description="公众号数据诊断与可视化报告",
-    version="0.1.0",
+    version="1.0.0",
 )
+
+
+@app.middleware("http")
+async def disable_frontend_cache(request, call_next):
+    response = await call_next(request)
+    if request.url.path == "/" or request.url.path.startswith("/static/"):
+        response.headers["Cache-Control"] = "no-store, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+    return response
 
 
 class DiagnoseRequest(BaseModel):
@@ -89,6 +100,79 @@ class ImageGenerationRequest(BaseModel):
     prompt: str = Field(min_length=1, max_length=20000)
     size: str = Field(default="1024x1365", max_length=40)
     n: int = Field(default=1, ge=1, le=4)
+
+
+class ProviderTestRequest(BaseModel):
+    kind: str = Field(pattern="^(text|image)$")
+    textApiKey: str | None = Field(default=None, max_length=300)
+    imageApiKey: str | None = Field(default=None, max_length=300)
+    textBaseUrl: str | None = Field(default=None, max_length=300)
+    imageBaseUrl: str | None = Field(default=None, max_length=300)
+    textModel: str | None = Field(default=None, max_length=120)
+    imageModel: str | None = Field(default=None, max_length=120)
+
+
+class XiaohongshuRequest(BaseModel):
+    topic: str = Field(min_length=2, max_length=300)
+    account: str = Field(default="", max_length=300)
+    audience: str = Field(default="", max_length=200)
+    goal: str = Field(default="教育与建立信任", max_length=120)
+    evidence: str = Field(default="", max_length=12000)
+    contentType: str = Field(default="自动选择", max_length=80)
+    textApiKey: str | None = Field(default=None, max_length=300)
+    imageApiKey: str | None = Field(default=None, max_length=300)
+    textBaseUrl: str | None = Field(default=None, max_length=300)
+    imageBaseUrl: str | None = Field(default=None, max_length=300)
+    textModel: str | None = Field(default=None, max_length=120)
+    imageModel: str | None = Field(default=None, max_length=120)
+
+
+class TieTuPlanRequest(BaseModel):
+    industry: str = Field(default="生活方式", max_length=120)
+    topic: str = Field(min_length=2, max_length=300)
+    title: str = Field(default="", max_length=120)
+    contentType: str = Field(default="", max_length=80)
+    imageCount: int = Field(default=5, ge=1, le=12)
+    style: str = Field(default="", max_length=400)
+    audience: str = Field(default="", max_length=200)
+    portraitMode: str = Field(default="auto", pattern="^(auto|required|off)$")
+    textApiKey: str | None = Field(default=None, max_length=300)
+    imageApiKey: str | None = Field(default=None, max_length=300)
+    textBaseUrl: str | None = Field(default=None, max_length=300)
+    imageBaseUrl: str | None = Field(default=None, max_length=300)
+    textModel: str | None = Field(default=None, max_length=120)
+    imageModel: str | None = Field(default=None, max_length=120)
+
+
+class CreatorImageRequest(BaseModel):
+    tool: str = Field(pattern="^(xiaohongshu|tie-tu)$")
+    sessionId: str = Field(min_length=8, max_length=80)
+    card: dict[str, Any]
+    style: str = Field(default="", max_length=500)
+    textApiKey: str | None = Field(default=None, max_length=300)
+    imageApiKey: str | None = Field(default=None, max_length=300)
+    textBaseUrl: str | None = Field(default=None, max_length=300)
+    imageBaseUrl: str | None = Field(default=None, max_length=300)
+    textModel: str | None = Field(default=None, max_length=120)
+    imageModel: str | None = Field(default=None, max_length=120)
+
+
+class HitDetectorRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=300)
+    body: str = Field(min_length=1, max_length=200000)
+    track: str = Field(default="auto", pattern="^(auto|tech|finance|workplace|health|education|relationship|food|beauty|realestate|senior|general)$")
+    fans: int | None = Field(default=None, ge=0)
+    openRate: float | None = Field(default=None, ge=0, le=100)
+
+
+class HitRewriteRequest(HitDetectorRequest):
+    detectorResult: dict[str, Any] = Field(default_factory=dict)
+    textApiKey: str | None = Field(default=None, max_length=300)
+    imageApiKey: str | None = Field(default=None, max_length=300)
+    textBaseUrl: str | None = Field(default=None, max_length=300)
+    imageBaseUrl: str | None = Field(default=None, max_length=300)
+    textModel: str | None = Field(default=None, max_length=120)
+    imageModel: str | None = Field(default=None, max_length=120)
 
 
 def _last_json_line(output: str):
@@ -455,6 +539,139 @@ def generate_image(payload: ImageGenerationRequest):
     if data.get("statusUrl") and not data.get("data"):
         return _wait_for_image_task(data["statusUrl"], api_key)
     return data
+
+
+@app.post("/api/providers/test")
+def test_provider(payload: ProviderTestRequest):
+    try:
+        with workbench.provider_overrides(
+            payload.textApiKey or "", payload.imageApiKey or "",
+            payload.textBaseUrl or "", payload.imageBaseUrl or "",
+            payload.textModel or "", payload.imageModel or "",
+        ):
+            if payload.kind == "text":
+                reply = workbench._text("只回复四个字：连接成功")
+                return {"status": "success", "kind": "text", "message": reply[:80]}
+
+            api_key = workbench._setting("WECHAT_IMAGE_API_KEY")
+            if not api_key:
+                raise workbench.ProviderError("尚未填写图片 API Key")
+            base = workbench._setting("WECHAT_IMAGE_API_BASE_URL", "https://api.openai.com/v1").rstrip("/")
+            models_url = f"{base if base.endswith('/v1') else base + '/v1'}/models"
+            session = requests.Session()
+            session.trust_env = False
+            response = session.get(
+                models_url,
+                headers={"Authorization": f"Bearer {api_key}"},
+                timeout=45,
+                verify=workbench._verify_ssl(),
+            )
+            if not response.ok:
+                try:
+                    data = response.json()
+                except ValueError:
+                    data = {}
+                error = data.get("error") or {}
+                message = error.get("message") if isinstance(error, dict) else str(error)
+                raise workbench.ProviderError(f"图片 API HTTP {response.status_code}：{message or '连接验证失败'}")
+            return {"status": "success", "kind": "image", "message": "图片服务鉴权成功"}
+    except workbench.ProviderError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except requests.RequestException as exc:
+        raise HTTPException(status_code=502, detail=f"图片 API 连接失败：{exc}") from exc
+
+
+@app.post("/api/xiaohongshu/package")
+def create_xiaohongshu_package(payload: XiaohongshuRequest):
+    try:
+        with workbench.provider_overrides(
+            payload.textApiKey or "", payload.imageApiKey or "",
+            payload.textBaseUrl or "", payload.imageBaseUrl or "",
+            payload.textModel or "", payload.imageModel or "",
+        ):
+            package = creator_tools.xiaohongshu_package(
+                payload.topic, payload.account, payload.audience,
+                payload.goal, payload.evidence, payload.contentType,
+            )
+            package["precheck"] = creator_tools.xiaohongshu_precheck(
+                package.get("selected_title") or payload.topic,
+                package.get("body") or "",
+            )
+            return {"status": "success", "package": package}
+    except workbench.ProviderError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@app.post("/api/tie-tu/plan")
+def create_tie_tu_plan(payload: TieTuPlanRequest):
+    try:
+        with workbench.provider_overrides(
+            payload.textApiKey or "", payload.imageApiKey or "",
+            payload.textBaseUrl or "", payload.imageBaseUrl or "",
+            payload.textModel or "", payload.imageModel or "",
+        ):
+            plan = creator_tools.tie_tu_plan(
+                payload.industry, payload.topic, payload.title,
+                payload.contentType or None, payload.imageCount,
+                payload.style, payload.audience, payload.portraitMode,
+            )
+            return {"status": "success", "plan": plan}
+    except (ValueError, workbench.ProviderError) as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@app.post("/api/creator-tools/image")
+def generate_creator_image(payload: CreatorImageRequest):
+    try:
+        with workbench.provider_overrides(
+            payload.textApiKey or "", payload.imageApiKey or "",
+            payload.textBaseUrl or "", payload.imageBaseUrl or "",
+            payload.textModel or "", payload.imageModel or "",
+        ):
+            result = creator_tools.generate_card_image(
+                payload.tool, payload.sessionId, payload.card, payload.style,
+            )
+            return {"status": "success", "image": result}
+    except workbench.ProviderError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except requests.RequestException as exc:
+        raise HTTPException(status_code=502, detail=f"图片下载失败：{exc}") from exc
+
+
+@app.get("/api/creator-tools/assets/{tool}/{session_id}/{filename}")
+def get_creator_asset(tool: str, session_id: str, filename: str):
+    path = creator_tools.creator_asset(tool, session_id, filename)
+    if not path.exists() or path.suffix.lower() not in {".jpg", ".jpeg", ".png", ".webp"}:
+        raise HTTPException(status_code=404, detail="图片不存在")
+    return FileResponse(path)
+
+
+@app.post("/api/hit-detector/analyze")
+def analyze_article(payload: HitDetectorRequest):
+    try:
+        report = creator_tools.detect_article(
+            payload.title, payload.body, payload.track,
+            payload.fans, payload.openRate,
+        )
+        return {"status": "success", "report": report}
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"文章复核失败：{exc}") from exc
+
+
+@app.post("/api/hit-detector/rewrite")
+def rewrite_article(payload: HitRewriteRequest):
+    try:
+        with workbench.provider_overrides(
+            payload.textApiKey or "", payload.imageApiKey or "",
+            payload.textBaseUrl or "", payload.imageBaseUrl or "",
+            payload.textModel or "", payload.imageModel or "",
+        ):
+            rewritten = creator_tools.rewrite_article(
+                payload.title, payload.body, payload.detectorResult,
+            )
+            return {"status": "success", "article": rewritten}
+    except workbench.ProviderError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
 @app.post("/api/workbench/sessions")

@@ -15,10 +15,13 @@ const sharedTextBaseUrlInput = document.querySelector('#shared-text-base-url');
 const sharedImageBaseUrlInput = document.querySelector('#shared-image-base-url');
 const sharedTextModelInput = document.querySelector('#shared-text-model');
 const sharedImageModelInput = document.querySelector('#shared-image-model');
-const sharedUseRealTextInput = document.querySelector('#shared-use-real-text');
-const sharedSearchHotInput = document.querySelector('#shared-search-hot');
-const sharedUseRealImageInput = document.querySelector('#shared-use-real-image');
 const morningFrame = document.querySelector('.generator-frame');
+const textConfigStatus = document.querySelector('#text-config-status');
+const imageConfigStatus = document.querySelector('#image-config-status');
+const configDot = document.querySelector('#settings-config-dot');
+const xiaohongshuPage = document.querySelector('#xiaohongshu');
+const tieTuPage = document.querySelector('#tie-tu');
+const hitDetectorPage = document.querySelector('#hit-detector');
 const sharedKeys = {
   text: 'shared_text_api_key_v1',
   image: 'shared_image_api_key_v1',
@@ -26,9 +29,6 @@ const sharedKeys = {
   imageBaseUrl: 'shared_image_base_url_v1',
   textModel: 'shared_text_model_v1',
   imageModel: 'shared_image_model_v1',
-  useRealText: 'shared_use_real_text_v1',
-  searchHot: 'shared_search_hot_v1',
-  useRealImage: 'shared_use_real_image_v1',
 };
 
 const esc = (value) => String(value ?? '无').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
@@ -44,17 +44,13 @@ const cleanApiKey = (value) => String(value || '').replace(/[\s\u00a0\u200b-\u20
 const getSharedTextKey = () => cleanApiKey(localStorage.getItem(sharedKeys.text) || '');
 const getSharedImageKey = () => cleanApiKey(localStorage.getItem(sharedKeys.image) || '');
 const getStored = (key, fallback = '') => String(localStorage.getItem(key) ?? fallback);
-const isStoredOn = (key, fallback = true) => {
-  const value = localStorage.getItem(key);
-  return value == null ? fallback : value === '1';
-};
 const getTextBaseUrl = () => getStored(sharedKeys.textBaseUrl, 'https://huoxingapi.com/v1').trim();
 const getImageBaseUrl = () => getStored(sharedKeys.imageBaseUrl, 'https://img.rjm.us.ci').trim();
 const getTextModel = () => getStored(sharedKeys.textModel, 'deepseek-v4-flash').trim();
 const getImageModel = () => getStored(sharedKeys.imageModel, 'gpt-image-2').trim();
 const sharedApiPayload = () => ({
-  textApiKey: isStoredOn(sharedKeys.useRealText, true) ? getSharedTextKey() : '',
-  imageApiKey: isStoredOn(sharedKeys.useRealImage, false) ? getSharedImageKey() : '',
+  textApiKey: getSharedTextKey(),
+  imageApiKey: getSharedImageKey(),
   textBaseUrl: getTextBaseUrl(),
   imageBaseUrl: getImageBaseUrl(),
   textModel: getTextModel(),
@@ -67,8 +63,41 @@ function syncMorningApiKey() {
     imageApiKey: getSharedImageKey(),
     imageBaseUrl: getImageBaseUrl(),
     imageModel: getImageModel(),
-    useRealImage: isStoredOn(sharedKeys.useRealImage, false),
+    useRealImage: Boolean(getSharedImageKey()),
   }, window.location.origin);
+}
+
+function refreshConfigStatus() {
+  const hasText = Boolean(getSharedTextKey());
+  const hasImage = Boolean(getSharedImageKey());
+  if (textConfigStatus) {
+    textConfigStatus.textContent = hasText ? '已保存' : '未配置';
+    textConfigStatus.classList.toggle('ready', hasText);
+  }
+  if (imageConfigStatus) {
+    imageConfigStatus.textContent = hasImage ? '已保存' : '未配置';
+    imageConfigStatus.classList.toggle('ready', hasImage);
+  }
+  configDot?.classList.toggle('ready', hasText && hasImage);
+  configDot?.classList.toggle('partial', hasText !== hasImage);
+}
+
+function showToast(message, type = 'success') {
+  const toast = document.createElement('div');
+  toast.className = `app-toast ${type}`;
+  toast.innerHTML = `<i data-lucide="${type === 'success' ? 'check-circle-2' : 'circle-alert'}"></i><span>${esc(message)}</span>`;
+  document.body.appendChild(toast);
+  window.lucide?.createIcons();
+  requestAnimationFrame(() => toast.classList.add('visible'));
+  setTimeout(() => { toast.classList.remove('visible'); setTimeout(() => toast.remove(), 220); }, 2600);
+}
+
+async function readApiResponse(response) {
+  const contentType = response.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) throw new Error(`服务器返回了 ${contentType || '未知格式'}，请检查后端部署`);
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.detail || data.message || `请求失败（HTTP ${response.status}）`);
+  return data;
 }
 
 function toggleSettingsMenu(force) {
@@ -85,9 +114,7 @@ function openApiSettings() {
   sharedImageBaseUrlInput.value = getImageBaseUrl();
   sharedTextModelInput.value = getTextModel();
   sharedImageModelInput.value = getImageModel();
-  sharedUseRealTextInput.checked = isStoredOn(sharedKeys.useRealText, true);
-  sharedSearchHotInput.checked = isStoredOn(sharedKeys.searchHot, true);
-  sharedUseRealImageInput.checked = isStoredOn(sharedKeys.useRealImage, false);
+  refreshConfigStatus();
   apiSettingsModal.hidden = false;
   sharedTextKeyInput.focus();
 }
@@ -105,13 +132,12 @@ function saveApiSettings() {
   localStorage.setItem(sharedKeys.imageBaseUrl, sharedImageBaseUrlInput.value.trim() || 'https://img.rjm.us.ci');
   localStorage.setItem(sharedKeys.textModel, sharedTextModelInput.value.trim() || 'deepseek-v4-flash');
   localStorage.setItem(sharedKeys.imageModel, sharedImageModelInput.value.trim() || 'gpt-image-2');
-  localStorage.setItem(sharedKeys.useRealText, sharedUseRealTextInput.checked ? '1' : '0');
-  localStorage.setItem(sharedKeys.searchHot, sharedSearchHotInput.checked ? '1' : '0');
-  localStorage.setItem(sharedKeys.useRealImage, sharedUseRealImageInput.checked ? '1' : '0');
   sharedTextKeyInput.value = textKey;
   sharedImageKeyInput.value = imageKey;
   syncMorningApiKey();
+  refreshConfigStatus();
   closeApiSettings();
+  showToast('API 配置已保存，所有创作工具会自动复用');
 }
 
 settingsButton?.addEventListener('click', (event) => {
@@ -129,11 +155,46 @@ document.querySelector('#api-settings-clear')?.addEventListener('click', () => {
   sharedImageBaseUrlInput.value = 'https://img.rjm.us.ci';
   sharedTextModelInput.value = 'deepseek-v4-flash';
   sharedImageModelInput.value = 'gpt-image-2';
-  sharedUseRealTextInput.checked = true;
-  sharedSearchHotInput.checked = true;
-  sharedUseRealImageInput.checked = false;
   syncMorningApiKey();
+  refreshConfigStatus();
 });
+
+function modalApiPayload() {
+  return {
+    textApiKey: cleanApiKey(sharedTextKeyInput.value),
+    imageApiKey: cleanApiKey(sharedImageKeyInput.value),
+    textBaseUrl: sharedTextBaseUrlInput.value.trim(),
+    imageBaseUrl: sharedImageBaseUrlInput.value.trim(),
+    textModel: sharedTextModelInput.value.trim(),
+    imageModel: sharedImageModelInput.value.trim(),
+  };
+}
+
+async function testProvider(kind, button) {
+  const original = button.innerHTML;
+  button.disabled = true;
+  button.textContent = '正在测试…';
+  try {
+    const response = await fetch('/api/providers/test', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind, ...modalApiPayload() }) });
+    const data = await readApiResponse(response);
+    const target = kind === 'text' ? textConfigStatus : imageConfigStatus;
+    target.textContent = '连接成功';
+    target.classList.add('ready');
+    showToast(data.message || `${kind === 'text' ? '文字' : '图片'}连接成功`);
+  } catch (error) {
+    const target = kind === 'text' ? textConfigStatus : imageConfigStatus;
+    target.textContent = '连接失败';
+    target.classList.remove('ready');
+    showToast(error.message, 'error');
+  } finally {
+    button.disabled = false;
+    button.innerHTML = original;
+    window.lucide?.createIcons();
+  }
+}
+
+document.querySelector('#test-text-provider')?.addEventListener('click', event => testProvider('text', event.currentTarget));
+document.querySelector('#test-image-provider')?.addEventListener('click', event => testProvider('image', event.currentTarget));
 apiSettingsModal?.addEventListener('click', (event) => {
   if (event.target === apiSettingsModal) closeApiSettings();
 });
@@ -219,9 +280,7 @@ function renderReport(report) {
   document.querySelector('#benchmark-list').innerHTML = renderBenchmarks(report.similar_accounts);
   document.querySelector('#strength-list').innerHTML = renderTakeaways(insight.strengths, '当前样本不足，暂未提炼优势。');
   document.querySelector('#weakness-list').innerHTML = renderTakeaways(insight.weaknesses, '当前样本不足，暂未提炼短板。');
-  document.querySelector('#entry').hidden = true;
-  morningGenerator.hidden = true;
-  reportRoot.hidden = false;
+  setActiveView('report');
   appShell?.classList.remove('landing');
   appShell?.classList.add('has-report');
   document.title = `${header['账号名'] || '公众号'} · 诊断报告`;
@@ -232,7 +291,7 @@ form?.addEventListener('submit', async (event) => {
   button.disabled = true;
   button.querySelector('span').textContent = '…';
   try {
-    const response = await fetch('/api/diagnose', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ account_name: input.value.trim(), textApiKey: isStoredOn(sharedKeys.useRealText, true) ? getSharedTextKey() : '' }) });
+    const response = await fetch('/api/diagnose', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ account_name: input.value.trim() }) });
     const data = await response.json();
     if (!response.ok) throw new Error(data.detail || data.message || '诊断失败，请稍后重试');
     renderReport(data.report);
@@ -289,20 +348,24 @@ function renderWorkbenchSession(session) {
 
 async function callWorkbench(path, payload) {
   const response = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...sharedApiPayload(), ...payload }) });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.detail || data.message || '工作台执行失败');
+  const data = await readApiResponse(response);
   return data.session;
 }
 
 async function advance(selection = null, nextStep = null) {
   if (!workbenchSession) return;
   const target = nextStep || Math.min(8, (workbenchSession.current_step || 1) + 1);
+  if (target >= 5 && !getSharedImageKey()) {
+    openApiSettings();
+    throw new Error('配图步骤需要先在设置中填写图片 API Key');
+  }
   workbenchSession = await callWorkbench('/api/workbench/steps', { session_id: workbenchSession.id, step: target, selection, article: articleEditor.value });
   renderWorkbenchSession(workbenchSession);
 }
 
 modeButtons.forEach(button => button.addEventListener('click', () => { modeButtons.forEach(item => item.classList.remove('active')); button.classList.add('active'); workbenchMode = button.dataset.mode; }));
 startWorkbench?.addEventListener('click', async () => {
+  if (!getSharedTextKey()) { openApiSettings(); showToast('请先配置文字 API Key', 'error'); return; }
   startWorkbench.disabled = true;
   const originalLabel = startWorkbench.innerHTML;
   startWorkbench.innerHTML = workbenchMode === 'auto' ? '正在完成全链路…' : '正在调用文本 API…';
@@ -323,12 +386,211 @@ document.querySelector('#publish-draft')?.addEventListener('click', async () => 
 });
 articleEditor?.addEventListener('input', () => { if (workbenchSession) workbenchSession.article = articleEditor.value; });
 
+async function postCreator(path, payload, signal) {
+  const response = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...sharedApiPayload(), ...payload }),
+    signal,
+  });
+  return readApiResponse(response);
+}
+
+function beginButton(button, label) {
+  const original = button.innerHTML;
+  button.disabled = true;
+  button.innerHTML = `<span class="button-spinner"></span>${esc(label)}`;
+  return () => { button.disabled = false; button.innerHTML = original; window.lucide?.createIcons(); };
+}
+
+function renderSkillProgress(root, total) {
+  root.insertAdjacentHTML('afterbegin', `<div class="generation-progress"><div><strong>正在生成图片</strong><span class="progress-copy">0 / ${total}</span></div><div class="progress-track"><i style="width:0%"></i></div><button class="cancel-generation" type="button">取消</button></div>`);
+  return root.querySelector('.generation-progress');
+}
+
+let imageGenerationController = null;
+async function generateSkillImages(tool, sessionId, cards, style, grid) {
+  if (!getSharedImageKey()) { openApiSettings(); throw new Error('请先在设置中填写图片 API Key'); }
+  imageGenerationController?.abort();
+  imageGenerationController = new AbortController();
+  const progress = renderSkillProgress(grid.parentElement, cards.length);
+  progress.querySelector('.cancel-generation').addEventListener('click', () => imageGenerationController.abort());
+  try {
+    for (let index = 0; index < cards.length; index += 1) {
+      const data = await postCreator('/api/creator-tools/image', { tool, sessionId, card: cards[index], style }, imageGenerationController.signal);
+      const target = grid.querySelector(`[data-card-index="${data.image.index}"]`);
+      if (target) {
+        target.classList.add('generated');
+        target.querySelector('.card-image-slot').innerHTML = `<img src="${esc(data.image.url)}" alt="第 ${data.image.index} 张生成图片"><a href="${esc(data.image.url)}" target="_blank" rel="noopener">查看原图</a>`;
+      }
+      const done = index + 1;
+      progress.querySelector('.progress-copy').textContent = `${done} / ${cards.length}`;
+      progress.querySelector('.progress-track i').style.width = `${done / cards.length * 100}%`;
+    }
+    progress.classList.add('done');
+    progress.querySelector('strong').textContent = '图片生成完成';
+    progress.querySelector('.cancel-generation').remove();
+    showToast(`已生成 ${cards.length} 张图片`);
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      progress.querySelector('strong').textContent = '已取消生成';
+      showToast('已取消后续图片生成', 'error');
+    } else {
+      progress.querySelector('strong').textContent = '生成中断';
+      showToast(error.message, 'error');
+    }
+  } finally {
+    imageGenerationController = null;
+  }
+}
+
+function renderXhsPackage(pkg) {
+  const root = document.querySelector('#xhs-result');
+  document.querySelector('#xhs-empty').hidden = true;
+  root.hidden = false;
+  const titles = pkg.titles || [];
+  const cards = pkg.cards || [];
+  const precheck = pkg.precheck || {};
+  root.innerHTML = `<div class="output-head"><div><span class="result-status ${esc(precheck.status || 'revise')}">${esc(precheck.status || 'revise')}</span><h2>${esc(pkg.selected_title || '小红书内容包')}</h2><p>${esc(pkg.angle || '')}</p></div><button id="xhs-images" class="secondary-action" type="button"><i data-lucide="images"></i>生成 6 张图片</button></div>
+    <section class="result-section"><div class="result-section-title"><strong>标题方案</strong><span>3 个版本</span></div><div class="title-options">${titles.map((item, i) => `<article class="title-option ${i === 0 ? 'selected' : ''}"><span>0${i + 1}</span><div><strong>${esc(item.text)}</strong><small>${esc(item.keyword)} · ${esc(item.reason)}</small></div></article>`).join('')}</div></section>
+    <section class="result-section"><div class="result-section-title"><strong>图文页面</strong><span>1 张封面 + 5 张内容页</span></div><div class="creator-card-grid">${cards.map(card => `<article class="creator-output-card" data-card-index="${Number(card.index)}"><div class="card-image-slot"><span>${String(card.index).padStart(2, '0')}</span><small>等待生成</small></div><div class="creator-card-copy"><span>${esc(card.role)}</span><strong>${esc(card.headline)}</strong><p>${esc(card.message)}</p><small>${esc(card.action)}</small></div></article>`).join('')}</div></section>
+    <section class="result-section"><div class="result-section-title"><strong>发布文案</strong><button class="copy-result" data-copy-target="xhs-body" type="button"><i data-lucide="copy"></i>复制</button></div><textarea id="xhs-body" class="result-editor">${esc(pkg.body || '')}</textarea><div class="result-meta-grid"><div><span>置顶评论</span><p>${esc(pkg.pinned_comment || '')}</p></div><div><span>低压 CTA</span><p>${esc(pkg.cta || '')}</p></div></div></section>
+    <section class="result-section"><div class="result-section-title"><strong>发布前检查</strong><span>${esc(precheck.status || '')}</span></div><ul class="issue-list">${(precheck.issues || []).map(item => `<li>${esc(item)}</li>`).join('') || '<li class="ok">未发现明确阻断项，进入人工终审。</li>'}</ul></section>`;
+  root.querySelector('#xhs-images').addEventListener('click', () => generateSkillImages('xiaohongshu', pkg.session_id, cards, '真人贴纸爆款教程风，明亮蓝色创作者工作台，人物动作轮换', root.querySelector('.creator-card-grid')));
+  bindCopyButtons(root);
+  window.lucide?.createIcons();
+}
+
+document.querySelector('#xhs-form')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  if (!getSharedTextKey()) { openApiSettings(); showToast('请先配置文字 API Key', 'error'); return; }
+  const button = document.querySelector('#xhs-generate');
+  const finish = beginButton(button, '正在生成内容包…');
+  try {
+    const data = await postCreator('/api/xiaohongshu/package', {
+      topic: document.querySelector('#xhs-topic').value.trim(),
+      account: document.querySelector('#xhs-account').value.trim(),
+      audience: document.querySelector('#xhs-audience').value.trim(),
+      goal: document.querySelector('#xhs-goal').value,
+      evidence: document.querySelector('#xhs-evidence').value.trim(),
+      contentType: document.querySelector('#xhs-content-type').value,
+    });
+    renderXhsPackage(data.package);
+  } catch (error) { showToast(error.message, 'error'); } finally { finish(); }
+});
+
+function renderTiePlan(plan) {
+  const root = document.querySelector('#tie-result');
+  document.querySelector('#tie-empty').hidden = true;
+  root.hidden = false;
+  const cards = plan.cards || [];
+  root.innerHTML = `<div class="output-head"><div><span class="result-status pending">待确认计划</span><h2>${esc(plan.title)}</h2><p>${esc(plan.content_type_label)} · ${esc(plan.angle)}</p></div><button id="tie-images" class="primary-action compact" type="button"><i data-lucide="images"></i>确认并生成 ${cards.length} 张</button></div>
+    <div class="plan-summary"><div><span>画幅</span><strong>${esc(plan.ratio)}</strong></div><div><span>图片</span><strong>${cards.length} 张</strong></div><div><span>人物一致性</span><strong>${plan.portrait_enabled ? '已启用' : '未启用'}</strong></div></div>
+    <section class="result-section"><div class="result-section-title"><strong>卡片计划</strong><span>文字、动作和场景均可生成前检查</span></div><div class="creator-card-grid">${cards.map(card => `<article class="creator-output-card" data-card-index="${Number(card.index)}"><div class="card-image-slot"><span>${String(card.index).padStart(2, '0')}</span><small>等待生成</small></div><div class="creator-card-copy"><span>${esc(card.role)}</span><strong>${esc(card.overlay_text)}</strong><p>${esc(card.visual_subject)}</p><small>${esc(card.card_brief?.scene || '')} · ${esc(card.card_brief?.action || '')}</small></div></article>`).join('')}</div></section>
+    <section class="result-section"><div class="result-section-title"><strong>配套文案</strong><button class="copy-result" data-copy-target="tie-copy" type="button"><i data-lucide="copy"></i>复制</button></div><textarea id="tie-copy" class="result-editor compact">${esc(plan.copy || '')}</textarea><p class="cta-line">${esc(plan.cta || '')}</p></section>`;
+  root.querySelector('#tie-images').addEventListener('click', () => generateSkillImages('tie-tu', plan.session_id, cards, document.querySelector('#tie-style').value.trim(), root.querySelector('.creator-card-grid')));
+  bindCopyButtons(root);
+  window.lucide?.createIcons();
+}
+
+document.querySelector('#tie-form')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  if (!getSharedTextKey()) { openApiSettings(); showToast('请先配置文字 API Key', 'error'); return; }
+  const button = document.querySelector('#tie-plan');
+  const finish = beginButton(button, '正在策划卡片…');
+  try {
+    const data = await postCreator('/api/tie-tu/plan', {
+      industry: document.querySelector('#tie-industry').value.trim(),
+      topic: document.querySelector('#tie-topic').value.trim(),
+      contentType: document.querySelector('#tie-content-type').value,
+      imageCount: Number(document.querySelector('#tie-count').value),
+      audience: document.querySelector('#tie-audience').value.trim(),
+      style: document.querySelector('#tie-style').value.trim(),
+      portraitMode: document.querySelector('#tie-portrait').value,
+    });
+    renderTiePlan(data.plan);
+  } catch (error) { showToast(error.message, 'error'); } finally { finish(); }
+});
+
+function scoreRows(scores) {
+  const names = { title: '标题', opening: '开头', content: '内容', structure: '结构', topic: '选题', readability: '阅读', visual: '视觉', interaction: '互动' };
+  const full = { title: 18, opening: 16, content: 18, structure: 14, topic: 12, readability: 7, visual: 8, interaction: 7 };
+  return Object.keys(names).map(key => `<div class="detector-score"><span>${names[key]}</span><div><i style="width:${Math.min(100, Number(scores[key] || 0) / full[key] * 100)}%"></i></div><strong>${Number(scores[key] || 0)}<small>/${full[key]}</small></strong></div>`).join('');
+}
+
+function renderHitReport(report) {
+  const root = document.querySelector('#hit-result');
+  document.querySelector('#hit-empty').hidden = true;
+  root.hidden = false;
+  const gate = report.editorial_gate || {};
+  const suggestions = report.suggestions || [];
+  root.innerHTML = `<div class="detector-hero"><div><span class="result-status ${gate.label === '暂缓发布' ? 'blocked' : gate.label === '修改后复核' ? 'revise' : 'ready'}">${esc(gate.label || '待复核')}</span><h2>${Number(report.scores?.total || 0)}</h2><p>结构参考分 / 100 · 不代表爆款概率</p></div><div class="detector-verdict"><strong>${esc(gate.summary || '')}</strong><p>${esc(report.track_name)} · ${esc(report.style_name)} · 置信度 ${esc(report.score_confidence)}</p><button id="hit-rewrite" class="secondary-action" type="button"><i data-lucide="file-pen-line"></i>按建议生成改稿</button></div></div>
+    <section class="result-section"><div class="result-section-title"><strong>八维结构参考</strong><span>用于定位机械短板</span></div>${scoreRows(report.scores || {})}</section>
+    <section class="result-section"><div class="result-section-title"><strong>优先修改</strong><span>P0 优先于总分</span></div><div class="suggestion-list">${suggestions.slice(0, 8).map(item => `<article><span>${esc(item.priority || item.level || 'P1')}</span><div><strong>${esc(item.title || item.issue || item.dimension || '编辑建议')}</strong><p>${esc(item.action || item.suggestion || item.detail || '')}</p></div></article>`).join('') || '<p class="muted-copy">当前没有生成额外建议，请进入人工终审。</p>'}</div></section>
+    <section class="result-section"><div class="result-section-title"><strong>事实声明账本</strong><span>${(report.source_ledger || []).length} 条</span></div><div class="ledger-list">${(report.source_ledger || []).slice(0, 12).map(item => `<div><span>${esc(item.status || '待核验')}</span><p>${esc(item.claim || item.text || item.statement || item.title || JSON.stringify(item))}</p></div>`).join('') || '<p class="muted-copy">没有识别到需要单列的事实声明。</p>'}</div></section>`;
+  root.querySelector('#hit-rewrite').addEventListener('click', async event => {
+    if (!getSharedTextKey()) { openApiSettings(); showToast('改稿需要先配置文字 API Key', 'error'); return; }
+    const finish = beginButton(event.currentTarget, '正在改稿…');
+    try {
+      const data = await postCreator('/api/hit-detector/rewrite', { title: document.querySelector('#hit-title').value.trim(), body: document.querySelector('#hit-body').value, track: document.querySelector('#hit-track').value, detectorResult: report });
+      document.querySelector('#hit-title').value = data.article.title;
+      document.querySelector('#hit-body').value = data.article.body;
+      showToast(data.article.change_summary || '改稿已回填，请再次复核');
+    } catch (error) { showToast(error.message, 'error'); } finally { finish(); }
+  });
+  window.lucide?.createIcons();
+}
+
+document.querySelector('#hit-form')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  const button = document.querySelector('#hit-analyze');
+  const finish = beginButton(button, '正在复核文章…');
+  try {
+    const data = await postCreator('/api/hit-detector/analyze', {
+      title: document.querySelector('#hit-title').value.trim(),
+      body: document.querySelector('#hit-body').value,
+      track: document.querySelector('#hit-track').value,
+      fans: document.querySelector('#hit-fans').value ? Number(document.querySelector('#hit-fans').value) : null,
+    });
+    renderHitReport(data.report);
+  } catch (error) { showToast(error.message, 'error'); } finally { finish(); }
+});
+
+function bindCopyButtons(root = document) {
+  root.querySelectorAll('.copy-result').forEach(button => button.addEventListener('click', async () => {
+    const target = document.getElementById(button.dataset.copyTarget);
+    await navigator.clipboard.writeText(target?.value || target?.textContent || '');
+    showToast('已复制到剪贴板');
+  }));
+}
+
+const viewMap = {
+  diagnose: entry,
+  workbench,
+  xiaohongshu: xiaohongshuPage,
+  'tie-tu': tieTuPage,
+  'hit-detector': hitDetectorPage,
+  morning: morningGenerator,
+  report: reportRoot,
+};
+
+function setActiveView(view, updateHash = false) {
+  Object.entries(viewMap).forEach(([name, element]) => { if (element) element.hidden = name !== view; });
+  document.querySelectorAll('.app-tabs [data-view]').forEach(item => item.classList.toggle('active', item.dataset.view === view));
+  appShell?.classList.toggle('workbench-active', view !== 'diagnose' && view !== 'report');
+  if (downloadButton) downloadButton.hidden = view !== 'report';
+  if (view === 'morning') syncMorningApiKey();
+  if (updateHash && view !== 'report') history.replaceState(null, '', `#${view}`);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
 document.querySelectorAll('.app-tabs [data-view]').forEach(tab => tab.addEventListener('click', event => {
   event.preventDefault();
-  const view = tab.dataset.view;
-  document.querySelectorAll('.app-tabs [data-view]').forEach(item => item.classList.toggle('active', item === tab));
-  if (view === 'workbench') { workbench.hidden = false; morningGenerator.hidden = true; entry.hidden = true; reportRoot.hidden = true; appShell?.classList.add('workbench-active'); workbench.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
-  else if (view === 'morning') { workbench.hidden = true; morningGenerator.hidden = false; entry.hidden = true; reportRoot.hidden = true; appShell?.classList.add('workbench-active'); syncMorningApiKey(); morningGenerator.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
-  else { workbench.hidden = true; morningGenerator.hidden = true; entry.hidden = false; reportRoot.hidden = true; appShell?.classList.remove('workbench-active'); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  setActiveView(tab.dataset.view, true);
 }));
+
+const initialView = Object.prototype.hasOwnProperty.call(viewMap, location.hash.slice(1)) ? location.hash.slice(1) : 'diagnose';
+setActiveView(initialView);
+refreshConfigStatus();
 paintWorkflow();
+window.lucide?.createIcons({ attrs: { 'stroke-width': 1.8 } });

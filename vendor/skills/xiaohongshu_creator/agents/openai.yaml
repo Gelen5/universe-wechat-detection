@@ -1,0 +1,4 @@
+interface:
+  display_name: "小红书创作者链路"
+  short_description: "独立执行小红书选题、内容制作、发布检查与数据复盘链路"
+  default_prompt: "使用小红书创作者链路，基于自有证据完成选题、草稿、发布前检查、发布记录与复盘。"

@@ -1,0 +1,9 @@
+# Build artifacts (generated reports)
+examples/*_report.html
+
+# Python
+scripts/__pycache__/
+*.pyc
+
+# Dev helpers
+scripts/_test_run.py

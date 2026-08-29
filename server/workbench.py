@@ -13,6 +13,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 from contextlib import contextmanager
 from contextvars import ContextVar
 from datetime import datetime
@@ -113,6 +114,45 @@ def _post(channel: str, path: str, payload: dict[str, Any], timeout: int) -> dic
         message = error.get("message") if isinstance(error, dict) else str(error)
         raise ProviderError(f"{channel} API HTTP {response.status_code}：{message or '请求失败'}")
     return data
+
+
+def _resolve_image_response(data: dict[str, Any], timeout: int = 360) -> dict[str, Any]:
+    """Resolve providers that return an asynchronous image task first."""
+    status_url = data.get("statusUrl") or data.get("status_url")
+    if not status_url or data.get("data"):
+        return data
+
+    deadline = time.time() + timeout
+    last_payload = data
+    session = requests.Session()
+    session.trust_env = False
+    while time.time() < deadline:
+        time.sleep(3)
+        try:
+            response = session.get(
+                str(status_url), headers=_headers("image"), timeout=35,
+                verify=_verify_ssl(),
+            )
+        except requests.RequestException as exc:
+            raise ProviderError(f"image API 任务查询失败：{exc}") from exc
+        try:
+            last_payload = response.json()
+        except ValueError as exc:
+            raise ProviderError(f"image API 任务返回了非 JSON 响应（HTTP {response.status_code}）") from exc
+        if not response.ok:
+            error = last_payload.get("error") if isinstance(last_payload, dict) else None
+            if isinstance(error, dict):
+                error = error.get("message") or error.get("code")
+            raise ProviderError(str(error or last_payload.get("message") or f"image API HTTP {response.status_code}"))
+        status = str(last_payload.get("status") or "").lower()
+        if last_payload.get("data") or status in {"completed", "succeeded", "success"}:
+            return last_payload
+        if status in {"failed", "cancelled", "canceled", "error"}:
+            error = last_payload.get("error")
+            if isinstance(error, dict):
+                error = error.get("message") or error.get("code")
+            raise ProviderError(str(error or last_payload.get("message") or f"图片任务失败：{status}"))
+    raise ProviderError(f"图片任务等待超时，最后状态：{last_payload.get('status') or '未知'}")
 
 
 def _response_text(data: dict[str, Any]) -> str:
@@ -279,6 +319,7 @@ def _generate_image(prompt: str, output: Path) -> dict[str, Any]:
             "model": model, "prompt": request_prompt, "n": 1,
             "size": "1024x1024", "output_format": "png",
         }, timeout=360)
+        data = _resolve_image_response(data)
         items = data.get("data") or []
         item = items[0] if isinstance(items, list) and items else {}
         last_shape = f"root={','.join(sorted(data.keys()))}; item={','.join(sorted(item.keys())) if isinstance(item, dict) else type(item).__name__}"

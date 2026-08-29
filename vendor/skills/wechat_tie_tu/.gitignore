@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.venv/
+.env
+config.json
+output/*
+!output/.gitkeep
+card_plan.json
+*_preview.html
+smoke-plan.json
+smoke-preview.html

@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wechat-tie-tu-publisher"
+version = "0.2.0"
+description = "Independent host-first WeChat Tie-Tu content workflow"
+requires-python = ">=3.10"
+dependencies = ["requests>=2.31", "Pillow>=10.0"]
+
+[project.scripts]
+tie-tu = "toolkit.cli:main"
