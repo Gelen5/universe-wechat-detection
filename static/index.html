@@ -4,24 +4,46 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>宇宙第一公众号 · AI 工作台</title>
-    <link rel="stylesheet" href="/static/style.css?v=20260829-1" />
+    <link rel="stylesheet" href="/static/style.css?v=20260829-2" />
   </head>
   <body>
     <div class="app-shell">
       <header class="report-nav">
         <a class="account-brand" href="/"><span id="nav-avatar" class="fixed-avatar" aria-hidden="true">诊</span><span class="brand-copy"><strong id="nav-name">宇宙第一公众号</strong><small id="nav-subtitle">AI 诊断与内容创作工作台</small></span></a>
         <nav class="nav-links app-tabs" aria-label="产品模块"><a class="active" data-view="diagnose" href="#entry">公众号诊断</a><a data-view="workbench" href="#workbench">内容工作台</a><a data-view="morning" href="#morning-generator">早安祝福</a></nav>
-        <div class="nav-actions"><span class="report-meta">AI 工作台</span><button id="api-settings-button" class="download-button" type="button">接口设置</button><button id="download-report" class="download-button" type="button">下载报告</button></div>
+        <div class="nav-actions">
+          <span class="report-meta">AI 工作台</span>
+          <div class="settings-wrap">
+            <button id="settings-button" class="download-button settings-button" type="button" aria-haspopup="menu" aria-expanded="false">设置</button>
+            <div id="settings-menu" class="settings-menu" role="menu" hidden>
+              <button id="api-settings-button" type="button" role="menuitem">API 配置</button>
+            </div>
+          </div>
+          <button id="download-report" class="download-button" type="button">下载报告</button>
+        </div>
       </header>
 
       <div id="api-settings-modal" class="api-settings-modal" hidden>
         <section class="api-settings-card" role="dialog" aria-modal="true" aria-labelledby="api-settings-title">
-          <div class="api-settings-head"><div><span class="micro-label">共享接口配置</span><h2 id="api-settings-title">文字 Key 和图片 Key</h2></div><button id="api-settings-close" type="button" aria-label="关闭">×</button></div>
-          <div class="api-settings-grid">
-            <label>文字 API Key<input id="shared-text-api-key" type="password" placeholder="用于公众号诊断、内容工作台文字生成"></label>
-            <label>图片 API Key<input id="shared-image-api-key" type="password" placeholder="用于内容工作台配图、早安祝福图"></label>
+          <div class="api-settings-head"><div><span class="micro-label">API 配置</span><h2 id="api-settings-title">模型与密钥</h2></div><button id="api-settings-close" type="button" aria-label="关闭">×</button></div>
+          <div class="api-config-stack">
+            <section class="api-config-group">
+              <h3>文本模型</h3>
+              <input id="shared-text-api-key" type="password" placeholder="文字 API Key">
+              <input id="shared-text-base-url" type="url" placeholder="https://huoxingapi.com/v1">
+              <input id="shared-text-model" type="text" placeholder="deepseek-v4-flash">
+              <label class="api-check"><input id="shared-use-real-text" type="checkbox" checked> 使用真实模型生成文案</label>
+              <label class="api-check"><input id="shared-search-hot" type="checkbox" checked> 先检索当前热点再写文案</label>
+            </section>
+            <section class="api-config-group">
+              <h3>整卡生图模型</h3>
+              <input id="shared-image-api-key" type="password" placeholder="图片 API Key">
+              <input id="shared-image-base-url" type="url" placeholder="https://img.rjm.us.ci">
+              <input id="shared-image-model" type="text" placeholder="gpt-image-2">
+              <label class="api-check"><input id="shared-use-real-image" type="checkbox"> 使用真实模型生成整张卡片</label>
+            </section>
           </div>
-          <p class="api-settings-note">Key 只保存在当前浏览器，不写入服务器文件。早安祝福 tab 会自动同步图片 Key。</p>
+          <p class="api-settings-note">配置只保存在当前浏览器，不写入服务器文件。公众号 tab 使用文本配置；早安祝福 tab 自动同步图片配置。</p>
           <div class="api-settings-actions"><button id="api-settings-clear" class="secondary-action" type="button">清除</button><button id="api-settings-save" class="primary-action compact" type="button">保存配置</button></div>
         </section>
       </div>
@@ -75,7 +97,7 @@
           <h1>生成早安图和祝福文案</h1>
           <p>支持文章和贴图两种模式，图片生成走本站后端代理，适合部署到云服务器后直接使用。</p>
         </div>
-        <iframe class="generator-frame" src="/static/morning-blessing.html?v=20260829-1" title="早安祝福自动生成器"></iframe>
+        <iframe class="generator-frame" src="/static/morning-blessing.html?v=20260829-2" title="早安祝福自动生成器"></iframe>
       </section>
 
       <main id="report" class="report-page" hidden>
@@ -128,6 +150,6 @@
       </main>
       <footer>公众号账号诊断 · 数据来自公开数据接口 · 仅作运营参考</footer>
     </div>
-    <script src="/static/app.js?v=20260829-1"></script>
+    <script src="/static/app.js?v=20260829-2"></script>
   </body>
 </html>

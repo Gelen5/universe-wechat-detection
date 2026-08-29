@@ -41,7 +41,10 @@ class WorkbenchCreateRequest(BaseModel):
     theme: str = Field(default="default", max_length=80)
     textApiKey: str | None = Field(default=None, max_length=300)
     imageApiKey: str | None = Field(default=None, max_length=300)
-    apiBaseUrl: str | None = Field(default=None, max_length=300)
+    textBaseUrl: str | None = Field(default=None, max_length=300)
+    imageBaseUrl: str | None = Field(default=None, max_length=300)
+    textModel: str | None = Field(default=None, max_length=120)
+    imageModel: str | None = Field(default=None, max_length=120)
 
 
 class WorkbenchStepRequest(BaseModel):
@@ -51,7 +54,10 @@ class WorkbenchStepRequest(BaseModel):
     article: str | None = Field(default=None, max_length=200000)
     textApiKey: str | None = Field(default=None, max_length=300)
     imageApiKey: str | None = Field(default=None, max_length=300)
-    apiBaseUrl: str | None = Field(default=None, max_length=300)
+    textBaseUrl: str | None = Field(default=None, max_length=300)
+    imageBaseUrl: str | None = Field(default=None, max_length=300)
+    textModel: str | None = Field(default=None, max_length=120)
+    imageModel: str | None = Field(default=None, max_length=120)
 
 
 class WorkbenchPreviewRequest(BaseModel):
@@ -59,7 +65,10 @@ class WorkbenchPreviewRequest(BaseModel):
     article: str | None = Field(default=None, max_length=200000)
     textApiKey: str | None = Field(default=None, max_length=300)
     imageApiKey: str | None = Field(default=None, max_length=300)
-    apiBaseUrl: str | None = Field(default=None, max_length=300)
+    textBaseUrl: str | None = Field(default=None, max_length=300)
+    imageBaseUrl: str | None = Field(default=None, max_length=300)
+    textModel: str | None = Field(default=None, max_length=120)
+    imageModel: str | None = Field(default=None, max_length=120)
 
 
 class WorkbenchPublishRequest(BaseModel):
@@ -67,7 +76,10 @@ class WorkbenchPublishRequest(BaseModel):
     draft: bool = True
     textApiKey: str | None = Field(default=None, max_length=300)
     imageApiKey: str | None = Field(default=None, max_length=300)
-    apiBaseUrl: str | None = Field(default=None, max_length=300)
+    textBaseUrl: str | None = Field(default=None, max_length=300)
+    imageBaseUrl: str | None = Field(default=None, max_length=300)
+    textModel: str | None = Field(default=None, max_length=120)
+    imageModel: str | None = Field(default=None, max_length=120)
 
 
 class ImageGenerationRequest(BaseModel):
@@ -448,7 +460,7 @@ def generate_image(payload: ImageGenerationRequest):
 @app.post("/api/workbench/sessions")
 def create_workbench_session(payload: WorkbenchCreateRequest):
     try:
-        with workbench.provider_overrides(payload.textApiKey or "", payload.imageApiKey or "", payload.apiBaseUrl or ""):
+        with workbench.provider_overrides(payload.textApiKey or "", payload.imageApiKey or "", payload.textBaseUrl or "", payload.imageBaseUrl or "", payload.textModel or "", payload.imageModel or ""):
             return {"status": "success", "session": workbench.create(payload.topic, payload.mode, payload.persona, payload.theme)}
     except workbench.ProviderError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
@@ -462,7 +474,7 @@ def get_workbench_provider_status():
 @app.post("/api/workbench/steps")
 def advance_workbench(payload: WorkbenchStepRequest):
     try:
-        with workbench.provider_overrides(payload.textApiKey or "", payload.imageApiKey or "", payload.apiBaseUrl or ""):
+        with workbench.provider_overrides(payload.textApiKey or "", payload.imageApiKey or "", payload.textBaseUrl or "", payload.imageBaseUrl or "", payload.textModel or "", payload.imageModel or ""):
             return {"status": "success", "session": workbench.step(payload.session_id, payload.step, payload.selection, payload.article)}
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -475,7 +487,7 @@ def advance_workbench(payload: WorkbenchStepRequest):
 @app.post("/api/workbench/preview")
 def preview_workbench(payload: WorkbenchPreviewRequest):
     try:
-        with workbench.provider_overrides(payload.textApiKey or "", payload.imageApiKey or "", payload.apiBaseUrl or ""):
+        with workbench.provider_overrides(payload.textApiKey or "", payload.imageApiKey or "", payload.textBaseUrl or "", payload.imageBaseUrl or "", payload.textModel or "", payload.imageModel or ""):
             return {"status": "success", "session": workbench.preview(payload.session_id, payload.article)}
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -502,7 +514,7 @@ def get_workbench_asset(session_id: str, filename: str):
 @app.post("/api/workbench/publish")
 def publish_workbench(payload: WorkbenchPublishRequest):
     try:
-        with workbench.provider_overrides(payload.textApiKey or "", payload.imageApiKey or "", payload.apiBaseUrl or ""):
+        with workbench.provider_overrides(payload.textApiKey or "", payload.imageApiKey or "", payload.textBaseUrl or "", payload.imageBaseUrl or "", payload.textModel or "", payload.imageModel or ""):
             return {"status": "success", "session": workbench.publish(payload.session_id, payload.draft)}
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc

@@ -5,12 +5,31 @@ const reportRoot = document.querySelector('#report');
 const downloadButton = document.querySelector('#download-report');
 const appShell = document.querySelector('.app-shell');
 const morningGenerator = document.querySelector('#morning-generator');
+const settingsButton = document.querySelector('#settings-button');
+const settingsMenu = document.querySelector('#settings-menu');
 const apiSettingsButton = document.querySelector('#api-settings-button');
 const apiSettingsModal = document.querySelector('#api-settings-modal');
 const sharedTextKeyInput = document.querySelector('#shared-text-api-key');
 const sharedImageKeyInput = document.querySelector('#shared-image-api-key');
+const sharedTextBaseUrlInput = document.querySelector('#shared-text-base-url');
+const sharedImageBaseUrlInput = document.querySelector('#shared-image-base-url');
+const sharedTextModelInput = document.querySelector('#shared-text-model');
+const sharedImageModelInput = document.querySelector('#shared-image-model');
+const sharedUseRealTextInput = document.querySelector('#shared-use-real-text');
+const sharedSearchHotInput = document.querySelector('#shared-search-hot');
+const sharedUseRealImageInput = document.querySelector('#shared-use-real-image');
 const morningFrame = document.querySelector('.generator-frame');
-const sharedKeys = { text: 'shared_text_api_key_v1', image: 'shared_image_api_key_v1' };
+const sharedKeys = {
+  text: 'shared_text_api_key_v1',
+  image: 'shared_image_api_key_v1',
+  textBaseUrl: 'shared_text_base_url_v1',
+  imageBaseUrl: 'shared_image_base_url_v1',
+  textModel: 'shared_text_model_v1',
+  imageModel: 'shared_image_model_v1',
+  useRealText: 'shared_use_real_text_v1',
+  searchHot: 'shared_search_hot_v1',
+  useRealImage: 'shared_use_real_image_v1',
+};
 
 const esc = (value) => String(value ?? '无').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
 const number = (value) => new Intl.NumberFormat('zh-CN').format(Number(value || 0));
@@ -24,18 +43,51 @@ const safeUrl = (value) => {
 const cleanApiKey = (value) => String(value || '').replace(/[\s\u00a0\u200b-\u200d\ufeff]/g, '');
 const getSharedTextKey = () => cleanApiKey(localStorage.getItem(sharedKeys.text) || '');
 const getSharedImageKey = () => cleanApiKey(localStorage.getItem(sharedKeys.image) || '');
+const getStored = (key, fallback = '') => String(localStorage.getItem(key) ?? fallback);
+const isStoredOn = (key, fallback = true) => {
+  const value = localStorage.getItem(key);
+  return value == null ? fallback : value === '1';
+};
+const getTextBaseUrl = () => getStored(sharedKeys.textBaseUrl, 'https://huoxingapi.com/v1').trim();
+const getImageBaseUrl = () => getStored(sharedKeys.imageBaseUrl, 'https://img.rjm.us.ci').trim();
+const getTextModel = () => getStored(sharedKeys.textModel, 'deepseek-v4-flash').trim();
+const getImageModel = () => getStored(sharedKeys.imageModel, 'gpt-image-2').trim();
 const sharedApiPayload = () => ({
-  textApiKey: getSharedTextKey(),
-  imageApiKey: getSharedImageKey(),
+  textApiKey: isStoredOn(sharedKeys.useRealText, true) ? getSharedTextKey() : '',
+  imageApiKey: isStoredOn(sharedKeys.useRealImage, false) ? getSharedImageKey() : '',
+  textBaseUrl: getTextBaseUrl(),
+  imageBaseUrl: getImageBaseUrl(),
+  textModel: getTextModel(),
+  imageModel: getImageModel(),
 });
 
 function syncMorningApiKey() {
-  morningFrame?.contentWindow?.postMessage({ type: 'shared-api-keys', imageApiKey: getSharedImageKey() }, window.location.origin);
+  morningFrame?.contentWindow?.postMessage({
+    type: 'shared-api-keys',
+    imageApiKey: getSharedImageKey(),
+    imageBaseUrl: getImageBaseUrl(),
+    imageModel: getImageModel(),
+    useRealImage: isStoredOn(sharedKeys.useRealImage, false),
+  }, window.location.origin);
+}
+
+function toggleSettingsMenu(force) {
+  const next = typeof force === 'boolean' ? force : settingsMenu.hidden;
+  settingsMenu.hidden = !next;
+  settingsButton?.setAttribute('aria-expanded', String(next));
 }
 
 function openApiSettings() {
+  toggleSettingsMenu(false);
   sharedTextKeyInput.value = getSharedTextKey();
   sharedImageKeyInput.value = getSharedImageKey();
+  sharedTextBaseUrlInput.value = getTextBaseUrl();
+  sharedImageBaseUrlInput.value = getImageBaseUrl();
+  sharedTextModelInput.value = getTextModel();
+  sharedImageModelInput.value = getImageModel();
+  sharedUseRealTextInput.checked = isStoredOn(sharedKeys.useRealText, true);
+  sharedSearchHotInput.checked = isStoredOn(sharedKeys.searchHot, true);
+  sharedUseRealImageInput.checked = isStoredOn(sharedKeys.useRealImage, false);
   apiSettingsModal.hidden = false;
   sharedTextKeyInput.focus();
 }
@@ -49,24 +101,44 @@ function saveApiSettings() {
   const imageKey = cleanApiKey(sharedImageKeyInput.value);
   if (textKey) localStorage.setItem(sharedKeys.text, textKey); else localStorage.removeItem(sharedKeys.text);
   if (imageKey) localStorage.setItem(sharedKeys.image, imageKey); else localStorage.removeItem(sharedKeys.image);
+  localStorage.setItem(sharedKeys.textBaseUrl, sharedTextBaseUrlInput.value.trim() || 'https://huoxingapi.com/v1');
+  localStorage.setItem(sharedKeys.imageBaseUrl, sharedImageBaseUrlInput.value.trim() || 'https://img.rjm.us.ci');
+  localStorage.setItem(sharedKeys.textModel, sharedTextModelInput.value.trim() || 'deepseek-v4-flash');
+  localStorage.setItem(sharedKeys.imageModel, sharedImageModelInput.value.trim() || 'gpt-image-2');
+  localStorage.setItem(sharedKeys.useRealText, sharedUseRealTextInput.checked ? '1' : '0');
+  localStorage.setItem(sharedKeys.searchHot, sharedSearchHotInput.checked ? '1' : '0');
+  localStorage.setItem(sharedKeys.useRealImage, sharedUseRealImageInput.checked ? '1' : '0');
   sharedTextKeyInput.value = textKey;
   sharedImageKeyInput.value = imageKey;
   syncMorningApiKey();
   closeApiSettings();
 }
 
+settingsButton?.addEventListener('click', (event) => {
+  event.stopPropagation();
+  toggleSettingsMenu();
+});
 apiSettingsButton?.addEventListener('click', openApiSettings);
 document.querySelector('#api-settings-close')?.addEventListener('click', closeApiSettings);
 document.querySelector('#api-settings-save')?.addEventListener('click', saveApiSettings);
 document.querySelector('#api-settings-clear')?.addEventListener('click', () => {
-  localStorage.removeItem(sharedKeys.text);
-  localStorage.removeItem(sharedKeys.image);
+  Object.values(sharedKeys).forEach(key => localStorage.removeItem(key));
   sharedTextKeyInput.value = '';
   sharedImageKeyInput.value = '';
+  sharedTextBaseUrlInput.value = 'https://huoxingapi.com/v1';
+  sharedImageBaseUrlInput.value = 'https://img.rjm.us.ci';
+  sharedTextModelInput.value = 'deepseek-v4-flash';
+  sharedImageModelInput.value = 'gpt-image-2';
+  sharedUseRealTextInput.checked = true;
+  sharedSearchHotInput.checked = true;
+  sharedUseRealImageInput.checked = false;
   syncMorningApiKey();
 });
 apiSettingsModal?.addEventListener('click', (event) => {
   if (event.target === apiSettingsModal) closeApiSettings();
+});
+document.addEventListener('click', (event) => {
+  if (!event.target.closest?.('.settings-wrap')) toggleSettingsMenu(false);
 });
 morningFrame?.addEventListener('load', syncMorningApiKey);
 
@@ -160,7 +232,7 @@ form?.addEventListener('submit', async (event) => {
   button.disabled = true;
   button.querySelector('span').textContent = '…';
   try {
-    const response = await fetch('/api/diagnose', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ account_name: input.value.trim(), textApiKey: getSharedTextKey() }) });
+    const response = await fetch('/api/diagnose', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ account_name: input.value.trim(), textApiKey: isStoredOn(sharedKeys.useRealText, true) ? getSharedTextKey() : '' }) });
     const data = await response.json();
     if (!response.ok) throw new Error(data.detail || data.message || '诊断失败，请稍后重试');
     renderReport(data.report);

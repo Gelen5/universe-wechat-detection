@@ -41,14 +41,27 @@ def _setting(name: str, default: str = "") -> str:
 
 
 @contextmanager
-def provider_overrides(text_api_key: str = "", image_api_key: str = "", base_url: str = ""):
+def provider_overrides(
+    text_api_key: str = "",
+    image_api_key: str = "",
+    text_base_url: str = "",
+    image_base_url: str = "",
+    text_model: str = "",
+    image_model: str = "",
+):
     values = {}
     if text_api_key.strip():
         values["WECHAT_TEXT_API_KEY"] = text_api_key.strip()
     if image_api_key.strip():
         values["WECHAT_IMAGE_API_KEY"] = image_api_key.strip()
-    if base_url.strip():
-        values["WECHAT_API_BASE_URL"] = base_url.strip()
+    if text_base_url.strip():
+        values["WECHAT_TEXT_API_BASE_URL"] = text_base_url.strip()
+    if image_base_url.strip():
+        values["WECHAT_IMAGE_API_BASE_URL"] = image_base_url.strip()
+    if text_model.strip():
+        values["WECHAT_TEXT_MODEL"] = text_model.strip()
+    if image_model.strip():
+        values["WECHAT_IMAGE_MODEL"] = image_model.strip()
     token = REQUEST_SETTINGS.set(values)
     try:
         yield
@@ -60,8 +73,12 @@ def _verify_ssl() -> bool:
     return _setting("WECHAT_API_VERIFY_SSL", "true").lower() not in {"0", "false", "no", "off"}
 
 
-def _api_url(path: str) -> str:
-    base = _setting("WECHAT_API_BASE_URL", "https://api.openai.com/v1").rstrip("/")
+def _api_url(channel: str, path: str) -> str:
+    if channel == "text":
+        base = _setting("WECHAT_TEXT_API_BASE_URL") or _setting("WECHAT_API_BASE_URL", "https://api.openai.com/v1")
+    else:
+        base = _setting("WECHAT_IMAGE_API_BASE_URL") or _setting("WECHAT_API_BASE_URL", "https://api.openai.com/v1")
+    base = base.rstrip("/")
     return f"{base}/{path.lstrip('/')}"
 
 
@@ -82,7 +99,7 @@ def _post(channel: str, path: str, payload: dict[str, Any], timeout: int) -> dic
     session.trust_env = False
     try:
         response = session.post(
-            _api_url(path), headers=_headers(channel), json=payload,
+            _api_url(channel, path), headers=_headers(channel), json=payload,
             timeout=timeout, verify=_verify_ssl(),
         )
     except requests.RequestException as exc:
@@ -138,7 +155,8 @@ def provider_status() -> dict[str, Any]:
     return {
         "text": {"configured": bool(_setting("WECHAT_TEXT_API_KEY")), "model": _setting("WECHAT_TEXT_MODEL", "未配置")},
         "image": {"configured": bool(_setting("WECHAT_IMAGE_API_KEY")), "model": _setting("WECHAT_IMAGE_MODEL", "未配置")},
-        "base_url_configured": bool(_setting("WECHAT_API_BASE_URL")),
+        "text_base_url_configured": bool(_setting("WECHAT_TEXT_API_BASE_URL") or _setting("WECHAT_API_BASE_URL")),
+        "image_base_url_configured": bool(_setting("WECHAT_IMAGE_API_BASE_URL") or _setting("WECHAT_API_BASE_URL")),
     }
 
 
