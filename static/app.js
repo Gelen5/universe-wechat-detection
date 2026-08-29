@@ -5,6 +5,12 @@ const reportRoot = document.querySelector('#report');
 const downloadButton = document.querySelector('#download-report');
 const appShell = document.querySelector('.app-shell');
 const morningGenerator = document.querySelector('#morning-generator');
+const apiSettingsButton = document.querySelector('#api-settings-button');
+const apiSettingsModal = document.querySelector('#api-settings-modal');
+const sharedTextKeyInput = document.querySelector('#shared-text-api-key');
+const sharedImageKeyInput = document.querySelector('#shared-image-api-key');
+const morningFrame = document.querySelector('.generator-frame');
+const sharedKeys = { text: 'shared_text_api_key_v1', image: 'shared_image_api_key_v1' };
 
 const esc = (value) => String(value ?? '无').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
 const number = (value) => new Intl.NumberFormat('zh-CN').format(Number(value || 0));
@@ -15,6 +21,54 @@ const safeUrl = (value) => {
   if (/^\/\//.test(raw)) return `https:${raw}`;
   return '';
 };
+const cleanApiKey = (value) => String(value || '').replace(/[\s\u00a0\u200b-\u200d\ufeff]/g, '');
+const getSharedTextKey = () => cleanApiKey(localStorage.getItem(sharedKeys.text) || '');
+const getSharedImageKey = () => cleanApiKey(localStorage.getItem(sharedKeys.image) || '');
+const sharedApiPayload = () => ({
+  textApiKey: getSharedTextKey(),
+  imageApiKey: getSharedImageKey(),
+});
+
+function syncMorningApiKey() {
+  morningFrame?.contentWindow?.postMessage({ type: 'shared-api-keys', imageApiKey: getSharedImageKey() }, window.location.origin);
+}
+
+function openApiSettings() {
+  sharedTextKeyInput.value = getSharedTextKey();
+  sharedImageKeyInput.value = getSharedImageKey();
+  apiSettingsModal.hidden = false;
+  sharedTextKeyInput.focus();
+}
+
+function closeApiSettings() {
+  apiSettingsModal.hidden = true;
+}
+
+function saveApiSettings() {
+  const textKey = cleanApiKey(sharedTextKeyInput.value);
+  const imageKey = cleanApiKey(sharedImageKeyInput.value);
+  if (textKey) localStorage.setItem(sharedKeys.text, textKey); else localStorage.removeItem(sharedKeys.text);
+  if (imageKey) localStorage.setItem(sharedKeys.image, imageKey); else localStorage.removeItem(sharedKeys.image);
+  sharedTextKeyInput.value = textKey;
+  sharedImageKeyInput.value = imageKey;
+  syncMorningApiKey();
+  closeApiSettings();
+}
+
+apiSettingsButton?.addEventListener('click', openApiSettings);
+document.querySelector('#api-settings-close')?.addEventListener('click', closeApiSettings);
+document.querySelector('#api-settings-save')?.addEventListener('click', saveApiSettings);
+document.querySelector('#api-settings-clear')?.addEventListener('click', () => {
+  localStorage.removeItem(sharedKeys.text);
+  localStorage.removeItem(sharedKeys.image);
+  sharedTextKeyInput.value = '';
+  sharedImageKeyInput.value = '';
+  syncMorningApiKey();
+});
+apiSettingsModal?.addEventListener('click', (event) => {
+  if (event.target === apiSettingsModal) closeApiSettings();
+});
+morningFrame?.addEventListener('load', syncMorningApiKey);
 
 function scoreState(score) { return Number(score) < 45 ? ['偏低', 'low'] : Number(score) < 70 ? ['中等', 'mid'] : ['较好', 'good']; }
 
@@ -106,7 +160,7 @@ form?.addEventListener('submit', async (event) => {
   button.disabled = true;
   button.querySelector('span').textContent = '…';
   try {
-    const response = await fetch('/api/diagnose', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ account_name: input.value.trim() }) });
+    const response = await fetch('/api/diagnose', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ account_name: input.value.trim(), textApiKey: getSharedTextKey() }) });
     const data = await response.json();
     if (!response.ok) throw new Error(data.detail || data.message || '诊断失败，请稍后重试');
     renderReport(data.report);
@@ -162,7 +216,7 @@ function renderWorkbenchSession(session) {
 }
 
 async function callWorkbench(path, payload) {
-  const response = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+  const response = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...sharedApiPayload(), ...payload }) });
   const data = await response.json();
   if (!response.ok) throw new Error(data.detail || data.message || '工作台执行失败');
   return data.session;
@@ -202,7 +256,7 @@ document.querySelectorAll('.app-tabs [data-view]').forEach(tab => tab.addEventLi
   const view = tab.dataset.view;
   document.querySelectorAll('.app-tabs [data-view]').forEach(item => item.classList.toggle('active', item === tab));
   if (view === 'workbench') { workbench.hidden = false; morningGenerator.hidden = true; entry.hidden = true; reportRoot.hidden = true; appShell?.classList.add('workbench-active'); workbench.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
-  else if (view === 'morning') { workbench.hidden = true; morningGenerator.hidden = false; entry.hidden = true; reportRoot.hidden = true; appShell?.classList.add('workbench-active'); morningGenerator.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+  else if (view === 'morning') { workbench.hidden = true; morningGenerator.hidden = false; entry.hidden = true; reportRoot.hidden = true; appShell?.classList.add('workbench-active'); syncMorningApiKey(); morningGenerator.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
   else { workbench.hidden = true; morningGenerator.hidden = true; entry.hidden = false; reportRoot.hidden = true; appShell?.classList.remove('workbench-active'); window.scrollTo({ top: 0, behavior: 'smooth' }); }
 }));
 paintWorkflow();

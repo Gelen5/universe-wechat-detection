@@ -13,6 +13,8 @@ import os
 import re
 import subprocess
 import sys
+from contextlib import contextmanager
+from contextvars import ContextVar
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -26,6 +28,7 @@ SKILL_DIR = Path(os.environ.get("WECHAT_AUTOCREATE_SKILL_DIR", r"C:\Users\16972\
 OUTPUT_DIR = ROOT / "output" / "workbench"
 SESSIONS: dict[str, dict[str, Any]] = {}
 STEPS = ["选题", "框架", "写作", "反 AI", "配图", "排版", "预览", "发布"]
+REQUEST_SETTINGS: ContextVar[dict[str, str]] = ContextVar("REQUEST_SETTINGS", default={})
 
 
 class ProviderError(RuntimeError):
@@ -33,7 +36,24 @@ class ProviderError(RuntimeError):
 
 
 def _setting(name: str, default: str = "") -> str:
-    return (os.getenv(name) or default).strip()
+    overrides = REQUEST_SETTINGS.get()
+    return (overrides.get(name) or os.getenv(name) or default).strip()
+
+
+@contextmanager
+def provider_overrides(text_api_key: str = "", image_api_key: str = "", base_url: str = ""):
+    values = {}
+    if text_api_key.strip():
+        values["WECHAT_TEXT_API_KEY"] = text_api_key.strip()
+    if image_api_key.strip():
+        values["WECHAT_IMAGE_API_KEY"] = image_api_key.strip()
+    if base_url.strip():
+        values["WECHAT_API_BASE_URL"] = base_url.strip()
+    token = REQUEST_SETTINGS.set(values)
+    try:
+        yield
+    finally:
+        REQUEST_SETTINGS.reset(token)
 
 
 def _verify_ssl() -> bool:

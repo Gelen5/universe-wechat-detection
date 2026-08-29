@@ -31,6 +31,7 @@ app = FastAPI(
 
 class DiagnoseRequest(BaseModel):
     account_name: str = Field(min_length=1, max_length=80)
+    textApiKey: str | None = Field(default=None, max_length=300)
 
 
 class WorkbenchCreateRequest(BaseModel):
@@ -38,6 +39,9 @@ class WorkbenchCreateRequest(BaseModel):
     mode: str = Field(default="interactive", pattern="^(auto|interactive|single)$")
     persona: str = Field(default="深度观察者", max_length=80)
     theme: str = Field(default="default", max_length=80)
+    textApiKey: str | None = Field(default=None, max_length=300)
+    imageApiKey: str | None = Field(default=None, max_length=300)
+    apiBaseUrl: str | None = Field(default=None, max_length=300)
 
 
 class WorkbenchStepRequest(BaseModel):
@@ -45,16 +49,25 @@ class WorkbenchStepRequest(BaseModel):
     step: int = Field(ge=1, le=8)
     selection: int | None = Field(default=None, ge=1, le=10)
     article: str | None = Field(default=None, max_length=200000)
+    textApiKey: str | None = Field(default=None, max_length=300)
+    imageApiKey: str | None = Field(default=None, max_length=300)
+    apiBaseUrl: str | None = Field(default=None, max_length=300)
 
 
 class WorkbenchPreviewRequest(BaseModel):
     session_id: str = Field(min_length=8, max_length=80)
     article: str | None = Field(default=None, max_length=200000)
+    textApiKey: str | None = Field(default=None, max_length=300)
+    imageApiKey: str | None = Field(default=None, max_length=300)
+    apiBaseUrl: str | None = Field(default=None, max_length=300)
 
 
 class WorkbenchPublishRequest(BaseModel):
     session_id: str = Field(min_length=8, max_length=80)
     draft: bool = True
+    textApiKey: str | None = Field(default=None, max_length=300)
+    imageApiKey: str | None = Field(default=None, max_length=300)
+    apiBaseUrl: str | None = Field(default=None, max_length=300)
 
 
 class ImageGenerationRequest(BaseModel):
@@ -316,15 +329,19 @@ def diagnose(payload: DiagnoseRequest):
     account_name = payload.account_name.strip()
     if not account_name:
         raise HTTPException(status_code=422, detail="请输入公众号名称")
-    if not os.getenv("REDFOX_API_KEY"):
+    text_api_key = (payload.textApiKey or "").strip()
+    if not os.getenv("REDFOX_API_KEY") and not text_api_key:
         raise HTTPException(status_code=503, detail="服务端尚未配置 REDFOX_API_KEY")
 
     # The vendored Skill has a CLI-oriented API. The lock keeps its credential
     # and request-scoped output directory isolated during the beta phase.
     with ANALYZER_LOCK:
         previous_output_dir = os.environ.get("WECHAT_ANALYZER_OUTPUT_DIR")
+        previous_api_key = os.environ.get("REDFOX_API_KEY")
         with tempfile.TemporaryDirectory(prefix="wechat-report-") as request_dir:
             os.environ["WECHAT_ANALYZER_OUTPUT_DIR"] = request_dir
+            if text_api_key:
+                os.environ["REDFOX_API_KEY"] = text_api_key
             captured = io.StringIO()
             try:
                 with contextlib.redirect_stdout(captured):
@@ -336,6 +353,10 @@ def diagnose(payload: DiagnoseRequest):
                     os.environ.pop("WECHAT_ANALYZER_OUTPUT_DIR", None)
                 else:
                     os.environ["WECHAT_ANALYZER_OUTPUT_DIR"] = previous_output_dir
+                if previous_api_key is None:
+                    os.environ.pop("REDFOX_API_KEY", None)
+                else:
+                    os.environ["REDFOX_API_KEY"] = previous_api_key
 
             report_path = Path(request_dir) / "report_data.json"
             if report_path.exists():
@@ -427,7 +448,8 @@ def generate_image(payload: ImageGenerationRequest):
 @app.post("/api/workbench/sessions")
 def create_workbench_session(payload: WorkbenchCreateRequest):
     try:
-        return {"status": "success", "session": workbench.create(payload.topic, payload.mode, payload.persona, payload.theme)}
+        with workbench.provider_overrides(payload.textApiKey or "", payload.imageApiKey or "", payload.apiBaseUrl or ""):
+            return {"status": "success", "session": workbench.create(payload.topic, payload.mode, payload.persona, payload.theme)}
     except workbench.ProviderError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
@@ -440,7 +462,8 @@ def get_workbench_provider_status():
 @app.post("/api/workbench/steps")
 def advance_workbench(payload: WorkbenchStepRequest):
     try:
-        return {"status": "success", "session": workbench.step(payload.session_id, payload.step, payload.selection, payload.article)}
+        with workbench.provider_overrides(payload.textApiKey or "", payload.imageApiKey or "", payload.apiBaseUrl or ""):
+            return {"status": "success", "session": workbench.step(payload.session_id, payload.step, payload.selection, payload.article)}
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except workbench.ProviderError as exc:
@@ -452,7 +475,8 @@ def advance_workbench(payload: WorkbenchStepRequest):
 @app.post("/api/workbench/preview")
 def preview_workbench(payload: WorkbenchPreviewRequest):
     try:
-        return {"status": "success", "session": workbench.preview(payload.session_id, payload.article)}
+        with workbench.provider_overrides(payload.textApiKey or "", payload.imageApiKey or "", payload.apiBaseUrl or ""):
+            return {"status": "success", "session": workbench.preview(payload.session_id, payload.article)}
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except Exception as exc:
@@ -478,7 +502,8 @@ def get_workbench_asset(session_id: str, filename: str):
 @app.post("/api/workbench/publish")
 def publish_workbench(payload: WorkbenchPublishRequest):
     try:
-        return {"status": "success", "session": workbench.publish(payload.session_id, payload.draft)}
+        with workbench.provider_overrides(payload.textApiKey or "", payload.imageApiKey or "", payload.apiBaseUrl or ""):
+            return {"status": "success", "session": workbench.publish(payload.session_id, payload.draft)}
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except Exception as exc:
