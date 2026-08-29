@@ -43,6 +43,19 @@ uvicorn server.main:app --reload --host 0.0.0.0 --port 8000
 
 浏览器打开：<http://127.0.0.1:8000>
 
+## 测试
+
+完整测试环境包含 FastAPI `TestClient` 所需的 `httpx2`：
+
+```powershell
+pip install -r requirements-dev.txt
+python -m unittest tests.test_creator_api_integration tests.test_creator_tools -v
+$env:PYTHONPATH = (Resolve-Path vendor\skills\wechat_tie_tu).Path
+python -m unittest discover -s vendor\skills\wechat_tie_tu\tests -v
+Remove-Item Env:PYTHONPATH
+python -m unittest discover -s vendor\skills\wechat_hit_detector\tests -v
+```
+
 服务端环境变量：
 
 ```text
