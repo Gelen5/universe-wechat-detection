@@ -80,6 +80,9 @@ function refreshConfigStatus() {
   }
   configDot?.classList.toggle('ready', hasText && hasImage);
   configDot?.classList.toggle('partial', hasText !== hasImage);
+  const commandApiStatus = document.querySelector('#command-api-status');
+  if (commandApiStatus) commandApiStatus.textContent = hasText && hasImage ? 'API 已连接' : hasText || hasImage ? 'API 部分配置' : 'API 未配置';
+  document.querySelector('.api-live-dot')?.classList.toggle('offline', !hasText && !hasImage);
 }
 
 function showToast(message, type = 'success') {
@@ -574,15 +577,29 @@ const viewMap = {
   report: reportRoot,
 };
 
+const viewTitles = {
+  diagnose: '公众号诊断',
+  workbench: '公众号创作',
+  xiaohongshu: '小红书创作',
+  'tie-tu': '微信贴图号',
+  'hit-detector': '爆文检测',
+  morning: '早安祝福',
+  report: '诊断报告',
+};
+
 function setActiveView(view, updateHash = false) {
   Object.entries(viewMap).forEach(([name, element]) => { if (element) element.hidden = name !== view; });
   document.querySelectorAll('.app-tabs [data-view]').forEach(item => item.classList.toggle('active', item.dataset.view === view));
   appShell?.classList.toggle('workbench-active', view !== 'diagnose' && view !== 'report');
   if (downloadButton) downloadButton.hidden = view !== 'report';
   if (view === 'morning') syncMorningApiKey();
+  const commandTitle = document.querySelector('#command-title');
+  if (commandTitle) commandTitle.textContent = viewTitles[view] || '宇宙第一工作台';
   if (updateHash && view !== 'report') history.replaceState(null, '', `#${view}`);
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
+
+document.querySelector('#command-settings')?.addEventListener('click', openApiSettings);
 
 document.querySelectorAll('.app-tabs [data-view]').forEach(tab => tab.addEventListener('click', event => {
   event.preventDefault();

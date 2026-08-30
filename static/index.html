@@ -3,13 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>宇宙创作工作台</title>
-    <link rel="stylesheet" href="/static/style.css?v=20260830-1" />
+    <title>宇宙第一工作台</title>
+    <link rel="stylesheet" href="/static/style.css?v=20260830-taste" />
+    <link rel="stylesheet" href="/static/taste-chatgpt.css?v=20260830-apple-premium-1" />
   </head>
   <body>
     <div class="app-shell">
       <header class="report-nav app-sidebar">
-        <a class="account-brand" href="/"><span id="nav-avatar" class="fixed-avatar" aria-hidden="true">宇</span><span class="brand-copy"><strong id="nav-name">宇宙创作工作台</strong><small id="nav-subtitle">Creator Studio</small></span></a>
+        <a class="account-brand" href="/"><span id="nav-avatar" class="fixed-avatar" aria-hidden="true"><i data-lucide="orbit"></i></span><span class="brand-copy"><strong id="nav-name">宇宙第一工作台</strong><small id="nav-subtitle">Creator OS</small></span></a>
         <nav class="nav-links app-tabs" aria-label="产品模块">
           <a class="active" data-view="diagnose" href="#entry"><i data-lucide="scan-search"></i><span><strong>公众号诊断</strong><small>查看账号问题</small></span></a>
           <a data-view="workbench" href="#workbench"><i data-lucide="file-pen-line"></i><span><strong>公众号创作</strong><small>从选题到预览</small></span></a>
@@ -28,6 +29,13 @@
           <button id="download-report" class="download-button" type="button"><i data-lucide="download"></i><span>下载报告</span></button>
         </div>
       </header>
+
+      <div class="command-bar" aria-label="工作台工具栏">
+        <div class="command-context"><span id="command-eyebrow">CREATOR WORKSPACE</span><strong id="command-title">公众号诊断</strong></div>
+        <label class="command-search"><i data-lucide="search"></i><input type="search" placeholder="搜索内容、任务、素材" aria-label="搜索内容、任务、素材"><kbd>⌘K</kbd></label>
+        <div class="command-status"><span class="api-live-dot"></span><span id="command-api-status">API 状态</span></div>
+        <button id="command-settings" class="icon-command" type="button" aria-label="打开设置"><i data-lucide="settings"></i></button>
+      </div>
 
       <div id="api-settings-modal" class="api-settings-modal" hidden>
         <section class="api-settings-card" role="dialog" aria-modal="true" aria-labelledby="api-settings-title">
@@ -144,7 +152,7 @@
           <h1>生成早安图和祝福文案</h1>
           <p>支持文章和贴图两种模式，图片生成走本站后端代理，适合部署到云服务器后直接使用。</p>
         </div>
-        <iframe class="generator-frame" src="/static/morning-blessing.html?v=20260830-1" title="早安祝福自动生成器"></iframe>
+        <iframe class="generator-frame" src="/static/morning-blessing.html?v=20260830-taste" title="早安祝福自动生成器"></iframe>
       </section>
 
       <main id="report" class="report-page" hidden>
@@ -198,6 +206,7 @@
       <footer>公众号账号诊断 · 数据来自公开数据接口 · 仅作运营参考</footer>
     </div>
     <script src="/static/vendor/lucide.min.js"></script>
-    <script src="/static/app.js?v=20260830-1"></script>
+    <script src="/static/app.js?v=20260830-taste"></script>
   </body>
 </html>
+
