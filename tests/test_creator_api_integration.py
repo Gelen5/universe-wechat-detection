@@ -172,6 +172,7 @@ class CreatorApiIntegrationTests(unittest.TestCase):
         self.assertIn('id="impersonation-banner"', html)
         self.assertIn("/api/admin/impersonate", script)
         self.assertIn("/api/auth/stop-impersonation", script)
+        self.assertIn("[502, 503, 504].includes(response.status)", script)
         self.assertNotIn("shared-use-real", html)
         self.assertEqual(html.count("data-view="), 6)
 

@@ -162,7 +162,12 @@ function showToast(message, type = 'success') {
 
 async function readApiResponse(response) {
   const contentType = response.headers.get('content-type') || '';
-  if (!contentType.includes('application/json')) throw new Error(`服务器返回了 ${contentType || '未知格式'}，请检查后端部署`);
+  if (!contentType.includes('application/json')) {
+    if ([502, 503, 504].includes(response.status)) {
+      throw new Error('AI 生成时间超过网关等待上限，任务可能仍在服务器继续执行。请先等待一分钟并刷新页面，避免重复提交。');
+    }
+    throw new Error(`服务器响应格式异常（HTTP ${response.status}，${contentType || '未知格式'}），请刷新页面后重试`);
+  }
   const data = await response.json();
   const headerBalance = response.headers.get('X-Points-Balance');
   if (headerBalance !== null) setWalletBalance(Number(headerBalance));
