@@ -56,6 +56,12 @@ const getTextModel = () => getStored(sharedKeys.textModel, 'deepseek-v4-flash').
 const getImageModel = () => getStored(sharedKeys.imageModel, 'gpt-image-2').trim();
 const sharedApiPayload = () => ({});
 
+function syncAdminVisibility() {
+  const isAdmin = currentAccount?.role === 'admin' && currentAccount?.email?.toLowerCase() === 'gelen5@163.com';
+  if (apiSettingsButton) apiSettingsButton.hidden = !isAdmin;
+  if (!isAdmin && apiSettingsModal) apiSettingsModal.hidden = true;
+}
+
 function syncMorningApiKey() {
   morningFrame?.contentWindow?.postMessage({
     type: 'shared-api-keys',
@@ -155,6 +161,7 @@ document.querySelector('#auth-form')?.addEventListener('submit', async event => 
     });
     const data = await readApiResponse(response);
     currentAccount = data.user;
+    syncAdminVisibility();
     renderWallet(data.wallet);
     document.querySelector('#wallet-user-line').textContent = `${currentAccount.display_name} · ${currentAccount.email}`;
     document.querySelector('.api-live-dot')?.classList.remove('offline');
@@ -242,6 +249,7 @@ walletModal?.addEventListener('click', event => { if (event.target === walletMod
 logoutButton?.addEventListener('click', async () => {
   await fetch('/api/auth/logout', { method: 'POST' });
   currentAccount = null;
+  syncAdminVisibility();
   renderWallet({ balance: 0, trial: 0, bonus: 0, paid: 0 });
   walletModal.hidden = true;
   showAuth();
@@ -253,6 +261,7 @@ async function loadAccount() {
     if (!response.ok) { showAuth(); return; }
     const data = await readApiResponse(response);
     currentAccount = data.user;
+    syncAdminVisibility();
     renderWallet(data.wallet);
     document.querySelector('#wallet-user-line').textContent = `${currentAccount.display_name} · ${currentAccount.email}`;
     document.querySelector('.api-live-dot')?.classList.remove('offline');
@@ -265,38 +274,42 @@ function toggleSettingsMenu(force) {
   settingsButton?.setAttribute('aria-expanded', String(next));
 }
 
-function openApiSettings() {
+async function openApiSettings() {
+  if (apiSettingsButton?.hidden) return;
   toggleSettingsMenu(false);
-  sharedTextKeyInput.value = getSharedTextKey();
-  sharedImageKeyInput.value = getSharedImageKey();
-  sharedTextBaseUrlInput.value = getTextBaseUrl();
-  sharedImageBaseUrlInput.value = getImageBaseUrl();
-  sharedTextModelInput.value = getTextModel();
-  sharedImageModelInput.value = getImageModel();
-  refreshConfigStatus();
-  apiSettingsModal.hidden = false;
-  sharedTextKeyInput.focus();
+  try {
+    const data = await readApiResponse(await fetch('/api/admin/provider-settings'));
+    const settings = data.settings || {};
+    sharedTextKeyInput.value = '';
+    sharedImageKeyInput.value = '';
+    sharedTextBaseUrlInput.value = settings.text_base_url || 'https://huoxingapi.com/v1';
+    sharedImageBaseUrlInput.value = settings.image_base_url || 'https://img.rjm.us.ci';
+    sharedTextModelInput.value = settings.text_model || 'deepseek-v4-flash';
+    sharedImageModelInput.value = settings.image_model || 'gpt-image-2';
+    textConfigStatus.textContent = settings.text_configured ? '已配置' : '未配置';
+    imageConfigStatus.textContent = settings.image_configured ? '已配置' : '未配置';
+    textConfigStatus.classList.toggle('ready', Boolean(settings.text_configured));
+    imageConfigStatus.classList.toggle('ready', Boolean(settings.image_configured));
+    apiSettingsModal.hidden = false;
+    sharedTextKeyInput.focus();
+  } catch (error) { showToast(error.message, 'error'); }
 }
 
 function closeApiSettings() {
   apiSettingsModal.hidden = true;
 }
 
-function saveApiSettings() {
-  const textKey = cleanApiKey(sharedTextKeyInput.value);
-  const imageKey = cleanApiKey(sharedImageKeyInput.value);
-  if (textKey) localStorage.setItem(sharedKeys.text, textKey); else localStorage.removeItem(sharedKeys.text);
-  if (imageKey) localStorage.setItem(sharedKeys.image, imageKey); else localStorage.removeItem(sharedKeys.image);
-  localStorage.setItem(sharedKeys.textBaseUrl, sharedTextBaseUrlInput.value.trim() || 'https://huoxingapi.com/v1');
-  localStorage.setItem(sharedKeys.imageBaseUrl, sharedImageBaseUrlInput.value.trim() || 'https://img.rjm.us.ci');
-  localStorage.setItem(sharedKeys.textModel, sharedTextModelInput.value.trim() || 'deepseek-v4-flash');
-  localStorage.setItem(sharedKeys.imageModel, sharedImageModelInput.value.trim() || 'gpt-image-2');
-  sharedTextKeyInput.value = textKey;
-  sharedImageKeyInput.value = imageKey;
-  syncMorningApiKey();
-  refreshConfigStatus();
-  closeApiSettings();
-  showToast('API 配置已保存，所有创作工具会自动复用');
+async function saveApiSettings() {
+  try {
+    const response = await fetch('/api/admin/provider-settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+      text_api_key: cleanApiKey(sharedTextKeyInput.value), image_api_key: cleanApiKey(sharedImageKeyInput.value),
+      text_base_url: sharedTextBaseUrlInput.value.trim(), image_base_url: sharedImageBaseUrlInput.value.trim(),
+      text_model: sharedTextModelInput.value.trim(), image_model: sharedImageModelInput.value.trim(),
+    }) });
+    await readApiResponse(response);
+    closeApiSettings();
+    showToast('API 配置已安全保存到服务器');
+  } catch (error) { showToast(error.message, 'error'); }
 }
 
 settingsButton?.addEventListener('click', (event) => {
@@ -306,18 +319,6 @@ settingsButton?.addEventListener('click', (event) => {
 apiSettingsButton?.addEventListener('click', openApiSettings);
 document.querySelector('#api-settings-close')?.addEventListener('click', closeApiSettings);
 document.querySelector('#api-settings-save')?.addEventListener('click', saveApiSettings);
-document.querySelector('#api-settings-clear')?.addEventListener('click', () => {
-  Object.values(sharedKeys).forEach(key => localStorage.removeItem(key));
-  sharedTextKeyInput.value = '';
-  sharedImageKeyInput.value = '';
-  sharedTextBaseUrlInput.value = 'https://huoxingapi.com/v1';
-  sharedImageBaseUrlInput.value = 'https://img.rjm.us.ci';
-  sharedTextModelInput.value = 'deepseek-v4-flash';
-  sharedImageModelInput.value = 'gpt-image-2';
-  syncMorningApiKey();
-  refreshConfigStatus();
-});
-
 function modalApiPayload() {
   return {
     textApiKey: cleanApiKey(sharedTextKeyInput.value),
@@ -334,7 +335,7 @@ async function testProvider(kind, button) {
   button.disabled = true;
   button.textContent = '正在测试…';
   try {
-    const response = await fetch('/api/providers/test', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind, ...modalApiPayload() }) });
+    const response = await fetch('/api/providers/test', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind }) });
     const data = await readApiResponse(response);
     const target = kind === 'text' ? textConfigStatus : imageConfigStatus;
     target.textContent = '连接成功';

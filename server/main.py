@@ -153,6 +153,15 @@ class ProviderTestRequest(BaseModel):
     imageModel: str | None = Field(default=None, max_length=120)
 
 
+class ProviderSettingsRequest(BaseModel):
+    text_api_key: str = Field(default="", max_length=300)
+    image_api_key: str = Field(default="", max_length=300)
+    text_base_url: str = Field(default="", max_length=300)
+    image_base_url: str = Field(default="", max_length=300)
+    text_model: str = Field(default="", max_length=120)
+    image_model: str = Field(default="", max_length=120)
+
+
 class AuthRequest(BaseModel):
     email: str = Field(min_length=5, max_length=254)
     password: str = Field(min_length=8, max_length=128)
@@ -617,11 +626,12 @@ def _wait_for_image_task(status_url: str, api_key: str):
 
 @app.post("/api/images/generations")
 def generate_image(payload: ImageGenerationRequest):
-    api_key = (os.getenv("WECHAT_IMAGE_API_KEY") or "").strip()
+    stored = accounts.provider_settings(include_secrets=True)
+    api_key = (stored.get("image_api_key") or os.getenv("WECHAT_IMAGE_API_KEY") or "").strip()
     if not api_key:
         raise HTTPException(status_code=503, detail="服务端尚未配置图片 API Key")
-    base_url = os.getenv("WECHAT_IMAGE_API_BASE_URL") or os.getenv("WECHAT_API_BASE_URL") or "https://api.openai.com/v1"
-    model = os.getenv("WECHAT_IMAGE_MODEL") or payload.model or "gpt-image-2"
+    base_url = stored.get("image_base_url") or os.getenv("WECHAT_IMAGE_API_BASE_URL") or os.getenv("WECHAT_API_BASE_URL") or "https://api.openai.com/v1"
+    model = stored.get("image_model") or os.getenv("WECHAT_IMAGE_MODEL") or payload.model or "gpt-image-2"
     body = {
         "model": model,
         "prompt": payload.prompt,
@@ -653,8 +663,21 @@ def generate_image(payload: ImageGenerationRequest):
     return data
 
 
+@app.get("/api/admin/provider-settings")
+def get_provider_settings(request: Request):
+    accounts.require_admin(request)
+    return {"status": "success", "settings": accounts.provider_settings()}
+
+
+@app.post("/api/admin/provider-settings")
+def save_provider_settings(payload: ProviderSettingsRequest, request: Request):
+    admin = accounts.require_admin(request)
+    return {"status": "success", "settings": accounts.update_provider_settings(admin["id"], payload.model_dump())}
+
+
 @app.post("/api/providers/test")
-def test_provider(payload: ProviderTestRequest):
+def test_provider(payload: ProviderTestRequest, request: Request):
+    accounts.require_admin(request)
     try:
         with workbench.provider_overrides():
             if payload.kind == "text":

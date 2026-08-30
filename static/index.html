@@ -23,6 +23,7 @@
           <div class="settings-wrap">
             <button id="settings-button" class="download-button settings-button" type="button" aria-haspopup="menu" aria-expanded="false"><i data-lucide="settings-2"></i><span>设置</span><span id="settings-config-dot" class="config-dot"></span></button>
             <div id="settings-menu" class="settings-menu" role="menu" hidden>
+              <button id="api-settings-button" type="button" role="menuitem" hidden><i data-lucide="key-round"></i>API 设置</button>
               <button id="wallet-settings-button" type="button" role="menuitem"><i data-lucide="wallet-cards"></i>我的积分</button>
               <button id="logout-button" type="button" role="menuitem"><i data-lucide="log-out"></i>退出登录</button>
             </div>
@@ -71,6 +72,18 @@
               <button class="primary-action compact" type="submit">确认充值</button>
             </form>
           </section>
+        </section>
+      </div>
+
+      <div id="api-settings-modal" class="api-settings-modal" hidden>
+        <section class="api-settings-card" role="dialog" aria-modal="true" aria-labelledby="api-settings-title">
+          <div class="api-settings-head"><div><span class="micro-label">管理员专属</span><h2 id="api-settings-title">统一 API 设置</h2><p>密钥保存在服务器，不会返回浏览器，也不会写入代码仓库。</p></div><button id="api-settings-close" type="button" aria-label="关闭"><i data-lucide="x"></i></button></div>
+          <div class="api-config-stack">
+            <section class="api-config-group"><div class="config-group-head"><div><span class="config-icon text"><i data-lucide="message-square-text"></i></span><div><h3>文本模型</h3><p>选题、写作、策划和改稿</p></div></div><span id="text-config-status" class="connection-status">未配置</span></div><label>API Key<input id="shared-text-api-key" type="password" placeholder="留空则保留现有密钥" autocomplete="new-password"></label><div class="api-field-row"><label>Base URL<input id="shared-text-base-url" type="url"></label><label>模型<input id="shared-text-model" type="text"></label></div><button id="test-text-provider" class="test-provider" type="button"><i data-lucide="plug-zap"></i>测试文字连接</button></section>
+            <section class="api-config-group"><div class="config-group-head"><div><span class="config-icon image"><i data-lucide="image"></i></span><div><h3>图片模型</h3><p>封面、卡片和早安图</p></div></div><span id="image-config-status" class="connection-status">未配置</span></div><label>API Key<input id="shared-image-api-key" type="password" placeholder="留空则保留现有密钥" autocomplete="new-password"></label><div class="api-field-row"><label>Base URL<input id="shared-image-base-url" type="url"></label><label>模型<input id="shared-image-model" type="text"></label></div><button id="test-image-provider" class="test-provider" type="button"><i data-lucide="plug-zap"></i>测试图片连接</button></section>
+          </div>
+          <p class="api-settings-note"><i data-lucide="shield-check"></i>普通用户看不到此入口；服务端也会再次校验管理员邮箱。</p>
+          <div class="api-settings-actions"><button id="api-settings-save" class="primary-action compact" type="button">保存配置</button></div>
         </section>
       </div>
 

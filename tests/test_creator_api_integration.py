@@ -163,8 +163,10 @@ class CreatorApiIntegrationTests(unittest.TestCase):
         self.assertIn("const sharedApiPayload = () => ({})", script)
         self.assertIn('id="auth-modal"', html)
         self.assertIn('id="wallet-modal"', html)
-        self.assertNotIn('id="shared-text-api-key"', html)
-        self.assertNotIn('id="shared-image-api-key"', html)
+        self.assertIn('id="api-settings-button" type="button" role="menuitem" hidden', html)
+        self.assertIn('id="shared-text-api-key"', html)
+        self.assertIn('id="shared-image-api-key"', html)
+        self.assertIn("currentAccount?.email?.toLowerCase() === 'gelen5@163.com'", script)
         self.assertNotIn("shared-use-real", html)
         self.assertEqual(html.count("data-view="), 6)
 

@@ -50,6 +50,15 @@ def provider_overrides(
     text_model: str = "",
     image_model: str = "",
 ):
+    if not any((text_api_key, image_api_key, text_base_url, image_base_url, text_model, image_model)):
+        from . import accounts
+        stored = accounts.provider_settings(include_secrets=True)
+        text_api_key = stored.get("text_api_key", "")
+        image_api_key = stored.get("image_api_key", "")
+        text_base_url = stored.get("text_base_url", "")
+        image_base_url = stored.get("image_base_url", "")
+        text_model = stored.get("text_model", "")
+        image_model = stored.get("image_model", "")
     values = {}
     if text_api_key.strip():
         values["WECHAT_TEXT_API_KEY"] = text_api_key.strip()

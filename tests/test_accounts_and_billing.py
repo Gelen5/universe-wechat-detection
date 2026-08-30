@@ -32,6 +32,24 @@ class AccountAndBillingTests(unittest.TestCase):
         })
         self.assertEqual(response.status_code, 403)
 
+    def test_non_owner_cannot_read_or_change_provider_settings(self):
+        self.assertEqual(self.client.get("/api/admin/provider-settings").status_code, 403)
+        response = self.client.post("/api/admin/provider-settings", json={"text_api_key": "forbidden"})
+        self.assertEqual(response.status_code, 403)
+
+    def test_admin_can_save_settings_without_reading_secrets_back(self):
+        admin = TestClient(app)
+        admin.post("/api/auth/login", json={"email": "admin@example.com", "password": "testing-pass-123"})
+        response = admin.post("/api/admin/provider-settings", json={
+            "text_api_key": "sk-server-text", "text_model": "server-text-model",
+        })
+        self.assertEqual(response.status_code, 200, response.text)
+        settings = response.json()["settings"]
+        self.assertTrue(settings["text_configured"])
+        self.assertEqual(settings["text_model"], "server-text-model")
+        self.assertNotIn("text_api_key", settings)
+        self.assertNotIn("sk-server-text", response.text)
+
     def test_admin_can_recharge_and_successful_request_consumes_points(self):
         admin = TestClient(app)
         login = admin.post("/api/auth/login", json={

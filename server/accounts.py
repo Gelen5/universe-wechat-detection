@@ -150,6 +150,13 @@ def init_db() -> None:
       detail_json TEXT NOT NULL DEFAULT '{}',
       created_at TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS provider_settings (
+      id INTEGER PRIMARY KEY CHECK(id = 1),
+      text_api_key TEXT NOT NULL DEFAULT '', image_api_key TEXT NOT NULL DEFAULT '',
+      text_base_url TEXT NOT NULL DEFAULT '', image_base_url TEXT NOT NULL DEFAULT '',
+      text_model TEXT NOT NULL DEFAULT '', image_model TEXT NOT NULL DEFAULT '',
+      updated_at TEXT NOT NULL, updated_by TEXT REFERENCES users(id)
+    );
     """
     with DB_LOCK, _connect() as connection:
         connection.executescript(schema)
@@ -161,6 +168,7 @@ def init_db() -> None:
                    VALUES (?,?,?,?,?,1,?)""",
                 (method, path, feature, points, cost, now),
             )
+        connection.execute("INSERT OR IGNORE INTO provider_settings(id,updated_at) VALUES (1,?)", (now,))
     _bootstrap_owner_from_env()
     _sync_owner_role()
 
@@ -329,6 +337,44 @@ def require_admin(request: Request) -> dict[str, Any]:
     if user["role"] != "admin" or user["email"].lower() != OWNER_EMAIL:
         raise HTTPException(status_code=403, detail="需要管理员权限")
     return user
+
+
+def provider_settings(*, include_secrets: bool = False) -> dict[str, Any]:
+    with DB_LOCK, _connect() as connection:
+        row = connection.execute("SELECT * FROM provider_settings WHERE id=1").fetchone()
+    data = dict(row) if row else {}
+    result = {
+        "text_base_url": data.get("text_base_url", ""), "image_base_url": data.get("image_base_url", ""),
+        "text_model": data.get("text_model", ""), "image_model": data.get("image_model", ""),
+        "text_configured": bool(data.get("text_api_key") or os.getenv("WECHAT_TEXT_API_KEY")),
+        "image_configured": bool(data.get("image_api_key") or os.getenv("WECHAT_IMAGE_API_KEY")),
+        "updated_at": data.get("updated_at"),
+    }
+    if include_secrets:
+        result.update(text_api_key=data.get("text_api_key", ""), image_api_key=data.get("image_api_key", ""))
+    return result
+
+
+def update_provider_settings(operator_id: str, values: dict[str, Any]) -> dict[str, Any]:
+    current = provider_settings(include_secrets=True)
+    updated = {field: str(values.get(field, "")).strip() for field in
+               ("text_base_url", "image_base_url", "text_model", "image_model")}
+    for key in ("text_api_key", "image_api_key"):
+        updated[key] = str(values.get(key, "")).strip() or current.get(key, "")
+    now = utc_now()
+    with DB_LOCK, _connect() as connection:
+        connection.execute(
+            """UPDATE provider_settings SET text_api_key=?,image_api_key=?,text_base_url=?,image_base_url=?,
+               text_model=?,image_model=?,updated_at=?,updated_by=? WHERE id=1""",
+            (updated["text_api_key"], updated["image_api_key"], updated["text_base_url"],
+             updated["image_base_url"], updated["text_model"], updated["image_model"], now, operator_id),
+        )
+        connection.execute(
+            "INSERT INTO admin_actions(id,operator_id,action,detail_json,created_at) VALUES (?,?,?,?,?)",
+            (uuid.uuid4().hex, operator_id, "update_provider_settings",
+             json.dumps({"text_key_updated": bool(values.get("text_api_key")), "image_key_updated": bool(values.get("image_api_key"))}), now),
+        )
+    return provider_settings()
 
 
 def wallet_summary(user_id: str) -> dict[str, Any]:
