@@ -9,6 +9,8 @@ const settingsButton = document.querySelector('#settings-button');
 const settingsMenu = document.querySelector('#settings-menu');
 const apiSettingsButton = document.querySelector('#api-settings-button');
 const apiSettingsModal = document.querySelector('#api-settings-modal');
+const adminUsersButton = document.querySelector('#admin-users-button');
+const adminUsersModal = document.querySelector('#admin-users-modal');
 const sharedTextKeyInput = document.querySelector('#shared-text-api-key');
 const sharedImageKeyInput = document.querySelector('#shared-image-api-key');
 const sharedTextBaseUrlInput = document.querySelector('#shared-text-base-url');
@@ -59,7 +61,69 @@ const sharedApiPayload = () => ({});
 function syncAdminVisibility() {
   const isAdmin = currentAccount?.role === 'admin' && currentAccount?.email?.toLowerCase() === 'gelen5@163.com';
   if (apiSettingsButton) apiSettingsButton.hidden = !isAdmin;
+  if (adminUsersButton) adminUsersButton.hidden = !isAdmin;
   if (!isAdmin && apiSettingsModal) apiSettingsModal.hidden = true;
+  if (!isAdmin && adminUsersModal) adminUsersModal.hidden = true;
+  const impersonating = Boolean(currentAccount?.impersonation?.active);
+  const banner = document.querySelector('#impersonation-banner');
+  if (banner) banner.hidden = !impersonating;
+  if (impersonating) document.querySelector('#impersonation-user-name').textContent = `${currentAccount.display_name}（${currentAccount.email}）`;
+}
+
+const formatDate = value => value ? new Date(value).toLocaleString('zh-CN', { hour12: false }) : '从未登录';
+
+async function loadAdminUsers(query = '') {
+  const [overviewData, usersData] = await Promise.all([
+    readApiResponse(await fetch('/api/admin/overview')),
+    readApiResponse(await fetch(`/api/admin/users?query=${encodeURIComponent(query)}`)),
+  ]);
+  const overview = overviewData.overview;
+  const cards = [
+    ['累计注册', overview.users], ['今日新增', overview.registered_today],
+    ['近 7 天', overview.registered_7d], ['30 天活跃', overview.active_30d],
+  ];
+  document.querySelector('#admin-stats').innerHTML = cards.map(([label, value]) => `<article><span>${label}</span><strong>${number(value)}</strong></article>`).join('');
+  const body = document.querySelector('#admin-users-list');
+  body.innerHTML = usersData.users.map(user => `<tr data-user-row="${esc(user.id)}"><td><strong>${esc(user.display_name)}</strong><small>${esc(user.email)}</small></td><td>${esc(formatDate(user.created_at))}</td><td>${esc(formatDate(user.last_login_at))}</td><td><b>${number(user.balance)}</b></td><td>${number(user.completed_tasks)}</td><td><button type="button" data-view-user="${esc(user.id)}">详情</button></td></tr>`).join('') || '<tr><td colspan="6" class="admin-empty-row">没有找到用户</td></tr>';
+  body.querySelectorAll('[data-view-user]').forEach(button => button.addEventListener('click', () => loadAdminUserDetail(button.dataset.viewUser)));
+}
+
+async function loadAdminUserDetail(userId) {
+  const data = await readApiResponse(await fetch(`/api/admin/users/${encodeURIComponent(userId)}`));
+  const user = data.user;
+  document.querySelectorAll('[data-user-row]').forEach(row => row.classList.toggle('selected', row.dataset.userRow === userId));
+  const transactions = user.transactions.map(item => `<li><span>${esc(formatDate(item.created_at))}</span><strong>${item.amount > 0 ? '+' : ''}${number(item.amount)} 分</strong><small>${esc(item.note || item.feature || item.kind)}</small></li>`).join('') || '<li class="empty">暂无积分记录</li>';
+  document.querySelector('#admin-user-detail').innerHTML = `<div class="admin-detail-user"><span>${esc(user.display_name.slice(0, 1).toUpperCase())}</span><div><h3>${esc(user.display_name)}</h3><p>${esc(user.email)}</p></div></div><dl><div><dt>注册时间</dt><dd>${esc(formatDate(user.created_at))}</dd></div><div><dt>最后登录</dt><dd>${esc(formatDate(user.last_login_at))}</dd></div><div><dt>可用积分</dt><dd>${number(user.balance)}</dd></div><div><dt>完成任务</dt><dd>${number(user.usage.completed)}</dd></div></dl><div class="admin-balance-detail"><span>试用 ${number(user.trial_balance)}</span><span>赠送 ${number(user.bonus_balance)}</span><span>付费 ${number(user.paid_balance)}</span></div>${user.role === 'admin' ? '<p class="admin-owner-note">当前为管理员账号，不能切换。</p>' : `<button class="admin-switch-user" type="button" data-switch-user="${esc(user.id)}"><i data-lucide="arrow-right-left"></i>切换到该用户视角</button>`}<section class="admin-recent"><h4>最近积分记录</h4><ul>${transactions}</ul></section>`;
+  document.querySelector('[data-switch-user]')?.addEventListener('click', event => switchToUser(event.currentTarget.dataset.switchUser));
+  window.lucide?.createIcons();
+}
+
+async function openAdminUsers() {
+  toggleSettingsMenu(false);
+  adminUsersModal.hidden = false;
+  try { await loadAdminUsers(); } catch (error) { adminUsersModal.hidden = true; showToast(error.message, 'error'); }
+}
+
+async function switchToUser(userId) {
+  if (!window.confirm('切换后将以该用户的积分和权限使用工作台。所有切换行为都会记录，是否继续？')) return;
+  try {
+    const data = await readApiResponse(await fetch('/api/admin/impersonate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: userId }) }));
+    currentAccount = data.user;
+    renderWallet(data.wallet);
+    adminUsersModal.hidden = true;
+    syncAdminVisibility();
+    showToast(`已切换到 ${currentAccount.display_name} 的用户视角`);
+  } catch (error) { showToast(error.message, 'error'); }
+}
+
+async function stopImpersonation() {
+  try {
+    const data = await readApiResponse(await fetch('/api/auth/stop-impersonation', { method: 'POST' }));
+    currentAccount = data.user;
+    renderWallet(data.wallet);
+    syncAdminVisibility();
+    showToast('已返回管理员账号');
+  } catch (error) { showToast(error.message, 'error'); }
 }
 
 function syncMorningApiKey() {
@@ -317,6 +381,11 @@ settingsButton?.addEventListener('click', (event) => {
   toggleSettingsMenu();
 });
 apiSettingsButton?.addEventListener('click', openApiSettings);
+adminUsersButton?.addEventListener('click', openAdminUsers);
+document.querySelector('#admin-users-close')?.addEventListener('click', () => { adminUsersModal.hidden = true; });
+document.querySelector('#admin-users-refresh')?.addEventListener('click', () => loadAdminUsers(document.querySelector('#admin-users-search').value.trim()));
+document.querySelector('#admin-users-search')?.addEventListener('input', event => { clearTimeout(window.adminUsersTimer); window.adminUsersTimer = setTimeout(() => loadAdminUsers(event.target.value.trim()), 250); });
+document.querySelector('#stop-impersonation')?.addEventListener('click', stopImpersonation);
 document.querySelector('#api-settings-close')?.addEventListener('click', closeApiSettings);
 document.querySelector('#api-settings-save')?.addEventListener('click', saveApiSettings);
 function modalApiPayload() {

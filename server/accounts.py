@@ -92,6 +92,7 @@ def init_db() -> None:
     CREATE TABLE IF NOT EXISTS sessions (
       token_hash TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      impersonator_id TEXT REFERENCES users(id),
       expires_at TEXT NOT NULL,
       created_at TEXT NOT NULL,
       last_seen_at TEXT NOT NULL,
@@ -160,6 +161,9 @@ def init_db() -> None:
     """
     with DB_LOCK, _connect() as connection:
         connection.executescript(schema)
+        session_columns = {row[1] for row in connection.execute("PRAGMA table_info(sessions)")}
+        if "impersonator_id" not in session_columns:
+            connection.execute("ALTER TABLE sessions ADD COLUMN impersonator_id TEXT REFERENCES users(id)")
         now = utc_now()
         for method, path, feature, points, cost in DEFAULT_PRICING:
             connection.execute(
@@ -277,15 +281,15 @@ def authenticate(email: str, password: str) -> dict[str, Any]:
         return _public_user(row)
 
 
-def create_session(user_id: str, response: Response) -> None:
+def create_session(user_id: str, response: Response, *, impersonator_id: str | None = None) -> None:
     token = secrets.token_urlsafe(32)
     token_hash = hashlib.sha256(token.encode()).hexdigest()
     now_dt = datetime.now(timezone.utc)
     expires = now_dt + timedelta(days=SESSION_DAYS)
     with DB_LOCK, _connect() as connection:
         connection.execute(
-            "INSERT INTO sessions(token_hash,user_id,expires_at,created_at,last_seen_at) VALUES (?,?,?,?,?)",
-            (token_hash, user_id, expires.isoformat(), now_dt.isoformat(), now_dt.isoformat()),
+            "INSERT INTO sessions(token_hash,user_id,impersonator_id,expires_at,created_at,last_seen_at) VALUES (?,?,?,?,?,?)",
+            (token_hash, user_id, impersonator_id, expires.isoformat(), now_dt.isoformat(), now_dt.isoformat()),
         )
     response.set_cookie(
         COOKIE_NAME,
@@ -315,14 +319,19 @@ def user_from_request(request: Request) -> dict[str, Any] | None:
     now = utc_now()
     with DB_LOCK, _connect() as connection:
         row = connection.execute(
-            """SELECT u.* FROM sessions s JOIN users u ON u.id=s.user_id
+            """SELECT u.*,s.impersonator_id FROM sessions s JOIN users u ON u.id=s.user_id
                WHERE s.token_hash=? AND s.revoked_at IS NULL AND s.expires_at>? AND u.status='active'""",
             (token_hash, now),
         ).fetchone()
         if not row:
             return None
         connection.execute("UPDATE sessions SET last_seen_at=? WHERE token_hash=?", (now, token_hash))
-        return _public_user(row)
+        user = _public_user(row)
+        if row["impersonator_id"]:
+            actor = connection.execute("SELECT * FROM users WHERE id=?", (row["impersonator_id"],)).fetchone()
+            if actor:
+                user["impersonation"] = {"active": True, "actor": _public_user(actor)}
+        return user
 
 
 def require_user(request: Request) -> dict[str, Any]:
@@ -557,8 +566,9 @@ def list_users(query: str = "", limit: int = 50) -> list[dict[str, Any]]:
     pattern = f"%{query.strip()}%"
     with DB_LOCK, _connect() as connection:
         rows = connection.execute(
-            """SELECT u.id,u.email,u.display_name,u.role,u.status,u.created_at,w.balance,
-                      w.trial_balance,w.bonus_balance,w.paid_balance
+            """SELECT u.id,u.email,u.display_name,u.role,u.status,u.created_at,u.last_login_at,w.balance,
+                      w.trial_balance,w.bonus_balance,w.paid_balance,
+                      (SELECT COUNT(*) FROM usage_records r WHERE r.user_id=u.id AND r.status='completed') completed_tasks
                FROM users u JOIN wallets w ON w.user_id=u.id
                WHERE u.email LIKE ? OR u.display_name LIKE ?
                ORDER BY u.created_at DESC LIMIT ?""",
@@ -570,6 +580,11 @@ def list_users(query: str = "", limit: int = 50) -> list[dict[str, Any]]:
 def admin_overview() -> dict[str, Any]:
     with DB_LOCK, _connect() as connection:
         users = connection.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+        today = connection.execute("SELECT COUNT(*) FROM users WHERE julianday(created_at) >= julianday('now','start of day')").fetchone()[0]
+        seven_days = connection.execute("SELECT COUNT(*) FROM users WHERE julianday(created_at) >= julianday('now','-7 days')").fetchone()[0]
+        thirty_days = connection.execute("SELECT COUNT(*) FROM users WHERE julianday(created_at) >= julianday('now','-30 days')").fetchone()[0]
+        active_30d = connection.execute("SELECT COUNT(*) FROM users WHERE julianday(last_login_at) >= julianday('now','-30 days')").fetchone()[0]
+        total_balance = connection.execute("SELECT COALESCE(SUM(balance),0) FROM wallets").fetchone()[0]
         paid_points = connection.execute(
             "SELECT COALESCE(SUM(amount),0) FROM point_transactions WHERE kind='recharge' AND bucket='paid'"
         ).fetchone()[0]
@@ -579,4 +594,64 @@ def admin_overview() -> dict[str, Any]:
         completed = connection.execute(
             "SELECT COUNT(*) FROM usage_records WHERE status='completed'"
         ).fetchone()[0]
-        return {"users": users, "paid_points_recharged": paid_points, "points_consumed": consumed, "completed_tasks": completed}
+        return {"users": users, "registered_today": today, "registered_7d": seven_days,
+                "registered_30d": thirty_days, "active_30d": active_30d, "total_balance": total_balance,
+                "paid_points_recharged": paid_points, "points_consumed": consumed, "completed_tasks": completed}
+
+
+def admin_user_detail(user_id: str) -> dict[str, Any]:
+    with DB_LOCK, _connect() as connection:
+        user = connection.execute(
+            """SELECT u.id,u.email,u.display_name,u.role,u.status,u.created_at,u.last_login_at,
+                      w.balance,w.trial_balance,w.bonus_balance,w.paid_balance
+               FROM users u JOIN wallets w ON w.user_id=u.id WHERE u.id=?""", (user_id,)
+        ).fetchone()
+        if not user:
+            raise HTTPException(status_code=404, detail="用户不存在")
+        usage = connection.execute(
+            """SELECT COUNT(*) total,COALESCE(SUM(points),0) points,
+                      COALESCE(SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END),0) completed
+               FROM usage_records WHERE user_id=?""", (user_id,)
+        ).fetchone()
+        transactions = connection.execute(
+            """SELECT amount,bucket,kind,feature,note,created_at FROM point_transactions
+               WHERE user_id=? ORDER BY created_at DESC LIMIT 20""", (user_id,)
+        ).fetchall()
+        result = dict(user)
+        result["usage"] = dict(usage)
+        result["transactions"] = [dict(row) for row in transactions]
+        return result
+
+
+def start_impersonation(operator: dict[str, Any], target_user_id: str, request: Request, response: Response) -> dict[str, Any]:
+    with DB_LOCK, _connect() as connection:
+        target = connection.execute("SELECT * FROM users WHERE id=? AND status='active'", (target_user_id,)).fetchone()
+        if not target:
+            raise HTTPException(status_code=404, detail="用户不存在或已停用")
+        if target["id"] == operator["id"] or target["role"] == "admin":
+            raise HTTPException(status_code=422, detail="不能切换到管理员账号")
+        connection.execute(
+            "INSERT INTO admin_actions(id,operator_id,target_user_id,action,detail_json,created_at) VALUES (?,?,?,?,?,?)",
+            (uuid.uuid4().hex, operator["id"], target_user_id, "start_impersonation", "{}", utc_now()),
+        )
+    revoke_session(request, response)
+    create_session(target_user_id, response, impersonator_id=operator["id"])
+    user = _public_user(target)
+    user["impersonation"] = {"active": True, "actor": operator}
+    return user
+
+
+def stop_impersonation(request: Request, response: Response) -> dict[str, Any]:
+    user = require_user(request)
+    info = user.get("impersonation")
+    if not info:
+        raise HTTPException(status_code=409, detail="当前不在用户视角")
+    actor = info["actor"]
+    revoke_session(request, response)
+    create_session(actor["id"], response)
+    with DB_LOCK, _connect() as connection:
+        connection.execute(
+            "INSERT INTO admin_actions(id,operator_id,target_user_id,action,detail_json,created_at) VALUES (?,?,?,?,?,?)",
+            (uuid.uuid4().hex, actor["id"], user["id"], "stop_impersonation", "{}", utc_now()),
+        )
+    return actor

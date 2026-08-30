@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>宇宙第一工作台</title>
     <link rel="stylesheet" href="/static/style.css?v=20260830-taste" />
-    <link rel="stylesheet" href="/static/taste-chatgpt.css?v=20260830-apple-premium-1" />
+    <link rel="stylesheet" href="/static/taste-chatgpt.css?v=20260830-full-site-glass-1" />
+    <link rel="stylesheet" href="/static/admin.css?v=20260830-1" />
   </head>
   <body>
     <div class="app-shell">
@@ -24,6 +25,7 @@
             <button id="settings-button" class="download-button settings-button" type="button" aria-haspopup="menu" aria-expanded="false"><i data-lucide="settings-2"></i><span>设置</span><span id="settings-config-dot" class="config-dot"></span></button>
             <div id="settings-menu" class="settings-menu" role="menu" hidden>
               <button id="api-settings-button" type="button" role="menuitem" hidden><i data-lucide="key-round"></i>API 设置</button>
+              <button id="admin-users-button" type="button" role="menuitem" hidden><i data-lucide="users-round"></i>用户统计</button>
               <button id="wallet-settings-button" type="button" role="menuitem"><i data-lucide="wallet-cards"></i>我的积分</button>
               <button id="logout-button" type="button" role="menuitem"><i data-lucide="log-out"></i>退出登录</button>
             </div>
@@ -72,6 +74,17 @@
               <button class="primary-action compact" type="submit">确认充值</button>
             </form>
           </section>
+        </section>
+      </div>
+
+      <div id="impersonation-banner" class="impersonation-banner" hidden><span><i data-lucide="scan-face"></i>正在以 <strong id="impersonation-user-name"></strong> 的身份查看工作台</span><button id="stop-impersonation" type="button">返回管理员账号</button></div>
+
+      <div id="admin-users-modal" class="account-modal admin-users-modal" hidden>
+        <section class="admin-users-card" role="dialog" aria-modal="true" aria-labelledby="admin-users-title">
+          <header class="admin-users-head"><div><span class="micro-label">ADMIN CONSOLE</span><h2 id="admin-users-title">用户统计</h2><p>注册、活跃、积分和功能使用情况均来自工作台数据库。</p></div><button id="admin-users-close" class="icon-command" type="button" aria-label="关闭"><i data-lucide="x"></i></button></header>
+          <div id="admin-stats" class="admin-stats"><article><span>累计注册</span><strong>—</strong></article><article><span>今日新增</span><strong>—</strong></article><article><span>近 7 天</span><strong>—</strong></article><article><span>30 天活跃</span><strong>—</strong></article></div>
+          <div class="admin-users-toolbar"><label><i data-lucide="search"></i><input id="admin-users-search" type="search" placeholder="搜索邮箱或昵称"></label><button id="admin-users-refresh" type="button"><i data-lucide="refresh-cw"></i>刷新</button></div>
+          <div class="admin-users-layout"><div class="admin-users-table-wrap"><table class="admin-users-table"><thead><tr><th>用户</th><th>注册时间</th><th>最后登录</th><th>积分</th><th>任务</th><th></th></tr></thead><tbody id="admin-users-list"></tbody></table></div><aside id="admin-user-detail" class="admin-user-detail"><div class="admin-detail-empty"><i data-lucide="user-round-search"></i><strong>选择一个用户</strong><span>查看注册详情、积分构成和最近记录</span></div></aside></div>
         </section>
       </div>
 

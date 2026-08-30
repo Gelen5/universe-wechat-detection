@@ -167,6 +167,11 @@ class CreatorApiIntegrationTests(unittest.TestCase):
         self.assertIn('id="shared-text-api-key"', html)
         self.assertIn('id="shared-image-api-key"', html)
         self.assertIn("currentAccount?.email?.toLowerCase() === 'gelen5@163.com'", script)
+        self.assertIn('id="admin-users-button"', html)
+        self.assertIn('id="admin-users-modal"', html)
+        self.assertIn('id="impersonation-banner"', html)
+        self.assertIn("/api/admin/impersonate", script)
+        self.assertIn("/api/auth/stop-impersonation", script)
         self.assertNotIn("shared-use-real", html)
         self.assertEqual(html.count("data-view="), 6)
 

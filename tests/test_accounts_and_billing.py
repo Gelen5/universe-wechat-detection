@@ -72,6 +72,28 @@ class AccountAndBillingTests(unittest.TestCase):
         wallet = self.client.get("/api/wallet").json()["wallet"]
         self.assertEqual(wallet["balance"], 95)
 
+    def test_admin_can_view_user_stats_and_safely_switch_user(self):
+        admin = TestClient(app)
+        login = admin.post("/api/auth/login", json={"email": "admin@example.com", "password": "testing-pass-123"})
+        self.assertEqual(login.status_code, 200)
+        overview = admin.get("/api/admin/overview")
+        self.assertEqual(overview.status_code, 200)
+        self.assertGreaterEqual(overview.json()["overview"]["users"], 2)
+        detail = admin.get(f"/api/admin/users/{self.user['id']}")
+        self.assertEqual(detail.status_code, 200, detail.text)
+        self.assertEqual(detail.json()["user"]["email"], self.user["email"])
+
+        switched = admin.post("/api/admin/impersonate", json={"user_id": self.user["id"]})
+        self.assertEqual(switched.status_code, 200, switched.text)
+        self.assertTrue(switched.json()["user"]["impersonation"]["active"])
+        self.assertEqual(admin.get("/api/auth/me").json()["user"]["id"], self.user["id"])
+        self.assertEqual(admin.get("/api/admin/overview").status_code, 403)
+
+        restored = admin.post("/api/auth/stop-impersonation")
+        self.assertEqual(restored.status_code, 200, restored.text)
+        self.assertEqual(restored.json()["user"]["role"], "admin")
+        self.assertEqual(admin.get("/api/admin/overview").status_code, 200)
+
     def test_failed_request_refunds_reserved_points(self):
         admin = TestClient(app)
         admin.post("/api/auth/login", json={"email": "admin@example.com", "password": "testing-pass-123"})

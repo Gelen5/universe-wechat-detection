@@ -178,6 +178,10 @@ class RechargeRequest(BaseModel):
     note: str = Field(min_length=1, max_length=300)
 
 
+class ImpersonateRequest(BaseModel):
+    user_id: str = Field(min_length=16, max_length=64)
+
+
 class XiaohongshuRequest(BaseModel):
     topic: str = Field(min_length=2, max_length=300)
     account: str = Field(default="", max_length=300)
@@ -538,6 +542,25 @@ def admin_users(request: Request, query: str = ""):
 def admin_overview(request: Request):
     accounts.require_admin(request)
     return {"status": "success", "overview": accounts.admin_overview()}
+
+
+@app.get("/api/admin/users/{user_id}")
+def admin_user_detail(user_id: str, request: Request):
+    accounts.require_admin(request)
+    return {"status": "success", "user": accounts.admin_user_detail(user_id)}
+
+
+@app.post("/api/admin/impersonate")
+def admin_impersonate(payload: ImpersonateRequest, request: Request, response: Response):
+    operator = accounts.require_admin(request)
+    user = accounts.start_impersonation(operator, payload.user_id, request, response)
+    return {"status": "success", "user": user, "wallet": accounts.wallet_summary(user["id"])}
+
+
+@app.post("/api/auth/stop-impersonation")
+def stop_impersonation(request: Request, response: Response):
+    user = accounts.stop_impersonation(request, response)
+    return {"status": "success", "user": user, "wallet": accounts.wallet_summary(user["id"])}
 
 
 @app.post("/api/admin/recharge")
