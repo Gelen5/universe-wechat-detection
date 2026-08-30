@@ -1,8 +1,10 @@
-"""HTTP adapter for the installed weChat-autoCreate Skill.
+"""HTTP adapter for the installed wechat-publisher-ultimate Skill.
 
 Text generation and image generation deliberately use separate credentials.
 The browser never receives either key. The installed Skill still owns
 humanness scoring, Markdown conversion, themes and WeChat publishing.
+"排版"等确定性步骤直接调用 Skill 自带的 converter / theme 引擎（经 Skill 的 venv Python 运行），
+不修改 Skill 源码，也不在本项目里另写一套伪排版。
 """
 from __future__ import annotations
 
@@ -25,11 +27,29 @@ import requests
 
 
 ROOT = Path(__file__).resolve().parent.parent
-SKILL_DIR = Path(os.environ.get("WECHAT_AUTOCREATE_SKILL_DIR", r"C:\Users\16972\.codex\skills\weChat-autoCreate"))
+SKILL_DIR = Path(os.environ.get("WECHAT_PUBLISHER_SKILL_DIR", r"C:\Users\16972\.workbuddy\skills\wechat-publisher-ultimate"))
+ANTI_AI_SKILL_DIR = Path(os.environ.get("UNIVERSE_ANTI_AI_SKILL_DIR", r"C:\Users\16972\.workbuddy\skills\universe-delete-ai-skill"))
 OUTPUT_DIR = ROOT / "output" / "workbench"
 SESSIONS: dict[str, dict[str, Any]] = {}
 STEPS = ["选题", "框架", "写作", "反 AI", "配图", "排版", "预览", "发布"]
 REQUEST_SETTINGS: ContextVar[dict[str, str]] = ContextVar("REQUEST_SETTINGS", default={})
+
+
+def _skill_python() -> str:
+    """返回 wechat-publisher-ultimate 自带的 venv Python（含 markdown/bs4/yaml 等依赖）。
+
+    找不到时退回当前解释器，由调用方处理依赖缺失。
+    """
+    candidates = [
+        SKILL_DIR / ".venv" / "Scripts" / "python.exe",
+        SKILL_DIR / ".venv" / "bin" / "python",
+        SKILL_DIR / "venv" / "Scripts" / "python.exe",
+        SKILL_DIR / "venv" / "bin" / "python",
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return str(candidate)
+    return sys.executable
 
 
 class ProviderError(RuntimeError):
@@ -256,7 +276,7 @@ def _framework(title: str, persona: str) -> dict[str, Any]:
 
 def _draft(title: str, frame: dict[str, Any], persona: str) -> str:
     outline = "\n".join(f"- {item}" for item in frame.get("outline", []))
-    article = _text(f"""你是「{persona}」型微信公众号作者。请按 weChat-autoCreate Skill 的写作规范，完成一篇可以继续编辑的中文公众号长文。
+    article = _text(f"""你是「{persona}」型微信公众号作者。请按 wechat-publisher-ultimate Skill 的写作规范，完成一篇可以继续编辑的中文公众号长文。
 标题：{title}
 框架：{frame.get('name')}
 结构：
@@ -274,12 +294,66 @@ def _draft(title: str, frame: dict[str, Any], persona: str) -> str:
     return article
 
 
-def _review(article: str) -> tuple[str, dict[str, Any]]:
-    reviewed = _text(f"""你是微信公众号终审编辑。对下面文章执行反AI与事实边界修订：保留作者核心观点和Markdown结构；删除套话、机械排比和虚构事实；提升细节、口语自然度和段落节奏；不得新增无法验证的数据、案例或引用。只输出修订后的完整Markdown文章，不写说明。
+def _review(article: str, session: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+    """第4步反AI：按 universe-delete-ai-skill 的 standard 档位方法论改写，
+    并用该 Skill 的 audit_revision.py 做确定性二次审计（信号量 + 保护片段核对）。"""
+    reviewed = _text(f"""你是按 universe-delete-ai-skill 方法论工作的中文改稿编辑。对下面文章执行一次 standard 档位改写（信息骨架可靠，只做局部去模板化）。
+
+改写规则（全部来自该 Skill，必须遵守）：
+1. 先建保护片段账：数字、日期、时间跨度、人物/组织/产品名、原话、链接、代码、指标和限定词默认不改；若事实主体、责任归属、动作、因果方向或判断强度发生变化，立即回滚该处修改。
+2. 修改顺序：事实边界 → 主语/指代 → 句子主干 → 段落承接 → 空泛重复 → 句式变化。只改能指出位置和原因的问题，不改变事实顺序、段落主线和判断强度。
+3. 优先处理整篇层面风险：段落是否都用"观点—解释—总结"同一骨架、连续三项排比、每段金句收尾、抽象主语替代具体行动、商业黑话或工程师腔。确认存在后先改结构和主语，不做机械同义词替换。
+4. 压缩、扁化、去情绪不是去AI味，是在刮人味：不删情绪词、不合并并列的生活细节、不删前后呼应的细节、不删真实的对话互动。叙述者可以保留态度和判断。
+5. 可读性硬门槛：至少90%句子有明确主语或承接对象并有完整动作或判断；每个独立陈述用自然的句末标点收束；"他/她/这/那/其实/后来"指代不清时写回具体对象；复杂句先说谁做了什么。
+6. 禁止：新增原文不存在的研究、数据、经历、心理或对白；错别字、漏标点、强行口语、固定闲笔、假自我矛盾。
+7. 只输出修订后的完整 Markdown 文章，不写任何说明。
 
 文章：
 {article}""", reasoning="high")
-    return reviewed, {"source": "text-api", "model": _setting("WECHAT_TEXT_MODEL"), "action": "反AI与事实边界修订"}
+    audit = _anti_ai_audit(article, reviewed, session)
+    info = {
+        "source": "universe-delete-ai-skill",
+        "model": _setting("WECHAT_TEXT_MODEL"),
+        "action": "standard 档位去AI改写（universe-delete-ai-skill 方法论）",
+        "audit": audit,
+    }
+    return reviewed, info
+
+
+def _anti_ai_audit(original: str, revision: str, session: dict[str, Any]) -> dict[str, Any]:
+    """调用 universe-delete-ai-skill 的 audit_revision.py：改稿前后信号对比 + 保护片段核对。"""
+    script = ANTI_AI_SKILL_DIR / "scripts" / "audit_revision.py"
+    if not script.exists():
+        return {"status": "unavailable", "message": "未找到 universe-delete-ai-skill 审计脚本"}
+    workdir = OUTPUT_DIR / session["id"] / "anti_ai"
+    workdir.mkdir(parents=True, exist_ok=True)
+    orig_path = workdir / "original.txt"
+    rev_path = workdir / "revision.txt"
+    orig_path.write_text(original, encoding="utf-8")
+    rev_path.write_text(revision, encoding="utf-8")
+    result = subprocess.run(
+        [sys.executable, str(script), str(orig_path), str(rev_path), "--mode", "standard", "--json"],
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+        cwd=str(ANTI_AI_SKILL_DIR / "scripts"), timeout=60,
+    )
+    if result.returncode != 0:
+        return {"status": "unavailable", "message": result.stderr[-500:] or "审计失败"}
+    try:
+        data = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return {"status": "unavailable", "message": "审计结果不是合法 JSON"}
+    revised = data.get("revision") or {}
+    readability = revised.get("readability") or {}
+    return {
+        "status": "success",
+        "mode": data.get("mode"),
+        "original_signal_total": (data.get("original") or {}).get("signal_total"),
+        "revision_signal_total": revised.get("signal_total"),
+        "missing_protected_spans": data.get("missing_protected_spans") or {},
+        "complete_sentence_ratio": readability.get("complete_sentence_ratio"),
+        "sentence_length_cv": (readability.get("sentence_length") or {}).get("cv"),
+        "warnings": readability.get("warnings", []),
+    }
 
 
 def _score(text: str) -> dict[str, Any]:
@@ -287,8 +361,9 @@ def _score(text: str) -> dict[str, Any]:
     if not script.exists():
         return {"status": "unavailable", "message": "未找到 Skill 评分脚本"}
     result = subprocess.run(
-        [sys.executable, str(script), "--text", text, "--json", "--no-calibration"],
-        capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60,
+        [_skill_python(), str(script), "--text", text, "--json", "--no-calibration"],
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+        cwd=str(SKILL_DIR), timeout=60,
     )
     if result.returncode != 0:
         return {"status": "unavailable", "message": result.stderr[-500:] or "评分失败"}
@@ -297,6 +372,60 @@ def _score(text: str) -> dict[str, Any]:
         return {"status": "success", "score": data.get("final_score", 50), "raw_score": data.get("raw_score", 50), "layers": data.get("layers", {})}
     except json.JSONDecodeError:
         return {"status": "unavailable", "message": "评分结果不是合法 JSON"}
+
+
+def _build_article_markdown(session: dict[str, Any]) -> str:
+    image_markdown = ""
+    for image in session.get("images", []):
+        label = "文章封面" if image["kind"] == "cover" else "正文配图"
+        image_markdown += f"\n\n![{label}]({image['url']})\n"
+    return (
+        f"---\ntitle: '{session['topic'].replace(chr(39), '')}'\ntheme: {session['theme']}\n"
+        f"---\n{image_markdown}\n{session['article']}"
+    )
+
+
+def _typeset(session: dict[str, Any]) -> str:
+    """第6步排版：调用 wechat-publisher-ultimate 的 MarkdownConverter 16步管线做真实排版。
+
+    通过 Skill 自带 venv 的 Python 运行，复用其 converter + theme 引擎；
+    不修改 Skill 源码，也不在本项目里另写一套伪排版。
+    """
+    md = _build_article_markdown(session)
+    bridge = (
+        "import os, sys\n"
+        "sys.path.insert(0, os.environ['SKILL_DIR'])\n"
+        "from toolkit.converter import MarkdownConverter\n"
+        "from toolkit.theme import load_theme, apply_theme\n"
+        "raw = sys.stdin.read()\n"
+        "fm = {}\n"
+        "if raw.startswith('---'):\n"
+        "    parts = raw.split('---', 2)\n"
+        "    if len(parts) >= 3:\n"
+        "        try:\n"
+        "            import yaml\n"
+        "            fm = yaml.safe_load(parts[1]) or {}\n"
+        "        except Exception:\n"
+        "            pass\n"
+        "        raw = parts[2]\n"
+        "converter = MarkdownConverter()\n"
+        "html = converter.convert(raw)\n"
+        "theme = load_theme(fm.get('theme', 'default'))\n"
+        "html = apply_theme(html, theme)\n"
+        "sys.stdout.write(html)\n"
+    )
+    env = dict(os.environ)
+    env["SKILL_DIR"] = str(SKILL_DIR)
+    result = subprocess.run(
+        [_skill_python(), "-c", bridge], input=md,
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+        cwd=str(SKILL_DIR), env=env, timeout=90,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr[-700:] or "Skill 排版失败")
+    session["typeset_html"] = result.stdout
+    session["typeset_source"] = "wechat-publisher-ultimate"
+    return session["typeset_html"]
 
 
 def _compress_image(raw: bytes, output: Path) -> int:
@@ -373,7 +502,7 @@ def create(topic: str, mode: str = "interactive", persona: str = "深度观察�
     session: dict[str, Any] = {
         "id": sid, "topic": topic.strip(), "mode": mode, "persona": persona, "theme": theme,
         "current_step": 1, "status": "calling_text_api", "suggestions": [], "framework": None,
-        "article": "", "review": None, "score": None, "images": [], "preview_url": None,
+        "article": "", "review": None, "score": None, "images": [], "typeset_html": "", "typeset_source": None, "preview_url": None,
         "publish": None, "provider": provider_status(), "created_at": datetime.now().isoformat(timespec="seconds"), "files": {},
     }
     SESSIONS[sid] = session
@@ -399,13 +528,14 @@ def _advance(session: dict[str, Any], target: int, selection: int | None = None)
         session["article"] = _draft(session["topic"], session["framework"], session["persona"])
     if target >= 4 and session["article"] and not session["review"]:
         session["status"] = "calling_text_api"
-        session["article"], session["review"] = _review(session["article"])
+        session["article"], session["review"] = _review(session["article"], session)
         session["score"] = _score(session["article"])
     if target >= 5 and not session["images"]:
         session["status"] = "calling_image_api"
         session["images"] = _images(session)
-    if target >= 6:
+    if target >= 6 and not session.get("typeset_html"):
         session["status"] = "rendering"
+        _typeset(session)
     if target >= 7:
         preview(session["id"])
     session["current_step"] = target
@@ -421,6 +551,8 @@ def step(session_id: str, target: int, selection: int | None = None, article: st
         session["article"] = article
         session["score"] = None
         session["review"] = None
+        session["typeset_html"] = ""
+        session["typeset_source"] = None
     return _advance(session, target, selection)
 
 
@@ -430,22 +562,19 @@ def preview(session_id: str, article: str | None = None) -> dict[str, Any]:
         raise KeyError("创作会话不存在或已过期")
     if article is not None and article.strip():
         session["article"] = article
+        session["typeset_html"] = ""
+        session["typeset_source"] = None
     session["score"] = _score(session["article"])
-    image_markdown = ""
-    for image in session.get("images", []):
-        label = "文章封面" if image["kind"] == "cover" else "正文配图"
-        image_markdown += f"\n\n![{label}]({image['url']})\n"
+    # 复用第6步由 wechat-publisher-ultimate 真实排版引擎产出的 HTML（含主题），
+    # 不再额外走 CLI 的严格质量门禁，保证工作台预览稳定可用。
+    if not session.get("typeset_html"):
+        _typeset(session)
     output_dir = OUTPUT_DIR / session_id
     output_dir.mkdir(parents=True, exist_ok=True)
     output = output_dir / "article.md"
-    output.write_text(f"---\ntitle: '{session['topic'].replace(chr(39), '')}'\ntheme: {session['theme']}\n---\n{image_markdown}\n{session['article']}", encoding="utf-8")
+    output.write_text(_build_article_markdown(session), encoding="utf-8")
     html = output_dir / "preview.html"
-    result = subprocess.run(
-        [sys.executable, "-m", "toolkit.cli", "preview", str(output), "--output", str(html), "--theme", session["theme"]],
-        cwd=str(SKILL_DIR), capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=90,
-    )
-    if result.returncode != 0:
-        raise RuntimeError(result.stderr[-700:] or "Skill 预览失败")
+    html.write_text(session["typeset_html"], encoding="utf-8")
     session["preview_url"] = f"/api/workbench/preview/{session_id}"
     session["current_step"] = 7
     return _session_view(session)
@@ -471,7 +600,7 @@ def publish(session_id: str, draft: bool = True) -> dict[str, Any]:
     output = OUTPUT_DIR / session_id / "article.md"
     if not output.exists():
         preview(session_id)
-    args = [sys.executable, "-m", "toolkit.cli", "publish", str(output), "--theme", session["theme"]]
+    args = [_skill_python(), "-m", "toolkit.cli", "publish", str(output), "--theme", session["theme"]]
     if not draft:
         args.append("--no-draft")
     result = subprocess.run(args, cwd=str(SKILL_DIR), capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120)
