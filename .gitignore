@@ -8,3 +8,9 @@ data/*.db
 data/*.db-shm
 data/*.db-wal
 .DS_Store
+
+# self-test artifacts
+pw-browsers/
+selftest-*.png
+screenshot_*.py
+uvicorn.log
