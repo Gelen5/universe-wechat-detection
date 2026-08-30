@@ -62,14 +62,17 @@ body::before {
 .brand-copy strong { font-size: 15px; color: var(--glass-text); }
 .brand-copy small { font-size: 10px; color: var(--glass-faint); letter-spacing: .04em; text-transform: uppercase; }
 
-.nav-links { gap: 4px !important; padding-top: 18px !important; }
-.nav-links a { height: 44px; padding: 0 12px; border-radius: var(--glass-radius-sm); gap: 11px; color: var(--glass-muted); }
-.nav-links a strong { font-size: 13px; font-weight: 520; }
-.nav-links a small { color: var(--glass-faint); font-size: 9px; }
-.nav-links a:hover { color: var(--glass-text); background: var(--glass-surface-strong); }
-.nav-links a.active { color: var(--glass-accent); background: var(--glass-accent-soft); box-shadow: none !important; }
-.nav-links a.active svg { color: var(--glass-accent); }
-.nav-links a.active small { color: var(--glass-muted); }
+.nav-links { gap: 2px !important; padding-top: 16px !important; margin-top: 4px; }
+.nav-links a { position: relative; height: 36px !important; padding: 0 10px !important; border-radius: 10px !important; gap: 10px !important; color: var(--glass-muted); }
+.nav-links a > svg { width: 16px !important; height: 16px !important; color: var(--glass-faint); transition: color .15s ease; }
+.nav-links a span { min-width: 0; }
+.nav-links a strong { font-size: 13px !important; font-weight: 560; letter-spacing: .01em; }
+.nav-links a small { display: none !important; }
+.nav-links a:hover { color: var(--glass-text) !important; background: rgba(15, 23, 42, .045) !important; transform: none !important; box-shadow: none !important; }
+.nav-links a:hover > svg { color: var(--glass-muted); }
+.nav-links a.active { color: var(--glass-accent) !important; background: var(--glass-accent-soft) !important; box-shadow: none !important; transform: none !important; }
+.nav-links a.active > svg { color: var(--glass-accent) !important; }
+.nav-links a.active::before { content: ""; position: absolute; left: -10px; top: 8px; bottom: 8px; width: 3px; border-radius: 999px; background: var(--glass-accent); }
 
 .nav-actions { margin-top: auto; padding: 14px 4px 0; border-top: 1px solid var(--glass-line-soft); gap: 8px; }
 .download-button, .settings-button { height: 40px; border-radius: 10px; border: 1px solid var(--glass-line-soft); color: var(--glass-muted); background: var(--glass-surface); }
