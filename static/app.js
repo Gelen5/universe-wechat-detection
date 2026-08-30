@@ -22,6 +22,12 @@ const configDot = document.querySelector('#settings-config-dot');
 const xiaohongshuPage = document.querySelector('#xiaohongshu');
 const tieTuPage = document.querySelector('#tie-tu');
 const hitDetectorPage = document.querySelector('#hit-detector');
+const authModal = document.querySelector('#auth-modal');
+const walletModal = document.querySelector('#wallet-modal');
+const walletSettingsButton = document.querySelector('#wallet-settings-button');
+const logoutButton = document.querySelector('#logout-button');
+let currentAccount = null;
+let currentWallet = { balance: 0, trial: 0, bonus: 0, paid: 0 };
 const sharedKeys = {
   text: 'shared_text_api_key_v1',
   image: 'shared_image_api_key_v1',
@@ -48,41 +54,30 @@ const getTextBaseUrl = () => getStored(sharedKeys.textBaseUrl, 'https://huoxinga
 const getImageBaseUrl = () => getStored(sharedKeys.imageBaseUrl, 'https://img.rjm.us.ci').trim();
 const getTextModel = () => getStored(sharedKeys.textModel, 'deepseek-v4-flash').trim();
 const getImageModel = () => getStored(sharedKeys.imageModel, 'gpt-image-2').trim();
-const sharedApiPayload = () => ({
-  textApiKey: getSharedTextKey(),
-  imageApiKey: getSharedImageKey(),
-  textBaseUrl: getTextBaseUrl(),
-  imageBaseUrl: getImageBaseUrl(),
-  textModel: getTextModel(),
-  imageModel: getImageModel(),
-});
+const sharedApiPayload = () => ({});
 
 function syncMorningApiKey() {
   morningFrame?.contentWindow?.postMessage({
     type: 'shared-api-keys',
-    imageApiKey: getSharedImageKey(),
-    imageBaseUrl: getImageBaseUrl(),
-    imageModel: getImageModel(),
-    useRealImage: Boolean(getSharedImageKey()),
+    serverManaged: true,
+    useRealImage: true,
   }, window.location.origin);
 }
 
 function refreshConfigStatus() {
-  const hasText = Boolean(getSharedTextKey());
-  const hasImage = Boolean(getSharedImageKey());
+  const hasText = true;
+  const hasImage = true;
   if (textConfigStatus) {
-    textConfigStatus.textContent = hasText ? '已保存' : '未配置';
+    textConfigStatus.textContent = '服务器托管';
     textConfigStatus.classList.toggle('ready', hasText);
   }
   if (imageConfigStatus) {
-    imageConfigStatus.textContent = hasImage ? '已保存' : '未配置';
+    imageConfigStatus.textContent = '服务器托管';
     imageConfigStatus.classList.toggle('ready', hasImage);
   }
   configDot?.classList.toggle('ready', hasText && hasImage);
   configDot?.classList.toggle('partial', hasText !== hasImage);
-  const commandApiStatus = document.querySelector('#command-api-status');
-  if (commandApiStatus) commandApiStatus.textContent = hasText && hasImage ? 'API 已连接' : hasText || hasImage ? 'API 部分配置' : 'API 未配置';
-  document.querySelector('.api-live-dot')?.classList.toggle('offline', !hasText && !hasImage);
+  document.querySelector('.api-live-dot')?.classList.toggle('offline', !currentAccount);
 }
 
 function showToast(message, type = 'success') {
@@ -99,8 +94,169 @@ async function readApiResponse(response) {
   const contentType = response.headers.get('content-type') || '';
   if (!contentType.includes('application/json')) throw new Error(`服务器返回了 ${contentType || '未知格式'}，请检查后端部署`);
   const data = await response.json();
+  const headerBalance = response.headers.get('X-Points-Balance');
+  if (headerBalance !== null) setWalletBalance(Number(headerBalance));
+  if (response.status === 401) showAuth();
   if (!response.ok) throw new Error(data.detail || data.message || `请求失败（HTTP ${response.status}）`);
   return data;
+}
+
+function setWalletBalance(balance) {
+  currentWallet.balance = Number(balance || 0);
+  const top = document.querySelector('#wallet-balance');
+  const modal = document.querySelector('#wallet-modal-balance');
+  if (top) top.textContent = number(currentWallet.balance);
+  if (modal) modal.textContent = number(currentWallet.balance);
+}
+
+function renderWallet(wallet = {}) {
+  currentWallet = { ...currentWallet, ...wallet };
+  setWalletBalance(currentWallet.balance);
+  document.querySelector('#wallet-trial').textContent = number(currentWallet.trial);
+  document.querySelector('#wallet-bonus').textContent = number(currentWallet.bonus);
+  document.querySelector('#wallet-paid').textContent = number(currentWallet.paid);
+}
+
+function showAuth() {
+  if (authModal) authModal.hidden = false;
+}
+
+function hideAuth() {
+  if (authModal) authModal.hidden = true;
+}
+
+function setAuthMode(mode) {
+  const register = mode === 'register';
+  document.querySelectorAll('[data-auth-mode]').forEach(button => button.classList.toggle('active', button.dataset.authMode === mode));
+  document.querySelector('#display-name-field').hidden = !register;
+  document.querySelector('#auth-title').textContent = register ? '创建你的创作账号' : '登录你的创作工作台';
+  document.querySelector('#auth-submit').textContent = register ? '注册并进入工作台' : '登录';
+  document.querySelector('#auth-password').autocomplete = register ? 'new-password' : 'current-password';
+  document.querySelector('#auth-form').dataset.mode = mode;
+  document.querySelector('#auth-error').hidden = true;
+}
+
+document.querySelectorAll('[data-auth-mode]').forEach(button => button.addEventListener('click', () => setAuthMode(button.dataset.authMode)));
+
+document.querySelector('#auth-form')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  const mode = event.currentTarget.dataset.mode || 'login';
+  const submit = document.querySelector('#auth-submit');
+  const error = document.querySelector('#auth-error');
+  const finish = beginButton(submit, mode === 'register' ? '正在注册…' : '正在登录…');
+  try {
+    const response = await fetch(`/api/auth/${mode}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: document.querySelector('#auth-email').value.trim(),
+        password: document.querySelector('#auth-password').value,
+        display_name: document.querySelector('#auth-display-name').value.trim(),
+      }),
+    });
+    const data = await readApiResponse(response);
+    currentAccount = data.user;
+    renderWallet(data.wallet);
+    document.querySelector('#wallet-user-line').textContent = `${currentAccount.display_name} · ${currentAccount.email}`;
+    document.querySelector('.api-live-dot')?.classList.remove('offline');
+    hideAuth();
+    showToast(mode === 'register' ? '账号创建成功' : '登录成功');
+  } catch (exception) {
+    error.textContent = exception.message;
+    error.hidden = false;
+  } finally { finish(); }
+});
+
+function renderTransactions(items = []) {
+  const root = document.querySelector('#wallet-transactions');
+  if (!items.length) { root.innerHTML = '<p>暂无积分记录</p>'; return; }
+  root.innerHTML = items.map(item => `<article><span class="transaction-icon ${item.amount > 0 ? 'in' : 'out'}"><i data-lucide="${item.amount > 0 ? 'plus' : 'sparkles'}"></i></span><div><strong>${esc(item.feature || item.note || (item.amount > 0 ? '积分充值' : '功能消费'))}</strong><small>${esc(item.note || item.source)} · ${new Date(item.created_at).toLocaleString('zh-CN')}</small></div><b class="${item.amount > 0 ? 'in' : 'out'}">${item.amount > 0 ? '+' : ''}${number(item.amount)}</b></article>`).join('');
+  window.lucide?.createIcons();
+}
+
+async function refreshWallet(open = false) {
+  if (!currentAccount) return;
+  const response = await fetch('/api/wallet');
+  const data = await readApiResponse(response);
+  renderWallet(data.wallet);
+  renderTransactions(data.transactions);
+  if (open) walletModal.hidden = false;
+}
+
+async function openWallet() {
+  toggleSettingsMenu(false);
+  try {
+    await refreshWallet(true);
+    if (currentAccount?.role === 'admin') {
+      document.querySelector('#admin-recharge-panel').hidden = false;
+      await searchAdminUsers();
+    }
+  } catch (error) { showToast(error.message, 'error'); }
+}
+
+async function searchAdminUsers() {
+  if (currentAccount?.role !== 'admin') return;
+  const query = encodeURIComponent(document.querySelector('#admin-user-query').value.trim());
+  const response = await fetch(`/api/admin/users?query=${query}`);
+  const data = await readApiResponse(response);
+  const root = document.querySelector('#admin-user-results');
+  root.innerHTML = data.users.map(user => `<button type="button" data-admin-user="${esc(user.id)}" data-admin-name="${esc(user.display_name)}" data-admin-email="${esc(user.email)}"><span><strong>${esc(user.display_name)}</strong><small>${esc(user.email)}</small></span><b>${number(user.balance)} 分</b></button>`).join('') || '<p>没有找到用户</p>';
+  root.querySelectorAll('[data-admin-user]').forEach(button => button.addEventListener('click', () => {
+    document.querySelector('#admin-user-id').value = button.dataset.adminUser;
+    document.querySelector('#admin-selected-user').textContent = `正在给 ${button.dataset.adminName}（${button.dataset.adminEmail}）充值`;
+    document.querySelector('#admin-recharge-form').hidden = false;
+  }));
+}
+
+document.querySelector('#admin-user-query')?.addEventListener('input', () => {
+  clearTimeout(window.adminSearchTimer);
+  window.adminSearchTimer = setTimeout(searchAdminUsers, 250);
+});
+
+document.querySelector('#admin-recharge-form')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  const button = event.currentTarget.querySelector('button[type="submit"]');
+  const finish = beginButton(button, '正在充值…');
+  try {
+    const response = await fetch('/api/admin/recharge', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: document.querySelector('#admin-user-id').value,
+        points: Number(document.querySelector('#admin-points').value),
+        bucket: document.querySelector('#admin-bucket').value,
+        note: document.querySelector('#admin-note').value.trim(),
+      }),
+    });
+    await readApiResponse(response);
+    showToast('积分充值成功');
+    document.querySelector('#admin-note').value = '';
+    await searchAdminUsers();
+    await refreshWallet();
+  } catch (error) { showToast(error.message, 'error'); } finally { finish(); }
+});
+
+walletSettingsButton?.addEventListener('click', openWallet);
+document.querySelector('#wallet-chip')?.addEventListener('click', openWallet);
+document.querySelector('#wallet-close')?.addEventListener('click', () => { walletModal.hidden = true; });
+document.querySelector('#wallet-refresh')?.addEventListener('click', () => refreshWallet());
+walletModal?.addEventListener('click', event => { if (event.target === walletModal) walletModal.hidden = true; });
+logoutButton?.addEventListener('click', async () => {
+  await fetch('/api/auth/logout', { method: 'POST' });
+  currentAccount = null;
+  renderWallet({ balance: 0, trial: 0, bonus: 0, paid: 0 });
+  walletModal.hidden = true;
+  showAuth();
+});
+
+async function loadAccount() {
+  try {
+    const response = await fetch('/api/auth/me');
+    if (!response.ok) { showAuth(); return; }
+    const data = await readApiResponse(response);
+    currentAccount = data.user;
+    renderWallet(data.wallet);
+    document.querySelector('#wallet-user-line').textContent = `${currentAccount.display_name} · ${currentAccount.email}`;
+    document.querySelector('.api-live-dot')?.classList.remove('offline');
+  } catch { showAuth(); }
 }
 
 function toggleSettingsMenu(force) {
@@ -358,17 +514,12 @@ async function callWorkbench(path, payload) {
 async function advance(selection = null, nextStep = null) {
   if (!workbenchSession) return;
   const target = nextStep || Math.min(8, (workbenchSession.current_step || 1) + 1);
-  if (target >= 5 && !getSharedImageKey()) {
-    openApiSettings();
-    throw new Error('配图步骤需要先在设置中填写图片 API Key');
-  }
   workbenchSession = await callWorkbench('/api/workbench/steps', { session_id: workbenchSession.id, step: target, selection, article: articleEditor.value });
   renderWorkbenchSession(workbenchSession);
 }
 
 modeButtons.forEach(button => button.addEventListener('click', () => { modeButtons.forEach(item => item.classList.remove('active')); button.classList.add('active'); workbenchMode = button.dataset.mode; }));
 startWorkbench?.addEventListener('click', async () => {
-  if (!getSharedTextKey()) { openApiSettings(); showToast('请先配置文字 API Key', 'error'); return; }
   startWorkbench.disabled = true;
   const originalLabel = startWorkbench.innerHTML;
   startWorkbench.innerHTML = workbenchMode === 'auto' ? '正在完成全链路…' : '正在调用文本 API…';
@@ -413,7 +564,6 @@ function renderSkillProgress(root, total) {
 
 let imageGenerationController = null;
 async function generateSkillImages(tool, sessionId, cards, style, grid) {
-  if (!getSharedImageKey()) { openApiSettings(); throw new Error('请先在设置中填写图片 API Key'); }
   imageGenerationController?.abort();
   imageGenerationController = new AbortController();
   const progress = renderSkillProgress(grid.parentElement, cards.length);
@@ -466,7 +616,6 @@ function renderXhsPackage(pkg) {
 
 document.querySelector('#xhs-form')?.addEventListener('submit', async event => {
   event.preventDefault();
-  if (!getSharedTextKey()) { openApiSettings(); showToast('请先配置文字 API Key', 'error'); return; }
   const button = document.querySelector('#xhs-generate');
   const finish = beginButton(button, '正在生成内容包…');
   try {
@@ -498,7 +647,6 @@ function renderTiePlan(plan) {
 
 document.querySelector('#tie-form')?.addEventListener('submit', async event => {
   event.preventDefault();
-  if (!getSharedTextKey()) { openApiSettings(); showToast('请先配置文字 API Key', 'error'); return; }
   const button = document.querySelector('#tie-plan');
   const finish = beginButton(button, '正在策划卡片…');
   try {
@@ -532,7 +680,6 @@ function renderHitReport(report) {
     <section class="result-section"><div class="result-section-title"><strong>优先修改</strong><span>P0 优先于总分</span></div><div class="suggestion-list">${suggestions.slice(0, 8).map(item => `<article><span>${esc(item.priority || item.level || 'P1')}</span><div><strong>${esc(item.title || item.issue || item.dimension || '编辑建议')}</strong><p>${esc(item.action || item.suggestion || item.detail || '')}</p></div></article>`).join('') || '<p class="muted-copy">当前没有生成额外建议，请进入人工终审。</p>'}</div></section>
     <section class="result-section"><div class="result-section-title"><strong>事实声明账本</strong><span>${(report.source_ledger || []).length} 条</span></div><div class="ledger-list">${(report.source_ledger || []).slice(0, 12).map(item => `<div><span>${esc(item.status || '待核验')}</span><p>${esc(item.claim || item.text || item.statement || item.title || JSON.stringify(item))}</p></div>`).join('') || '<p class="muted-copy">没有识别到需要单列的事实声明。</p>'}</div></section>`;
   root.querySelector('#hit-rewrite').addEventListener('click', async event => {
-    if (!getSharedTextKey()) { openApiSettings(); showToast('改稿需要先配置文字 API Key', 'error'); return; }
     const finish = beginButton(event.currentTarget, '正在改稿…');
     try {
       const data = await postCreator('/api/hit-detector/rewrite', { title: document.querySelector('#hit-title').value.trim(), body: document.querySelector('#hit-body').value, track: document.querySelector('#hit-track').value, detectorResult: report });
@@ -599,7 +746,7 @@ function setActiveView(view, updateHash = false) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-document.querySelector('#command-settings')?.addEventListener('click', openApiSettings);
+document.querySelector('#command-settings')?.addEventListener('click', openWallet);
 
 document.querySelectorAll('.app-tabs [data-view]').forEach(tab => tab.addEventListener('click', event => {
   event.preventDefault();
@@ -610,4 +757,5 @@ const initialView = Object.prototype.hasOwnProperty.call(viewMap, location.hash.
 setActiveView(initialView);
 refreshConfigStatus();
 paintWorkflow();
+loadAccount();
 window.lucide?.createIcons({ attrs: { 'stroke-width': 1.8 } });

@@ -10,12 +10,13 @@ from pathlib import Path
 from typing import Any
 
 import requests
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from . import wechat_analyzer as analyzer
+from . import accounts
 from . import creator_tools
 from . import workbench
 
@@ -30,6 +31,8 @@ app = FastAPI(
     version="1.0.0",
 )
 
+accounts.init_db()
+
 
 @app.middleware("http")
 async def disable_frontend_cache(request, call_next):
@@ -37,6 +40,44 @@ async def disable_frontend_cache(request, call_next):
     if request.url.path == "/" or request.url.path.startswith("/static/"):
         response.headers["Cache-Control"] = "no-store, max-age=0"
         response.headers["Pragma"] = "no-cache"
+    return response
+
+
+@app.middleware("http")
+async def account_and_points_gate(request: Request, call_next):
+    """Protect product APIs and settle all point charges in one place."""
+    path = request.url.path
+    public_api = path in {"/api/auth/register", "/api/auth/login"}
+    user = accounts.user_from_request(request)
+    request.state.user = user
+    if path.startswith("/api/") and not public_api and not user:
+        return JSONResponse(status_code=401, content={"detail": "请先登录"})
+
+    rule = accounts.pricing_rule(request.method, path) if user else None
+    usage_id = None
+    started = time.perf_counter()
+    if rule:
+        try:
+            usage_id = accounts.reserve_points(user["id"], rule, request.method, path)
+        except HTTPException as exc:
+            return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+
+    try:
+        response = await call_next(request)
+    except Exception:
+        if usage_id:
+            accounts.refund_usage(usage_id, 500, int((time.perf_counter() - started) * 1000))
+        raise
+
+    if usage_id:
+        duration = int((time.perf_counter() - started) * 1000)
+        if response.status_code < 400:
+            accounts.settle_usage(usage_id, response.status_code, duration)
+            response.headers["X-Points-Charged"] = str(rule["points"])
+        else:
+            accounts.refund_usage(usage_id, response.status_code, duration)
+            response.headers["X-Points-Refunded"] = str(rule["points"])
+        response.headers["X-Points-Balance"] = str(accounts.wallet_summary(user["id"])["balance"])
     return response
 
 
@@ -94,7 +135,7 @@ class WorkbenchPublishRequest(BaseModel):
 
 
 class ImageGenerationRequest(BaseModel):
-    apiKey: str = Field(min_length=1, max_length=300)
+    apiKey: str | None = Field(default=None, max_length=300)
     baseUrl: str = Field(default="https://img.rjm.us.ci", max_length=300)
     model: str = Field(default="gpt-image-2", max_length=80)
     prompt: str = Field(min_length=1, max_length=20000)
@@ -110,6 +151,22 @@ class ProviderTestRequest(BaseModel):
     imageBaseUrl: str | None = Field(default=None, max_length=300)
     textModel: str | None = Field(default=None, max_length=120)
     imageModel: str | None = Field(default=None, max_length=120)
+
+
+class AuthRequest(BaseModel):
+    email: str = Field(min_length=5, max_length=254)
+    password: str = Field(min_length=8, max_length=128)
+
+
+class RegisterRequest(AuthRequest):
+    display_name: str = Field(default="", max_length=40)
+
+
+class RechargeRequest(BaseModel):
+    user_id: str = Field(min_length=16, max_length=64)
+    points: int = Field(ge=1, le=1_000_000)
+    bucket: str = Field(default="trial", pattern="^(trial|bonus|paid)$")
+    note: str = Field(min_length=1, max_length=300)
 
 
 class XiaohongshuRequest(BaseModel):
@@ -420,24 +477,81 @@ def health():
     return {"status": "ok", "service": "wechat-account-detection"}
 
 
+@app.post("/api/auth/register")
+def register_account(payload: RegisterRequest, response: Response):
+    user = accounts.register(payload.email, payload.password, payload.display_name)
+    accounts.create_session(user["id"], response)
+    return {"status": "success", "user": user, "wallet": accounts.wallet_summary(user["id"])}
+
+
+@app.post("/api/auth/login")
+def login_account(payload: AuthRequest, response: Response):
+    user = accounts.authenticate(payload.email, payload.password)
+    accounts.create_session(user["id"], response)
+    return {"status": "success", "user": user, "wallet": accounts.wallet_summary(user["id"])}
+
+
+@app.post("/api/auth/logout")
+def logout_account(request: Request, response: Response):
+    accounts.revoke_session(request, response)
+    return {"status": "success"}
+
+
+@app.get("/api/auth/me")
+def current_account(request: Request):
+    user = accounts.require_user(request)
+    return {"status": "success", "user": user, "wallet": accounts.wallet_summary(user["id"])}
+
+
+@app.get("/api/wallet")
+def get_wallet(request: Request):
+    user = accounts.require_user(request)
+    return {
+        "status": "success",
+        "wallet": accounts.wallet_summary(user["id"]),
+        "transactions": accounts.list_transactions(user["id"]),
+    }
+
+
+@app.get("/api/pricing")
+def get_pricing(request: Request):
+    accounts.require_user(request)
+    return {"status": "success", "rules": accounts.list_pricing(), "currency": "points", "face_value_cny": 0.1}
+
+
+@app.get("/api/admin/users")
+def admin_users(request: Request, query: str = ""):
+    accounts.require_admin(request)
+    return {"status": "success", "users": accounts.list_users(query)}
+
+
+@app.get("/api/admin/overview")
+def admin_overview(request: Request):
+    accounts.require_admin(request)
+    return {"status": "success", "overview": accounts.admin_overview()}
+
+
+@app.post("/api/admin/recharge")
+def admin_recharge(payload: RechargeRequest, request: Request):
+    operator = accounts.require_admin(request)
+    wallet = accounts.recharge(operator["id"], payload.user_id, payload.points, payload.bucket, payload.note)
+    return {"status": "success", "wallet": wallet}
+
+
 @app.post("/api/diagnose")
 def diagnose(payload: DiagnoseRequest):
     account_name = payload.account_name.strip()
     if not account_name:
         raise HTTPException(status_code=422, detail="请输入公众号名称")
-    text_api_key = (payload.textApiKey or "").strip()
-    if not os.getenv("REDFOX_API_KEY") and not text_api_key:
+    if not os.getenv("REDFOX_API_KEY"):
         raise HTTPException(status_code=503, detail="服务端尚未配置 REDFOX_API_KEY")
 
     # The vendored Skill has a CLI-oriented API. The lock keeps its credential
     # and request-scoped output directory isolated during the beta phase.
     with ANALYZER_LOCK:
         previous_output_dir = os.environ.get("WECHAT_ANALYZER_OUTPUT_DIR")
-        previous_api_key = os.environ.get("REDFOX_API_KEY")
         with tempfile.TemporaryDirectory(prefix="wechat-report-") as request_dir:
             os.environ["WECHAT_ANALYZER_OUTPUT_DIR"] = request_dir
-            if text_api_key:
-                os.environ["REDFOX_API_KEY"] = text_api_key
             captured = io.StringIO()
             try:
                 with contextlib.redirect_stdout(captured):
@@ -449,10 +563,6 @@ def diagnose(payload: DiagnoseRequest):
                     os.environ.pop("WECHAT_ANALYZER_OUTPUT_DIR", None)
                 else:
                     os.environ["WECHAT_ANALYZER_OUTPUT_DIR"] = previous_output_dir
-                if previous_api_key is None:
-                    os.environ.pop("REDFOX_API_KEY", None)
-                else:
-                    os.environ["REDFOX_API_KEY"] = previous_api_key
 
             report_path = Path(request_dir) / "report_data.json"
             if report_path.exists():
@@ -507,18 +617,20 @@ def _wait_for_image_task(status_url: str, api_key: str):
 
 @app.post("/api/images/generations")
 def generate_image(payload: ImageGenerationRequest):
-    api_key = payload.apiKey.strip()
+    api_key = (os.getenv("WECHAT_IMAGE_API_KEY") or "").strip()
     if not api_key:
-        raise HTTPException(status_code=422, detail="缺少 API Key")
+        raise HTTPException(status_code=503, detail="服务端尚未配置图片 API Key")
+    base_url = os.getenv("WECHAT_IMAGE_API_BASE_URL") or os.getenv("WECHAT_API_BASE_URL") or "https://api.openai.com/v1"
+    model = os.getenv("WECHAT_IMAGE_MODEL") or payload.model or "gpt-image-2"
     body = {
-        "model": payload.model,
+        "model": model,
         "prompt": payload.prompt,
         "size": payload.size,
         "n": payload.n,
     }
     try:
         response = requests.post(
-            _image_api_url(payload.baseUrl),
+            _image_api_url(base_url),
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
             json=body,
             timeout=120,
@@ -544,11 +656,7 @@ def generate_image(payload: ImageGenerationRequest):
 @app.post("/api/providers/test")
 def test_provider(payload: ProviderTestRequest):
     try:
-        with workbench.provider_overrides(
-            payload.textApiKey or "", payload.imageApiKey or "",
-            payload.textBaseUrl or "", payload.imageBaseUrl or "",
-            payload.textModel or "", payload.imageModel or "",
-        ):
+        with workbench.provider_overrides():
             if payload.kind == "text":
                 reply = workbench._text("只回复四个字：连接成功")
                 return {"status": "success", "kind": "text", "message": reply[:80]}
@@ -584,11 +692,7 @@ def test_provider(payload: ProviderTestRequest):
 @app.post("/api/xiaohongshu/package")
 def create_xiaohongshu_package(payload: XiaohongshuRequest):
     try:
-        with workbench.provider_overrides(
-            payload.textApiKey or "", payload.imageApiKey or "",
-            payload.textBaseUrl or "", payload.imageBaseUrl or "",
-            payload.textModel or "", payload.imageModel or "",
-        ):
+        with workbench.provider_overrides():
             package = creator_tools.xiaohongshu_package(
                 payload.topic, payload.account, payload.audience,
                 payload.goal, payload.evidence, payload.contentType,
@@ -605,11 +709,7 @@ def create_xiaohongshu_package(payload: XiaohongshuRequest):
 @app.post("/api/tie-tu/plan")
 def create_tie_tu_plan(payload: TieTuPlanRequest):
     try:
-        with workbench.provider_overrides(
-            payload.textApiKey or "", payload.imageApiKey or "",
-            payload.textBaseUrl or "", payload.imageBaseUrl or "",
-            payload.textModel or "", payload.imageModel or "",
-        ):
+        with workbench.provider_overrides():
             plan = creator_tools.tie_tu_plan(
                 payload.industry, payload.topic, payload.title,
                 payload.contentType or None, payload.imageCount,
@@ -623,11 +723,7 @@ def create_tie_tu_plan(payload: TieTuPlanRequest):
 @app.post("/api/creator-tools/image")
 def generate_creator_image(payload: CreatorImageRequest):
     try:
-        with workbench.provider_overrides(
-            payload.textApiKey or "", payload.imageApiKey or "",
-            payload.textBaseUrl or "", payload.imageBaseUrl or "",
-            payload.textModel or "", payload.imageModel or "",
-        ):
+        with workbench.provider_overrides():
             result = creator_tools.generate_card_image(
                 payload.tool, payload.sessionId, payload.card, payload.style,
             )
@@ -661,11 +757,7 @@ def analyze_article(payload: HitDetectorRequest):
 @app.post("/api/hit-detector/rewrite")
 def rewrite_article(payload: HitRewriteRequest):
     try:
-        with workbench.provider_overrides(
-            payload.textApiKey or "", payload.imageApiKey or "",
-            payload.textBaseUrl or "", payload.imageBaseUrl or "",
-            payload.textModel or "", payload.imageModel or "",
-        ):
+        with workbench.provider_overrides():
             rewritten = creator_tools.rewrite_article(
                 payload.title, payload.body, payload.detectorResult,
             )
@@ -677,7 +769,7 @@ def rewrite_article(payload: HitRewriteRequest):
 @app.post("/api/workbench/sessions")
 def create_workbench_session(payload: WorkbenchCreateRequest):
     try:
-        with workbench.provider_overrides(payload.textApiKey or "", payload.imageApiKey or "", payload.textBaseUrl or "", payload.imageBaseUrl or "", payload.textModel or "", payload.imageModel or ""):
+        with workbench.provider_overrides():
             return {"status": "success", "session": workbench.create(payload.topic, payload.mode, payload.persona, payload.theme)}
     except workbench.ProviderError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
@@ -691,7 +783,7 @@ def get_workbench_provider_status():
 @app.post("/api/workbench/steps")
 def advance_workbench(payload: WorkbenchStepRequest):
     try:
-        with workbench.provider_overrides(payload.textApiKey or "", payload.imageApiKey or "", payload.textBaseUrl or "", payload.imageBaseUrl or "", payload.textModel or "", payload.imageModel or ""):
+        with workbench.provider_overrides():
             return {"status": "success", "session": workbench.step(payload.session_id, payload.step, payload.selection, payload.article)}
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -704,7 +796,7 @@ def advance_workbench(payload: WorkbenchStepRequest):
 @app.post("/api/workbench/preview")
 def preview_workbench(payload: WorkbenchPreviewRequest):
     try:
-        with workbench.provider_overrides(payload.textApiKey or "", payload.imageApiKey or "", payload.textBaseUrl or "", payload.imageBaseUrl or "", payload.textModel or "", payload.imageModel or ""):
+        with workbench.provider_overrides():
             return {"status": "success", "session": workbench.preview(payload.session_id, payload.article)}
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -731,7 +823,7 @@ def get_workbench_asset(session_id: str, filename: str):
 @app.post("/api/workbench/publish")
 def publish_workbench(payload: WorkbenchPublishRequest):
     try:
-        with workbench.provider_overrides(payload.textApiKey or "", payload.imageApiKey or "", payload.textBaseUrl or "", payload.imageBaseUrl or "", payload.textModel or "", payload.imageModel or ""):
+        with workbench.provider_overrides():
             return {"status": "success", "session": workbench.publish(payload.session_id, payload.draft)}
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc

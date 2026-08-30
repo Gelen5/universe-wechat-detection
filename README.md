@@ -49,7 +49,7 @@ uvicorn server.main:app --reload --host 0.0.0.0 --port 8000
 
 ```powershell
 pip install -r requirements-dev.txt
-python -m unittest tests.test_creator_api_integration tests.test_creator_tools -v
+python -m unittest discover -s tests -v
 $env:PYTHONPATH = (Resolve-Path vendor\skills\wechat_tie_tu).Path
 python -m unittest discover -s vendor\skills\wechat_tie_tu\tests -v
 Remove-Item Env:PYTHONPATH
@@ -62,9 +62,21 @@ python -m unittest discover -s vendor\skills\wechat_hit_detector\tests -v
 REDFOX_API_KEY=你的红狐 API Key
 WECHAT_TEXT_API_KEY=可选的服务端文字模型 Key
 WECHAT_IMAGE_API_KEY=可选的服务端图片模型 Key
+CREATOR_OWNER_EMAIL=gelen5@163.com
+CREATOR_ADMIN_PASSWORD=首位管理员初始密码
+CREATOR_COOKIE_SECURE=1
 ```
 
-右上角“设置 → API 配置”也可以按浏览器会话填写文字与图片两套配置。它们只保存在当前浏览器，并随同一次创作请求发给本站后端，不写入仓库。公开部署必须使用 HTTPS；若仍通过 HTTP 访问，请勿填写生产密钥。
+文字和图片 API Key 只由服务器环境变量托管，浏览器不再保存或传递生产密钥。公开部署应使用 HTTPS，并设置 `CREATOR_COOKIE_SECURE=1`。`CREATOR_OWNER_EMAIL` 是唯一允许执行管理员操作的邮箱；系统启动时会把其他邮箱全部校正为普通用户。可以让所有者直接注册，也可以通过 `CREATOR_ADMIN_PASSWORD` 在首次启动时预创建所有者账号。
+
+### 账号与积分
+
+- 用户注册后获得统一积分钱包，所有创作模块共享余额。
+- 管理员可以给指定账号充值试用、赠送或付费积分，并必须填写备注。
+- 收费请求在执行前预扣积分，成功后结算，失败自动退还。
+- `point_transactions` 是积分账本，`usage_records` 保存功能、耗时、状态和成本字段。
+- 基础锚点为 `1 积分 = 0.1 元`，积分只用于平台功能，不可提现或转账。
+- 运行数据库默认位于 `data/creator_accounts.db`，可用 `CREATOR_ACCOUNTS_DB` 指定持久化路径。
 
 ## 部署
 
@@ -74,7 +86,7 @@ WECHAT_IMAGE_API_KEY=可选的服务端图片模型 Key
 uvicorn server.main:app --host 0.0.0.0 --port ${PORT:-8000}
 ```
 
-账号诊断只需要 `REDFOX_API_KEY`。创作工具可以使用服务端环境变量，也可以使用页面中按请求传入的独立文字/图片配置。
+账号诊断使用 `REDFOX_API_KEY`。创作工具统一使用服务器环境变量中的文字与图片模型配置。
 
 ## API
 
@@ -100,6 +112,12 @@ uvicorn server.main:app --host 0.0.0.0 --port ${PORT:-8000}
 - `POST /api/creator-tools/image`：根据已确认卡片逐张生图。
 - `POST /api/hit-detector/analyze`：执行公众号发布前编辑复核。
 - `POST /api/hit-detector/rewrite`：按复核结果进行最小必要改稿。
+
+除注册、登录和健康检查外，所有 `/api/` 接口都需要有效登录会话。账号与运营接口包括：
+
+- `POST /api/auth/register`、`POST /api/auth/login`、`POST /api/auth/logout`
+- `GET /api/auth/me`、`GET /api/wallet`、`GET /api/pricing`
+- `GET /api/admin/users`、`GET /api/admin/overview`、`POST /api/admin/recharge`
 
 火星 API 的 OpenAI 兼容 Base URL 应为 `https://huoxingapi.com/v1`，模型 ID 必须从该账号当前模型广场复制。HTTP 403 通常表示 Key 分组不允许访问所选模型；HTTP 401 表示凭据未通过鉴权。
 

@@ -4,4 +4,7 @@ __pycache__/
 .venv/
 reports/
 output/
+data/*.db
+data/*.db-shm
+data/*.db-wal
 .DS_Store

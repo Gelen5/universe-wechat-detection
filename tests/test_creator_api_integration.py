@@ -1,9 +1,11 @@
 import unittest
+import os
 from pathlib import Path
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
+from tests import support  # noqa: F401 - configures isolated account database before app import
 from server import creator_tools, workbench
 from server.main import app
 
@@ -15,6 +17,15 @@ SHARED = {
     "imageBaseUrl": "https://image.example/v1",
     "textModel": "text-model",
     "imageModel": "image-model",
+}
+
+SERVER = {
+    "text_key": "sk-server-text",
+    "image_key": "sk-server-image",
+    "text_base": "https://server-text.example/v1",
+    "image_base": "https://server-image.example/v1",
+    "text_model": "server-text-model",
+    "image_model": "server-image-model",
 }
 
 
@@ -32,17 +43,31 @@ def current_settings():
 class CreatorApiIntegrationTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        os.environ.update({
+            "WECHAT_TEXT_API_KEY": SERVER["text_key"],
+            "WECHAT_IMAGE_API_KEY": SERVER["image_key"],
+            "WECHAT_TEXT_API_BASE_URL": SERVER["text_base"],
+            "WECHAT_IMAGE_API_BASE_URL": SERVER["image_base"],
+            "WECHAT_TEXT_MODEL": SERVER["text_model"],
+            "WECHAT_IMAGE_MODEL": SERVER["image_model"],
+        })
         cls.client = TestClient(app)
+        response = cls.client.post("/api/auth/login", json={
+            "email": "admin@example.com",
+            "password": "testing-pass-123",
+        })
+        assert response.status_code == 200, response.text
+        user_id = response.json()["user"]["id"]
+        response = cls.client.post("/api/admin/recharge", json={
+            "user_id": user_id,
+            "points": 1000,
+            "bucket": "trial",
+            "note": "接口测试积分",
+        })
+        assert response.status_code == 200, response.text
 
     def assert_shared_settings(self, captured):
-        self.assertEqual(captured, {
-            "text_key": SHARED["textApiKey"],
-            "image_key": SHARED["imageApiKey"],
-            "text_base": SHARED["textBaseUrl"],
-            "image_base": SHARED["imageBaseUrl"],
-            "text_model": SHARED["textModel"],
-            "image_model": SHARED["imageModel"],
-        })
+        self.assertEqual(captured, SERVER)
 
     def test_shared_settings_reach_xiaohongshu_route(self):
         captured = {}
@@ -131,13 +156,15 @@ class CreatorApiIntegrationTests(unittest.TestCase):
         self.assertEqual(response.json()["message"], "连接成功")
         self.assert_shared_settings(captured)
 
-    def test_frontend_has_one_shared_payload_and_six_tabs(self):
+    def test_frontend_has_account_wallet_and_six_tabs(self):
         root = Path(__file__).resolve().parent.parent
         script = (root / "static" / "app.js").read_text(encoding="utf-8")
         html = (root / "static" / "index.html").read_text(encoding="utf-8")
-        self.assertIn("const sharedApiPayload = () => ({", script)
-        self.assertIn("textApiKey: getSharedTextKey()", script)
-        self.assertIn("imageApiKey: getSharedImageKey()", script)
+        self.assertIn("const sharedApiPayload = () => ({})", script)
+        self.assertIn('id="auth-modal"', html)
+        self.assertIn('id="wallet-modal"', html)
+        self.assertNotIn('id="shared-text-api-key"', html)
+        self.assertNotIn('id="shared-image-api-key"', html)
         self.assertNotIn("shared-use-real", html)
         self.assertEqual(html.count("data-view="), 6)
 

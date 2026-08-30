@@ -19,5 +19,8 @@ foreach ($variableName in $variableNames) {
 }
 
 $env:PYTHONPATH = $projectRoot
+if (-not $env:CREATOR_OWNER_EMAIL) {
+    $env:CREATOR_OWNER_EMAIL = "gelen5@163.com"
+}
 Set-Location $projectRoot
 & "C:\Python314\python.exe" -m uvicorn server.main:app --host 127.0.0.1 --port 8000
