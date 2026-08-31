@@ -337,3 +337,33 @@ button, input, select, textarea { font-family: inherit !important; }
   .wallet-buckets { gap: 5px; }
   .wallet-buckets > div { padding: 10px; }
 }
+/* Workbench interaction-mode decision surface */
+.workbench-decision {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  margin: 20px 0 4px;
+  padding: 16px 18px;
+  border: 1px solid #d9e4f4;
+  border-radius: 14px;
+  background: linear-gradient(112deg, #f8fbff 0%, #ffffff 55%, #f5f9ff 100%);
+}
+.decision-step { display: grid; gap: 4px; min-width: 78px; }
+.decision-step span, .decision-impact > span { color: #728096; font-size: 11px; }
+.decision-step strong { color: #1d5fa9; font-size: 13px; }
+.decision-copy h3 { margin: 0 0 5px; color: #202b3a; font-size: 15px; line-height: 1.4; }
+.decision-copy p { margin: 0; color: #69778b; font-size: 12px; line-height: 1.65; }
+.decision-impact { display: grid; gap: 4px; min-width: 112px; padding-left: 16px; border-left: 1px solid #dce6f2; }
+.decision-impact strong { color: #334860; font-size: 12px; line-height: 1.45; }
+.result-actions .primary-action[hidden], .result-actions .secondary-action[hidden], .workbench-result .text-action[hidden] { display: none !important; }
+.workbench-result .topic-item span:last-child { color: #286fc1; font-size: 12px; font-weight: 650; white-space: nowrap; }
+
+@media (max-width: 760px) {
+  .workbench-decision { grid-template-columns: 1fr; gap: 10px; padding: 14px; }
+  .decision-step { grid-template-columns: auto 1fr; align-items: center; }
+  .decision-step span { grid-row: 1 / span 2; }
+  .decision-impact { padding: 10px 0 0; border-top: 1px solid #dce6f2; border-left: 0; grid-template-columns: auto 1fr; align-items: center; }
+  .result-actions { gap: 8px; }
+  .result-actions .primary-action, .result-actions .secondary-action { flex: 1 1 auto; }
+}
