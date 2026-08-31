@@ -27,8 +27,14 @@ import requests
 
 
 ROOT = Path(__file__).resolve().parent.parent
-SKILL_DIR = Path(os.environ.get("WECHAT_PUBLISHER_SKILL_DIR", r"C:\Users\16972\.workbuddy\skills\wechat-publisher-ultimate"))
-ANTI_AI_SKILL_DIR = Path(os.environ.get("UNIVERSE_ANTI_AI_SKILL_DIR", r"C:\Users\16972\.workbuddy\skills\universe-delete-ai-skill"))
+SKILL_DIR = Path(os.environ.get("WECHAT_PUBLISHER_SKILL_DIR") or (
+    r"C:\Users\16972\Documents\skill\tmp\weChat-autoCreate" if os.name == "nt"
+    else "/opt/universe-skills/weChat-autoCreate"
+))
+ANTI_AI_SKILL_DIR = Path(os.environ.get("UNIVERSE_ANTI_AI_SKILL_DIR") or (
+    r"C:\Users\16972\.workbuddy\skills\universe-delete-ai-skill" if os.name == "nt"
+    else "/opt/universe-skills/universe-delete-ai-skill"
+))
 OUTPUT_DIR = ROOT / "output" / "workbench"
 SESSIONS: dict[str, dict[str, Any]] = {}
 STEPS = ["选题", "框架", "写作", "反 AI", "配图", "排版", "预览", "发布"]
@@ -50,6 +56,26 @@ def _skill_python() -> str:
         if candidate.exists():
             return str(candidate)
     return sys.executable
+
+
+def skill_status() -> dict[str, Any]:
+    required = [
+        SKILL_DIR / "SKILL.md", SKILL_DIR / "toolkit" / "converter.py",
+        SKILL_DIR / "toolkit" / "theme.py", SKILL_DIR / "toolkit" / "cli.py",
+        SKILL_DIR / "toolkit" / "recommendation_quality.py",
+    ]
+    return {
+        "ready": all(path.exists() for path in required),
+        "path": str(SKILL_DIR),
+        "python": _skill_python(),
+        "missing": [str(path.relative_to(SKILL_DIR)) for path in required if not path.exists()],
+    }
+
+
+def _require_skill() -> None:
+    status = skill_status()
+    if not status["ready"]:
+        raise RuntimeError(f"wechat-publisher-ultimate Skill 未完整安装：{', '.join(status['missing'])}")
 
 
 class ProviderError(RuntimeError):
@@ -386,44 +412,30 @@ def _build_article_markdown(session: dict[str, Any]) -> str:
 
 
 def _typeset(session: dict[str, Any]) -> str:
-    """第6步排版：调用 wechat-publisher-ultimate 的 MarkdownConverter 16步管线做真实排版。
-
-    通过 Skill 自带 venv 的 Python 运行，复用其 converter + theme 引擎；
-    不修改 Skill 源码，也不在本项目里另写一套伪排版。
-    """
+    """第6步排版：调用 Skill CLI，执行质量门禁、转换、主题与富文本复制预览。"""
+    _require_skill()
     md = _build_article_markdown(session)
-    bridge = (
-        "import os, sys\n"
-        "sys.path.insert(0, os.environ['SKILL_DIR'])\n"
-        "from toolkit.converter import MarkdownConverter\n"
-        "from toolkit.theme import load_theme, apply_theme\n"
-        "raw = sys.stdin.read()\n"
-        "fm = {}\n"
-        "if raw.startswith('---'):\n"
-        "    parts = raw.split('---', 2)\n"
-        "    if len(parts) >= 3:\n"
-        "        try:\n"
-        "            import yaml\n"
-        "            fm = yaml.safe_load(parts[1]) or {}\n"
-        "        except Exception:\n"
-        "            pass\n"
-        "        raw = parts[2]\n"
-        "converter = MarkdownConverter()\n"
-        "html = converter.convert(raw)\n"
-        "theme = load_theme(fm.get('theme', 'default'))\n"
-        "html = apply_theme(html, theme)\n"
-        "sys.stdout.write(html)\n"
-    )
-    env = dict(os.environ)
-    env["SKILL_DIR"] = str(SKILL_DIR)
+    output_dir = OUTPUT_DIR / session["id"]
+    output_dir.mkdir(parents=True, exist_ok=True)
+    markdown_path = output_dir / "article.md"
+    markdown_path.write_text(md, encoding="utf-8")
+    generated_preview = output_dir / "article_preview.html"
+    generated_preview.unlink(missing_ok=True)
     result = subprocess.run(
-        [_skill_python(), "-c", bridge], input=md,
+        [_skill_python(), "-m", "toolkit.cli", "preview", str(markdown_path), "--theme", session["theme"]],
         capture_output=True, text=True, encoding="utf-8", errors="replace",
-        cwd=str(SKILL_DIR), env=env, timeout=90,
+        cwd=str(SKILL_DIR), timeout=120,
     )
     if result.returncode != 0:
-        raise RuntimeError(result.stderr[-700:] or "Skill 排版失败")
-    session["typeset_html"] = result.stdout
+        raise RuntimeError(result.stderr[-2000:] or "Skill 排版质量门禁未通过")
+    if not generated_preview.exists():
+        raise RuntimeError("Skill 排版完成但未生成预览 HTML")
+    document = generated_preview.read_text(encoding="utf-8")
+    match = re.search(r'<main id="article-content">(.*?)</main>', document, flags=re.S)
+    if not match:
+        raise RuntimeError("Skill 预览缺少可复制的 article-content 区域")
+    session["typeset_html"] = match.group(1).strip()
+    session["preview_document"] = document
     session["typeset_source"] = "wechat-publisher-ultimate"
     return session["typeset_html"]
 
@@ -494,7 +506,7 @@ def _images(session: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _session_view(session: dict[str, Any]) -> dict[str, Any]:
-    return {k: v for k, v in session.items() if k != "files"}
+    return {k: v for k, v in session.items() if k not in {"files", "typeset_html", "preview_document"}}
 
 
 def create(topic: str, mode: str = "interactive", persona: str = "深度观察者", theme: str = "default") -> dict[str, Any]:
@@ -502,7 +514,7 @@ def create(topic: str, mode: str = "interactive", persona: str = "深度观察�
     session: dict[str, Any] = {
         "id": sid, "topic": topic.strip(), "mode": mode, "persona": persona, "theme": theme,
         "current_step": 1, "status": "calling_text_api", "suggestions": [], "framework": None,
-        "article": "", "review": None, "score": None, "images": [], "typeset_html": "", "typeset_source": None, "preview_url": None,
+        "article": "", "review": None, "score": None, "images": [], "typeset_html": "", "preview_document": "", "typeset_source": None, "preview_url": None,
         "publish": None, "provider": provider_status(), "created_at": datetime.now().isoformat(timespec="seconds"), "files": {},
     }
     SESSIONS[sid] = session
@@ -552,6 +564,7 @@ def step(session_id: str, target: int, selection: int | None = None, article: st
         session["score"] = None
         session["review"] = None
         session["typeset_html"] = ""
+        session["preview_document"] = ""
         session["typeset_source"] = None
     return _advance(session, target, selection)
 
@@ -563,19 +576,19 @@ def preview(session_id: str, article: str | None = None) -> dict[str, Any]:
     if article is not None and article.strip():
         session["article"] = article
         session["typeset_html"] = ""
+        session["preview_document"] = ""
         session["typeset_source"] = None
     session["score"] = _score(session["article"])
-    # 复用第6步由 wechat-publisher-ultimate 真实排版引擎产出的 HTML（含主题），
-    # 不再额外走 CLI 的严格质量门禁，保证工作台预览稳定可用。
+    # 第6步与预览都复用 wechat-publisher-ultimate CLI：质量门禁、主题排版和
+    # 微信富文本复制逻辑保持为同一条 Skill 链路。
     if not session.get("typeset_html"):
         _typeset(session)
     output_dir = OUTPUT_DIR / session_id
     output_dir.mkdir(parents=True, exist_ok=True)
-    output = output_dir / "article.md"
-    output.write_text(_build_article_markdown(session), encoding="utf-8")
     html = output_dir / "preview.html"
-    html.write_text(session["typeset_html"], encoding="utf-8")
+    html.write_text(session["preview_document"], encoding="utf-8")
     session["preview_url"] = f"/api/workbench/preview/{session_id}"
+    session["html_download_url"] = f"/api/workbench/html/{session_id}"
     session["current_step"] = 7
     return _session_view(session)
 

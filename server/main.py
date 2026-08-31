@@ -858,6 +858,14 @@ def get_workbench_preview(session_id: str):
     return FileResponse(path, media_type="text/html")
 
 
+@app.get("/api/workbench/html/{session_id}")
+def download_workbench_html(session_id: str):
+    path = workbench.preview_file(session_id)
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="排版 HTML 尚未生成")
+    return FileResponse(path, media_type="text/html", filename=f"wechat-article-{session_id[:8]}.html")
+
+
 @app.get("/api/workbench/assets/{session_id}/{filename}")
 def get_workbench_asset(session_id: str, filename: str):
     path = workbench.asset_file(session_id, filename)
