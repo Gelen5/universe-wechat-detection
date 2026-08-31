@@ -572,6 +572,11 @@ function renderWorkbenchSession(session) {
   const textModel = session.provider?.text?.model || '文本模型';
   const imageModel = session.provider?.image?.model || '图片模型';
   document.querySelector('#result-meta').textContent = session.framework ? `${session.framework.name} 框架 · ${session.persona || '默认人格'} · 文本 ${textModel} · 图片 ${imageModel}` : `选题由 ${textModel} 实时生成`;
+  const htmlDownload = document.querySelector('#download-workbench-html');
+  if (htmlDownload) {
+    htmlDownload.hidden = !session.html_download_url;
+    htmlDownload.href = session.html_download_url || '#';
+  }
   const suggestions = session.suggestions || [];
   topicList.innerHTML = session.current_step === 1 && suggestions.length ? `<div class="topic-head"><strong>先选一个方向</strong><span>也可以直接编辑下方文章</span></div>${suggestions.map(item => `<button class="topic-item" data-topic-id="${item.id}" type="button"><span class="topic-number">${String(item.id).padStart(2, '0')}</span><span><strong>${esc(item.title)}</strong><small>${esc(item.type)} · 热度 ${item.heat} · ${esc(item.reason)}</small></span><span>↗</span></button>`).join('')}` : session.framework ? `<div class="framework-summary"><span class="micro-label">当前框架</span><strong>${esc(session.framework.name)}</strong><p>${esc(session.framework.reason)}</p><div>${session.framework.outline.map((item, i) => `<span>${i + 1}. ${esc(item)}</span>`).join('')}</div></div>` : '';
   topicList.querySelectorAll('.topic-item').forEach(item => item.addEventListener('click', () => advance(Number(item.dataset.topicId), 2)));
@@ -586,6 +591,21 @@ async function callWorkbench(path, payload) {
   return data.session;
 }
 
+function newIdempotencyKey() {
+  return globalThis.crypto?.randomUUID?.() || `workbench-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+async function waitForWorkbenchJob(jobId) {
+  for (;;) {
+    const data = await readApiResponse(await fetch(`/api/workbench/jobs/${encodeURIComponent(jobId)}`));
+    const job = data.job || {};
+    document.querySelector('#workbench-status').textContent = job.status === 'queued' ? '任务排队中' : 'Skill 执行中';
+    if (job.status === 'completed' && data.session) return data.session;
+    if (job.status === 'failed') throw new Error(job.error || '创作任务失败，积分已自动退还');
+    await new Promise(resolve => setTimeout(resolve, 1500));
+  }
+}
+
 async function advance(selection = null, nextStep = null) {
   if (!workbenchSession) return;
   const target = nextStep || Math.min(8, (workbenchSession.current_step || 1) + 1);
@@ -597,9 +617,12 @@ modeButtons.forEach(button => button.addEventListener('click', () => { modeButto
 startWorkbench?.addEventListener('click', async () => {
   startWorkbench.disabled = true;
   const originalLabel = startWorkbench.innerHTML;
-  startWorkbench.innerHTML = workbenchMode === 'auto' ? '正在完成全链路…' : '正在调用文本 API…';
+  startWorkbench.innerHTML = '任务提交中…';
   try {
-    const session = await callWorkbench('/api/workbench/sessions', { topic: topicInput.value.trim(), mode: workbenchMode, persona: document.querySelector('#workbench-persona').value, theme: document.querySelector('#workbench-theme').value });
+    const response = await fetch('/api/workbench/sessions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...sharedApiPayload(), topic: topicInput.value.trim(), mode: workbenchMode, persona: document.querySelector('#workbench-persona').value, theme: document.querySelector('#workbench-theme').value, idempotency_key: newIdempotencyKey() }) });
+    const accepted = await readApiResponse(response);
+    startWorkbench.innerHTML = 'Skill 执行中…';
+    const session = await waitForWorkbenchJob(accepted.job.id);
     renderWorkbenchSession(session);
     workbenchResult.scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (error) { alert(error.message); } finally { startWorkbench.disabled = false; startWorkbench.innerHTML = originalLabel; }

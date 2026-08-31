@@ -158,6 +158,30 @@ def init_db() -> None:
       text_model TEXT NOT NULL DEFAULT '', image_model TEXT NOT NULL DEFAULT '',
       updated_at TEXT NOT NULL, updated_by TEXT REFERENCES users(id)
     );
+    CREATE TABLE IF NOT EXISTS workbench_sessions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      payload_json TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_workbench_sessions_user_time
+      ON workbench_sessions(user_id, updated_at DESC);
+    CREATE TABLE IF NOT EXISTS workbench_jobs (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      idempotency_key TEXT NOT NULL,
+      session_id TEXT NOT NULL,
+      usage_id TEXT,
+      status TEXT NOT NULL,
+      error TEXT,
+      created_at TEXT NOT NULL,
+      started_at TEXT,
+      finished_at TEXT,
+      UNIQUE(user_id, idempotency_key)
+    );
+    CREATE INDEX IF NOT EXISTS idx_workbench_jobs_user_time
+      ON workbench_jobs(user_id, created_at DESC);
     """
     with DB_LOCK, _connect() as connection:
         connection.executescript(schema)
@@ -476,6 +500,92 @@ def reserve_points(user_id: str, rule: dict[str, Any], method: str, path: str) -
         )
         connection.execute("COMMIT")
     return request_id
+
+
+def save_workbench_session(user_id: str, session: dict[str, Any]) -> None:
+    now = utc_now()
+    payload = json.dumps(session, ensure_ascii=False)
+    with DB_LOCK, _connect() as connection:
+        connection.execute(
+            """INSERT INTO workbench_sessions(id,user_id,payload_json,created_at,updated_at)
+               VALUES (?,?,?,?,?)
+               ON CONFLICT(id) DO UPDATE SET payload_json=excluded.payload_json,updated_at=excluded.updated_at
+               WHERE workbench_sessions.user_id=excluded.user_id""",
+            (session["id"], user_id, payload, session.get("created_at") or now, now),
+        )
+
+
+def load_workbench_session(session_id: str, user_id: str) -> dict[str, Any] | None:
+    with DB_LOCK, _connect() as connection:
+        row = connection.execute(
+            "SELECT payload_json FROM workbench_sessions WHERE id=? AND user_id=?",
+            (session_id, user_id),
+        ).fetchone()
+    return json.loads(row["payload_json"]) if row else None
+
+
+def create_workbench_job(user_id: str, idempotency_key: str, session_id: str, usage_id: str) -> dict[str, Any]:
+    now = utc_now()
+    job_id = uuid.uuid4().hex
+    with DB_LOCK, _connect() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        existing = connection.execute(
+            "SELECT * FROM workbench_jobs WHERE user_id=? AND idempotency_key=?",
+            (user_id, idempotency_key),
+        ).fetchone()
+        if existing:
+            connection.execute("COMMIT")
+            return dict(existing)
+        connection.execute(
+            """INSERT INTO workbench_jobs
+               (id,user_id,idempotency_key,session_id,usage_id,status,created_at)
+               VALUES (?,?,?,?,?,'queued',?)""",
+            (job_id, user_id, idempotency_key, session_id, usage_id, now),
+        )
+        connection.execute("COMMIT")
+    return workbench_job(job_id, user_id) or {}
+
+
+def workbench_job(job_id: str, user_id: str) -> dict[str, Any] | None:
+    with DB_LOCK, _connect() as connection:
+        row = connection.execute(
+            "SELECT * FROM workbench_jobs WHERE id=? AND user_id=?", (job_id, user_id)
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def workbench_job_by_key(user_id: str, idempotency_key: str) -> dict[str, Any] | None:
+    with DB_LOCK, _connect() as connection:
+        row = connection.execute(
+            "SELECT * FROM workbench_jobs WHERE user_id=? AND idempotency_key=?",
+            (user_id, idempotency_key),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def update_workbench_job(job_id: str, status: str, error: str | None = None) -> None:
+    now = utc_now()
+    started_at = now if status == "running" else None
+    finished_at = now if status in {"completed", "failed"} else None
+    with DB_LOCK, _connect() as connection:
+        connection.execute(
+            """UPDATE workbench_jobs SET status=?,error=?,
+               started_at=COALESCE(started_at,?),finished_at=COALESCE(?,finished_at)
+               WHERE id=?""",
+            (status, error, started_at, finished_at, job_id),
+        )
+
+
+def recover_interrupted_workbench_jobs() -> int:
+    with DB_LOCK, _connect() as connection:
+        rows = connection.execute(
+            "SELECT id,usage_id FROM workbench_jobs WHERE status IN ('queued','running')"
+        ).fetchall()
+    for row in rows:
+        if row["usage_id"]:
+            refund_usage(row["usage_id"], 503, 0)
+        update_workbench_job(row["id"], "failed", "服务重启，任务已中止，积分已自动退还")
+    return len(rows)
 
 
 def settle_usage(request_id: str, http_status: int, duration_ms: int) -> None:
