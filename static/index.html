@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="/static/style.css?v=20260830-taste" />
     <link rel="stylesheet" href="/static/taste-chatgpt.css?v=20260831-tab" />
     <link rel="stylesheet" href="/static/admin.css?v=20260831-tab" />
-    <link rel="stylesheet" href="/static/glass-theme.css?v=20260831-tab" />
+    <link rel="stylesheet" href="/static/glass-theme.css?v=20260831-workspaces" />
   </head>
   <body>
     <div class="app-shell">
@@ -136,7 +136,7 @@
         </section>
       </section>
 
-      <section id="xiaohongshu" class="skill-page" hidden>
+      <section id="xiaohongshu" class="skill-page xhs-page" hidden>
         <header class="skill-page-head"><div><span class="skill-kicker">宇宙第一小红书 Skill</span><h1>把一个主题，做成可发布的内容包</h1><p>一次生成 3 个标题、6 页图文结构、正文、关键词、置顶评论和发布前检查。</p></div><span class="skill-badge xhs"><i data-lucide="notebook-pen"></i></span></header>
         <div class="xhs-layout">
           <form id="xhs-form" class="xhs-form skill-form">
@@ -154,14 +154,14 @@
               <button id="xhs-generate" class="primary-action skill-primary" type="submit"><i data-lucide="sparkles"></i>生成小红书内容包</button>
             </div>
           </form>
-          <section class="skill-output xhs-output" aria-live="polite"><div id="xhs-empty" class="output-empty"><span><i data-lucide="layout-template"></i></span><h2>内容包会显示在这里</h2><p>先从一个具体主题开始。系统会区分自有证据、公开样本和待验证判断。</p></div><div id="xhs-result" hidden></div></section>
+          <section class="skill-output xhs-output" aria-live="polite"><div id="xhs-empty" class="output-empty xhs-package-empty"><div class="package-empty-head"><span><i data-lucide="layers-3"></i></span><div><strong>待编排内容包</strong><p>填写主题后，按发布顺序生成可编辑的四个部分。</p></div></div><div class="package-lanes" aria-label="小红书内容包结构"><div><span>01</span><strong>标题</strong><small>3 个切入角度</small></div><div><span>02</span><strong>封面页</strong><small>6 页图文结构</small></div><div><span>03</span><strong>正文</strong><small>可直接编辑</small></div><div><span>04</span><strong>标签</strong><small>发布前检查</small></div></div></div><div id="xhs-result" hidden></div></section>
         </div>
       </section>
 
-      <section id="tie-tu" class="skill-page" hidden>
+      <section id="tie-tu" class="skill-page tie-page" hidden>
         <header class="skill-page-head"><div><span class="skill-kicker">宇宙第一贴图号 Skill</span><h1>先定卡片计划，再逐张生成</h1><p>保持同一人物和视觉系统，同时让每张图的姿势、动作与场景明显不同。</p></div><span class="skill-badge tie"><i data-lucide="images"></i></span></header>
         <div class="skill-workspace tie-layout">
-          <form id="tie-form" class="skill-form">
+          <form id="tie-form" class="skill-form tie-control-panel">
             <div class="form-section-title"><span>01</span><div><strong>建立贴图计划</strong><small>默认 3:4，一张卡片只讲一个重点。</small></div></div>
             <label class="field-wide">主题<textarea id="tie-topic" required placeholder="例如：40岁以后，旅行要换一种玩法"></textarea></label>
             <div class="field-grid"><label>行业<input id="tie-industry" value="生活方式"></label><label>目标读者<input id="tie-audience" placeholder="例如：40-50 岁用户"></label></div>
@@ -169,25 +169,25 @@
             <div class="field-grid"><label>人物模式<select id="tie-portrait"><option value="auto">自动判断</option><option value="required">保持同一人物</option><option value="off">不使用人物</option></select></label><label>视觉风格<input id="tie-style" placeholder="成熟、温暖、清晰"></label></div>
             <button id="tie-plan" class="primary-action skill-primary" type="submit"><i data-lucide="wand-sparkles"></i>生成卡片计划</button>
           </form>
-          <section class="skill-output" aria-live="polite"><div id="tie-empty" class="output-empty"><span><i data-lucide="panels-top-left"></i></span><h2>先看计划，再生成图片</h2><p>你可以先检查每张卡片的文字、场景和动作，确认后再批量生图。</p></div><div id="tie-result" hidden></div></section>
+          <section class="skill-output tie-storyboard" aria-live="polite"><div id="tie-empty" class="output-empty tie-storyboard-empty"><div class="storyboard-empty-head"><span><i data-lucide="panels-top-left"></i></span><div><strong>卡片分镜待建立</strong><p>先设定人物、画幅和风格，再确认每一张的文字、场景与动作。</p></div></div><div class="storyboard-grid" aria-label="卡片分镜示意"><article><b>01</b><span>封面</span></article><article><b>02</b><span>冲突</span></article><article><b>03</b><span>展开</span></article><article><b>04</b><span>行动</span></article></div></div><div id="tie-result" hidden></div></section>
         </div>
       </section>
 
-      <section id="hit-detector" class="skill-page" hidden>
+      <section id="hit-detector" class="skill-page hit-page" hidden>
         <header class="skill-page-head"><div><span class="skill-kicker">宇宙第一爆文检测 Skill</span><h1>发布前，做一次真正的编辑复核</h1><p>检查标题兑现、事实来源、读者价值和移动阅读，不用结构分冒充爆款概率。</p></div><span class="skill-badge hit"><i data-lucide="badge-check"></i></span></header>
         <div class="skill-workspace hit-layout">
-          <form id="hit-form" class="skill-form">
+          <form id="hit-form" class="skill-form hit-editor-panel">
             <div class="form-section-title"><span>01</span><div><strong>粘贴完整文章</strong><small>纯文本检测不能验证图片中的事实和排版。</small></div></div>
             <label class="field-wide">文章标题<input id="hit-title" required placeholder="输入准备发布的标题"></label>
             <div class="field-grid"><label>内容赛道<select id="hit-track"><option value="auto">自动识别</option><option value="tech">科技</option><option value="finance">财经</option><option value="workplace">职场</option><option value="health">健康</option><option value="education">教育</option><option value="relationship">情感</option><option value="food">美食</option><option value="beauty">美妆</option><option value="realestate">房产</option><option value="senior">中老年</option><option value="general">通用</option></select></label><label>粉丝数（可选）<input id="hit-fans" type="number" min="0" placeholder="只用于历史算术基线"></label></div>
             <label class="field-wide">正文<textarea id="hit-body" class="article-area" required placeholder="粘贴完整正文"></textarea></label>
             <button id="hit-analyze" class="primary-action skill-primary" type="submit"><i data-lucide="scan-text"></i>开始发布前复核</button>
           </form>
-          <section class="skill-output" aria-live="polite"><div id="hit-empty" class="output-empty"><span><i data-lucide="clipboard-check"></i></span><h2>复核结论会显示在这里</h2><p>先看 P0 发布阻断项，再看结构参考分和可执行修改建议。</p></div><div id="hit-result" hidden></div></section>
+          <section class="skill-output hit-report-panel" aria-live="polite"><div id="hit-empty" class="output-empty hit-report-empty"><div class="report-empty-head"><span><i data-lucide="shield-check"></i></span><div><strong>等待编辑复核</strong><p>先判断是否存在发布阻断项，再处理高优先级修改。</p></div></div><div class="report-empty-rows"><div><span>P0</span><i></i><small>发布阻断</small></div><div><span>P1</span><i></i><small>优先修改</small></div><div><span>结构</span><i></i><small>参考得分</small></div></div></div><div id="hit-result" hidden></div></section>
         </div>
       </section>
 
-      <section id="workbench" class="workbench-page" hidden>
+      <section id="workbench" class="workbench-page article-workspace" hidden>
         <div class="workbench-intro">
           <span class="micro-label">内容创作工作台</span>
           <h1>从一个主题，开始一篇好文章</h1>
@@ -239,11 +239,11 @@
         </div>
       </section>
 
-      <section id="morning-generator" class="morning-generator-page" hidden>
-        <div class="workbench-intro">
+      <section id="morning-generator" class="morning-generator-page morning-studio" hidden>
+        <div class="workbench-intro morning-studio-head">
           <span class="micro-label">早安祝福自动生成器</span>
           <h1>生成早安图和祝福文案</h1>
-          <p>支持文章和贴图两种模式，图片生成走本站后端代理，适合部署到云服务器后直接使用。</p>
+          <p>支持文章和贴图两种模式，图片生成走本站后端代理，适合部署到云服务器后直接使用。</p><div class="morning-studio-points"><span>文案</span><i></i><span>画面</span><i></i><span>排版</span></div>
         </div>
         <iframe class="generator-frame" src="/static/morning-blessing.html?v=20260831-tab" title="早安祝福自动生成器"></iframe>
       </section>
