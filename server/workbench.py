@@ -24,6 +24,7 @@ from typing import Any
 import uuid
 
 import requests
+from . import accounts
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -506,24 +507,45 @@ def _images(session: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _session_view(session: dict[str, Any]) -> dict[str, Any]:
-    return {k: v for k, v in session.items() if k not in {"files", "typeset_html", "preview_document"}}
+    return {k: v for k, v in session.items() if k not in {"user_id", "files", "typeset_html", "preview_document"}}
 
 
-def create(topic: str, mode: str = "interactive", persona: str = "深度观察者", theme: str = "default") -> dict[str, Any]:
-    sid = uuid.uuid4().hex
+def _save_session(session: dict[str, Any]) -> None:
+    user_id = session.get("user_id")
+    if not user_id:
+        raise RuntimeError("创作会话缺少用户归属")
+    SESSIONS[session["id"]] = session
+    accounts.save_workbench_session(user_id, session)
+
+
+def _get_session(session_id: str, user_id: str) -> dict[str, Any]:
+    session = SESSIONS.get(session_id)
+    if session and session.get("user_id") == user_id:
+        return session
+    session = accounts.load_workbench_session(session_id, user_id)
+    if not session:
+        raise KeyError("创作会话不存在、已过期或不属于当前用户")
+    SESSIONS[session_id] = session
+    return session
+
+
+def create(topic: str, mode: str = "interactive", persona: str = "深度观察者", theme: str = "default",
+           *, user_id: str, session_id: str | None = None) -> dict[str, Any]:
+    sid = session_id or uuid.uuid4().hex
     session: dict[str, Any] = {
-        "id": sid, "topic": topic.strip(), "mode": mode, "persona": persona, "theme": theme,
+        "id": sid, "user_id": user_id, "topic": topic.strip(), "mode": mode, "persona": persona, "theme": theme,
         "current_step": 1, "status": "calling_text_api", "suggestions": [], "framework": None,
         "article": "", "review": None, "score": None, "images": [], "typeset_html": "", "preview_document": "", "typeset_source": None, "preview_url": None,
         "publish": None, "provider": provider_status(), "created_at": datetime.now().isoformat(timespec="seconds"), "files": {},
     }
-    SESSIONS[sid] = session
+    _save_session(session)
     session["suggestions"] = _suggestions(topic, persona)
     session["status"] = "awaiting_topic"
     if mode == "auto":
         _advance(session, 7)
         session["current_step"] = 8
         session["status"] = "complete"
+    _save_session(session)
     return _session_view(session)
 
 
@@ -555,10 +577,9 @@ def _advance(session: dict[str, Any], target: int, selection: int | None = None)
     return _session_view(session)
 
 
-def step(session_id: str, target: int, selection: int | None = None, article: str | None = None) -> dict[str, Any]:
-    session = SESSIONS.get(session_id)
-    if not session:
-        raise KeyError("创作会话不存在或已过期")
+def step(session_id: str, target: int, selection: int | None = None, article: str | None = None,
+         *, user_id: str) -> dict[str, Any]:
+    session = _get_session(session_id, user_id)
     if article is not None and article.strip() and article != session.get("article"):
         session["article"] = article
         session["score"] = None
@@ -566,13 +587,18 @@ def step(session_id: str, target: int, selection: int | None = None, article: st
         session["typeset_html"] = ""
         session["preview_document"] = ""
         session["typeset_source"] = None
-    return _advance(session, target, selection)
+    result = _advance(session, target, selection)
+    _save_session(session)
+    return result
 
 
-def preview(session_id: str, article: str | None = None) -> dict[str, Any]:
-    session = SESSIONS.get(session_id)
-    if not session:
-        raise KeyError("创作会话不存在或已过期")
+def preview(session_id: str, article: str | None = None, *, user_id: str | None = None) -> dict[str, Any]:
+    if user_id is None:
+        cached = SESSIONS.get(session_id)
+        if not cached:
+            raise KeyError("创作会话不存在或已过期")
+        user_id = cached["user_id"]
+    session = _get_session(session_id, user_id)
     if article is not None and article.strip():
         session["article"] = article
         session["typeset_html"] = ""
@@ -590,6 +616,7 @@ def preview(session_id: str, article: str | None = None) -> dict[str, Any]:
     session["preview_url"] = f"/api/workbench/preview/{session_id}"
     session["html_download_url"] = f"/api/workbench/html/{session_id}"
     session["current_step"] = 7
+    _save_session(session)
     return _session_view(session)
 
 
@@ -601,14 +628,13 @@ def asset_file(session_id: str, filename: str) -> Path:
     return OUTPUT_DIR / session_id / "images" / Path(filename).name
 
 
-def publish(session_id: str, draft: bool = True) -> dict[str, Any]:
-    session = SESSIONS.get(session_id)
-    if not session:
-        raise KeyError("创作会话不存在或已过期")
+def publish(session_id: str, draft: bool = True, *, user_id: str) -> dict[str, Any]:
+    session = _get_session(session_id, user_id)
     appid = _setting("WECHAT_APPID") or _setting("WECHAT_APP_ID")
     secret = _setting("WECHAT_SECRET") or _setting("WECHAT_APP_SECRET")
     if not appid or not secret:
         session["publish"] = {"status": "blocked", "message": "未配置公众号 AppID / AppSecret；已保留本地预览，请配置后再写入草稿箱。"}
+        _save_session(session)
         return _session_view(session)
     output = OUTPUT_DIR / session_id / "article.md"
     if not output.exists():
@@ -618,4 +644,5 @@ def publish(session_id: str, draft: bool = True) -> dict[str, Any]:
         args.append("--no-draft")
     result = subprocess.run(args, cwd=str(SKILL_DIR), capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120)
     session["publish"] = {"status": "success" if result.returncode == 0 else "failed", "message": (result.stdout or result.stderr)[-1000:]}
+    _save_session(session)
     return _session_view(session)

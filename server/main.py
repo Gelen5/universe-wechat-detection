@@ -5,6 +5,8 @@ import os
 import tempfile
 import threading
 import time
+import uuid
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -24,6 +26,8 @@ from . import workbench
 ROOT = Path(__file__).resolve().parent.parent
 STATIC_DIR = ROOT / "static"
 ANALYZER_LOCK = threading.RLock()
+WORKBENCH_JOB_LOCK = threading.RLock()
+WORKBENCH_EXECUTOR = ThreadPoolExecutor(max_workers=2, thread_name_prefix="workbench")
 
 app = FastAPI(
     title="公众号账号诊断",
@@ -32,6 +36,7 @@ app = FastAPI(
 )
 
 accounts.init_db()
+accounts.recover_interrupted_workbench_jobs()
 
 
 @app.middleware("http")
@@ -53,7 +58,9 @@ async def account_and_points_gate(request: Request, call_next):
     if path.startswith("/api/") and not public_api and not user:
         return JSONResponse(status_code=401, content={"detail": "请先登录"})
 
-    rule = accounts.pricing_rule(request.method, path) if user else None
+    # The long-running full workbench owns billing in its background job so a
+    # later provider failure can refund points after the HTTP response returned.
+    rule = accounts.pricing_rule(request.method, path) if user and path != "/api/workbench/sessions" else None
     usage_id = None
     started = time.perf_counter()
     if rule:
@@ -97,6 +104,7 @@ class WorkbenchCreateRequest(BaseModel):
     imageBaseUrl: str | None = Field(default=None, max_length=300)
     textModel: str | None = Field(default=None, max_length=120)
     imageModel: str | None = Field(default=None, max_length=120)
+    idempotency_key: str = Field(min_length=8, max_length=120)
 
 
 class WorkbenchStepRequest(BaseModel):
@@ -812,13 +820,70 @@ def rewrite_article(payload: HitRewriteRequest):
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
-@app.post("/api/workbench/sessions")
-def create_workbench_session(payload: WorkbenchCreateRequest):
+def _run_workbench_job(job_id: str, user_id: str, session_id: str, payload: dict[str, Any], usage_id: str) -> None:
+    started = time.perf_counter()
+    accounts.update_workbench_job(job_id, "running")
     try:
         with workbench.provider_overrides():
-            return {"status": "success", "session": workbench.create(payload.topic, payload.mode, payload.persona, payload.theme)}
-    except workbench.ProviderError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+            workbench.create(
+                payload["topic"], payload["mode"], payload["persona"], payload["theme"],
+                user_id=user_id, session_id=session_id,
+            )
+        accounts.settle_usage(usage_id, 200, int((time.perf_counter() - started) * 1000))
+        accounts.update_workbench_job(job_id, "completed")
+    except Exception as exc:
+        accounts.refund_usage(usage_id, 500, int((time.perf_counter() - started) * 1000))
+        accounts.update_workbench_job(job_id, "failed", str(exc)[-1000:])
+
+
+def _public_workbench_job(job: dict[str, Any]) -> dict[str, Any]:
+    return {key: job.get(key) for key in (
+        "id", "session_id", "status", "error", "created_at", "started_at", "finished_at"
+    )}
+
+
+@app.post("/api/workbench/sessions", status_code=202)
+def create_workbench_session(payload: WorkbenchCreateRequest, request: Request):
+    user = request.state.user
+    with WORKBENCH_JOB_LOCK:
+        existing = accounts.workbench_job_by_key(user["id"], payload.idempotency_key)
+        if existing:
+            return {"status": "accepted", "job": _public_workbench_job(existing), "idempotent_replay": True}
+        rule = accounts.pricing_rule("POST", "/api/workbench/sessions")
+        if not rule:
+            raise HTTPException(status_code=503, detail="公众号完整工作流计费规则未启用")
+        usage_id = accounts.reserve_points(user["id"], rule, "POST", "/api/workbench/sessions")
+        session_id = uuid.uuid4().hex
+        job = accounts.create_workbench_job(
+            user["id"], payload.idempotency_key, session_id, usage_id,
+        )
+        if job.get("usage_id") != usage_id:
+            accounts.refund_usage(usage_id, 409, 0)
+            return {"status": "accepted", "job": _public_workbench_job(job), "idempotent_replay": True}
+        try:
+            WORKBENCH_EXECUTOR.submit(
+                _run_workbench_job, job["id"], user["id"], session_id,
+                {"topic": payload.topic, "mode": payload.mode, "persona": payload.persona, "theme": payload.theme},
+                usage_id,
+            )
+        except Exception as exc:
+            accounts.refund_usage(usage_id, 503, 0)
+            accounts.update_workbench_job(job["id"], "failed", f"任务调度失败：{exc}")
+            raise HTTPException(status_code=503, detail="任务暂时无法调度，积分已退还") from exc
+    return {"status": "accepted", "job": _public_workbench_job(job), "idempotent_replay": False}
+
+
+@app.get("/api/workbench/jobs/{job_id}")
+def get_workbench_job(job_id: str, request: Request):
+    job = accounts.workbench_job(job_id, request.state.user["id"])
+    if not job:
+        raise HTTPException(status_code=404, detail="任务不存在或不属于当前用户")
+    session = None
+    if job["status"] == "completed":
+        session = accounts.load_workbench_session(job["session_id"], request.state.user["id"])
+        if session:
+            session = workbench._session_view(session)
+    return {"status": "success", "job": _public_workbench_job(job), "session": session}
 
 
 @app.get("/api/workbench/provider-status")
@@ -827,10 +892,10 @@ def get_workbench_provider_status():
 
 
 @app.post("/api/workbench/steps")
-def advance_workbench(payload: WorkbenchStepRequest):
+def advance_workbench(payload: WorkbenchStepRequest, request: Request):
     try:
         with workbench.provider_overrides():
-            return {"status": "success", "session": workbench.step(payload.session_id, payload.step, payload.selection, payload.article)}
+            return {"status": "success", "session": workbench.step(payload.session_id, payload.step, payload.selection, payload.article, user_id=request.state.user["id"])}
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except workbench.ProviderError as exc:
@@ -840,18 +905,24 @@ def advance_workbench(payload: WorkbenchStepRequest):
 
 
 @app.post("/api/workbench/preview")
-def preview_workbench(payload: WorkbenchPreviewRequest):
+def preview_workbench(payload: WorkbenchPreviewRequest, request: Request):
     try:
         with workbench.provider_overrides():
-            return {"status": "success", "session": workbench.preview(payload.session_id, payload.article)}
+            return {"status": "success", "session": workbench.preview(payload.session_id, payload.article, user_id=request.state.user["id"])}
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"预览失败：{exc}") from exc
 
 
+def _require_workbench_owner(session_id: str, request: Request) -> None:
+    if not accounts.load_workbench_session(session_id, request.state.user["id"]):
+        raise HTTPException(status_code=404, detail="创作会话不存在或不属于当前用户")
+
+
 @app.get("/api/workbench/preview/{session_id}")
-def get_workbench_preview(session_id: str):
+def get_workbench_preview(session_id: str, request: Request):
+    _require_workbench_owner(session_id, request)
     path = workbench.preview_file(session_id)
     if not path.exists():
         raise HTTPException(status_code=404, detail="预览尚未生成")
@@ -859,7 +930,8 @@ def get_workbench_preview(session_id: str):
 
 
 @app.get("/api/workbench/html/{session_id}")
-def download_workbench_html(session_id: str):
+def download_workbench_html(session_id: str, request: Request):
+    _require_workbench_owner(session_id, request)
     path = workbench.preview_file(session_id)
     if not path.exists():
         raise HTTPException(status_code=404, detail="排版 HTML 尚未生成")
@@ -867,7 +939,8 @@ def download_workbench_html(session_id: str):
 
 
 @app.get("/api/workbench/assets/{session_id}/{filename}")
-def get_workbench_asset(session_id: str, filename: str):
+def get_workbench_asset(session_id: str, filename: str, request: Request):
+    _require_workbench_owner(session_id, request)
     path = workbench.asset_file(session_id, filename)
     if not path.exists() or path.suffix.lower() not in {".jpg", ".jpeg", ".png", ".webp"}:
         raise HTTPException(status_code=404, detail="图片不存在")
@@ -875,10 +948,10 @@ def get_workbench_asset(session_id: str, filename: str):
 
 
 @app.post("/api/workbench/publish")
-def publish_workbench(payload: WorkbenchPublishRequest):
+def publish_workbench(payload: WorkbenchPublishRequest, request: Request):
     try:
         with workbench.provider_overrides():
-            return {"status": "success", "session": workbench.publish(payload.session_id, payload.draft)}
+            return {"status": "success", "session": workbench.publish(payload.session_id, payload.draft, user_id=request.state.user["id"])}
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except Exception as exc:

@@ -591,6 +591,21 @@ async function callWorkbench(path, payload) {
   return data.session;
 }
 
+function newIdempotencyKey() {
+  return globalThis.crypto?.randomUUID?.() || `workbench-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+async function waitForWorkbenchJob(jobId) {
+  for (;;) {
+    const data = await readApiResponse(await fetch(`/api/workbench/jobs/${encodeURIComponent(jobId)}`));
+    const job = data.job || {};
+    document.querySelector('#workbench-status').textContent = job.status === 'queued' ? '任务排队中' : 'Skill 执行中';
+    if (job.status === 'completed' && data.session) return data.session;
+    if (job.status === 'failed') throw new Error(job.error || '创作任务失败，积分已自动退还');
+    await new Promise(resolve => setTimeout(resolve, 1500));
+  }
+}
+
 async function advance(selection = null, nextStep = null) {
   if (!workbenchSession) return;
   const target = nextStep || Math.min(8, (workbenchSession.current_step || 1) + 1);
@@ -602,9 +617,12 @@ modeButtons.forEach(button => button.addEventListener('click', () => { modeButto
 startWorkbench?.addEventListener('click', async () => {
   startWorkbench.disabled = true;
   const originalLabel = startWorkbench.innerHTML;
-  startWorkbench.innerHTML = workbenchMode === 'auto' ? '正在完成全链路…' : '正在调用文本 API…';
+  startWorkbench.innerHTML = '任务提交中…';
   try {
-    const session = await callWorkbench('/api/workbench/sessions', { topic: topicInput.value.trim(), mode: workbenchMode, persona: document.querySelector('#workbench-persona').value, theme: document.querySelector('#workbench-theme').value });
+    const response = await fetch('/api/workbench/sessions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...sharedApiPayload(), topic: topicInput.value.trim(), mode: workbenchMode, persona: document.querySelector('#workbench-persona').value, theme: document.querySelector('#workbench-theme').value, idempotency_key: newIdempotencyKey() }) });
+    const accepted = await readApiResponse(response);
+    startWorkbench.innerHTML = 'Skill 执行中…';
+    const session = await waitForWorkbenchJob(accepted.job.id);
     renderWorkbenchSession(session);
     workbenchResult.scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (error) { alert(error.message); } finally { startWorkbench.disabled = false; startWorkbench.innerHTML = originalLabel; }
