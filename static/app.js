@@ -548,8 +548,37 @@ const workbenchResult = document.querySelector('#workbench-result');
 const topicList = document.querySelector('#topic-list');
 const articleEditor = document.querySelector('#article-editor');
 const generatedImages = document.querySelector('#generated-images');
+const decisionPanel = document.querySelector('#workbench-decision');
+const runNextButton = document.querySelector('#run-next');
+const previewButton = document.querySelector('#open-preview');
+const editCurrentButton = document.querySelector('#edit-current');
 let workbenchMode = 'interactive';
 let workbenchSession = null;
+
+const stepGuidance = {
+  1: { label: '选择选题', title: '从下面的方向里，选一个你愿意写下去的。', detail: '选择后才会生成文章框架，不会直接生成整篇文章。', action: '选择方向后生成框架', next: '生成文章框架' },
+  2: { label: '确认框架', title: '先看文章怎么展开，再决定是否写正文。', detail: '确认后会生成一篇可直接编辑的完整初稿。', action: '确认框架，生成初稿', next: '生成完整初稿' },
+  3: { label: '编辑初稿', title: '这是你的文章初稿，可以直接改成自己的表达。', detail: '确认后才进入反 AI 审校；请先补充个人经历、事实或具体判断。', action: '确认正文，开始审校', next: '反 AI 审校' },
+  4: { label: '确认文字', title: '文字审校完成，请检查语气和事实边界。', detail: '确认后会依据文章内容生成封面与正文配图。', action: '确认文字，生成配图', next: '生成两张配图' },
+  5: { label: '确认配图', title: '封面和正文图已经就绪，确认它们是否服务文章。', detail: '确认后会调用排版 Skill，生成可复制到公众号的富文本。', action: '确认配图，开始排版', next: 'Skill 排版' },
+  6: { label: '生成预览', title: '排版已完成，下一步查看公众号实际粘贴效果。', detail: '预览页支持一键复制富文本，也可以下载 HTML 存档。', action: '打开预览并复制', next: '公众号富文本预览' },
+  7: { label: '交付内容', title: '内容已经可以交付到公众号后台。', detail: '复制或下载 HTML 后粘贴到公众号；确认无误再写入草稿箱。', action: '写入公众号草稿箱', next: '写入草稿箱' },
+  8: { label: '发布完成', title: '草稿写入流程已完成。', detail: '你仍可返回正文修改，并重新生成预览。', action: '完成', next: '—' },
+};
+
+function renderDecisionPanel(session) {
+  const step = session.current_step || 1;
+  const guide = stepGuidance[step] || stepGuidance[1];
+  const isPreview = step === 6;
+  const isDone = step >= 7;
+  decisionPanel.innerHTML = `<div class="decision-step"><span>第 ${String(step).padStart(2, '0')} 步</span><strong>${esc(guide.label)}</strong></div><div class="decision-copy"><h3>${esc(guide.title)}</h3><p>${esc(guide.detail)}</p></div><div class="decision-impact"><span>点击后</span><strong>${esc(guide.next)}</strong></div>`;
+  runNextButton.hidden = step === 1 || isPreview || isDone;
+  runNextButton.textContent = guide.action;
+  previewButton.hidden = !isPreview;
+  previewButton.textContent = guide.action;
+  editCurrentButton.hidden = step < 3;
+  document.querySelector('#publish-draft').hidden = step < 7;
+}
 
 function paintWorkflow(current = 1) {
   workflowSteps.innerHTML = ['选题', '框架', '写作', '反 AI', '配图', '排版', '预览', '发布'].map((name, index) => {
@@ -566,6 +595,7 @@ function renderWorkbenchSession(session) {
   const statusLabels = { calling_text_api: '文本 API 生成中', calling_image_api: '图片 API 生成中', rendering: '正在排版', awaiting_topic: '等待选择', ready_for_review: '等待确认', complete: '已完成', running: `第 ${session.current_step || 1} 步` };
   document.querySelector('#workbench-status').textContent = statusLabels[session.status] || `第 ${session.current_step || 1} 步`;
   document.querySelector('#result-title').textContent = session.topic || '未命名创作';
+  renderDecisionPanel(session);
   articleEditor.value = session.article || '';
   const score = session.score?.score;
   document.querySelector('#score-label').textContent = score == null ? '反 AI 评分将在第 4 步生成' : `反 AI 综合评分 ${Number(score).toFixed(1)} · ${session.score.status === 'success' ? '统计层与模式层已完成' : '评分不可用'}`;
@@ -578,7 +608,7 @@ function renderWorkbenchSession(session) {
     htmlDownload.href = session.html_download_url || '#';
   }
   const suggestions = session.suggestions || [];
-  topicList.innerHTML = session.current_step === 1 && suggestions.length ? `<div class="topic-head"><strong>先选一个方向</strong><span>也可以直接编辑下方文章</span></div>${suggestions.map(item => `<button class="topic-item" data-topic-id="${item.id}" type="button"><span class="topic-number">${String(item.id).padStart(2, '0')}</span><span><strong>${esc(item.title)}</strong><small>${esc(item.type)} · 热度 ${item.heat} · ${esc(item.reason)}</small></span><span>↗</span></button>`).join('')}` : session.framework ? `<div class="framework-summary"><span class="micro-label">当前框架</span><strong>${esc(session.framework.name)}</strong><p>${esc(session.framework.reason)}</p><div>${session.framework.outline.map((item, i) => `<span>${i + 1}. ${esc(item)}</span>`).join('')}</div></div>` : '';
+  topicList.innerHTML = session.current_step === 1 && suggestions.length ? `<div class="topic-head"><strong>请选择一个选题方向</strong><span>选择后才会生成框架</span></div>${suggestions.map(item => `<button class="topic-item" data-topic-id="${item.id}" type="button"><span class="topic-number">${String(item.id).padStart(2, '0')}</span><span><strong>${esc(item.title)}</strong><small>${esc(item.type)} · 热度 ${item.heat} · ${esc(item.reason)}</small></span><span>选这个 ↗</span></button>`).join('')}` : session.framework ? `<div class="framework-summary"><span class="micro-label">已生成文章框架</span><strong>${esc(session.framework.name)}</strong><p>${esc(session.framework.reason)}</p><div>${session.framework.outline.map((item, i) => `<span>${i + 1}. ${esc(item)}</span>`).join('')}</div></div>` : '';
   topicList.querySelectorAll('.topic-item').forEach(item => item.addEventListener('click', () => advance(Number(item.dataset.topicId), 2)));
   const images = session.images || [];
   generatedImages.hidden = !images.length;
@@ -627,7 +657,7 @@ startWorkbench?.addEventListener('click', async () => {
     workbenchResult.scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (error) { alert(error.message); } finally { startWorkbench.disabled = false; startWorkbench.innerHTML = originalLabel; }
 });
-document.querySelector('#run-next')?.addEventListener('click', async (event) => { const btn = event.currentTarget; const label = btn.textContent; btn.disabled = true; btn.textContent = 'API 执行中…'; try { await advance(); } catch (error) { alert(error.message); } finally { btn.disabled = false; btn.textContent = label; } });
+runNextButton?.addEventListener('click', async (event) => { const btn = event.currentTarget; const label = btn.textContent; btn.disabled = true; btn.textContent = '正在生成…'; try { await advance(); } catch (error) { alert(error.message); } finally { btn.disabled = false; btn.textContent = label; } });
 document.querySelector('#open-preview')?.addEventListener('click', async () => {
   if (!workbenchSession) return;
   try { const session = await callWorkbench('/api/workbench/preview', { session_id: workbenchSession.id, article: articleEditor.value }); renderWorkbenchSession(session); window.open(session.preview_url, '_blank', 'noopener'); } catch (error) { alert(error.message); }
@@ -636,6 +666,7 @@ document.querySelector('#publish-draft')?.addEventListener('click', async () => 
   if (!workbenchSession) return;
   try { const session = await callWorkbench('/api/workbench/publish', { session_id: workbenchSession.id, draft: true }); renderWorkbenchSession(session); alert(session.publish?.message || '已完成'); } catch (error) { alert(error.message); }
 });
+editCurrentButton?.addEventListener('click', () => { articleEditor?.scrollIntoView({ behavior: 'smooth', block: 'center' }); articleEditor?.focus(); });
 articleEditor?.addEventListener('input', () => { if (workbenchSession) workbenchSession.article = articleEditor.value; });
 
 async function postCreator(path, payload, signal) {

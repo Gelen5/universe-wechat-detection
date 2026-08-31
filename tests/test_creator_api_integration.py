@@ -174,7 +174,12 @@ class CreatorApiIntegrationTests(unittest.TestCase):
         self.assertIn("/api/auth/stop-impersonation", script)
         self.assertIn("[502, 503, 504].includes(response.status)", script)
         self.assertIn('id="download-workbench-html"', html)
+        self.assertIn('id="workbench-decision"', html)
+        self.assertIn('id="edit-current"', html)
         self.assertIn("html_download_url", script)
+        self.assertIn("const stepGuidance", script)
+        self.assertIn("确认框架，生成初稿", script)
+        self.assertIn("打开预览并复制", script)
         self.assertNotIn("shared-use-real", html)
         self.assertEqual(html.count("data-view="), 6)
 
