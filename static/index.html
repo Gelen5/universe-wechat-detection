@@ -199,8 +199,25 @@
             <div class="creator-options"><label>人格 <select id="workbench-persona"><option>深度观察者</option><option>亲切分享者</option><option>锐评手</option><option>故事大王</option><option>暖心治愈</option></select></label><label>排版主题 <select id="workbench-theme"><option value="default">极简白</option><option value="tech-card-green">科技卡片绿</option><option value="minimal-elegant">极简优雅</option></select></label></div>
             <button id="start-workbench" class="primary-action" type="button">开始创作 <span>↗</span></button>
             <p class="helper-copy">你可以先输入一个模糊想法，后面每一步都能修改。</p>
+            <div class="topic-chips" aria-label="常用主题">
+              <span>常用主题</span>
+              <button type="button" class="topic-chip" data-topic="老年人晚上总起夜，睡不踏实">老年人起夜</button>
+              <button type="button" class="topic-chip" data-topic="养老金又要涨了，到底怎么算">养老金计算</button>
+              <button type="button" class="topic-chip" data-topic="养龟新手最容易踩的坑">养龟避坑</button>
+              <button type="button" class="topic-chip" data-topic="早安语录怎么写出治愈感">早安语录</button>
+            </div>
           </section>
-          <aside class="workflow-card"><div class="card-topline"><span class="card-label">创作流程</span><span>8 个步骤</span></div><div id="workflow-steps" class="workflow-steps"></div><div class="workflow-note"><strong>怎么使用</strong><span>先输入主题，选择模式。交互模式会在选题、框架和配图处停下来等你确认。</span></div></aside>
+          <aside class="workflow-card"><div class="card-topline"><span class="card-label">创作流程</span><span>8 个步骤</span></div><div id="workflow-steps" class="workflow-steps"></div><div class="workflow-note"><strong>怎么使用</strong><span>先输入主题，选择模式。交互模式会在选题、框架和配图处停下来等你确认。</span></div>
+            <section class="inspiration" aria-label="灵感速达">
+              <div class="card-topline"><span class="card-label">灵感速达</span></div>
+              <ul>
+                <li>🔥 延迟退休细则解读</li>
+                <li>💡 中老年睡眠痛点选题</li>
+                <li>📝 反 AI 检测自查清单</li>
+                <li>🎯 中老年痛点词库</li>
+              </ul>
+            </section>
+          </aside>
         </div>
         <section id="workbench-result" class="workbench-result" hidden>
           <div class="result-head"><div><span class="micro-label">当前创作</span><h2 id="result-title">正在准备</h2></div><div class="result-actions"><a id="download-workbench-html" class="secondary-action" href="#" hidden>下载 HTML</a><button id="edit-current" class="secondary-action" type="button">编辑正文</button><button id="run-next" class="primary-action compact" type="button">继续下一步</button><button id="open-preview" class="primary-action compact" type="button" hidden>预览并复制 ↗</button></div></div>
@@ -293,6 +310,18 @@
           item.addEventListener('click', go);
           item.addEventListener('keydown', function (e) {
             if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); }
+          });
+        });
+      })();
+
+      // 创作工作台「常用主题」：点击即填入输入框
+      (function () {
+        var ta = document.querySelector('#workbench-topic');
+        if (!ta) return;
+        document.querySelectorAll('.topic-chip').forEach(function (chip) {
+          chip.addEventListener('click', function () {
+            ta.value = chip.dataset.topic || '';
+            ta.focus();
           });
         });
       })();
