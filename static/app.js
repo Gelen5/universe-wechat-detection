@@ -863,6 +863,13 @@ const viewTitles = {
   report: '诊断报告',
 };
 
+function pathToView(path) {
+  const p = String(path || '').replace(/^\/+|\/+$/g, '');
+  if (!p) return 'diagnose';
+  if (p === 'morning-generator') return 'morning';
+  return Object.prototype.hasOwnProperty.call(viewMap, p) ? p : 'diagnose';
+}
+
 function setActiveView(view, updateHash = false) {
   Object.entries(viewMap).forEach(([name, element]) => { if (element) element.hidden = name !== view; });
   document.querySelectorAll('.app-tabs [data-view]').forEach(item => item.classList.toggle('active', item.dataset.view === view));
@@ -871,7 +878,10 @@ function setActiveView(view, updateHash = false) {
   if (view === 'morning') syncMorningApiKey();
   const commandTitle = document.querySelector('#command-title');
   if (commandTitle) commandTitle.textContent = viewTitles[view] || '宇宙第一工作台';
-  if (updateHash && view !== 'report') history.replaceState(null, '', `#${view}`);
+  if (updateHash && view !== 'report') {
+    const url = view === 'diagnose' ? '/' : `/${view === 'morning' ? 'morning-generator' : view}`;
+    history.replaceState(null, '', url);
+  }
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -882,7 +892,9 @@ document.querySelectorAll('.app-tabs [data-view]').forEach(tab => tab.addEventLi
   setActiveView(tab.dataset.view, true);
 }));
 
-const initialView = Object.prototype.hasOwnProperty.call(viewMap, location.hash.slice(1)) ? location.hash.slice(1) : 'diagnose';
+window.addEventListener('popstate', () => setActiveView(pathToView(location.pathname), false));
+
+const initialView = pathToView(location.pathname);
 setActiveView(initialView);
 refreshConfigStatus();
 paintWorkflow();

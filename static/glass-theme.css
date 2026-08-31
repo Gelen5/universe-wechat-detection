@@ -450,10 +450,12 @@ body::before { content: ""; }
 .skill-page {
   height: calc(100dvh - 64px) !important;
   min-height: 0 !important;
-  display: flex !important;
-  flex-direction: column !important;
   padding: 16px 24px 18px !important;
   overflow: hidden !important;
+}
+.skill-page:not([hidden]) {
+  display: flex !important;
+  flex-direction: column !important;
 }
 .skill-page-head {
   flex: 0 0 auto;
@@ -642,10 +644,12 @@ body::before { content: ""; }
 .workbench-page {
   height: calc(100dvh - 64px) !important;
   min-height: 0 !important;
-  display: flex !important;
-  flex-direction: column !important;
   padding: 16px 24px 18px !important;
   overflow: hidden !important;
+}
+.workbench-page:not([hidden]) {
+  display: flex !important;
+  flex-direction: column !important;
 }
 .workbench-page .workbench-intro {
   flex: 0 0 auto;
@@ -700,10 +704,12 @@ body::before { content: ""; }
 .morning-generator-page {
   height: calc(100dvh - 64px) !important;
   min-height: 0 !important;
-  display: flex !important;
-  flex-direction: column !important;
   padding: 16px 24px 18px !important;
   overflow: hidden !important;
+}
+.morning-generator-page:not([hidden]) {
+  display: flex !important;
+  flex-direction: column !important;
 }
 .morning-generator-page .workbench-intro {
   flex: 0 0 auto;

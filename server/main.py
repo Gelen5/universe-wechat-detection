@@ -963,4 +963,16 @@ def index():
     return FileResponse(STATIC_DIR / "index.html", media_type="text/html; charset=utf-8")
 
 
+# 每个功能 tab 对应一个真实路径（/workbench、/xiaohongshu、/tie-tu、/hit-detector、/morning-generator），
+# 由前端 SPA 根据 pathname 渲染对应 section；其余路径交给 /static 与 /api。
+TAB_PAGES = {"workbench", "xiaohongshu", "tie-tu", "hit-detector", "morning-generator"}
+
+
+@app.get("/{tab}", include_in_schema=False)
+def tab_page(tab: str):
+    if tab in TAB_PAGES:
+        return FileResponse(STATIC_DIR / "index.html", media_type="text/html; charset=utf-8")
+    raise HTTPException(status_code=404, detail="Not found")
+
+
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
