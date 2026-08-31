@@ -102,36 +102,55 @@
       </div>
 
       <section id="entry" class="entry-panel">
-        <div class="hero-card">
-          <div class="entry-copy">
-            <span class="micro-label">公众号账号诊断</span>
-            <h1>输入公众号名称，<em>一次看清内容力</em></h1>
-            <p>自动分析账号数据与内容表现，生成可分享的可视化诊断报告。一次检测，看清内容力、涨粉力与商业潜力。</p>
+        <div class="hero-grid">
+          <div class="hero-main">
+            <div class="entry-copy">
+              <span class="micro-label">公众号账号诊断</span>
+              <h1>发了很多内容，<em>为什么还是没人看？</em></h1>
+              <p>自动分析账号数据与内容表现，生成可分享的可视化诊断报告。一次检测，看清内容力、涨粉力与商业潜力。</p>
+            </div>
+            <form id="diagnose-form" class="entry-form">
+              <label for="account-name">输入公众号名称</label>
+              <div><input id="account-name" name="account_name" placeholder="例如：滚去睡" autocomplete="organization" required /><button id="submit-button" type="submit">开始诊断 <span>↗</span></button></div>
+            </form>
+            <div class="sample-row">
+              <span>试试：</span>
+              <button type="button" class="chip" data-account="滚去睡">滚去睡</button>
+              <button type="button" class="chip" data-account="星空漫游">星空漫游</button>
+              <button type="button" class="chip" data-account="养龟日记">养龟日记</button>
+            </div>
           </div>
-          <form id="diagnose-form" class="entry-form">
-            <label for="account-name">输入公众号名称</label>
-            <div><input id="account-name" name="account_name" placeholder="例如：滚去睡" autocomplete="organization" required /><button id="submit-button" type="submit">开始诊断 <span>↗</span></button></div>
-          </form>
-          <div class="sample-row">
-            <span>试试：</span>
-            <button type="button" class="chip" data-account="滚去睡">滚去睡</button>
-            <button type="button" class="chip" data-account="星空漫游">星空漫游</button>
-            <button type="button" class="chip" data-account="养龟日记">养龟日记</button>
-          </div>
+
+          <aside class="hero-demo" aria-hidden="true">
+            <div class="demo-ring">
+              <svg viewBox="0 0 100 100" width="108" height="108">
+                <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(130,150,210,.18)" stroke-width="8"/>
+                <circle class="demo-arc" cx="50" cy="50" r="42" fill="none" stroke="#5B84FF" stroke-width="8" stroke-linecap="round" stroke-dasharray="216 264" transform="rotate(-90 50 50)"/>
+              </svg>
+              <div class="demo-score"><strong>82</strong><span>综合诊断分</span></div>
+            </div>
+            <div class="demo-bars">
+              <div><span>内容健康度</span><i style="--w:86%"></i></div>
+              <div><span>用户活跃度</span><i class="b-good" style="--w:64%"></i></div>
+              <div><span>核心数据</span><i style="--w:72%"></i></div>
+              <div><span>运营规范性</span><i class="b-warn" style="--w:38%"></i></div>
+            </div>
+            <p class="demo-note">报告预览 · 诊断后替换为真实数据</p>
+          </aside>
         </div>
 
         <section class="recent" aria-label="最近诊断记录">
           <article class="recent-item" data-account="滚去睡" role="button" tabindex="0">
-            <span class="recent-av">滚</span>
-            <div><div class="recent-name">滚去睡</div><div class="recent-meta">内容力 82 · 3 天前诊断</div></div>
+            <div class="recent-head"><span class="recent-av">滚</span><div><div class="recent-name">滚去睡</div><div class="recent-meta">3 天前诊断</div></div><span class="recent-score s-blue">82</span></div>
+            <svg class="recent-spark" viewBox="0 0 100 26" preserveAspectRatio="none"><polyline points="2,22 16,17 30,20 44,12 58,15 72,9 86,12 98,6" fill="none" stroke="#5B84FF" stroke-width="1.6"/></svg>
           </article>
           <article class="recent-item" data-account="星空漫游" role="button" tabindex="0">
-            <span class="recent-av">星</span>
-            <div><div class="recent-name">星空漫游</div><div class="recent-meta">内容力 74 · 上周诊断</div></div>
+            <div class="recent-head"><span class="recent-av">星</span><div><div class="recent-name">星空漫游</div><div class="recent-meta">上周诊断</div></div><span class="recent-score s-good">74</span></div>
+            <svg class="recent-spark" viewBox="0 0 100 26" preserveAspectRatio="none"><polyline points="2,20 16,21 30,15 44,17 58,11 72,13 86,8 98,10" fill="none" stroke="#4ade80" stroke-width="1.6"/></svg>
           </article>
           <article class="recent-item" data-account="养龟日记" role="button" tabindex="0">
-            <span class="recent-av">养</span>
-            <div><div class="recent-name">养龟日记</div><div class="recent-meta">内容力 68 · 上周诊断</div></div>
+            <div class="recent-head"><span class="recent-av">养</span><div><div class="recent-name">养龟日记</div><div class="recent-meta">上周诊断</div></div><span class="recent-score s-warn">68</span></div>
+            <svg class="recent-spark" viewBox="0 0 100 26" preserveAspectRatio="none"><polyline points="2,18 16,14 30,19 44,15 58,16 72,12 86,14 98,11" fill="none" stroke="#fbbf24" stroke-width="1.6"/></svg>
           </article>
         </section>
       </section>
