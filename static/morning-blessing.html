@@ -3,67 +3,112 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>AI 祝福图文生成器</title>
+  <title>早安祝福 · 宇宙第一工作台</title>
+  <link rel="stylesheet" href="/static/style.css?v=20260831-morning">
+  <link rel="stylesheet" href="/static/taste-chatgpt.css?v=20260831-morning">
+  <link rel="stylesheet" href="/static/admin.css?v=20260831-morning">
+  <link rel="stylesheet" href="/static/glass-theme.css?v=20260831-morning">
   <style>
-    :root{color-scheme:dark;--text:#eef1f3;--muted:#8d98a2;--line:rgba(220,232,240,.12);--line-bright:rgba(255,255,255,.2);--panel:rgba(20,28,35,.78);--field:rgba(5,10,14,.56);--gold:#e2bd7c;--gold-soft:rgba(226,189,124,.1);--green:#e2bd7c;--shadow:0 28px 80px rgba(0,0,0,.3);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","PingFang SC","Segoe UI",sans-serif}
-    *{box-sizing:border-box;letter-spacing:0}body{margin:0;min-height:100vh;color:var(--text);background:#0a1117 url('/static/assets/crystal-workspace-bg.png') center/cover fixed}header{position:sticky;top:0;z-index:10;background:rgba(12,19,25,.84);border-bottom:1px solid var(--line);backdrop-filter:blur(28px) saturate(130%)}
-    .bar{max-width:1500px;margin:0 auto;padding:15px 20px;display:flex;justify-content:space-between;gap:16px;align-items:center}h1{font-size:18px;margin:0;font-weight:650}.sub{color:var(--muted);font-size:11px;margin-top:4px}
-    main{max-width:1500px;margin:0 auto;padding:12px;display:grid;grid-template-columns:minmax(340px,410px) minmax(0,1fr);gap:10px}.panel{background:var(--panel);border:1px solid var(--line);box-shadow:inset 0 1px rgba(255,255,255,.055),var(--shadow);backdrop-filter:blur(28px) saturate(125%);border-radius:9px}.controls{padding:18px;align-self:start;position:sticky;top:78px}
-    .section-title{font-size:11px;color:#c9cfd4;margin:18px 0 9px;font-weight:650}.section-title:first-child{margin-top:0}label{display:block;font-size:11px;color:var(--muted);margin:0 0 6px}
-    input,select,textarea{width:100%;border:1px solid var(--line);background:var(--field);border-radius:7px;padding:10px 11px;color:var(--text);font:inherit;font-size:12px;outline:none;box-shadow:inset 0 1px 7px rgba(0,0,0,.2)}textarea{resize:vertical;min-height:72px}
-    input:focus,select:focus,textarea:focus{border-color:rgba(226,189,124,.52);box-shadow:0 0 0 3px rgba(226,189,124,.08)}input::placeholder,textarea::placeholder{color:#56616b}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:9px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-    .check{display:flex;align-items:center;gap:8px;color:#cbd1d6;font-size:12px}.check input{width:16px;height:16px;accent-color:var(--gold)}button{border:1px solid var(--line);border-radius:7px;padding:10px 13px;font-weight:620;cursor:pointer;background:rgba(255,255,255,.045);color:#cfd5da}button:hover{border-color:var(--line-bright);background:rgba(255,255,255,.075)}button.primary{border-color:#edca8c;background:var(--gold);color:#17130d;box-shadow:inset 0 1px rgba(255,255,255,.42),0 10px 26px rgba(211,166,94,.12)}button.primary:hover{background:#edca8b}button.danger{border-color:rgba(231,105,94,.24);background:rgba(196,67,57,.1);color:#ff9d94}button:disabled{opacity:.48;cursor:not-allowed}.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:18px}
-    .seg{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:rgba(0,0,0,.22);border:1px solid var(--line);border-radius:8px;padding:4px}.seg input{display:none}.seg label{margin:0;text-align:center;padding:9px 10px;border-radius:6px;color:var(--muted);cursor:pointer;font-weight:650}.seg input:checked+label{color:#f0d49f;background:var(--gold-soft);box-shadow:inset 0 0 0 1px rgba(226,189,124,.22)}
-    .is-sticker .article-only{display:none}.is-sticker #copyHtmlBtn,.is-sticker #downloadHtmlBtn{display:none}.is-article #downloadTextBtn,.is-article #downloadImagesBtn{display:none}.custom-size{display:none}.is-custom-size .custom-size{display:grid}
-    .preview{padding:18px;min-height:calc(100vh - 86px)}.status{min-height:42px;border-bottom:1px solid var(--line);padding-bottom:15px;display:grid;grid-template-columns:1fr auto;gap:10px 16px;color:var(--muted);font-size:12px}.progress-wrap{grid-column:1/-1;height:6px;background:rgba(255,255,255,.06);border-radius:5px;overflow:hidden}.progress-bar{height:100%;width:0;background:var(--gold);border-radius:inherit;transition:width .24s ease}.article{margin-top:14px;padding:24px;background:rgba(7,13,18,.46);border:1px solid var(--line);border-radius:8px;box-shadow:inset 0 1px rgba(255,255,255,.025)}.article h2{margin:0 0 22px;text-align:center;color:#edca8b;font-size:26px;line-height:1.3}.article p{color:#cbd1d6;font-size:15px;line-height:1.9;margin:0 0 18px}
-    .image-grid{display:grid;grid-template-columns:repeat(var(--cols,4),minmax(0,1fr));gap:10px;margin:22px 0}.image-grid img{width:100%;aspect-ratio:2/3;object-fit:cover;border:1px solid var(--line);border-radius:7px;box-shadow:0 14px 34px rgba(0,0,0,.24);background:#111920}.image-grid.placeholder{border:1px dashed rgba(220,232,240,.16);border-radius:8px;min-height:120px;display:grid;place-items:center;color:var(--muted);font-size:12px}.ending{color:#edca8b;font-weight:700;font-size:17px}.prompt{margin-top:14px;white-space:pre-wrap;max-height:280px;overflow:auto;font-size:11px;line-height:1.6;color:#aeb6bd;background:rgba(0,0,0,.2);border:1px solid var(--line);border-radius:8px;padding:12px}.hint,.warn{font-size:10px;color:var(--muted);line-height:1.6;margin-top:7px}.warn{color:#eac584;background:rgba(187,123,26,.08);border:1px solid rgba(226,189,124,.2);border-radius:8px;padding:10px}
-    .modal-mask{position:fixed;inset:0;z-index:30;background:rgba(0,4,7,.76);backdrop-filter:blur(16px);display:grid;place-items:center;padding:20px}.modal-mask[hidden]{display:none}.modal{width:min(420px,100%);background:rgba(20,28,35,.98);border:1px solid var(--line-bright);border-radius:10px;box-shadow:inset 0 1px rgba(255,255,255,.07),0 28px 90px rgba(0,0,0,.55);padding:22px}.modal h3{margin:0 0 8px;font-size:20px}.modal p{margin:0 0 18px;color:var(--muted);line-height:1.65}.modal button{width:100%}
-    @media(max-width:960px){main{grid-template-columns:1fr;padding:10px}.controls{position:static}.bar{padding:12px 14px}.image-grid{grid-template-columns:repeat(min(var(--cols,2),2),minmax(0,1fr))}}
+    /* 仅保留 JS 动态显隐控制，视觉样式由 glass-theme.css 统一提供 */
+    .is-sticker .article-only { display:none !important; }
+    .is-article #downloadTextBtn, .is-article #downloadImagesBtn { display:none !important; }
+    .is-sticker #copyHtmlBtn, .is-sticker #downloadHtmlBtn { display:none !important; }
+    .custom-size { display:none !important; }
+    .is-custom-size .custom-size { display:grid !important; }
+    [hidden] { display:none !important; }
   </style>
-  <link rel="stylesheet" href="/static/morning-chatgpt.css?v=20260830-chatgpt">
 </head>
-<body>
-  <header><div class="bar"><div><h1>AI 祝福图文生成器</h1><div class="sub">随机类型 · 多条文案 · 图片插入位置可控</div></div><span class="sub">平台 API · 积分计费</span></div></header>
-  <main>
-    <aside class="panel controls">
-      <div class="section-title">输出模式</div>
-      <div class="seg"><input id="modeArticle" name="mode" type="radio" value="article" checked><label for="modeArticle">文章</label><input id="modeSticker" name="mode" type="radio" value="sticker"><label for="modeSticker">贴图</label></div>
-      <div class="section-title">模型服务</div>
-      <div class="hint">图片模型由平台统一托管。每生成一张图片扣除 30 积分，失败自动退还。</div>
-      <input id="apiKey" type="hidden"><input id="baseUrl" type="hidden" value=""><select id="model" hidden><option selected>gpt-image-2</option></select>
+<body class="morning-iframe is-article">
+  <header class="morning-topbar">
+    <div>
+      <h1>早安祝福</h1>
+      <div class="sub">图片与文案一键生成</div>
+    </div>
+    <span class="badge">平台 API · 积分计费</span>
+  </header>
 
-      <div class="section-title">类型（默认随机）</div>
-      <div class="grid3">
-        <div><label>图片类型</label><select id="imageType"><option value="random">随机</option><option value="beauty" selected>美女早安</option><option value="flower">花卉山水</option><option value="guofeng">国风吉祥</option><option value="health">养生健康</option><option value="festival">节日节气</option><option value="night">晚安祝福</option><option value="quote">每日金句</option><option value="custom">自定义</option></select></div>
-        <div><label>标题类型</label><select id="titleType"><option value="random">随机</option><option value="morning" selected>早安问候</option><option value="luck">好运福气</option><option value="health">健康平安</option><option value="festival">节日节气</option><option value="quote">金句标题</option><option value="custom">自定义</option></select></div>
-        <div><label>文案类型</label><select id="copyType"><option value="random">随机</option><option value="warm" selected>温柔问候</option><option value="health">健康祝福</option><option value="luck">好运福气</option><option value="moments">朋友圈长文</option><option value="wechat">公众号短文</option><option value="custom">自定义</option></select></div>
-      </div>
-      <label style="margin-top:12px">自定义类型补充</label><input id="customType" placeholder="例如：佛系莲花、妈妈群祝福、节气海报">
-
-      <div class="section-title">内容</div>
-      <div class="grid2"><div><label>主标题</label><input id="title" placeholder="留空则按标题类型随机"></div><div><label>日期</label><input id="date" type="date"></div></div>
-      <label style="margin-top:12px">自定义文案（可选，每行或空行分隔为一条）</label><textarea id="customCopy" placeholder="留空则按文案类型自动生成多条文案"></textarea>
-      <div class="row" style="margin-top:12px"><label class="check"><input id="showDate" type="checkbox" checked> 显示日期</label><label class="check"><input id="showLunar" type="checkbox" checked> 显示农历</label></div>
-
-      <div class="section-title article-only">文案与图片位置</div>
-      <div class="grid3 article-only">
-        <div><label>本次生成文案条数</label><input id="copyCount" type="number" min="1" max="8" value="3"></div>
-        <div><label>图片插入到第几条</label><input id="imageAt" type="number" min="1" max="8" value="2"></div>
-        <div><label>图片在文案的</label><select id="imagePosition"><option value="after" selected>下方</option><option value="before">上方</option></select></div>
+  <main class="morning-workbench">
+    <aside class="morning-panel morning-controls">
+      <div class="morning-section-title">输出模式</div>
+      <div class="morning-seg">
+        <input id="modeArticle" name="mode" type="radio" value="article" checked>
+        <label for="modeArticle">文章</label>
+        <input id="modeSticker" name="mode" type="radio" value="sticker">
+        <label for="modeSticker">贴图</label>
       </div>
 
-      <div class="section-title">生成与排版</div>
-      <div class="grid3"><div><label>生成图片张数</label><input id="count" type="number" min="1" max="8" value="4"></div><div class="article-only"><label>每行图片数</label><select id="columns"><option>1</option><option>2</option><option>3</option><option selected>4</option></select></div><div><label>图片比例</label><select id="sizeMode"><option value="3:4" selected>3:4 竖图</option><option value="9:16">9:16 手机竖图</option><option value="custom">自定义</option></select></div></div>
-      <div class="grid2 custom-size" style="margin-top:12px"><div><label>自定义宽</label><input id="customWidth" type="number" min="256" max="4096" value="1024"></div><div><label>自定义高</label><input id="customHeight" type="number" min="256" max="4096" value="1365"></div></div>
-      <div class="actions"><button id="previewBtn">预览提示词</button><button class="primary" id="generateBtn">开始生成</button><button class="danger" id="cancelBtn" hidden>取消生成</button><button id="copyHtmlBtn">复制公众号HTML</button><button id="downloadHtmlBtn">下载HTML</button><button id="downloadTextBtn">下载文案TXT</button><button id="downloadImagesBtn">下载图片说明</button></div>
-      <div id="copyWarn" class="warn" hidden></div>
+      <div class="morning-section-title">模型服务</div>
+      <div class="morning-hint">图片模型由平台统一托管。每生成一张图片扣除 30 积分，失败自动退还。</div>
+      <input id="apiKey" type="hidden">
+      <input id="baseUrl" type="hidden" value="">
+      <select id="model" hidden><option selected>gpt-image-2</option></select>
+
+      <div class="morning-section-title">类型（默认随机）</div>
+      <div class="morning-field-row cols-3">
+        <div><label for="imageType">图片类型</label><select id="imageType"><option value="random">随机</option><option value="beauty" selected>美女早安</option><option value="flower">花卉山水</option><option value="guofeng">国风吉祥</option><option value="health">养生健康</option><option value="festival">节日节气</option><option value="night">晚安祝福</option><option value="quote">每日金句</option><option value="custom">自定义</option></select></div>
+        <div><label for="titleType">标题类型</label><select id="titleType"><option value="random">随机</option><option value="morning" selected>早安问候</option><option value="luck">好运福气</option><option value="health">健康平安</option><option value="festival">节日节气</option><option value="quote">金句标题</option><option value="custom">自定义</option></select></div>
+        <div><label for="copyType">文案类型</label><select id="copyType"><option value="random">随机</option><option value="warm" selected>温柔问候</option><option value="health">健康祝福</option><option value="luck">好运福气</option><option value="moments">朋友圈长文</option><option value="wechat">公众号短文</option><option value="custom">自定义</option></select></div>
+      </div>
+      <div class="morning-field-row" style="margin-top:10px">
+        <label for="customType">自定义类型补充</label>
+        <input id="customType" placeholder="例如：佛系莲花、妈妈群祝福、节气海报">
+      </div>
+
+      <div class="morning-section-title">内容</div>
+      <div class="morning-field-row cols-2">
+        <div><label for="title">主标题</label><input id="title" placeholder="留空则按标题类型随机"></div>
+        <div><label for="date">日期</label><input id="date" type="date"></div>
+      </div>
+      <div class="morning-field-row" style="margin-top:10px">
+        <label for="customCopy">自定义文案（可选，每行或空行分隔为一条）</label>
+        <textarea id="customCopy" placeholder="留空则按文案类型自动生成多条文案"></textarea>
+      </div>
+      <div class="morning-checks">
+        <label class="morning-check"><input id="showDate" type="checkbox" checked> 显示日期</label>
+        <label class="morning-check"><input id="showLunar" type="checkbox" checked> 显示农历</label>
+      </div>
+
+      <div class="morning-section-title article-only">文案与图片位置</div>
+      <div class="morning-field-row cols-3 article-only">
+        <div><label for="copyCount">本次生成文案条数</label><input id="copyCount" type="number" min="1" max="8" value="3"></div>
+        <div><label for="imageAt">图片插入到第几条</label><input id="imageAt" type="number" min="1" max="8" value="2"></div>
+        <div><label for="imagePosition">图片在文案的</label><select id="imagePosition"><option value="after" selected>下方</option><option value="before">上方</option></select></div>
+      </div>
+
+      <div class="morning-section-title">生成与排版</div>
+      <div class="morning-field-row cols-3">
+        <div><label for="count">生成图片张数</label><input id="count" type="number" min="1" max="8" value="4"></div>
+        <div class="article-only"><label for="columns">每行图片数</label><select id="columns"><option>1</option><option>2</option><option>3</option><option selected>4</option></select></div>
+        <div><label for="sizeMode">图片比例</label><select id="sizeMode"><option value="3:4" selected>3:4 竖图</option><option value="9:16">9:16 手机竖图</option><option value="custom">自定义</option></select></div>
+      </div>
+      <div class="morning-field-row cols-2 custom-size" style="margin-top:10px">
+        <div><label for="customWidth">自定义宽</label><input id="customWidth" type="number" min="256" max="4096" value="1024"></div>
+        <div><label for="customHeight">自定义高</label><input id="customHeight" type="number" min="256" max="4096" value="1365"></div>
+      </div>
+
+      <div class="morning-actions">
+        <button id="previewBtn" type="button">预览提示词</button>
+        <button id="generateBtn" class="primary" type="button">开始生成</button>
+        <button id="cancelBtn" class="danger" type="button" hidden>取消生成</button>
+        <button id="copyHtmlBtn" type="button">复制公众号HTML</button>
+        <button id="downloadHtmlBtn" type="button">下载HTML</button>
+        <button id="downloadTextBtn" type="button">下载文案TXT</button>
+        <button id="downloadImagesBtn" type="button">下载图片说明</button>
+      </div>
+      <div id="copyWarn" class="morning-warn" hidden></div>
     </aside>
-    <section class="panel preview">
-      <div class="status"><span id="status">就绪</span><span id="summary"></span><div class="progress-wrap" id="progressWrap" hidden><div class="progress-bar" id="progressBar"></div></div></div>
-      <div id="prompt" class="prompt" hidden></div>
-      <article id="article" class="article"><h2 id="articleTitle"></h2><div id="articleBody"></div></article>
+
+    <section class="morning-panel morning-preview">
+      <div class="morning-status">
+        <span id="status">就绪</span>
+        <span id="summary">文章模式：输出文章 HTML</span>
+        <div class="morning-progress-wrap" id="progressWrap" hidden><div class="morning-progress-bar" id="progressBar"></div></div>
+      </div>
+      <div id="prompt" class="morning-prompt" hidden></div>
+      <article id="article" class="morning-article"><h2 id="articleTitle"></h2><div id="articleBody"></div></article>
     </section>
   </main>
+
   <div class="modal-mask" id="doneModal" hidden>
     <div class="modal">
       <h3 id="modalTitle">生成完成</h3>
@@ -71,6 +116,7 @@
       <button class="primary" id="modalOk">知道了</button>
     </div>
   </div>
+
   <script>
     const $=id=>document.getElementById(id),pick=a=>a[Math.floor(Math.random()*a.length)],sample=(a,n)=>[...a].sort(()=>Math.random()-.5).slice(0,n),storeKey="shared_image_api_key_v1",baseStoreKey="shared_image_base_url_v1",modelStoreKey="shared_image_model_v1",legacyStoreKey="image_api_key_v3";
     const concreteImageTypes=["beauty","flower","guofeng","health","festival","quote"],concreteTitleTypes=["morning","luck","health","festival","quote"],concreteCopyTypes=["warm","health","luck","moments","wechat"];
@@ -98,7 +144,7 @@
     function mode(){return $("modeSticker").checked?"sticker":"article"}
     function updateMode(){document.body.classList.toggle("is-sticker",mode()==="sticker");document.body.classList.toggle("is-article",mode()==="article");document.body.classList.toggle("is-custom-size",$("sizeMode").value==="custom");$("summary").textContent=mode()==="sticker"?"贴图模式：只输出图片和文案":"文章模式：输出文章 HTML"}
     function resolveTypes(){lastResolved={image:$("imageType").value==="random"?pick(concreteImageTypes):$("imageType").value,title:$("titleType").value==="random"?pick(concreteTitleTypes):$("titleType").value,copy:$("copyType").value==="random"?pick(concreteCopyTypes):$("copyType").value};return lastResolved}
-    function weekdayText(v){return["星期日","星期一","星期二","星期三","星期四","星期五","星期六"][new Date(v+"T00:00:00").getDay()]}function cnDate(v){const d=new Date(v+"T00:00:00");return`${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日 ${weekdayText(v)}`}function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+    function weekdayText(v){return["星期日","星期一","星期二","星期三","星期四","星期五","星期六"][new Date(v+"T00:00:00").getDay()]}function cnDate(v){const d=new Date(v+"T00:00:00");return`${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日 ${weekdayText(v)}`}function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]))}
     function currentTitle(types=lastResolved){return $("title").value.trim()||pick(titlePools[types.title]||titlePools.morning)}
     function currentCopies(types=lastResolved){const custom=$("customCopy").value.trim();if(custom)return custom.split(/\n+/).map(x=>x.trim()).filter(Boolean);const pool=copyPools[types.copy]||copyPools.warm,count=Math.max(1,Math.min(8,Number($("copyCount").value||3)));let arr=[];while(arr.length<count)arr.push(...sample(pool,pool.length));return arr.slice(0,count)}
     function articleTitle(types=lastResolved){return`${$("count").value||1}张${imageTypeData[types.image].name}图 | 新的一天，愿你喜乐平安`}
@@ -157,7 +203,7 @@ ${writeBlock}
     function wechatHtml(){const copies=currentCopies(lastResolved),at=Math.max(1,Math.min(copies.length,Number($("imageAt").value||1))),pos=$("imagePosition").value;let body="";copies.forEach((p,i)=>{const n=i+1;if(n===at&&pos==="before")body+=`<section style="text-align:left;font-size:0;line-height:0;white-space:normal;margin:22px 0;">${wechatGridHtml()}</section>`;body+=`<p style="font-size:17px;line-height:1.9;margin:0 0 18px;">${escapeHtml(p)}</p>`;if(n===at&&pos==="after")body+=`<section style="text-align:left;font-size:0;line-height:0;white-space:normal;margin:22px 0;">${wechatGridHtml()}</section>`});return`<section style="max-width:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#26343b;line-height:1.9;"><h2 style="text-align:center;color:#338ba8;font-size:26px;line-height:1.35;margin:0 0 22px;">${escapeHtml(articleTitle(lastResolved))}</h2>${body}</section>`}
     function warnIfNeeded(){const hasData=generatedImages.some(x=>!x.publicUrl);$("copyWarn").hidden=false;$("copyWarn").textContent=hasData?"注意：当前接口返回的是 base64 图片。公众号后台通常会过滤这种图片，所以复制 HTML 可能仍然没图。请先下载图片，再在公众号后台手动上传；或换成返回公网 URL 的图片接口/上传到公众号素材库。":"当前图片是公网 URL，复制到公众号后台更可能保留图片；若微信仍过滤，请先上传到公众号素材库。"}
     function downloadText(name,text,type="text/plain;charset=utf-8"){const blob=new Blob([text],{type}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;a.click();URL.revokeObjectURL(a.href)}
-    function stickerText(){const copies=currentCopies(lastResolved);return `${$("count").value||1}张${imageTypeData[lastResolved.image].name}贴图文案\n\n`+copies.map((p,i)=>`${i+1}. ${p}`).join("\n\n")}
+    function stickerText(){const copies=currentCopies(lastResolved);return `${$("count").value||1}张${imageTypeData[lastResolved.image].name}贴图\n\n`+copies.map((p,i)=>`${i+1}. ${p}`).join("\n\n")}
     function imagesManifest(){return "图片下载说明\n\n静态网页不能直接把多张远程图打包成 zip。请在页面预览区右键图片另存，或逐个打开图片保存。\n\n"+generatedImages.map((img,i)=>`图片${i+1}: ${img.publicUrl?img.src:"base64 图片，需在页面中右键保存"}`).join("\n")}
     $("previewBtn").onclick=()=>{const p=promptText(1);$("prompt").hidden=false;$("prompt").textContent=p;renderArticle();$("status").textContent=`提示词已生成 · 随机结果：${imageTypeData[lastResolved.image].name}`};
     $("generateBtn").onclick=async()=>{if(isGenerating)return;activeController=new AbortController();setGenerating(true);generatedImages=[];const firstPrompt=promptText(1);$("prompt").hidden=false;$("prompt").textContent=firstPrompt;renderArticle();const count=Math.max(1,Math.min(8,Number($("count").value||1)));setProgress(0,count);try{for(let i=1;i<=count;i++){$("status").textContent=`正在生成第 ${i}/${count} 张`;generatedImages.push(await callApi(i===1?firstPrompt:promptText(i),activeController.signal));renderArticle();setProgress(i,count)}$("status").textContent="生成完成";$("summary").textContent=mode()==="sticker"?`${count} 张贴图 · ${currentCopies(lastResolved).length} 条文案`:`${count} 张 · ${$("copyCount").value} 条文案 · 每行 ${$("columns").value} 张`;warnIfNeeded();showModal("生成完成",`已生成 ${count} 张图片，${mode()==="sticker"?"可以下载文案和图片说明。":"可以复制公众号 HTML 或下载 HTML。"}`)}catch(e){if(e.name==="AbortError"){$("status").textContent=`已取消，保留已生成的 ${generatedImages.length} 张`;setProgress(generatedImages.length,count);showModal("已取消",`本次生成已停止，当前保留 ${generatedImages.length} 张已完成图片。`)}else{const msg=friendlyFetchError(e);$("status").textContent=msg;showModal("生成失败",msg)}}finally{activeController=null;setGenerating(false)}};
