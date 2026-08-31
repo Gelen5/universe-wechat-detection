@@ -926,7 +926,7 @@ def get_workbench_preview(session_id: str, request: Request):
     path = workbench.preview_file(session_id)
     if not path.exists():
         raise HTTPException(status_code=404, detail="预览尚未生成")
-    return FileResponse(path, media_type="text/html")
+    return FileResponse(path, media_type="text/html; charset=utf-8")
 
 
 @app.get("/api/workbench/html/{session_id}")
@@ -935,7 +935,7 @@ def download_workbench_html(session_id: str, request: Request):
     path = workbench.preview_file(session_id)
     if not path.exists():
         raise HTTPException(status_code=404, detail="排版 HTML 尚未生成")
-    return FileResponse(path, media_type="text/html", filename=f"wechat-article-{session_id[:8]}.html")
+    return FileResponse(path, media_type="text/html; charset=utf-8", filename=f"wechat-article-{session_id[:8]}.html")
 
 
 @app.get("/api/workbench/assets/{session_id}/{filename}")
@@ -960,7 +960,7 @@ def publish_workbench(payload: WorkbenchPublishRequest, request: Request):
 
 @app.get("/", include_in_schema=False)
 def index():
-    return FileResponse(STATIC_DIR / "index.html")
+    return FileResponse(STATIC_DIR / "index.html", media_type="text/html; charset=utf-8")
 
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
