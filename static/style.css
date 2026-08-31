@@ -74,16 +74,16 @@ blockquote cite { color: #917e66; font-size: 11px; font-style: normal; }
 .vertical-marker span { padding-left: 31px; }
 .diagnosis-hero h1 { max-width: 700px; margin: 24px 0 20px 31px; font-family: Georgia, "Songti SC", "STSong", serif; font-size: clamp(31px, 3.35vw, 48px); line-height: 1.18; letter-spacing: -.045em; font-weight: 500; }
 .diagnosis-hero > p { max-width: 680px; margin: 0 0 0 31px; color: var(--sub); font-size: 14px; line-height: 1.9; }
-.positioning { max-width: 570px; margin: 42px 0 0 31px; padding: 15px 18px; background: #f2f5f1; border-left: 3px solid var(--sage); }
+.positioning { max-width: 570px; margin: 42px 0 0 31px; padding: 15px 18px; background: #f2f5f1; border: 1px solid #d9e5db; border-radius: 8px; }
 .positioning strong { display: block; margin-top: 7px; color: var(--sage); font-size: 15px; line-height: 1.5; }
 .positioning p { margin: 7px 0 0; color: var(--sub); font-size: 12px; line-height: 1.7; }
 .sprig-wrap { display: flex; align-items: center; justify-content: center; }
 .sprig-wrap img { width: 132px; height: 230px; object-fit: contain; mix-blend-mode: multiply; opacity: .82; }
 .lenses-section { padding: 39px 10px 33px; border-bottom: 1px solid var(--line); }
-.signal-section { padding: 32px 10px 34px; border-bottom: 1px solid var(--line); background: linear-gradient(120deg, #fbfaf7 0%, #f2f6f7 100%); }
+.signal-section { padding: 32px 10px 34px; border-bottom: 1px solid var(--line); background: #f7f8fa; }
 .signal-grid { display: grid; grid-template-columns: minmax(300px, 1.8fr) repeat(3, minmax(130px, .72fr)); gap: 12px; }
 .judgment-card, .metric-card { min-height: 132px; padding: 20px; border: 1px solid #e4e8e8; border-radius: 10px; background: rgba(255,255,255,.72); box-shadow: 0 8px 25px rgba(23,33,43,.035); }
-.judgment-card { border-left: 4px solid var(--blue); }
+.judgment-card { border-color: #cfdbea; }
 .card-label { display: block; color: var(--sub); font-size: 11px; letter-spacing: .04em; }
 .judgment-card p { max-width: 610px; margin: 17px 0 0; color: var(--ink); font-family: Georgia, "Songti SC", serif; font-size: 17px; line-height: 1.65; }
 .metric-card { display: flex; flex-direction: column; justify-content: space-between; }
@@ -464,8 +464,8 @@ body { color: var(--text); background: var(--canvas); }
 .result-meta-grid span { color: var(--muted); font-size: 10px; }
 .result-meta-grid p { margin: 6px 0 0; font-size: 11px; line-height: 1.6; }
 .issue-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
-.issue-list li { padding: 10px 12px; border-left: 3px solid #ff9f0a; background: #fff8e8; font-size: 11px; line-height: 1.55; }
-.issue-list li.ok { border-color: #30d158; background: #ecf9ef; }
+.issue-list li { padding: 10px 12px; border: 1px solid #f0d9ad; border-radius: 7px; background: #fff8e8; font-size: 11px; line-height: 1.55; }
+.issue-list li.ok { border-color: #bce3c7; background: #ecf9ef; }
 .plan-summary { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-top: 16px; }
 .plan-summary > div { padding: 12px; border-radius: 8px; background: var(--surface-soft); }
 .plan-summary span, .plan-summary strong { display: block; }
