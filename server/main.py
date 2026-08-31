@@ -190,6 +190,12 @@ class ImpersonateRequest(BaseModel):
     user_id: str = Field(min_length=16, max_length=64)
 
 
+class TaskCreateRequest(BaseModel):
+    type: str = Field(pattern="^(xiaohongshu|tie_tu|hit_detect|hit_rewrite|creator_image|workbench)$")
+    idempotency_key: str = Field(min_length=8, max_length=120)
+    payload: dict[str, Any]
+
+
 class XiaohongshuRequest(BaseModel):
     topic: str = Field(min_length=2, max_length=300)
     account: str = Field(default="", max_length=300)
@@ -576,6 +582,79 @@ def admin_recharge(payload: RechargeRequest, request: Request):
     operator = accounts.require_admin(request)
     wallet = accounts.recharge(operator["id"], payload.user_id, payload.points, payload.bucket, payload.note)
     return {"status": "success", "wallet": wallet}
+
+
+TASK_DEFINITIONS = {
+    "xiaohongshu": ("text", "POST", "/api/xiaohongshu/package"),
+    "tie_tu": ("light", "POST", "/api/tie-tu/plan"),
+    "hit_detect": ("light", "POST", "/api/hit-detector/analyze"),
+    "hit_rewrite": ("text", "POST", "/api/hit-detector/rewrite"),
+    "creator_image": ("image", "POST", "/api/creator-tools/image"),
+    "workbench": ("text", "POST", "/api/workbench/sessions"),
+}
+
+
+def _public_job(job: dict[str, Any]) -> dict[str, Any]:
+    result = None
+    if job.get("result_json"):
+        result = json.loads(job["result_json"])
+    return {key: job.get(key) for key in ("id", "type", "lane", "status", "error", "attempts", "created_at", "started_at", "finished_at", "canceled_at")} | {"result": result}
+
+
+@app.post("/api/tasks", status_code=202)
+def create_task(payload: TaskCreateRequest, request: Request):
+    user = request.state.user
+    if accounts.active_job_count(user["id"]) >= 1:
+        raise HTTPException(status_code=429, detail="内测期间每位用户同时只能运行 1 个任务")
+    lane, method, path = TASK_DEFINITIONS[payload.type]
+    rule = accounts.pricing_rule(method, path)
+    if not rule:
+        raise HTTPException(status_code=503, detail="该任务的积分规则未启用")
+    usage_id = accounts.reserve_points(user["id"], rule, method, path)
+    try:
+        job = accounts.create_job(user["id"], payload.type, lane, payload.idempotency_key, usage_id, payload.payload)
+    except Exception:
+        accounts.refund_usage(usage_id, 500, 0)
+        raise
+    if job.get("usage_id") != usage_id:
+        accounts.refund_usage(usage_id, 409, 0)
+    return {"status": "accepted", "job": _public_job(job), "idempotent_replay": job.get("usage_id") != usage_id}
+
+
+@app.get("/api/tasks/{job_id}")
+def get_task(job_id: str, request: Request):
+    job = accounts.job(job_id, request.state.user["id"])
+    if not job:
+        raise HTTPException(status_code=404, detail="任务不存在或不属于当前用户")
+    return {"status": "success", "job": _public_job(job)}
+
+
+@app.post("/api/tasks/{job_id}/cancel")
+def cancel_task(job_id: str, request: Request):
+    job = accounts.cancel_job(job_id, request.state.user["id"])
+    if not job:
+        raise HTTPException(status_code=404, detail="任务不存在或不属于当前用户")
+    if job.get("status") == "canceled" and job.get("usage_id"):
+        accounts.refund_usage(job["usage_id"], 499, 0)
+    return {"status": "success", "job": _public_job(job)}
+
+
+@app.get("/api/admin/tasks")
+def admin_tasks(request: Request, limit: int = 100):
+    accounts.require_admin(request)
+    return {"status": "success", "tasks": [_public_job(job) | {"user_id": job["user_id"]} for job in accounts.list_jobs(limit)]}
+
+
+@app.post("/api/admin/tasks/{job_id}/refund")
+def admin_refund_task(job_id: str, request: Request):
+    operator = accounts.require_admin(request)
+    job = accounts.job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="任务不存在")
+    if job.get("usage_id"):
+        accounts.refund_usage(job["usage_id"], 499, 0)
+    accounts.fail_job(job_id, "管理员退款")
+    return {"status": "success", "job": _public_job(accounts.job(job_id) or job)}
 
 
 @app.post("/api/diagnose")

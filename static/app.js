@@ -88,6 +88,16 @@ async function loadAdminUsers(query = '') {
   body.querySelectorAll('[data-view-user]').forEach(button => button.addEventListener('click', () => loadAdminUserDetail(button.dataset.viewUser)));
 }
 
+async function loadAdminTasks() {
+  const data = await readApiResponse(await fetch('/api/admin/tasks?limit=100'));
+  const body = document.querySelector('#admin-tasks-list');
+  body.innerHTML = data.tasks.map(task => `<tr><td>${esc(task.type)}</td><td>${esc(task.lane)}</td><td><b>${esc(task.status)}</b></td><td>${esc(formatDate(task.created_at))}</td><td>${task.status === 'queued' || task.status === 'running' ? `<button type="button" data-refund-task="${esc(task.id)}">退款</button>` : '—'}</td></tr>`).join('') || '<tr><td colspan="5" class="admin-empty-row">暂无任务</td></tr>';
+  body.querySelectorAll('[data-refund-task]').forEach(button => button.addEventListener('click', async () => {
+    await readApiResponse(await fetch(`/api/admin/tasks/${encodeURIComponent(button.dataset.refundTask)}/refund`, { method: 'POST' }));
+    await loadAdminTasks();
+  }));
+}
+
 async function loadAdminUserDetail(userId) {
   const data = await readApiResponse(await fetch(`/api/admin/users/${encodeURIComponent(userId)}`));
   const user = data.user;
@@ -101,7 +111,7 @@ async function loadAdminUserDetail(userId) {
 async function openAdminUsers() {
   toggleSettingsMenu(false);
   adminUsersModal.hidden = false;
-  try { await loadAdminUsers(); } catch (error) { adminUsersModal.hidden = true; showToast(error.message, 'error'); }
+  try { await Promise.all([loadAdminUsers(), loadAdminTasks()]); } catch (error) { adminUsersModal.hidden = true; showToast(error.message, 'error'); }
 }
 
 async function switchToUser(userId) {
@@ -390,6 +400,7 @@ adminUsersButton?.addEventListener('click', openAdminUsers);
 document.querySelector('#admin-users-close')?.addEventListener('click', () => { adminUsersModal.hidden = true; });
 document.querySelector('#admin-users-refresh')?.addEventListener('click', () => loadAdminUsers(document.querySelector('#admin-users-search').value.trim()));
 document.querySelector('#admin-users-search')?.addEventListener('input', event => { clearTimeout(window.adminUsersTimer); window.adminUsersTimer = setTimeout(() => loadAdminUsers(event.target.value.trim()), 250); });
+document.querySelector('#admin-tasks-refresh')?.addEventListener('click', () => loadAdminTasks().catch(error => showToast(error.message, 'error')));
 document.querySelector('#stop-impersonation')?.addEventListener('click', stopImpersonation);
 document.querySelector('#api-settings-close')?.addEventListener('click', closeApiSettings);
 document.querySelector('#api-settings-save')?.addEventListener('click', saveApiSettings);
@@ -670,6 +681,28 @@ editCurrentButton?.addEventListener('click', () => { articleEditor?.scrollIntoVi
 articleEditor?.addEventListener('input', () => { if (workbenchSession) workbenchSession.article = articleEditor.value; });
 
 async function postCreator(path, payload, signal) {
+  const taskTypes = {
+    '/api/xiaohongshu/package': 'xiaohongshu',
+    '/api/tie-tu/plan': 'tie_tu',
+    '/api/hit-detector/analyze': 'hit_detect',
+    '/api/hit-detector/rewrite': 'hit_rewrite',
+    '/api/creator-tools/image': 'creator_image',
+  };
+  if (taskTypes[path]) {
+    const taskPayload = path === '/api/xiaohongshu/package' ? { topic: payload.topic, account: payload.account, audience: payload.audience, goal: payload.goal, evidence: payload.evidence, content_type: payload.contentType }
+      : path === '/api/tie-tu/plan' ? { industry: payload.industry, topic: payload.topic, title: payload.title || '', content_type: payload.contentType || null, image_count: payload.imageCount, style: payload.style, audience: payload.audience, portrait_mode: payload.portraitMode }
+      : path === '/api/hit-detector/analyze' ? { title: payload.title, body: payload.body, track: payload.track, fans: payload.fans, open_rate: payload.openRate }
+      : path === '/api/hit-detector/rewrite' ? { title: payload.title, body: payload.body, detector_result: payload.detectorResult }
+      : { tool: payload.tool, session_id: payload.sessionId, card: payload.card, style: payload.style };
+    const accepted = await readApiResponse(await fetch('/api/tasks', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: taskTypes[path], idempotency_key: newIdempotencyKey(), payload: taskPayload }), signal }));
+    const jobId = accepted.job.id;
+    while (true) {
+      await new Promise(resolve => setTimeout(resolve, 700));
+      const state = await readApiResponse(await fetch(`/api/tasks/${encodeURIComponent(jobId)}`, { signal }));
+      if (state.job.status === 'succeeded') return state.job.result;
+      if (['failed', 'canceled'].includes(state.job.status)) throw new Error(state.job.error || '任务未完成');
+    }
+  }
   const response = await fetch(path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

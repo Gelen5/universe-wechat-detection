@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="/static/style.css?v=20260830-taste" />
     <link rel="stylesheet" href="/static/taste-chatgpt.css?v=20260831-tab" />
     <link rel="stylesheet" href="/static/admin.css?v=20260831-tab" />
-    <link rel="stylesheet" href="/static/glass-theme.css?v=20260831-workspaces" />
+    <link rel="stylesheet" href="/static/glass-theme.css?v=20260831-review-2" />
   </head>
   <body>
     <div class="app-shell">
@@ -86,6 +86,7 @@
           <div id="admin-stats" class="admin-stats"><article><span>累计注册</span><strong>—</strong></article><article><span>今日新增</span><strong>—</strong></article><article><span>近 7 天</span><strong>—</strong></article><article><span>30 天活跃</span><strong>—</strong></article></div>
           <div class="admin-users-toolbar"><label><i data-lucide="search"></i><input id="admin-users-search" type="search" placeholder="搜索邮箱或昵称"></label><button id="admin-users-refresh" type="button"><i data-lucide="refresh-cw"></i>刷新</button></div>
           <div class="admin-users-layout"><div class="admin-users-table-wrap"><table class="admin-users-table"><thead><tr><th>用户</th><th>注册时间</th><th>最后登录</th><th>积分</th><th>任务</th><th></th></tr></thead><tbody id="admin-users-list"></tbody></table></div><aside id="admin-user-detail" class="admin-user-detail"><div class="admin-detail-empty"><i data-lucide="user-round-search"></i><strong>选择一个用户</strong><span>查看注册详情、积分构成和最近记录</span></div></aside></div>
+          <section class="admin-task-section"><div class="wallet-section-title"><strong>任务调度</strong><button id="admin-tasks-refresh" type="button">刷新任务</button></div><div class="admin-users-table-wrap"><table class="admin-users-table"><thead><tr><th>类型</th><th>队列</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead><tbody id="admin-tasks-list"></tbody></table></div></section>
         </section>
       </div>
 
