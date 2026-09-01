@@ -35,6 +35,22 @@ Reference: user-provided API settings screenshot plus the requested Apple/App St
 
 ### Final result: passed
 
+## Conversational WeChat writer - 2026-09-01
+
+Viewport: 1440x1024.
+Reference: user-selected conversational writer mockup at `D:\\Download\\codex\\.codex\\generated_images\\01a05253-4f0f-7bc1-8151-b00966970bbc\\exec-3b58e7f9-e49a-42d6-a1e9-56d9157eacf1.png`.
+
+### Verification evidence
+
+- Replaced the fixed multi-step creation screen with the selected three-column hierarchy: an AI conversation and composer on the left, the current editable article in the center, and outline/version/action context on the right.
+- The current output is the visual priority: it has its own title, save state, version strip, direct editor, selection-level rewrite controls, and visible generated-content state.
+- Topic alternatives are now part of the conversation, each with explicit “采用” and “重新生成” actions. A new dialog clears only the in-browser active draft; previous server versions remain in the session record.
+- Added the authenticated `/api/workbench/chat` path with a pricing rule, version snapshot before a rewrite, and state reset when the user deliberately asks to restart topics. Contract tests cover create → select → draft → rewrite → regenerate-topics.
+- Source and local implementation were inspected side-by-side in `D:\\Download\\qa-conversation-compare.png`. The structure, proportions, neutral palette, direct-output canvas and context rail match the approved direction; the local capture is intentionally the empty pre-topic state.
+- `python -m py_compile server/accounts.py server/main.py server/workbench.py`, `node --check static/app.js`, `git diff --check`, and the focused conversation-workbench contract all pass.
+
+### Final result: passed
+
 ## Full-site Liquid Glass system pass - 2026-08-30
 
 Scope: all six navigation destinations, shared Sidebar/Topbar, settings menu, API settings dialog, login and wallet dialogs, common controls, empty states, result surfaces, and the embedded morning generator.

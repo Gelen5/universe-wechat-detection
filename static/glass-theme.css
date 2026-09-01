@@ -2500,3 +2500,187 @@ body { overflow-x: hidden; }
 }
 .image-section-head h3 { margin: 4px 0 0; font-size: 16px; font-weight: 500; color: var(--text); }
 .image-section-head > span:last-child { font-family: var(--mono); font-size: 11px; color: var(--text-3); }
+
+/* ============================================================
+   12) V3 暗色适配 · 对话式共创工作台（merge ad5501e7 · 覆盖 taste 暖纸）
+   ============================================================ */
+#workbench.workbench-page {
+  min-height: calc(100dvh - 72px);
+  padding: 18px 24px 30px;
+  background: var(--bg) !important;
+  overflow: visible;
+}
+
+/* 8 步流程条：可见化（taste 设为 display:none，V3 要求展示） */
+.article-workspace .workflow-rail { display: flex; }
+.workflow-rail {
+  width: min(1440px, 100%);
+  margin: 0 auto 14px;
+  display: grid; grid-template-columns: repeat(8, 1fr);
+  border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
+  background: rgba(255,255,255,.02);
+}
+.workflow-rail .workflow-step {
+  padding: 10px 12px;
+  display: flex; align-items: center; gap: 9px;
+  border-right: 1px solid var(--line);
+}
+.workflow-rail .workflow-step:last-child { border-right: 0; }
+.workflow-rail .workflow-step > span {
+  font-family: var(--mono); font-size: 10px; color: var(--text-4);
+  letter-spacing: .04em;
+}
+.workflow-rail .workflow-step strong {
+  display: block; font-size: 12px; font-weight: 500; color: var(--text-2);
+  white-space: nowrap;
+}
+.workflow-rail .workflow-step small {
+  display: block; margin-top: 2px; font-size: 10px; color: var(--text-4);
+  white-space: nowrap;
+}
+.workflow-rail .workflow-step.active { background: rgba(61,91,255,.08); }
+.workflow-rail .workflow-step.active > span { color: var(--ikb-bright); }
+.workflow-rail .workflow-step.active strong { color: var(--ikb-bright); }
+.workflow-rail .workflow-step.done > span { color: var(--good); }
+
+/* 三栏容器 */
+.conversation-workbench-layout {
+  border-color: var(--line);
+  background: var(--bg);
+  box-shadow: none;
+}
+.conversation-panel { background: var(--bg); border-right-color: var(--line); }
+.conversation-panel-head { border-bottom-color: var(--line); }
+.conversation-panel-head strong { color: var(--text); font-weight: 600; letter-spacing: -.01em; }
+.work-status { color: var(--text-3); font-family: var(--mono); }
+.new-chat-button {
+  border-color: rgba(255,255,255,.12); color: var(--text-2);
+  background: transparent;
+}
+.new-chat-button:hover { background: rgba(255,255,255,.05); border-color: rgba(255,255,255,.22); }
+
+/* 聊天流 */
+.chat-thread { background: var(--bg); }
+.chat-message > span { color: var(--text-3); font-weight: 600; }
+.chat-message p {
+  color: var(--text-2);
+  background: rgba(255,255,255,.05);
+  border: 1px solid rgba(255,255,255,.05);
+  border-radius: 4px 12px 12px 12px;
+  font-size: 13px; line-height: 1.65;
+}
+.chat-message.from-user p {
+  color: #fff;
+  background: linear-gradient(135deg, #002FA7 0%, #3D5BFF 100%);
+  border-color: transparent;
+  border-radius: 12px 4px 12px 12px;
+}
+
+/* 选题方向卡片 */
+.chat-choice-head strong { color: var(--text); font-weight: 600; }
+.chat-choice-head span { color: var(--text-3); }
+.chat-choice {
+  border-color: rgba(255,255,255,.08);
+  background: rgba(255,255,255,.03);
+}
+.chat-choice > span { color: var(--ikb-bright); font-weight: 700; }
+.chat-choice strong { color: var(--text-2); }
+.chat-choice p { color: var(--text-3); }
+.chat-choice small { color: var(--text-4); }
+.chat-choice footer { gap: 8px; }
+.chat-choice button {
+  border-color: rgba(61,91,255,.45); color: var(--ikb-bright);
+  background: rgba(61,91,255,.08);
+  font-weight: 600;
+}
+.chat-choice button:hover { background: rgba(61,91,255,.16); }
+.chat-choice .regenerate-topic { border-color: rgba(255,255,255,.1); color: var(--text-3); background: transparent; }
+
+/* 输入框 */
+.composer-shell {
+  border-color: rgba(255,255,255,.1);
+  background: rgba(255,255,255,.03);
+  box-shadow: none;
+}
+.composer-shell textarea { color: var(--text); }
+.composer-shell textarea::placeholder { color: var(--text-4); }
+.composer-text-action { color: var(--text-3); }
+.composer-text-action:hover { color: var(--ikb-bright); }
+.composer-send { background: var(--ikb); color: #fff; border-radius: 9px; }
+.composer-send:hover { background: var(--ikb-bright); }
+
+/* 正文画布 */
+.article-canvas { background: var(--bg); }
+.article-canvas-head { border-bottom-color: var(--line); }
+.article-canvas-head h2 { color: var(--text); font-weight: 600; }
+.article-canvas-head p { color: var(--text-3); }
+.article-canvas-head p i { background: var(--good); }
+.canvas-actions { gap: 6px; }
+.icon-action {
+  border-color: rgba(255,255,255,.1); color: var(--text-3);
+  background: transparent;
+}
+.icon-action:hover { color: var(--ikb-bright); border-color: rgba(61,91,255,.5); }
+.version-strip {
+  border-bottom-color: var(--line);
+  background: var(--bg);
+  color: var(--text-3);
+}
+.version-strip span:first-child { color: var(--text-2); }
+
+/* 当前进度卡 */
+.current-work-card {
+  border-color: rgba(255,255,255,.08);
+  background: rgba(255,255,255,.03);
+  color: var(--text-3);
+}
+.current-work-card span { color: var(--ikb-bright); font-weight: 700; letter-spacing: .06em; }
+.current-work-card strong { color: var(--text); }
+.current-work-card p { color: var(--text-3); }
+
+/* 编辑器 */
+.article-canvas .editor-head { color: var(--text-3); border-bottom-color: var(--line); background: transparent; }
+.article-canvas .editor-head span:first-child { color: var(--text-2); }
+.article-canvas #article-editor { color: var(--text-2); background: transparent; }
+.selection-actions { border-bottom-color: var(--line); }
+.selection-actions button {
+  border-color: rgba(255,255,255,.1); color: var(--text-3);
+  background: transparent;
+}
+.selection-actions button:hover { color: var(--ikb-bright); border-color: rgba(61,91,255,.45); }
+.article-canvas-foot { color: var(--text-4); }
+.article-canvas-foot span:last-child { color: var(--good); }
+
+/* 成果侧栏 */
+.outcome-panel { background: var(--bg); border-left-color: var(--line); }
+.outcome-panel > header strong { color: var(--text-2); }
+.outcome-panel > header svg { color: var(--text-4); }
+.outcome-panel section { border-bottom-color: var(--line); }
+.outcome-panel h3 { color: var(--text-3); font-weight: 600; }
+.outline-list span {
+  border-color: rgba(61,91,255,.35); color: var(--ikb-bright);
+  background: rgba(61,91,255,.08);
+}
+.outline-list p { color: var(--text-2); }
+.version-item { color: var(--text-3); }
+.version-item:hover, .version-item.current { border-color: rgba(61,91,255,.4); background: rgba(61,91,255,.07); }
+.version-item strong { color: var(--text-2); }
+.version-item.current strong { color: var(--ikb-bright); }
+.version-item span { color: var(--text-4); }
+.generate-next { background: var(--ikb); color: #fff; }
+.generate-next:hover { background: var(--ikb-bright); }
+.outline-action { border-color: rgba(255,255,255,.12); color: var(--text-2); background: transparent; }
+.outline-action:hover { background: rgba(255,255,255,.04); }
+
+/* 响应式断点下的暗色修正 */
+@media (max-width: 1100px) {
+  .outcome-panel { border-top-color: var(--line); border-left-color: var(--line); }
+}
+@media (max-width: 760px) {
+  #workbench.workbench-page { padding: 12px; }
+  .conversation-panel { border-bottom-color: var(--line); }
+  .outcome-panel { border-top-color: var(--line); border-bottom-color: var(--line); }
+  .workflow-rail { grid-template-columns: repeat(4, 1fr); }
+  .workflow-rail .workflow-step:nth-child(4n) { border-right: 0; }
+  .workflow-rail .workflow-step:nth-child(n + 5) { border-top: 1px solid var(--line); }
+}

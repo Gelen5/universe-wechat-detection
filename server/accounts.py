@@ -39,6 +39,7 @@ DEFAULT_PRICING = [
     ("POST", "/api/hit-detector/analyze", "爆文检测", 5, 0),
     ("POST", "/api/hit-detector/rewrite", "文章改稿", 5, 0),
     ("POST", "/api/workbench/sessions", "公众号完整工作流", 30, 0),
+    ("POST", "/api/workbench/chat", "公众号创作调整", 5, 0),
     ("POST", "/api/images/generations", "早安图片生成", 30, 0),
 ]
 
@@ -182,6 +183,26 @@ def init_db() -> None:
     );
     CREATE INDEX IF NOT EXISTS idx_workbench_jobs_user_time
       ON workbench_jobs(user_id, created_at DESC);
+    CREATE TABLE IF NOT EXISTS jobs (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      type TEXT NOT NULL,
+      lane TEXT NOT NULL,
+      idempotency_key TEXT NOT NULL,
+      usage_id TEXT,
+      status TEXT NOT NULL DEFAULT 'queued',
+      payload_json TEXT NOT NULL,
+      result_json TEXT,
+      error TEXT,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      started_at TEXT,
+      finished_at TEXT,
+      canceled_at TEXT,
+      UNIQUE(user_id, idempotency_key)
+    );
+    CREATE INDEX IF NOT EXISTS idx_jobs_lane_status_time ON jobs(lane,status,created_at);
+    CREATE INDEX IF NOT EXISTS idx_jobs_user_time ON jobs(user_id,created_at DESC);
     """
     with DB_LOCK, _connect() as connection:
         connection.executescript(schema)
@@ -585,6 +606,91 @@ def recover_interrupted_workbench_jobs() -> int:
         if row["usage_id"]:
             refund_usage(row["usage_id"], 503, 0)
         update_workbench_job(row["id"], "failed", "服务重启，任务已中止，积分已自动退还")
+    return len(rows)
+
+
+def create_job(user_id: str, task_type: str, lane: str, idempotency_key: str, usage_id: str | None, payload: dict[str, Any]) -> dict[str, Any]:
+    now = utc_now()
+    with DB_LOCK, _connect() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        existing = connection.execute("SELECT * FROM jobs WHERE user_id=? AND idempotency_key=?", (user_id, idempotency_key)).fetchone()
+        if existing:
+            connection.execute("COMMIT")
+            return dict(existing)
+        job_id = uuid.uuid4().hex
+        connection.execute(
+            """INSERT INTO jobs(id,user_id,type,lane,idempotency_key,usage_id,status,payload_json,created_at)
+               VALUES (?,?,?,?,?,?, 'queued', ?,?)""",
+            (job_id, user_id, task_type, lane, idempotency_key, usage_id, json.dumps(payload, ensure_ascii=False), now),
+        )
+        connection.execute("COMMIT")
+    return job(job_id, user_id) or {}
+
+
+def job(job_id: str, user_id: str | None = None) -> dict[str, Any] | None:
+    with DB_LOCK, _connect() as connection:
+        query, params = ("SELECT * FROM jobs WHERE id=?", (job_id,)) if user_id is None else ("SELECT * FROM jobs WHERE id=? AND user_id=?", (job_id, user_id))
+        row = connection.execute(query, params).fetchone()
+    return dict(row) if row else None
+
+
+def claim_job(lanes: list[str]) -> dict[str, Any] | None:
+    if not lanes:
+        return None
+    marks = ",".join("?" for _ in lanes)
+    with DB_LOCK, _connect() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        row = connection.execute(f"SELECT * FROM jobs WHERE status='queued' AND lane IN ({marks}) ORDER BY created_at LIMIT 1", lanes).fetchone()
+        if not row:
+            connection.execute("COMMIT")
+            return None
+        now = utc_now()
+        updated = connection.execute("UPDATE jobs SET status='running',started_at=?,attempts=attempts+1 WHERE id=? AND status='queued'", (now, row["id"])).rowcount
+        connection.execute("COMMIT")
+    return job(row["id"]) if updated else None
+
+
+def finish_job(job_id: str, result: dict[str, Any]) -> None:
+    with DB_LOCK, _connect() as connection:
+        connection.execute("UPDATE jobs SET status='succeeded',result_json=?,finished_at=? WHERE id=? AND status='running'", (json.dumps(result, ensure_ascii=False), utc_now(), job_id))
+
+
+def fail_job(job_id: str, error: str) -> None:
+    with DB_LOCK, _connect() as connection:
+        connection.execute("UPDATE jobs SET status='failed',error=?,finished_at=? WHERE id=? AND status IN ('queued','running')", (error[-1000:], utc_now(), job_id))
+
+
+def cancel_job(job_id: str, user_id: str) -> dict[str, Any] | None:
+    with DB_LOCK, _connect() as connection:
+        connection.execute("UPDATE jobs SET status='canceled',canceled_at=?,finished_at=? WHERE id=? AND user_id=? AND status='queued'", (utc_now(), utc_now(), job_id, user_id))
+    return job(job_id, user_id)
+
+
+def list_jobs(limit: int = 100, user_id: str | None = None) -> list[dict[str, Any]]:
+    with DB_LOCK, _connect() as connection:
+        if user_id:
+            rows = connection.execute("SELECT * FROM jobs WHERE user_id=? ORDER BY created_at DESC LIMIT ?", (user_id, max(1, min(limit, 200)))).fetchall()
+        else:
+            rows = connection.execute("SELECT * FROM jobs ORDER BY created_at DESC LIMIT ?", (max(1, min(limit, 200)),)).fetchall()
+    return [dict(row) for row in rows]
+
+
+def active_job_count(user_id: str) -> int:
+    with DB_LOCK, _connect() as connection:
+        return int(connection.execute("SELECT COUNT(*) FROM jobs WHERE user_id=? AND status IN ('queued','running')", (user_id,)).fetchone()[0])
+
+
+def recover_interrupted_jobs() -> int:
+    """Refund only jobs that were actually running when the worker stopped.
+
+    Queued jobs remain durable and will be picked up after the worker restarts.
+    """
+    with DB_LOCK, _connect() as connection:
+        rows = connection.execute("SELECT id,usage_id FROM jobs WHERE status='running'").fetchall()
+    for row in rows:
+        if row["usage_id"]:
+            refund_usage(row["usage_id"], 503, 0)
+        fail_job(row["id"], "Worker 重启，任务已中止，积分已自动退还")
     return len(rows)
 
 

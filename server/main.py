@@ -1,8 +1,5 @@
-import contextlib
-import io
 import json
 import os
-import tempfile
 import threading
 import time
 import uuid
@@ -17,15 +14,13 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import wechat_analyzer as analyzer
-from . import accounts
+from . import accounts, diagnosis_service, image_provider
 from . import creator_tools
 from . import workbench
 
 
 ROOT = Path(__file__).resolve().parent.parent
 STATIC_DIR = ROOT / "static"
-ANALYZER_LOCK = threading.RLock()
 WORKBENCH_JOB_LOCK = threading.RLock()
 WORKBENCH_EXECUTOR = ThreadPoolExecutor(max_workers=2, thread_name_prefix="workbench")
 
@@ -120,6 +115,13 @@ class WorkbenchStepRequest(BaseModel):
     imageModel: str | None = Field(default=None, max_length=120)
 
 
+class WorkbenchChatRequest(BaseModel):
+    session_id: str = Field(min_length=8, max_length=80)
+    message: str = Field(min_length=1, max_length=4000)
+    action: str = Field(default="rewrite_article", pattern="^(rewrite_article|regenerate_topics|regenerate_framework)$")
+    selection_text: str = Field(default="", max_length=20000)
+
+
 class WorkbenchPreviewRequest(BaseModel):
     session_id: str = Field(min_length=8, max_length=80)
     article: str | None = Field(default=None, max_length=200000)
@@ -188,6 +190,12 @@ class RechargeRequest(BaseModel):
 
 class ImpersonateRequest(BaseModel):
     user_id: str = Field(min_length=16, max_length=64)
+
+
+class TaskCreateRequest(BaseModel):
+    type: str = Field(pattern="^(diagnose|xiaohongshu|tie_tu|hit_detect|hit_rewrite|creator_image|morning_image|workbench)$")
+    idempotency_key: str = Field(min_length=8, max_length=120)
+    payload: dict[str, Any]
 
 
 class XiaohongshuRequest(BaseModel):
@@ -578,49 +586,89 @@ def admin_recharge(payload: RechargeRequest, request: Request):
     return {"status": "success", "wallet": wallet}
 
 
+TASK_DEFINITIONS = {
+    "diagnose": ("diagnose", "POST", "/api/diagnose"),
+    "xiaohongshu": ("text", "POST", "/api/xiaohongshu/package"),
+    "tie_tu": ("light", "POST", "/api/tie-tu/plan"),
+    "hit_detect": ("light", "POST", "/api/hit-detector/analyze"),
+    "hit_rewrite": ("text", "POST", "/api/hit-detector/rewrite"),
+    "creator_image": ("image", "POST", "/api/creator-tools/image"),
+    "morning_image": ("image", "POST", "/api/images/generations"),
+    "workbench": ("text", "POST", "/api/workbench/sessions"),
+}
+
+
+def _public_job(job: dict[str, Any]) -> dict[str, Any]:
+    result = None
+    if job.get("result_json"):
+        result = json.loads(job["result_json"])
+    return {key: job.get(key) for key in ("id", "type", "lane", "status", "error", "attempts", "created_at", "started_at", "finished_at", "canceled_at")} | {"result": result}
+
+
+@app.post("/api/tasks", status_code=202)
+def create_task(payload: TaskCreateRequest, request: Request):
+    user = request.state.user
+    if accounts.active_job_count(user["id"]) >= 1:
+        raise HTTPException(status_code=429, detail="内测期间每位用户同时只能运行 1 个任务")
+    lane, method, path = TASK_DEFINITIONS[payload.type]
+    rule = accounts.pricing_rule(method, path)
+    if not rule:
+        raise HTTPException(status_code=503, detail="该任务的积分规则未启用")
+    usage_id = accounts.reserve_points(user["id"], rule, method, path)
+    try:
+        job = accounts.create_job(user["id"], payload.type, lane, payload.idempotency_key, usage_id, payload.payload)
+    except Exception:
+        accounts.refund_usage(usage_id, 500, 0)
+        raise
+    if job.get("usage_id") != usage_id:
+        accounts.refund_usage(usage_id, 409, 0)
+    return {"status": "accepted", "job": _public_job(job), "idempotent_replay": job.get("usage_id") != usage_id}
+
+
+@app.get("/api/tasks/{job_id}")
+def get_task(job_id: str, request: Request):
+    job = accounts.job(job_id, request.state.user["id"])
+    if not job:
+        raise HTTPException(status_code=404, detail="任务不存在或不属于当前用户")
+    return {"status": "success", "job": _public_job(job)}
+
+
+@app.post("/api/tasks/{job_id}/cancel")
+def cancel_task(job_id: str, request: Request):
+    job = accounts.cancel_job(job_id, request.state.user["id"])
+    if not job:
+        raise HTTPException(status_code=404, detail="任务不存在或不属于当前用户")
+    if job.get("status") == "canceled" and job.get("usage_id"):
+        accounts.refund_usage(job["usage_id"], 499, 0)
+    return {"status": "success", "job": _public_job(job)}
+
+
+@app.get("/api/admin/tasks")
+def admin_tasks(request: Request, limit: int = 100):
+    accounts.require_admin(request)
+    return {"status": "success", "tasks": [_public_job(job) | {"user_id": job["user_id"]} for job in accounts.list_jobs(limit)]}
+
+
+@app.post("/api/admin/tasks/{job_id}/refund")
+def admin_refund_task(job_id: str, request: Request):
+    operator = accounts.require_admin(request)
+    job = accounts.job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="任务不存在")
+    if job.get("usage_id"):
+        accounts.refund_usage(job["usage_id"], 499, 0)
+    accounts.fail_job(job_id, "管理员退款")
+    return {"status": "success", "job": _public_job(accounts.job(job_id) or job)}
+
+
 @app.post("/api/diagnose")
 def diagnose(payload: DiagnoseRequest):
-    account_name = payload.account_name.strip()
-    if not account_name:
-        raise HTTPException(status_code=422, detail="请输入公众号名称")
     if not os.getenv("REDFOX_API_KEY"):
         raise HTTPException(status_code=503, detail="服务端尚未配置 REDFOX_API_KEY")
-
-    # The vendored Skill has a CLI-oriented API. The lock keeps its credential
-    # and request-scoped output directory isolated during the beta phase.
-    with ANALYZER_LOCK:
-        previous_output_dir = os.environ.get("WECHAT_ANALYZER_OUTPUT_DIR")
-        with tempfile.TemporaryDirectory(prefix="wechat-report-") as request_dir:
-            os.environ["WECHAT_ANALYZER_OUTPUT_DIR"] = request_dir
-            captured = io.StringIO()
-            try:
-                with contextlib.redirect_stdout(captured):
-                    analyzer.cmd_query(account_names=[account_name])
-            except Exception as exc:
-                raise HTTPException(status_code=502, detail=f"诊断服务暂时不可用：{exc}") from exc
-            finally:
-                if previous_output_dir is None:
-                    os.environ.pop("WECHAT_ANALYZER_OUTPUT_DIR", None)
-                else:
-                    os.environ["WECHAT_ANALYZER_OUTPUT_DIR"] = previous_output_dir
-
-            report_path = Path(request_dir) / "report_data.json"
-            if report_path.exists():
-                report = json.loads(report_path.read_text(encoding="utf-8"))
-                raw = report.get("_raw", {}) or {}
-                avatar_url = raw.get("avatar") or raw.get("头像") or ""
-                if avatar_url.startswith("http://"):
-                    avatar_url = "https://" + avatar_url[7:]
-                report.setdefault("header", {})["头像链接"] = avatar_url
-                report.pop("_raw", None)
-                report = _enrich_report(report)
-                return {"status": "success", "report": report}
-
-            result = _last_json_line(captured.getvalue()) or {
-                "status": "error",
-                "message": "未生成诊断报告",
-            }
-            return JSONResponse(status_code=404 if result.get("query_type") == "not_found" else 502, content=result)
+    try:
+        return diagnosis_service.run(payload.account_name, _enrich_report)
+    except diagnosis_service.DiagnosisError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
 def _image_api_url(base_url: str) -> str:
@@ -657,41 +705,10 @@ def _wait_for_image_task(status_url: str, api_key: str):
 
 @app.post("/api/images/generations")
 def generate_image(payload: ImageGenerationRequest):
-    stored = accounts.provider_settings(include_secrets=True)
-    api_key = (stored.get("image_api_key") or os.getenv("WECHAT_IMAGE_API_KEY") or "").strip()
-    if not api_key:
-        raise HTTPException(status_code=503, detail="服务端尚未配置图片 API Key")
-    base_url = stored.get("image_base_url") or os.getenv("WECHAT_IMAGE_API_BASE_URL") or os.getenv("WECHAT_API_BASE_URL") or "https://api.openai.com/v1"
-    model = stored.get("image_model") or os.getenv("WECHAT_IMAGE_MODEL") or payload.model or "gpt-image-2"
-    body = {
-        "model": model,
-        "prompt": payload.prompt,
-        "size": payload.size,
-        "n": payload.n,
-    }
     try:
-        response = requests.post(
-            _image_api_url(base_url),
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json=body,
-            timeout=120,
-        )
-    except requests.RequestException as exc:
-        raise HTTPException(status_code=502, detail=f"图片接口请求失败：{exc}") from exc
-    try:
-        data = response.json()
-    except ValueError as exc:
-        raise HTTPException(status_code=502, detail=f"图片接口返回不是 JSON：{response.text[:300]}") from exc
-    if response.status_code == 202 and data.get("statusUrl"):
-        return _wait_for_image_task(data["statusUrl"], api_key)
-    if not response.ok:
-        error = data.get("error")
-        if isinstance(error, dict):
-            error = error.get("message") or error.get("code")
-        raise HTTPException(status_code=response.status_code, detail=error or data.get("message") or response.text[:300])
-    if data.get("statusUrl") and not data.get("data"):
-        return _wait_for_image_task(data["statusUrl"], api_key)
-    return data
+        return image_provider.generate(payload.model_dump())
+    except image_provider.ImageProviderError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
 @app.get("/api/admin/provider-settings")
@@ -902,6 +919,23 @@ def advance_workbench(payload: WorkbenchStepRequest, request: Request):
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"工作台执行失败：{exc}") from exc
+
+
+@app.post("/api/workbench/chat")
+def chat_workbench(payload: WorkbenchChatRequest, request: Request):
+    try:
+        with workbench.provider_overrides():
+            session = workbench.chat(
+                payload.session_id, payload.message, payload.action, payload.selection_text,
+                user_id=request.state.user["id"],
+            )
+            return {"status": "success", "session": session}
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except (ValueError, workbench.ProviderError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"创作调整失败：{exc}") from exc
 
 
 @app.post("/api/workbench/preview")

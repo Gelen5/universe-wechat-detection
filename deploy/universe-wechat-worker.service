@@ -1,0 +1,14 @@
+[Unit]
+Description=Universe WeChat Detection Background Worker
+After=network.target universe-wechat-detection.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/universe-wechat-detection
+EnvironmentFile=-/etc/systemd/system/universe-wechat-detection.service.d/10-env.conf
+ExecStart=/opt/universe-wechat-detection/.venv/bin/python -m server.task_worker
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

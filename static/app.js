@@ -88,6 +88,16 @@ async function loadAdminUsers(query = '') {
   body.querySelectorAll('[data-view-user]').forEach(button => button.addEventListener('click', () => loadAdminUserDetail(button.dataset.viewUser)));
 }
 
+async function loadAdminTasks() {
+  const data = await readApiResponse(await fetch('/api/admin/tasks?limit=100'));
+  const body = document.querySelector('#admin-tasks-list');
+  body.innerHTML = data.tasks.map(task => `<tr><td>${esc(task.type)}</td><td>${esc(task.lane)}</td><td><b>${esc(task.status)}</b></td><td>${esc(formatDate(task.created_at))}</td><td>${task.status === 'queued' || task.status === 'running' ? `<button type="button" data-refund-task="${esc(task.id)}">退款</button>` : '—'}</td></tr>`).join('') || '<tr><td colspan="5" class="admin-empty-row">暂无任务</td></tr>';
+  body.querySelectorAll('[data-refund-task]').forEach(button => button.addEventListener('click', async () => {
+    await readApiResponse(await fetch(`/api/admin/tasks/${encodeURIComponent(button.dataset.refundTask)}/refund`, { method: 'POST' }));
+    await loadAdminTasks();
+  }));
+}
+
 async function loadAdminUserDetail(userId) {
   const data = await readApiResponse(await fetch(`/api/admin/users/${encodeURIComponent(userId)}`));
   const user = data.user;
@@ -101,7 +111,7 @@ async function loadAdminUserDetail(userId) {
 async function openAdminUsers() {
   toggleSettingsMenu(false);
   adminUsersModal.hidden = false;
-  try { await loadAdminUsers(); } catch (error) { adminUsersModal.hidden = true; showToast(error.message, 'error'); }
+  try { await Promise.all([loadAdminUsers(), loadAdminTasks()]); } catch (error) { adminUsersModal.hidden = true; showToast(error.message, 'error'); }
 }
 
 async function switchToUser(userId) {
@@ -262,7 +272,8 @@ async function openWallet() {
   toggleSettingsMenu(false);
   try {
     await refreshWallet(true);
-    if (currentAccount?.role === 'admin') {
+    const isOwnerAdmin = currentAccount?.role === 'admin' && currentAccount?.email?.toLowerCase() === 'gelen5@163.com';
+    if (isOwnerAdmin) {
       document.querySelector('#admin-recharge-panel').hidden = false;
       await searchAdminUsers();
     }
@@ -390,6 +401,7 @@ adminUsersButton?.addEventListener('click', openAdminUsers);
 document.querySelector('#admin-users-close')?.addEventListener('click', () => { adminUsersModal.hidden = true; });
 document.querySelector('#admin-users-refresh')?.addEventListener('click', () => loadAdminUsers(document.querySelector('#admin-users-search').value.trim()));
 document.querySelector('#admin-users-search')?.addEventListener('input', event => { clearTimeout(window.adminUsersTimer); window.adminUsersTimer = setTimeout(() => loadAdminUsers(event.target.value.trim()), 250); });
+document.querySelector('#admin-tasks-refresh')?.addEventListener('click', () => loadAdminTasks().catch(error => showToast(error.message, 'error')));
 document.querySelector('#stop-impersonation')?.addEventListener('click', stopImpersonation);
 document.querySelector('#api-settings-close')?.addEventListener('click', closeApiSettings);
 document.querySelector('#api-settings-save')?.addEventListener('click', saveApiSettings);
@@ -525,9 +537,7 @@ form?.addEventListener('submit', async (event) => {
   button.disabled = true;
   button.querySelector('span').textContent = '…';
   try {
-    const response = await fetch('/api/diagnose', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ account_name: input.value.trim() }) });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.detail || data.message || '诊断失败，请稍后重试');
+    const data = await submitQueuedTask('diagnose', { account_name: input.value.trim() });
     renderReport(data.report);
     reportRoot.scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (error) {
@@ -554,6 +564,7 @@ const previewButton = document.querySelector('#open-preview');
 const editCurrentButton = document.querySelector('#edit-current');
 let workbenchMode = 'interactive';
 let workbenchSession = null;
+let workbenchVersionIndex = -1;
 
 const stepGuidance = {
   1: { label: '选择选题', title: '从下面的方向里，选一个你愿意写下去的。', detail: '选择后才会生成文章框架，不会直接生成整篇文章。', action: '选择方向后生成框架', next: '生成文章框架' },
@@ -569,14 +580,9 @@ const stepGuidance = {
 function renderDecisionPanel(session) {
   const step = session.current_step || 1;
   const guide = stepGuidance[step] || stepGuidance[1];
-  const isPreview = step === 6;
-  const isDone = step >= 7;
-  decisionPanel.innerHTML = `<div class="decision-step"><span>第 ${String(step).padStart(2, '0')} 步</span><strong>${esc(guide.label)}</strong></div><div class="decision-copy"><h3>${esc(guide.title)}</h3><p>${esc(guide.detail)}</p></div><div class="decision-impact"><span>点击后</span><strong>${esc(guide.next)}</strong></div>`;
-  runNextButton.hidden = step === 1 || isPreview || isDone;
-  runNextButton.textContent = guide.action;
-  previewButton.hidden = !isPreview;
-  previewButton.textContent = guide.action;
-  editCurrentButton.hidden = step < 3;
+  decisionPanel.innerHTML = `<span>正在做</span><strong>${esc(guide.label)}</strong><p>${esc(guide.title)}</p>`;
+  runNextButton.textContent = session.article ? '✦ 生成下一版' : (step === 1 ? '先选一个方向' : guide.action);
+  previewButton.hidden = !(session.article || session.preview_url);
   document.querySelector('#publish-draft').hidden = step < 7;
 }
 
@@ -588,14 +594,42 @@ function paintWorkflow(current = 1) {
   }).join('');
 }
 
+function renderChatThread(session) {
+  const thread = document.querySelector('#workbench-chat-thread');
+  if (!thread) return;
+  const history = session?.conversation || [];
+  const seed = !workbenchSession ? [{ role: 'assistant', content: '你好，我是你的公众号共创助手。告诉我一个想法、一个问题，或者一条想写却没想清楚的内容。' }] : history;
+  thread.innerHTML = seed.length ? seed.map(item => `<article class="chat-message ${item.role === 'user' ? 'from-user' : 'from-ai'}"><span>${item.role === 'user' ? '你' : 'AI 共创助手'}</span><p>${esc(item.content)}</p></article>`).join('') : `<article class="chat-message from-ai"><span>AI 共创助手</span><p>我已准备好。你可以选一个方向，也可以说说哪里不满意。</p></article>`;
+  thread.scrollTop = thread.scrollHeight;
+}
+
+function renderOutline(session) {
+  const outline = document.querySelector('#workbench-outline');
+  const items = session.framework?.outline || [];
+  outline.innerHTML = items.length ? items.map((item, index) => `<li><span>${String(index + 1).padStart(2, '0')}</span><p>${esc(item)}</p></li>`).join('') : `<li><span>01</span><p>先从对话里确认值得写的角度</p></li>`;
+  const versions = document.querySelector('#workbench-version-list');
+  const source = session.versions || [];
+  versions.innerHTML = `${source.slice(-3).reverse().map((item, index) => `<button class="version-item" data-version-index="${source.length - 1 - index}" type="button"><strong>${esc(item.label)}</strong><span>${esc(item.summary)}</span></button>`).join('')}<button class="version-item current" data-version-index="current" type="button"><strong>当前</strong><span>${esc(session.last_change || '刚刚生成')}</span></button>`;
+  versions.querySelectorAll('.version-item').forEach(button => button.addEventListener('click', () => {
+    if (button.dataset.versionIndex === 'current') { workbenchVersionIndex = -1; articleEditor.value = session.article || ''; return; }
+    const picked = source[Number(button.dataset.versionIndex)];
+    if (picked) { workbenchVersionIndex = Number(button.dataset.versionIndex); articleEditor.value = picked.article || ''; document.querySelector('#article-version-label').textContent = `${picked.label} · 历史版本预览`; }
+  }));
+}
+
 function renderWorkbenchSession(session) {
   workbenchSession = session;
   workbenchResult.hidden = false;
+  workbenchVersionIndex = -1;
   paintWorkflow(session.current_step || 1);
   const statusLabels = { calling_text_api: '文本 API 生成中', calling_image_api: '图片 API 生成中', rendering: '正在排版', awaiting_topic: '等待选择', ready_for_review: '等待确认', complete: '已完成', running: `第 ${session.current_step || 1} 步` };
   document.querySelector('#workbench-status').textContent = statusLabels[session.status] || `第 ${session.current_step || 1} 步`;
-  document.querySelector('#result-title').textContent = session.topic || '未命名创作';
+  document.querySelector('#result-title').textContent = session.topic || '正在等你说第一句话';
+  document.querySelector('#article-save-state').textContent = session.article ? '草稿 · 已保存到当前会话' : '正在确认写作方向';
+  document.querySelector('#article-version-label').textContent = session.article ? `当前版本 · ${session.versions?.length ? `V${session.versions.length + 1}` : 'V1'}` : '当前草稿 · 尚未生成';
+  document.querySelector('#article-change-label').textContent = session.last_change || '等待你确认写作方向';
   renderDecisionPanel(session);
+  renderChatThread(session);
   articleEditor.value = session.article || '';
   const score = session.score?.score;
   document.querySelector('#score-label').textContent = score == null ? '反 AI 评分将在第 4 步生成' : `反 AI 综合评分 ${Number(score).toFixed(1)} · ${session.score.status === 'success' ? '统计层与模式层已完成' : '评分不可用'}`;
@@ -608,8 +642,11 @@ function renderWorkbenchSession(session) {
     htmlDownload.href = session.html_download_url || '#';
   }
   const suggestions = session.suggestions || [];
-  topicList.innerHTML = session.current_step === 1 && suggestions.length ? `<div class="topic-head"><strong>请选择一个选题方向</strong><span>选择后才会生成框架</span></div>${suggestions.map(item => `<button class="topic-item" data-topic-id="${item.id}" type="button"><span class="topic-number">${String(item.id).padStart(2, '0')}</span><span><strong>${esc(item.title)}</strong><small>${esc(item.type)} · 热度 ${item.heat} · ${esc(item.reason)}</small></span><span>选这个 ↗</span></button>`).join('')}` : session.framework ? `<div class="framework-summary"><span class="micro-label">已生成文章框架</span><strong>${esc(session.framework.name)}</strong><p>${esc(session.framework.reason)}</p><div>${session.framework.outline.map((item, i) => `<span>${i + 1}. ${esc(item)}</span>`).join('')}</div></div>` : '';
-  topicList.querySelectorAll('.topic-item').forEach(item => item.addEventListener('click', () => advance(Number(item.dataset.topicId), 2)));
+  topicList.innerHTML = session.current_step === 1 && suggestions.length ? `<div class="chat-choice-head"><strong>我先给你三个写法方向</strong><span>可采用，也可继续让我调整</span></div>${suggestions.slice(0, 3).map(item => `<article class="chat-choice"><span>${String(item.id).padStart(2, '0')}</span><div><strong>${esc(item.title)}</strong><p>${esc(item.reason)}</p><small>${esc(item.type)}</small></div><footer><button class="adopt-topic" data-topic-id="${item.id}" type="button">采用</button><button class="regenerate-topic" type="button">重新生成</button></footer></article>`).join('')}` : '';
+  topicList.querySelectorAll('.adopt-topic').forEach(item => item.addEventListener('click', async () => { await advance(Number(item.dataset.topicId), 3); renderChatThread(workbenchSession); }));
+  topicList.querySelectorAll('.regenerate-topic').forEach(item => item.addEventListener('click', () => sendWorkbenchChat('这个方向不错，但请换一个更有冲突和具体场景的写法。', 'regenerate_topics')));
+  renderOutline(session);
+  window.lucide?.createIcons();
   const images = session.images || [];
   generatedImages.hidden = !images.length;
   generatedImages.innerHTML = images.length ? `<div class="image-section-head"><div><span class="micro-label">API 生成配图</span><h3>封面与正文配图</h3></div><span>${images.length} 张 · 已自动压缩至微信限制内</span></div><div class="image-grid">${images.map(image => `<a href="${esc(image.url)}" target="_blank" rel="noopener"><img src="${esc(image.url)}" alt="${image.kind === 'cover' ? '文章封面' : '正文配图'}" /><span><strong>${image.kind === 'cover' ? '文章封面' : '正文配图'}</strong><small>${esc(image.model)} · ${Math.round(Number(image.bytes || 0) / 1024)} KB</small></span></a>`).join('')}</div>` : '';
@@ -645,19 +682,40 @@ async function advance(selection = null, nextStep = null) {
 
 modeButtons.forEach(button => button.addEventListener('click', () => { modeButtons.forEach(item => item.classList.remove('active')); button.classList.add('active'); workbenchMode = button.dataset.mode; }));
 startWorkbench?.addEventListener('click', async () => {
+  const message = topicInput.value.trim();
+  if (!message) { topicInput.focus(); return; }
+  if (workbenchSession) { await sendWorkbenchChat(message); return; }
   startWorkbench.disabled = true;
   const originalLabel = startWorkbench.innerHTML;
   startWorkbench.innerHTML = '任务提交中…';
   try {
-    const response = await fetch('/api/workbench/sessions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...sharedApiPayload(), topic: topicInput.value.trim(), mode: workbenchMode, persona: document.querySelector('#workbench-persona').value, theme: document.querySelector('#workbench-theme').value, idempotency_key: newIdempotencyKey() }) });
+    const response = await fetch('/api/workbench/sessions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...sharedApiPayload(), topic: message, mode: workbenchMode, persona: document.querySelector('#workbench-persona').value, theme: document.querySelector('#workbench-theme').value, idempotency_key: newIdempotencyKey() }) });
     const accepted = await readApiResponse(response);
     startWorkbench.innerHTML = 'Skill 执行中…';
     const session = await waitForWorkbenchJob(accepted.job.id);
     renderWorkbenchSession(session);
-    workbenchResult.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    topicInput.value = '';
   } catch (error) { alert(error.message); } finally { startWorkbench.disabled = false; startWorkbench.innerHTML = originalLabel; }
 });
-runNextButton?.addEventListener('click', async (event) => { const btn = event.currentTarget; const label = btn.textContent; btn.disabled = true; btn.textContent = '正在生成…'; try { await advance(); } catch (error) { alert(error.message); } finally { btn.disabled = false; btn.textContent = label; } });
+async function sendWorkbenchChat(message, action = 'rewrite_article', selectionText = '') {
+  if (!workbenchSession) return;
+  const send = startWorkbench;
+  send.disabled = true;
+  const original = send.textContent;
+  send.textContent = '…';
+  try {
+    const session = await callWorkbench('/api/workbench/chat', { session_id: workbenchSession.id, message, action, selection_text: selectionText });
+    renderWorkbenchSession(session);
+    topicInput.value = '';
+  } catch (error) { alert(error.message); } finally { send.disabled = false; send.textContent = original || '↑'; }
+}
+
+runNextButton?.addEventListener('click', async () => { if (workbenchSession) await sendWorkbenchChat('请保留核心观点，换一种更有冲突、更容易读下去的写法。'); });
+document.querySelector('#workbench-regenerate-topics')?.addEventListener('click', () => { if (workbenchSession) sendWorkbenchChat('请重新给我三个方向，角度更具体，不要泛泛而谈。', 'regenerate_topics'); else topicInput.focus(); });
+document.querySelector('#new-workbench-chat')?.addEventListener('click', () => { workbenchSession = null; workbenchVersionIndex = -1; topicInput.value = ''; articleEditor.value = ''; document.querySelector('#result-title').textContent = '还没有开始写'; document.querySelector('#article-save-state').textContent = '输入一个主题后，我会先和你确认写作方向'; document.querySelector('#article-version-label').textContent = '当前草稿 · 尚未生成'; document.querySelector('#article-change-label').textContent = '等待你的写作意图'; document.querySelector('#workbench-status').textContent = '等待你的想法'; topicList.innerHTML = ''; renderChatThread(null); renderOutline({}); });
+document.querySelectorAll('[data-rewrite-selection]').forEach(button => button.addEventListener('click', () => { if (!workbenchSession) return; const selection = articleEditor.value.slice(articleEditor.selectionStart, articleEditor.selectionEnd); if (!selection) { alert('先在当前文章中选中一段，再告诉我如何改写。'); return; } sendWorkbenchChat(button.dataset.rewriteSelection, 'rewrite_article', selection); }));
+document.querySelector('#version-back')?.addEventListener('click', () => { const versions = workbenchSession?.versions || []; if (!versions.length) return; workbenchVersionIndex = workbenchVersionIndex < 0 ? versions.length - 1 : Math.max(0, workbenchVersionIndex - 1); articleEditor.value = versions[workbenchVersionIndex].article || ''; document.querySelector('#article-version-label').textContent = `${versions[workbenchVersionIndex].label} · 历史版本预览`; });
+document.querySelector('#version-forward')?.addEventListener('click', () => { const versions = workbenchSession?.versions || []; if (workbenchVersionIndex < 0) return; workbenchVersionIndex += 1; if (workbenchVersionIndex >= versions.length) { workbenchVersionIndex = -1; articleEditor.value = workbenchSession.article || ''; document.querySelector('#article-version-label').textContent = `当前版本 · V${versions.length + 1}`; return; } articleEditor.value = versions[workbenchVersionIndex].article || ''; document.querySelector('#article-version-label').textContent = `${versions[workbenchVersionIndex].label} · 历史版本预览`; });
 document.querySelector('#open-preview')?.addEventListener('click', async () => {
   if (!workbenchSession) return;
   try { const session = await callWorkbench('/api/workbench/preview', { session_id: workbenchSession.id, article: articleEditor.value }); renderWorkbenchSession(session); window.open(session.preview_url, '_blank', 'noopener'); } catch (error) { alert(error.message); }
@@ -668,8 +726,25 @@ document.querySelector('#publish-draft')?.addEventListener('click', async () => 
 });
 editCurrentButton?.addEventListener('click', () => { articleEditor?.scrollIntoView({ behavior: 'smooth', block: 'center' }); articleEditor?.focus(); });
 articleEditor?.addEventListener('input', () => { if (workbenchSession) workbenchSession.article = articleEditor.value; });
+renderChatThread(null);
+renderOutline({});
 
 async function postCreator(path, payload, signal) {
+  const taskTypes = {
+    '/api/xiaohongshu/package': 'xiaohongshu',
+    '/api/tie-tu/plan': 'tie_tu',
+    '/api/hit-detector/analyze': 'hit_detect',
+    '/api/hit-detector/rewrite': 'hit_rewrite',
+    '/api/creator-tools/image': 'creator_image',
+  };
+  if (taskTypes[path]) {
+    const taskPayload = path === '/api/xiaohongshu/package' ? { topic: payload.topic, account: payload.account, audience: payload.audience, goal: payload.goal, evidence: payload.evidence, content_type: payload.contentType }
+      : path === '/api/tie-tu/plan' ? { industry: payload.industry, topic: payload.topic, title: payload.title || '', content_type: payload.contentType || null, image_count: payload.imageCount, style: payload.style, audience: payload.audience, portrait_mode: payload.portraitMode }
+      : path === '/api/hit-detector/analyze' ? { title: payload.title, body: payload.body, track: payload.track, fans: payload.fans, open_rate: payload.openRate }
+      : path === '/api/hit-detector/rewrite' ? { title: payload.title, body: payload.body, detector_result: payload.detectorResult }
+      : { tool: payload.tool, session_id: payload.sessionId, card: payload.card, style: payload.style };
+    return submitQueuedTask(taskTypes[path], taskPayload, signal);
+  }
   const response = await fetch(path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -677,6 +752,24 @@ async function postCreator(path, payload, signal) {
     signal,
   });
   return readApiResponse(response);
+}
+
+async function submitQueuedTask(type, payload, signal) {
+  const accepted = await readApiResponse(await fetch('/api/tasks', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type, idempotency_key: newIdempotencyKey(), payload }), signal }));
+  const jobId = accepted.job?.id;
+  if (!jobId) throw new Error('任务未返回编号');
+  const cancel = () => fetch(`/api/tasks/${encodeURIComponent(jobId)}/cancel`, { method: 'POST' }).catch(() => undefined);
+  signal?.addEventListener('abort', cancel, { once: true });
+  while (true) {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 700));
+      const state = await readApiResponse(await fetch(`/api/tasks/${encodeURIComponent(jobId)}`, { signal }));
+      if (state.job.status === 'succeeded') return state.job.result;
+      if (['failed', 'canceled'].includes(state.job.status)) throw new Error(state.job.error || '任务未完成');
+    } finally {
+      if (signal?.aborted) cancel();
+    }
+  }
 }
 
 function beginButton(button, label) {
