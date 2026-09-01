@@ -7,48 +7,62 @@
     <link rel="stylesheet" href="/static/style.css?v=20260830-taste" />
     <link rel="stylesheet" href="/static/taste-chatgpt.css?v=20260831-tab" />
     <link rel="stylesheet" href="/static/admin.css?v=20260831-tab" />
-    <link rel="stylesheet" href="/static/glass-theme.css?v=20260831-workspaces" />
+    <link rel="stylesheet" href="/static/glass-theme.css?v=20260901-v3" />
   </head>
   <body>
     <div class="app-shell">
-      <header class="report-nav app-sidebar">
-        <a class="account-brand" href="/"><span id="nav-avatar" class="fixed-avatar" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2.1" fill="currentColor" stroke="none"/><ellipse cx="12" cy="12" rx="8.3" ry="3.4" transform="rotate(-22 12 12)"/></svg></span><span class="brand-copy"><strong id="nav-name">宇宙第一工作台</strong><small id="nav-subtitle">Creator OS</small></span></a>
-        <nav class="nav-links app-tabs" aria-label="产品模块">
-          <a class="active" data-view="diagnose" href="/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.6 12a8.4 8.4 0 1 0 16.8 0"/><path d="M12 12l4.2-4.2"/><circle cx="12" cy="12" r="1.1" fill="currentColor" stroke="none"/></svg><span><strong>公众号诊断</strong><small>查看账号问题</small></span></a>
-          <a data-view="workbench" href="/workbench"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.8 4.4a2.1 2.1 0 0 1 3.8 1.3L7.6 19H4.4v-3.2L15.8 4.4z"/><path d="M6.4 8.6c1.6-.9 3.2.9 4.8 0"/></svg><span><strong>公众号创作</strong><small>从选题到预览</small></span></a>
-          <a data-view="xiaohongshu" href="/xiaohongshu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="3.5"/><path d="M3.5 10.2h17M10.2 3.5v17"/><circle cx="16.8" cy="16.8" r="1.3" fill="currentColor" stroke="none"/></svg><span><strong>小红书创作</strong><small>生成完整内容包</small></span></a>
-          <a data-view="tie-tu" href="/tie-tu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="3"/><circle cx="9.2" cy="10.4" r="1.5"/><path d="M5.5 16.8l4.2-4.2 3 2.6 2.8-2.8 2.6 2.6"/></svg><span><strong>微信贴图号</strong><small>策划与批量生图</small></span></a>
-          <a data-view="hit-detector" href="/hit-detector"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l6.8 2.7v5.1c0 4.5-2.9 7.5-6.8 9-3.9-1.5-6.8-4.5-6.8-9V5.7L12 3z"/><path d="M9 12.1l2.1 2.1 3.9-3.9"/></svg><span><strong>爆文检测</strong><small>发布前编辑复核</small></span></a>
-          <a data-view="morning" href="/morning-generator"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5.2v2.5M5.9 8.2l-1.6-1.4M18.1 8.2l1.6-1.4"/><path d="M4 14.6h16"/><path d="M8 14.6a4 4 0 0 1 8 0"/></svg><span><strong>早安祝福</strong><small>图片与文案生成</small></span></a>
+
+      <!-- ============================================================
+           V3 顶 nav (取代旧 sidebar + command-bar)
+           ============================================================ -->
+      <header class="v3-topbar">
+        <div class="brand">
+          <span class="mark"></span>
+          <span class="name">宇宙第一工作台</span>
+          <span class="ver">v3.2.0</span>
+        </div>
+        <nav class="tabs app-tabs" aria-label="产品模块">
+          <a data-view="diagnose" href="/" class="active">诊断</a>
+          <a data-view="workbench" href="/workbench">公众号创作</a>
+          <a data-view="xiaohongshu" href="/xiaohongshu">小红书</a>
+          <a data-view="tie-tu" href="/tie-tu">贴图号</a>
+          <a data-view="hit-detector" href="/hit-detector">爆文检测</a>
+          <a data-view="morning" href="/morning-generator">早安祝福</a>
         </nav>
-        <div class="nav-actions">
-          <div class="settings-wrap">
-            <button id="settings-button" class="download-button settings-button" type="button" aria-haspopup="menu" aria-expanded="false"><i data-lucide="settings-2"></i><span>设置</span><span id="settings-config-dot" class="config-dot"></span></button>
-            <div id="settings-menu" class="settings-menu" role="menu" hidden>
+        <div class="right">
+          <span class="stat"><i class="dot-live"></i><strong id="nav-wallet"><b id="wallet-balance">0</b></strong> 积分</span>
+          <span class="ver">v3.2.0</span>
+          <span class="menu-wrap" id="nav-menu-wrap">
+            <span class="avatar" id="nav-avatar" aria-hidden="true">M</span>
+            <div id="settings-menu" class="settings-popover" role="menu" hidden>
+              <button id="settings-button" type="button" role="menuitem"><i data-lucide="settings-2"></i>设置<i class="config-on" id="settings-config-dot"></i></button>
               <button id="api-settings-button" type="button" role="menuitem" hidden><i data-lucide="key-round"></i>API 设置</button>
               <button id="admin-users-button" type="button" role="menuitem" hidden><i data-lucide="users-round"></i>用户统计</button>
               <button id="wallet-settings-button" type="button" role="menuitem"><i data-lucide="wallet-cards"></i>我的积分</button>
+              <button id="download-report" type="button" role="menuitem"><i data-lucide="download"></i>下载报告</button>
               <button id="logout-button" type="button" role="menuitem"><i data-lucide="log-out"></i>退出登录</button>
             </div>
-          </div>
-          <button id="download-report" class="download-button" type="button"><i data-lucide="download"></i><span>下载报告</span></button>
+          </span>
         </div>
       </header>
 
-      <div class="command-bar" aria-label="工作台工具栏">
-        <div class="command-context"><span id="command-eyebrow">CREATOR WORKSPACE</span><strong id="command-title">公众号诊断</strong></div>
-        <label class="command-search"><i data-lucide="search"></i><input type="search" placeholder="搜索内容、任务、素材" aria-label="搜索内容、任务、素材"><kbd>⌘K</kbd></label>
-        <button id="wallet-chip" class="command-status wallet-chip" type="button"><span class="api-live-dot"></span><span><strong id="wallet-balance">0</strong> 积分</span></button>
-        <button id="command-settings" class="icon-command" type="button" aria-label="打开账号中心"><i data-lucide="circle-user-round"></i></button>
-      </div>
-
+      <!-- ============================================================
+           Modals (未登录可见，但只激活 auth-modal)
+           ============================================================ -->
       <div id="auth-modal" class="account-modal" hidden>
         <section class="auth-card" role="dialog" aria-modal="true" aria-labelledby="auth-title">
-          <div class="auth-brand"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="2.1" fill="currentColor" stroke="none"/><ellipse cx="12" cy="12" rx="8.3" ry="3.4" transform="rotate(-22 12 12)"/></svg></span><div><strong>宇宙第一工作台</strong><small>Creator OS</small></div></div>
-          <div class="auth-copy"><span class="micro-label">CREATOR ACCOUNT</span><h1 id="auth-title">登录你的创作工作台</h1><p>注册账号后使用统一积分钱包。AI Key 由平台安全托管，不需要你另外配置。</p></div>
+          <div class="auth-brand">
+            <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="2.1" fill="currentColor" stroke="none"/><ellipse cx="12" cy="12" rx="8.3" ry="3.4" transform="rotate(-22 12 12)"/></svg></span>
+            <div><strong>宇宙第一工作台</strong><small>Creator OS</small></div>
+          </div>
+          <div class="auth-copy">
+            <span class="micro-label">CREATOR ACCOUNT</span>
+            <h1 id="auth-title">登录你的创作工作台</h1>
+            <p>注册账号后使用统一积分钱包。AI Key 由平台安全托管，不需要你另外配置。</p>
+          </div>
           <div class="auth-tabs"><button class="active" data-auth-mode="login" type="button">登录</button><button data-auth-mode="register" type="button">注册</button></div>
           <form id="auth-form" class="auth-form">
-            <label id="display-name-field" hidden>昵称<input id="auth-display-name" type="text" maxlength="40" autocomplete="name" placeholder="怎么称呼你"></label>
+            <span><label id="display-name-field" hidden>昵称<input id="auth-display-name" type="text" maxlength="40" autocomplete="name" placeholder="怎么称呼你"></label></span>
             <label>邮箱<input id="auth-email" type="email" maxlength="254" autocomplete="email" placeholder="name@example.com" required></label>
             <label>密码<input id="auth-password" type="password" minlength="8" maxlength="128" autocomplete="current-password" placeholder="至少 8 位" required></label>
             <button id="auth-submit" class="primary-action" type="submit">登录</button>
@@ -59,7 +73,10 @@
 
       <div id="wallet-modal" class="account-modal" hidden>
         <section class="wallet-card" role="dialog" aria-modal="true" aria-labelledby="wallet-title">
-          <div class="wallet-head"><div><span class="micro-label">POINTS WALLET</span><h2 id="wallet-title">我的积分</h2><p id="wallet-user-line">账号积分与使用记录</p></div><button id="wallet-close" class="icon-command" type="button" aria-label="关闭"><i data-lucide="x"></i></button></div>
+          <div class="wallet-head">
+            <div><span class="micro-label">POINTS WALLET</span><h2 id="wallet-title">我的积分</h2><p id="wallet-user-line">账号积分与使用记录</p></div>
+            <button id="wallet-close" class="icon-command" type="button" aria-label="关闭"><i data-lucide="x"></i></button>
+          </div>
           <div class="wallet-total"><span>当前可用</span><strong><b id="wallet-modal-balance">0</b> 积分</strong><small>1 积分基础价值 0.1 元，仅用于平台功能</small></div>
           <div class="wallet-buckets"><div><span>试用</span><strong id="wallet-trial">0</strong></div><div><span>赠送</span><strong id="wallet-bonus">0</strong></div><div><span>付费</span><strong id="wallet-paid">0</strong></div></div>
           <section class="wallet-history"><div class="wallet-section-title"><strong>积分明细</strong><button id="wallet-refresh" type="button">刷新</button></div><div id="wallet-transactions" class="wallet-transactions"><p>暂无积分记录</p></div></section>
@@ -82,7 +99,10 @@
 
       <div id="admin-users-modal" class="account-modal admin-users-modal" hidden>
         <section class="admin-users-card" role="dialog" aria-modal="true" aria-labelledby="admin-users-title">
-          <header class="admin-users-head"><div><span class="micro-label">ADMIN CONSOLE</span><h2 id="admin-users-title">用户统计</h2><p>注册、活跃、积分和功能使用情况均来自工作台数据库。</p></div><button id="admin-users-close" class="icon-command" type="button" aria-label="关闭"><i data-lucide="x"></i></button></header>
+          <header class="admin-users-head">
+            <div><span class="micro-label">ADMIN CONSOLE</span><h2 id="admin-users-title">用户统计</h2><p>注册、活跃、积分和功能使用情况均来自工作台数据库。</p></div>
+            <button id="admin-users-close" class="icon-command" type="button" aria-label="关闭"><i data-lucide="x"></i></button>
+          </header>
           <div id="admin-stats" class="admin-stats"><article><span>累计注册</span><strong>—</strong></article><article><span>今日新增</span><strong>—</strong></article><article><span>近 7 天</span><strong>—</strong></article><article><span>30 天活跃</span><strong>—</strong></article></div>
           <div class="admin-users-toolbar"><label><i data-lucide="search"></i><input id="admin-users-search" type="search" placeholder="搜索邮箱或昵称"></label><button id="admin-users-refresh" type="button"><i data-lucide="refresh-cw"></i>刷新</button></div>
           <div class="admin-users-layout"><div class="admin-users-table-wrap"><table class="admin-users-table"><thead><tr><th>用户</th><th>注册时间</th><th>最后登录</th><th>积分</th><th>任务</th><th></th></tr></thead><tbody id="admin-users-list"></tbody></table></div><aside id="admin-user-detail" class="admin-user-detail"><div class="admin-detail-empty"><i data-lucide="user-round-search"></i><strong>选择一个用户</strong><span>查看注册详情、积分构成和最近记录</span></div></aside></div>
@@ -101,274 +121,586 @@
         </section>
       </div>
 
+      <!-- ============================================================
+           TAB 1 · / — 公众号诊断首页
+           ============================================================ -->
       <section id="entry" class="entry-panel">
-        <div class="hero-main">
-          <div class="entry-copy">
-            <span class="micro-label">公众号账号诊断</span>
-            <h1>把内容力，说清楚</h1>
-            <p>输入账号名称，生成一份可分享的诊断报告。一次检测，看清内容力、涨粉力与商业潜力。</p>
-          </div>
-          <form id="diagnose-form" class="entry-form">
-            <label for="account-name">输入公众号名称</label>
-            <div><input id="account-name" name="account_name" placeholder="例如：滚去睡" autocomplete="organization" required /><button id="submit-button" type="submit">开始诊断 <span>↗</span></button></div>
-          </form>
-          <div class="sample-row">
-            <span>试试：</span>
-            <button type="button" class="chip" data-account="滚去睡">滚去睡</button>
-            <button type="button" class="chip" data-account="星空漫游">星空漫游</button>
-            <button type="button" class="chip" data-account="养龟日记">养龟日记</button>
-          </div>
-
-          <div class="module-wall" aria-label="产品模块">
-            <a class="module-card" href="/" data-view="diagnose">
-              <span class="module-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.6 12a8.4 8.4 0 1 0 16.8 0"/><path d="M12 12l4.2-4.2"/><circle cx="12" cy="12" r="1.1" fill="currentColor" stroke="none"/></svg></span>
-              <span class="module-text"><strong>公众号诊断</strong><small>内容力与商业潜力报告</small></span>
-              <span class="module-go" aria-hidden="true">↗</span>
-            </a>
-            <a class="module-card" href="/workbench" data-view="workbench">
-              <span class="module-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.8 4.4a2.1 2.1 0 0 1 3.8 1.3L7.6 19H4.4v-3.2L15.8 4.4z"/><path d="M6.4 8.6c1.6-.9 3.2.9 4.8 0"/></svg></span>
-              <span class="module-text"><strong>公众号创作</strong><small>从选题到排版发布</small></span>
-              <span class="module-go" aria-hidden="true">↗</span>
-            </a>
-            <a class="module-card" href="/xiaohongshu" data-view="xiaohongshu">
-              <span class="module-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="3.5"/><path d="M3.5 10.2h17M10.2 3.5v17"/><circle cx="16.8" cy="16.8" r="1.3" fill="currentColor" stroke="none"/></svg></span>
-              <span class="module-text"><strong>小红书创作</strong><small>一键生成完整内容包</small></span>
-              <span class="module-go" aria-hidden="true">↗</span>
-            </a>
-            <a class="module-card" href="/tie-tu" data-view="tie-tu">
-              <span class="module-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="3"/><circle cx="9.2" cy="10.4" r="1.5"/><path d="M5.5 16.8l4.2-4.2 3 2.6 2.8-2.8 2.6 2.6"/></svg></span>
-              <span class="module-text"><strong>微信贴图号</strong><small>卡片计划与批量生图</small></span>
-              <span class="module-go" aria-hidden="true">↗</span>
-            </a>
-            <a class="module-card" href="/hit-detector" data-view="hit-detector">
-              <span class="module-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l6.8 2.7v5.1c0 4.5-2.9 7.5-6.8 9-3.9-1.5-6.8-4.5-6.8-9V5.7L12 3z"/><path d="M9 12.1l2.1 2.1 3.9-3.9"/></svg></span>
-              <span class="module-text"><strong>爆文检测</strong><small>发布前编辑质量复核</small></span>
-              <span class="module-go" aria-hidden="true">↗</span>
-            </a>
-            <a class="module-card" href="/morning-generator" data-view="morning">
-              <span class="module-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5.2v2.5M5.9 8.2l-1.6-1.4M18.1 8.2l1.6-1.4"/><path d="M4 14.6h16"/><path d="M8 14.6a4 4 0 0 1 8 0"/></svg></span>
-              <span class="module-text"><strong>早安祝福</strong><small>图片与文案自动生成</small></span>
-              <span class="module-go" aria-hidden="true">↗</span>
-            </a>
-          </div>
+        <div class="v3-meta">
+          <span class="l"><span class="line"></span><span>Workspace D/01 · Diagnose</span></span>
+          <span class="r"><i></i>last sync 13:01 · 12s</span>
         </div>
 
-        <section class="recent" aria-label="最近诊断记录">
-          <article class="recent-item" data-account="滚去睡" role="button" tabindex="0">
-            <span class="recent-name">滚去睡</span>
-            <span class="recent-meta">内容力 82 · 3 天前</span>
-          </article>
-          <article class="recent-item" data-account="星空漫游" role="button" tabindex="0">
-            <span class="recent-name">星空漫游</span>
-            <span class="recent-meta">内容力 74 · 上周</span>
-          </article>
-          <article class="recent-item" data-account="养龟日记" role="button" tabindex="0">
-            <span class="recent-name">养龟日记</span>
-            <span class="recent-meta">内容力 68 · 上周</span>
-          </article>
-        </section>
-      </section>
+        <div class="v3-hero">
+          <div class="v3-hero-l">
+            <div class="kicker"><span class="line"></span><span>公众号账号诊断</span></div>
+            <h1>把内容力<br><span class="serif">说清楚</span><span class="blue">.</span></h1>
+            <p class="lede">输入公众号名字，启动一次全维度诊断，看清内容力、涨粉力与商业潜力。无需登录，AI Key 由平台安全托管。</p>
 
-      <section id="xiaohongshu" class="skill-page xhs-page" hidden>
-        <header class="skill-page-head"><div><span class="skill-kicker">宇宙第一小红书 Skill</span><h1>把一个主题，做成可发布的内容包</h1><p>一次生成 3 个标题、6 页图文结构、正文、关键词、置顶评论和发布前检查。</p></div><span class="skill-badge xhs"><i data-lucide="notebook-pen"></i></span></header>
-        <div class="xhs-layout">
-          <form id="xhs-form" class="xhs-form skill-form">
-            <div class="xhs-form-row">
-              <label class="field-wide">主题<textarea id="xhs-topic" required placeholder="例如：我把小红书运营做成了一个 Skill"></textarea></label>
-              <div class="xhs-meta">
-                <label>账号定位<input id="xhs-account" placeholder="例如：AI 自媒体实操"></label>
-                <label>目标读者<input id="xhs-audience" placeholder="例如：刚开始做内容的创作者"></label>
-                <label>内容目标<select id="xhs-goal"><option>教育与建立信任</option><option>获得收藏</option><option>引导互动</option><option>产品承接</option></select></label>
-                <label>内容类型<select id="xhs-content-type"><option>自动选择</option><option>观点判断型</option><option>痛点解决型</option><option>清单任务型</option><option>流程拆解型</option><option>复盘记录型</option><option>对比选择型</option></select></label>
+            <form id="diagnose-form" class="entry-form">
+              <label for="account-name">输入公众号名称</label>
+              <div>
+                <input id="account-name" name="account_name" placeholder="例如：滚去睡" autocomplete="organization" required />
+                <button id="submit-button" type="submit">开始诊断 <span class="arr">→</span></button>
+              </div>
+            </form>
+
+            <div class="sample-row">
+              <span class="lbl">试试：</span>
+              <button type="button" class="chip" data-account="滚去睡">滚去睡</button>
+              <button type="button" class="chip" data-account="星空漫游">星空漫游</button>
+              <button type="button" class="chip" data-account="养龟日记">养龟日记</button>
+            </div>
+
+            <div class="proof">
+              <span><b>1,247</b> 公众号已建档</span>
+              <span class="sep"></span>
+              <span><b>87%</b> 用户首测拿到优质档</span>
+              <span class="sep"></span>
+              <span><b>12s</b> 平均完成</span>
+            </div>
+          </div>
+
+          <div class="v3-hero-r">
+            <div class="frame">
+              <div class="head">
+                <span class="lbl" id="hero-frame-id">#2026-09-01-007</span>
+                <span class="live"><i></i>scanning</span>
+              </div>
+              <div class="account">滚去睡 <small>— 公众号</small></div>
+              <div class="score-row">
+                <div class="v">82<span class="den">/100</span></div>
+                <div class="meta">
+                  <span class="big">优质档</span>
+                  内容力领跑同赛道 87%
+                </div>
+              </div>
+              <div class="dimlist">
+                <div class="dim"><span class="k">A1</span><span class="n">内容力</span><span class="v">82</span><span class="bar"><i style="width:82%"></i></span></div>
+                <div class="dim"><span class="k">A2</span><span class="n">内容质量</span><span class="v">88</span><span class="bar"><i style="width:88%"></i></span></div>
+                <div class="dim"><span class="k">A3</span><span class="n">选题敏感度</span><span class="v">76</span><span class="bar"><i style="width:76%"></i></span></div>
+                <div class="dim"><span class="k">A4</span><span class="n">排版可读性</span><span class="v">91</span><span class="bar"><i style="width:91%"></i></span></div>
               </div>
             </div>
-            <div class="xhs-form-foot">
-              <label class="field-wide xhs-evidence">自有证据（可选）<textarea id="xhs-evidence" class="compact-area" placeholder="填写真实经历、后台数据、案例或素材；没有就留空"></textarea></label>
-              <button id="xhs-generate" class="primary-action skill-primary" type="submit"><i data-lucide="sparkles"></i>生成小红书内容包</button>
+          </div>
+        </div>
+
+        <section class="v3-modules">
+          <div class="head">
+            <div class="l">
+              <span class="lbl">— All Workspaces · 06 modules</span>
+              <h2>六个工具，一套<span class="serif">节奏</span>。</h2>
             </div>
-          </form>
-          <section class="skill-output xhs-output" aria-live="polite"><div id="xhs-empty" class="output-empty xhs-package-empty"><div class="package-empty-head"><span><i data-lucide="layers-3"></i></span><div><strong>待编排内容包</strong><p>填写主题后，按发布顺序生成可编辑的四个部分。</p></div></div><div class="package-lanes" aria-label="小红书内容包结构"><div><span>01</span><strong>标题</strong><small>3 个切入角度</small></div><div><span>02</span><strong>封面页</strong><small>6 页图文结构</small></div><div><span>03</span><strong>正文</strong><small>可直接编辑</small></div><div><span>04</span><strong>标签</strong><small>发布前检查</small></div></div></div><div id="xhs-result" hidden></div></section>
-        </div>
-      </section>
-
-      <section id="tie-tu" class="skill-page tie-page" hidden>
-        <header class="skill-page-head"><div><span class="skill-kicker">宇宙第一贴图号 Skill</span><h1>先定卡片计划，再逐张生成</h1><p>保持同一人物和视觉系统，同时让每张图的姿势、动作与场景明显不同。</p></div><span class="skill-badge tie"><i data-lucide="images"></i></span></header>
-        <div class="skill-workspace tie-layout">
-          <form id="tie-form" class="skill-form tie-control-panel">
-            <div class="form-section-title"><span>01</span><div><strong>建立贴图计划</strong><small>默认 3:4，一张卡片只讲一个重点。</small></div></div>
-            <label class="field-wide">主题<textarea id="tie-topic" required placeholder="例如：40岁以后，旅行要换一种玩法"></textarea></label>
-            <div class="field-grid"><label>行业<input id="tie-industry" value="生活方式"></label><label>目标读者<input id="tie-audience" placeholder="例如：40-50 岁用户"></label></div>
-            <div class="field-grid"><label>内容类型<select id="tie-content-type"><option value="">自动选择</option><option value="tutorial">教程步骤型</option><option value="before_after">前后对比型</option><option value="list">清单推荐型</option><option value="industry_view">行业观点型</option><option value="city_change">城市变化型</option><option value="emotional_story">情绪故事型</option></select></label><label>图片数量<input id="tie-count" type="number" min="1" max="12" value="5"></label></div>
-            <div class="field-grid"><label>人物模式<select id="tie-portrait"><option value="auto">自动判断</option><option value="required">保持同一人物</option><option value="off">不使用人物</option></select></label><label>视觉风格<input id="tie-style" placeholder="成熟、温暖、清晰"></label></div>
-            <button id="tie-plan" class="primary-action skill-primary" type="submit"><i data-lucide="wand-sparkles"></i>生成卡片计划</button>
-          </form>
-          <section class="skill-output tie-storyboard" aria-live="polite"><div id="tie-empty" class="output-empty tie-storyboard-empty"><div class="storyboard-empty-head"><span><i data-lucide="panels-top-left"></i></span><div><strong>卡片分镜待建立</strong><p>先设定人物、画幅和风格，再确认每一张的文字、场景与动作。</p></div></div><div class="storyboard-grid" aria-label="卡片分镜示意"><article><b>01</b><span>封面</span></article><article><b>02</b><span>冲突</span></article><article><b>03</b><span>展开</span></article><article><b>04</b><span>行动</span></article></div></div><div id="tie-result" hidden></div></section>
-        </div>
-      </section>
-
-      <section id="hit-detector" class="skill-page hit-page" hidden>
-        <header class="skill-page-head"><div><span class="skill-kicker">宇宙第一爆文检测 Skill</span><h1>发布前，做一次真正的编辑复核</h1><p>检查标题兑现、事实来源、读者价值和移动阅读，不用结构分冒充爆款概率。</p></div><span class="skill-badge hit"><i data-lucide="badge-check"></i></span></header>
-        <div class="skill-workspace hit-layout">
-          <form id="hit-form" class="skill-form hit-editor-panel">
-            <div class="form-section-title"><span>01</span><div><strong>粘贴完整文章</strong><small>纯文本检测不能验证图片中的事实和排版。</small></div></div>
-            <label class="field-wide">文章标题<input id="hit-title" required placeholder="输入准备发布的标题"></label>
-            <div class="field-grid"><label>内容赛道<select id="hit-track"><option value="auto">自动识别</option><option value="tech">科技</option><option value="finance">财经</option><option value="workplace">职场</option><option value="health">健康</option><option value="education">教育</option><option value="relationship">情感</option><option value="food">美食</option><option value="beauty">美妆</option><option value="realestate">房产</option><option value="senior">中老年</option><option value="general">通用</option></select></label><label>粉丝数（可选）<input id="hit-fans" type="number" min="0" placeholder="只用于历史算术基线"></label></div>
-            <label class="field-wide">正文<textarea id="hit-body" class="article-area" required placeholder="粘贴完整正文"></textarea></label>
-            <button id="hit-analyze" class="primary-action skill-primary" type="submit"><i data-lucide="scan-text"></i>开始发布前复核</button>
-          </form>
-          <section class="skill-output hit-report-panel" aria-live="polite"><div id="hit-empty" class="output-empty hit-report-empty"><div class="report-empty-head"><span><i data-lucide="shield-check"></i></span><div><strong>等待编辑复核</strong><p>先判断是否存在发布阻断项，再处理高优先级修改。</p></div></div><div class="report-empty-rows"><div><span>P0</span><i></i><small>发布阻断</small></div><div><span>P1</span><i></i><small>优先修改</small></div><div><span>结构</span><i></i><small>参考得分</small></div></div></div><div id="hit-result" hidden></div></section>
-        </div>
-      </section>
-
-      <section id="workbench" class="workbench-page article-workspace" hidden>
-        <div class="workbench-intro">
-          <span class="micro-label">内容创作工作台</span>
-          <h1>从一个主题，开始一篇好文章</h1>
-          <p>AI 陪你完成选题、写作、反 AI、配图、排版和预览。你可以一次完成，也可以在每一步亲自确认。</p>
-        </div>
-        <div class="mode-switch" role="tablist" aria-label="创作模式">
-          <button class="mode-option active" data-mode="interactive" type="button"><strong>交互模式</strong><small>每个关键节点由你确认</small></button>
-          <button class="mode-option" data-mode="auto" type="button"><strong>全自动模式</strong><small>从主题一路生成到预览</small></button>
-          <button class="mode-option" data-mode="single" type="button"><strong>单步模式</strong><small>只做你当前需要的一步</small></button>
-        </div>
-        <div id="workflow-steps" class="workflow-rail"></div>
-        <div class="workbench-grid wb-3col">
-          <section class="creator-card">
-            <div class="card-topline"><span class="card-label">开始创作</span><span id="workbench-status" class="status-pill">等待输入</span></div>
-            <label for="workbench-topic">你想写什么？</label>
-            <textarea id="workbench-topic" placeholder="输入一个主题、一个问题，或者一句还没想完整的念头"></textarea>
-            <div class="creator-options"><label>人格 <select id="workbench-persona"><option>深度观察者</option><option>亲切分享者</option><option>锐评手</option><option>故事大王</option><option>暖心治愈</option></select></label><label>排版主题 <select id="workbench-theme"><option value="default">极简白</option><option value="tech-card-green">科技卡片绿</option><option value="minimal-elegant">极简优雅</option></select></label></div>
-            <button id="start-workbench" class="primary-action" type="button">开始创作 <span>↗</span></button>
-            <p class="helper-copy">你可以先输入一个模糊想法，后面每一步都能修改。</p>
-            <div class="topic-chips" aria-label="常用主题">
-              <span>常用主题</span>
-              <button type="button" class="topic-chip" data-topic="老年人晚上总起夜，睡不踏实">老年人起夜</button>
-              <button type="button" class="topic-chip" data-topic="养老金又要涨了，到底怎么算">养老金计算</button>
-              <button type="button" class="topic-chip" data-topic="养龟新手最容易踩的坑">养龟避坑</button>
-              <button type="button" class="topic-chip" data-topic="早安语录怎么写出治愈感">早安语录</button>
+            <div class="r">last sync 13:01 · 12s</div>
+          </div>
+          <div class="modlist">
+            <div class="mod" data-view-link="/" data-section="diagnose">
+              <span class="num">01</span>
+              <span class="name"><span class="serif">公众号</span><span class="em">号号诊断</span></span>
+              <span class="desc">内容力与商业潜力报告。全维度扫描，给出可执行的改稿方向。</span>
+              <span class="stat"><span class="dot"></span>READY</span>
+              <span class="arrow">→</span>
             </div>
-          </section>
-          <section id="workbench-result" class="workbench-result" hidden>
-            <div class="result-head"><div><span class="micro-label">当前创作</span><h2 id="result-title">正在准备</h2></div><div class="result-actions"><a id="download-workbench-html" class="secondary-action" href="#" hidden>下载 HTML</a><button id="edit-current" class="secondary-action" type="button">编辑正文</button><button id="run-next" class="primary-action compact" type="button">继续下一步</button><button id="open-preview" class="primary-action compact" type="button" hidden>预览并复制 ↗</button></div></div>
-            <section id="workbench-decision" class="workbench-decision" aria-live="polite"></section>
-            <div id="topic-list" class="topic-list"></div>
-            <div id="generated-images" class="generated-images" hidden></div>
-            <div class="editor-wrap"><div class="editor-head"><span>文章正文（可直接编辑）</span><span id="score-label">反 AI 评分将在第 4 步生成</span></div><textarea id="article-editor" aria-label="文章正文"></textarea></div>
-            <div class="result-foot"><span id="result-meta">—</span><button id="publish-draft" class="text-action" type="button">写入公众号草稿箱</button></div>
-          </section>
-          <aside class="workflow-card wb-side">
-            <div class="card-topline"><span class="card-label">怎么使用</span></div>
-            <div class="workflow-note"><strong>怎么使用</strong><span>先输入主题，选择模式。交互模式会在选题、框架和配图处停下来等你确认。</span></div>
-            <section class="inspiration" aria-label="灵感速达">
-              <div class="card-topline"><span class="card-label">灵感速达</span></div>
-              <ul>
-                <li>🔥 延迟退休细则解读</li>
-                <li>💡 中老年睡眠痛点选题</li>
-                <li>📝 反 AI 检测自查清单</li>
-                <li>🎯 中老年痛点词库</li>
-              </ul>
-            </section>
-          </aside>
+            <div class="mod" data-view-link="/workbench">
+              <span class="num">02</span>
+              <span class="name"><span class="serif">公众号</span><span class="em">创作</span></span>
+              <span class="desc">从选题到排版发布。8 步全链路管道，集成反 AI 改稿与排版。</span>
+              <span class="stat"><span class="dot"></span>READY</span>
+              <span class="arrow">→</span>
+            </div>
+            <div class="mod" data-view-link="/xiaohongshu">
+              <span class="num">03</span>
+              <span class="name">小红书<span class="serif em">创作</span></span>
+              <span class="desc">一键生成完整种草内容包。含配图与封面，社媒属性专属排版。</span>
+              <span class="stat"><span class="dot"></span>READY</span>
+              <span class="arrow">→</span>
+            </div>
+            <div class="mod" data-view-link="/tie-tu">
+              <span class="num">04</span>
+              <span class="name">微信<span class="serif em">贴图</span>号</span>
+              <span class="desc">卡片设计与批量生图。贴图号专属工作流，分镜自动排布。</span>
+              <span class="stat"><span class="dot"></span>READY</span>
+              <span class="arrow">→</span>
+            </div>
+            <div class="mod" data-view-link="/hit-detector">
+              <span class="num">05</span>
+              <span class="name">爆文<span class="serif em">检测</span></span>
+              <span class="desc">发布前编辑质量复核。结构参考分、事实账本、可执行改稿建议。</span>
+              <span class="stat"><span class="dot"></span>READY</span>
+              <span class="arrow">→</span>
+            </div>
+            <div class="mod" data-view-link="/morning-generator">
+              <span class="num">06</span>
+              <span class="name">早安<span class="serif em">祝福</span></span>
+              <span class="desc">图片与文案自动生成。早安号专用工作流，每日定时产出。</span>
+              <span class="stat"><span class="dot"></span>READY</span>
+              <span class="arrow">→</span>
+            </div>
+          </div>
+
+          <div class="recent-line">
+            <span class="l">Recent</span>
+            <button type="button" class="recent-item" data-account="滚去睡">
+              <span>滚去睡</span>
+              <span class="recent-meta">内容力 82 · 3d</span>
+            </button>
+            <button type="button" class="recent-item" data-account="星空漫游">
+              <span>星空漫游</span>
+              <span class="recent-meta">内容力 74 · 1w</span>
+            </button>
+            <button type="button" class="recent-item" data-account="养龟日记">
+              <span>养龟日记</span>
+              <span class="recent-meta">内容力 68 · 1w</span>
+            </button>
+          </div>
+        </section>
+      </section>
+
+      <!-- ============================================================
+           TAB 2 · /workbench — 公众号创作
+           ============================================================ -->
+      <section id="workbench" class="skill-page" hidden>
+        <div class="v3-meta">
+          <span class="l"><span class="line"></span><span>Workspace W/02 · Compose</span></span>
+          <span class="r"><i></i>skill · wechat-publisher-ultimate · 8 steps</span>
+        </div>
+        <div class="wb-shell">
+          <div class="wb-intro">
+            <div class="kicker"><span class="line"></span><span>公众号创作 · STEP 01/08</span></div>
+            <h1>从一个主题<br><span class="serif">开始一篇</span><span class="blue">好文章</span><span class="blue">.</span></h1>
+            <p>AI 陪你完成选题、写作、反 AI、配图、排版和预览。你可以一次完成，也可以在每一步亲自确认。</p>
+          </div>
+
+          <div class="wb-rail"><div id="workflow-steps" class="wb-rail-list"></div></div>
+
+          <div class="wb-grid">
+            <div class="wb-col">
+              <form class="wb-card" id="workbench-card-form">
+                <span class="micro-label">01 · INPUT</span>
+                <div class="mode-switch" role="tablist" aria-label="创作模式">
+                  <button class="mode-option active" data-mode="interactive" type="button"><strong>交互</strong><small>每步确认</small></button>
+                  <button class="mode-option" data-mode="auto" type="button"><strong>全自动</strong><small>一键完成</small></button>
+                  <button class="mode-option" data-mode="single" type="button"><strong>单步</strong><small>只做一步</small></button>
+                </div>
+                <label for="workbench-topic">主题 / 念头</label>
+                <textarea id="workbench-topic" placeholder="输入一个主题、一个问题，或者一句还没想完整的念头"></textarea>
+                <div class="creator-options">
+                  <label>人格 <select id="workbench-persona"><option>深度观察者</option><option>亲切分享者</option><option>锐评手</option><option>故事大王</option><option>暖心治愈</option></select></label>
+                  <label>排版 <select id="workbench-theme"><option value="default">极简白</option><option value="tech-card-green">科技卡片绿</option><option value="minimal-elegant">极简优雅</option></select></label>
+                </div>
+                <button id="start-workbench" class="primary-action" type="button">开始创作 <span style="font-family: var(--mono); font-size: 12px;">→</span></button>
+                <p class="helper-copy">你可以先输入一个模糊想法，后面每一步都能修改。</p>
+                <div class="topic-chips" aria-label="常用主题">
+                  <span>常用主题</span>
+                  <button type="button" class="topic-chip" data-topic="老年人晚上总起夜，睡不踏实">老年人起夜</button>
+                  <button type="button" class="topic-chip" data-topic="养老金又要涨了，到底怎么算">养老金计算</button>
+                  <button type="button" class="topic-chip" data-topic="养龟新手最容易踩的坑">养龟避坑</button>
+                  <button type="button" class="topic-chip" data-topic="早安语录怎么写出治愈感">早安语录</button>
+                </div>
+              </form>
+
+              <div class="wb-card">
+                <span class="micro-label">STATUS</span>
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+                  <span class="status-pill" id="workbench-status" style="font-family: var(--mono); font-size: 11px; color: var(--text-3); letter-spacing:.04em;">等待输入</span>
+                  <span id="score-label" style="font-size: 11px; color: var(--text-4);">反 AI 评分将在第 4 步生成</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="wb-col" style="border-left: 1px solid var(--line); border-right: 1px solid var(--line);">
+              <div id="workbench-decision" class="decision-panel">
+                <div class="decision-step"><span>第 01 步</span><strong>选择选题</strong></div>
+                <div class="decision-copy"><h3>从下面的方向里，选一个你愿意写下去的。</h3><p>选择后才会生成文章框架，不会直接生成整篇文章。</p></div>
+                <div class="decision-impact">点击后 <strong>生成文章框架</strong></div>
+              </div>
+
+              <div id="workbench-result" class="wb-result" hidden>
+                <div class="head-row">
+                  <div class="title-block">
+                    <span class="micro-label">当前创作</span>
+                    <h2 id="result-title">正在准备</h2>
+                  </div>
+                  <div class="actions">
+                    <a id="download-workbench-html" class="secondary-action" href="#" hidden>下载 HTML</a>
+                    <button id="edit-current" class="secondary-action" type="button" hidden>编辑正文</button>
+                    <button id="run-next" class="solid" type="button">继续下一步</button>
+                    <button id="open-preview" class="solid" type="button" hidden>预览并复制 ↗</button>
+                  </div>
+                </div>
+                <div id="topic-list" class="topic-list"></div>
+                <div id="generated-images" class="generated-images" hidden></div>
+                <div class="editor-card">
+                  <div class="head">
+                    <span class="label">文章正文 · 可直接编辑</span>
+                    <span id="meta-provider">—</span>
+                  </div>
+                  <textarea id="article-editor" aria-label="文章正文"></textarea>
+                  <div class="foot">
+                    <span id="result-meta">—</span>
+                    <button id="publish-draft" type="button" hidden>写入公众号草稿箱</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="wb-col wb-side">
+              <div class="wb-card">
+                <span class="micro-label">怎么使用</span>
+                <p class="workflow-note"><strong>8 步全链路</strong>先输入主题，选择模式。交互模式会在选题、框架和配图处停下来等你确认。</p>
+              </div>
+              <div class="wb-card">
+                <span class="micro-label">灵感速达</span>
+                <ul class="inspiration">
+                  <li data-inspiration="延迟退休细则解读">延迟退休细则解读</li>
+                  <li data-inspiration="中老年睡眠痛点选题">中老年睡眠痛点选题</li>
+                  <li data-inspiration="反 AI 检测自查清单">反 AI 检测自查清单</li>
+                  <li data-inspiration="中老年痛点词库">中老年痛点词库</li>
+                </ul>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
-      <section id="morning-generator" class="morning-generator-page morning-studio" hidden>
-        <div class="workbench-intro morning-studio-head">
-          <span class="micro-label">早安祝福自动生成器</span>
-          <h1>生成早安图和祝福文案</h1>
-          <p>支持文章和贴图两种模式，图片生成走本站后端代理，适合部署到云服务器后直接使用。</p><div class="morning-studio-points"><span>文案</span><i></i><span>画面</span><i></i><span>排版</span></div>
+      <!-- ============================================================
+           TAB 3 · /xiaohongshu — 小红书创作
+           ============================================================ -->
+      <section id="xiaohongshu" class="skill-page" hidden>
+        <div class="v3-meta">
+          <span class="l"><span class="line"></span><span>Workspace X/03 · Xiaohongshu</span></span>
+          <span class="r"><i></i>package · 4 steps</span>
         </div>
-        <iframe class="generator-frame" src="/static/morning-blessing.html?v=20260831-tab" title="早安祝福自动生成器"></iframe>
+        <div class="skill-shell">
+          <div class="skill-form-col">
+            <span class="micro-label"><span class="line"></span><span>小红书创作</span></span>
+            <h1>把一个主题，做成<br><span class="serif">可发布</span><span class="blue">的内容包</span><span class="blue">.</span></h1>
+            <p>一次生成 3 个标题、6 页图文结构、正文、关键词、置顶评论和发布前检查。</p>
+
+            <form id="xhs-form" class="skill-form">
+              <div class="form-section">
+                <div class="head"><span class="num">01</span><div class="copy"><strong>主题与定位</strong><small>必填 + 选填：账号定位、读者、目标</small></div></div>
+                <label class="field-wide">主题<textarea id="xhs-topic" required placeholder="例如：我把小红书运营做成了一个 Skill"></textarea></label>
+                <div class="field-grid">
+                  <label>账号定位<input id="xhs-account" placeholder="例如：AI 自媒体实操"></label>
+                  <label>目标读者<input id="xhs-audience" placeholder="例如：刚开始做内容的创作者"></label>
+                </div>
+                <div class="field-grid">
+                  <label>内容目标<select id="xhs-goal"><option>教育与建立信任</option><option>获得收藏</option><option>引导互动</option><option>产品承接</option></select></label>
+                  <label>内容类型<select id="xhs-content-type"><option>自动选择</option><option>观点判断型</option><option>痛点解决型</option><option>清单任务型</option><option>流程拆解型</option><option>复盘记录型</option><option>对比选择型</option></select></label>
+                </div>
+              </div>
+
+              <div class="form-section">
+                <div class="head"><span class="num">02</span><div class="copy"><strong>自有证据</strong><small>可选：填入真实经历、后台数据、案例或素材</small></div></div>
+                <label class="field-wide">证据 / 案例<textarea id="xhs-evidence" class="compact-area" placeholder="填写真实经历、后台数据、案例或素材；没有就留空"></textarea></label>
+              </div>
+
+              <button id="xhs-generate" class="skill-primary" type="submit">
+                生成小红书内容包 →
+              </button>
+            </form>
+          </div>
+
+          <div class="skill-output-col" aria-live="polite">
+            <div id="xhs-empty" class="skill-empty">
+              <span class="tag">— 待编排内容包</span>
+              <h2>填写主题后，<span class="serif">按发布顺序</span>展开</h2>
+              <p>填写主题后，按发布顺序生成可编辑的四个部分：3 个标题、6 页图文结构、正文、置顶评论。</p>
+            </div>
+            <div id="xhs-result" class="xhs-output" hidden></div>
+          </div>
+        </div>
       </section>
 
+      <!-- ============================================================
+           TAB 4 · /tie-tu — 微信贴图号
+           ============================================================ -->
+      <section id="tie-tu" class="skill-page" hidden>
+        <div class="v3-meta">
+          <span class="l"><span class="line"></span><span>Workspace T/04 · Tietu</span></span>
+          <span class="r"><i></i>storyboard · 3:4</span>
+        </div>
+        <div class="skill-shell">
+          <div class="skill-form-col">
+            <span class="micro-label"><span class="line"></span><span>微信贴图号</span></span>
+            <h1>先定卡片计划，<br>再<span class="serif">逐张</span><span class="blue">生成</span><span class="blue">.</span></h1>
+            <p>保持同一人物和视觉系统，同时让每张图的姿势、动作与场景明显不同。</p>
+
+            <form id="tie-form" class="skill-form">
+              <div class="form-section">
+                <div class="head"><span class="num">01</span><div class="copy"><strong>建立贴图计划</strong><small>默认 3:4，一张卡片只讲一个重点。</small></div></div>
+                <label class="field-wide">主题<textarea id="tie-topic" required placeholder="例如：40岁以后，旅行要换一种玩法"></textarea></label>
+                <div class="field-grid">
+                  <label>行业<input id="tie-industry" value="生活方式"></label>
+                  <label>目标读者<input id="tie-audience" placeholder="例如：40-50 岁用户"></label>
+                </div>
+                <div class="field-grid">
+                  <label>内容类型<select id="tie-content-type"><option value="">自动选择</option><option value="tutorial">教程步骤型</option><option value="before_after">前后对比型</option><option value="list">清单推荐型</option><option value="industry_view">行业观点型</option><option value="city_change">城市变化型</option><option value="emotional_story">情绪故事型</option></select></label>
+                  <label>图片数量<input id="tie-count" type="number" min="1" max="12" value="5"></label>
+                </div>
+                <div class="field-grid">
+                  <label>人物模式<select id="tie-portrait"><option value="auto">自动判断</option><option value="required">保持同一人物</option><option value="off">不使用人物</option></select></label>
+                  <label>视觉风格<input id="tie-style" placeholder="成熟、温暖、清晰"></label>
+                </div>
+              </div>
+
+              <button id="tie-plan" class="skill-primary" type="submit">
+                生成卡片计划 →
+              </button>
+            </form>
+          </div>
+
+          <div class="skill-output-col" aria-live="polite">
+            <div id="tie-empty" class="skill-empty">
+              <span class="tag">— 卡片分镜待建立</span>
+              <h2>先定人物、画幅和风格，<br>再确认每张<span class="serif">文字</span>。</h2>
+              <p>先设定人物、画幅和风格，再确认每一张的文字、场景与动作。</p>
+            </div>
+            <div id="tie-result" class="tie-result" hidden></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           TAB 5 · /hit-detector — 爆文检测
+           ============================================================ -->
+      <section id="hit-detector" class="skill-page" hidden>
+        <div class="v3-meta">
+          <span class="l"><span class="line"></span><span>Workspace H/05 · Hit Detector</span></span>
+          <span class="r"><i></i>editorial · before publish</span>
+        </div>
+        <div class="skill-shell">
+          <div class="skill-form-col">
+            <span class="micro-label"><span class="line"></span><span>爆文检测</span></span>
+            <h1>发布前，做一次<br><span class="serif">真正的</span><span class="blue">编辑复核</span><span class="blue">.</span></h1>
+            <p>检查标题兑现、事实来源、读者价值和移动阅读，不用结构分冒充爆款概率。</p>
+
+            <form id="hit-form" class="skill-form">
+              <div class="form-section">
+                <div class="head"><span class="num">01</span><div class="copy"><strong>粘贴完整文章</strong><small>纯文本检测不能验证图片中的事实和排版。</small></div></div>
+                <label class="field-wide">文章标题<input id="hit-title" required placeholder="输入准备发布的标题"></label>
+                <div class="field-grid">
+                  <label>内容赛道<select id="hit-track"><option value="auto">自动识别</option><option value="tech">科技</option><option value="finance">财经</option><option value="workplace">职场</option><option value="health">健康</option><option value="education">教育</option><option value="relationship">情感</option><option value="food">美食</option><option value="beauty">美妆</option><option value="realestate">房产</option><option value="senior">中老年</option><option value="general">通用</option></select></label>
+                  <label>粉丝数（可选）<input id="hit-fans" type="number" min="0" placeholder="只用于历史算术基线"></label>
+                </div>
+                <label class="field-wide">正文<textarea id="hit-body" class="article-area" required placeholder="粘贴完整正文"></textarea></label>
+              </div>
+
+              <button id="hit-analyze" class="skill-primary" type="submit">
+                开始发布前复核 →
+              </button>
+            </form>
+          </div>
+
+          <div class="skill-output-col" aria-live="polite">
+            <div id="hit-empty" class="skill-empty">
+              <span class="tag">— 等待编辑复核</span>
+              <h2>先判断是否存在发布阻断项，<br>再处理<span class="serif">高优先级</span>修改。</h2>
+              <p>先判断是否存在发布阻断项（事实、来源、读者价值），再处理高优先级修改（标题兑现、开头、段落节奏）。</p>
+            </div>
+            <div id="hit-result" class="hit-result" hidden></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           TAB 6 · /morning-generator — 早安祝福
+           ============================================================ -->
+      <section id="morning-generator" class="skill-page" hidden>
+        <div class="v3-meta">
+          <span class="l"><span class="line"></span><span>Workspace M/06 · Morning</span></span>
+          <span class="r"><i></i>morning · image + copy</span>
+        </div>
+        <div class="morning-shell">
+          <div class="morning-intro">
+            <div class="kicker"><span class="line"></span><span>早安祝福</span></div>
+            <h1>生成<span class="serif">早安图</span>和<span class="blue">祝福文案</span><span class="blue">.</span></h1>
+            <p>支持文章和贴图两种模式，图片生成走本站后端代理，适合部署到云服务器后直接使用。</p>
+          </div>
+          <div class="morning-frame-wrap">
+            <iframe class="generator-frame" src="/static/morning-blessing.html?v=20260901-v3" title="早安祝福自动生成器"></iframe>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           TAB · 诊断报告 #report（由 app.js renderReport 渲染）
+           innerHTML 内容结构由 renderReport 控制，className 兼容旧选择器
+           ============================================================ -->
       <main id="report" class="report-page" hidden>
-        <section id="overview" class="report-hero">
-          <aside class="score-rail">
-            <span class="micro-label">综合诊断分</span><strong id="hero-score">—</strong><span class="out-of">/100</span><div class="score-line"><i id="hero-score-line"></i></div><p id="hero-compare">等待账号数据</p>
-            <blockquote><span class="quote-mark">“</span><p id="quote-copy">正在把数据翻译成一句真正有用的话。</p><cite>诊断结论</cite></blockquote>
+        <div class="v3-meta">
+          <span class="l"><span class="line"></span><span>Report · <span id="report-id">—</span></span></span>
+          <span class="r"><i></i>scanning · completed</span>
+        </div>
+
+        <section class="v3-diag">
+          <div class="v3-diag-l">
+            <div class="kicker"><span class="line"></span><span>综合诊断</span></div>
+            <h1 id="diagnosis-title">诊断结论预览<span class="blue">.</span></h1>
+            <div class="meta" id="diagnosis-copy">本报告基于近期作品和账号数据生成</div>
+
+            <ul class="signal-list">
+              <li class="sitem"><span class="k">账号简介</span><span class="v" id="profile-description">—<small></small></span><span></span><span></span></li>
+              <li class="sitem"><span class="k">账号类型</span><span class="v" id="profile-type">—<small></small></span><span></span><span></span></li>
+              <li class="sitem"><span class="k">更新频率</span><span class="v" id="profile-frequency">—<small></small></span><span></span><span></span></li>
+              <li class="sitem"><span class="k">数据置信度</span><span class="v" id="profile-confidence">—<small></small></span><span></span><span></span></li>
+              <li class="sitem"><span class="k">近期样本</span><span class="v" id="sample-size">—<small>篇作品</small></span><span></span><span></span></li>
+              <li class="sitem"><span class="k">平均阅读</span><span class="v" id="avg-read">—<small>单篇约</small></span><span></span><span></span></li>
+              <li class="sitem"><span class="k">互动率</span><span class="v" id="interaction-rate">—<small>点赞 · 评论 · 在看</small></span><span></span><span></span></li>
+              <li class="sitem"><span class="k">核心判断</span><span class="v" id="overview-judgment" style="font-size:14px;font-weight:500;">—<small></small></span><span></span><span></span></li>
+            </ul>
+
+            <div id="lens-grid" class="lens-list"></div>
+          </div>
+
+          <aside class="v3-diag-r">
+            <div class="label"><span class="line"></span><span>Composite</span></div>
+            <div class="score"><span id="hero-score">—</span><span class="den">/100</span></div>
+            <div class="score-line" id="hero-score-line" style="--score:0%"></div>
+            <div class="verdict" id="positioning-title">等待账号数据</div>
+            <p style="margin:8px 0 0;font-size:13px;color:var(--text-2);line-height:1.55;" id="positioning-copy">根据近期作品和互动数据生成第一步行动。</p>
+            <p style="margin:0;font-size:13px;color:var(--text-3);line-height:1.55;font-style:italic;font-family:var(--serif);" id="quote-copy">正在把数据翻译成一句真正有用的话。</p>
+
+            <div class="actions">
+              <button class="ghost" id="download-report" onclick="window.print()">下载报告</button>
+              <button class="solid" onclick="window.print()">导出 PDF</button>
+            </div>
+            <p class="proof">
+              <b id="hero-compare">行业均值暂缺</b><br>
+              内容力、涨粉力与变现力的综合评估；分数用于定位强弱项，不用于预测阅读。
+            </p>
           </aside>
-          <div class="diagnosis-hero">
-            <div class="vertical-marker"><i></i><span>一句话诊断</span></div>
-            <h1 id="diagnosis-title">输入公众号名称，开始诊断。</h1>
-            <p id="diagnosis-copy">报告会从真实作品和账号数据中，说明目前最值得优先解决的问题。</p>
-            <div class="positioning"><span class="micro-label">现在先做什么</span><strong id="positioning-title">等待数据判断</strong><p id="positioning-copy">根据近期作品和互动数据生成第一步行动。</p></div>
-          </div>
-          <div class="sprig-wrap"><img src="/static/assets/diagnostic-sprig.png" alt="淡绿色植物插画" /></div>
         </section>
 
-        <section id="signals" class="signal-section">
-          <div class="section-title"><h2>账号信号</h2><span>先看结论，再回到证据</span></div>
-          <div class="signal-grid">
-            <article class="judgment-card"><span class="card-label">核心判断</span><p id="overview-judgment">—</p></article>
-            <article class="metric-card"><span class="card-label">近期样本</span><strong id="sample-size">—</strong><small>篇作品</small></article>
-            <article class="metric-card"><span class="card-label">平均阅读</span><strong id="avg-read">—</strong><small>单篇约</small></article>
-            <article class="metric-card"><span class="card-label">互动率</span><strong id="interaction-rate">—</strong><small>点赞 · 评论 · 在看</small></article>
+        <section class="v3-section">
+          <div class="head">
+            <h2>内容<span class="serif">证据</span></h2>
+            <span class="sub"><i></i>recent works · traceable</span>
           </div>
-          <div class="profile-strip">
-            <div><span>账号简介</span><strong id="profile-description">未获取</strong></div>
-            <div><span>账号类型</span><strong id="profile-type">未知</strong></div>
-            <div><span>更新频率</span><strong id="profile-frequency">—</strong></div>
-            <div><span>数据置信度</span><strong id="profile-confidence">—</strong></div>
+          <div id="works-table"></div>
+        </section>
+
+        <section class="v3-section">
+          <div class="head">
+            <h2>接下来 <span class="serif">30</span> 天</h2>
+            <span class="sub"><i></i>by priority</span>
+          </div>
+          <div id="route-list" class="route-list"></div>
+        </section>
+
+        <section class="v3-section">
+          <div class="head">
+            <h2>相似<span class="serif">账号</span></h2>
+            <span class="sub"><i></i>same lane · bench refs</span>
+          </div>
+          <p id="benchmark-intro" style="margin:0 0 16px; font-size: 13px; color: var(--text-3); line-height: 1.55;"></p>
+          <div id="benchmark-list" class="bm-list"></div>
+        </section>
+
+        <section class="v3-section">
+          <div class="head">
+            <h2>当前<span class="serif">优势与短板</span></h2>
+            <span class="sub"><i></i>keep · fix</span>
+          </div>
+          <div class="tk-grid">
+            <div class="col"><h4>STRENGTHS · 保留</h4><ul id="strength-list"></ul></div>
+            <div class="col"><h4>WEAKNESSES · 优先修复</h4><ul id="weakness-list"></ul></div>
           </div>
         </section>
 
-        <section id="lenses" class="lenses-section"><div class="section-title"><h2>四个诊断镜头</h2><span>从数据看账号，不从感觉下结论</span></div><div id="lens-grid" class="lens-grid"></div></section>
-
-        <section id="evidence" class="evidence-route">
-          <div class="content-evidence"><div class="section-title"><h2>内容证据</h2><span>近期作品 · 可追溯数据</span></div><div id="works-table" class="works-table"></div><p class="evidence-footnote">ⓘ 数据样本越少，结论置信度越低；先积累样本，再判断长期方向。</p></div>
-          <div id="route" class="route-panel"><div class="section-title"><h2>接下来 30 天</h2><span>按优先级从高到低</span></div><div id="route-list" class="route-list"></div></div>
+        <section class="bottom-note">
+          <span>ⓘ</span>
+          <p>这份报告的价值不是告诉你"账号好不好"，而是帮你找到下一步最值得投入的动作。</p>
         </section>
-        <section id="benchmark" class="benchmark-section">
-          <div class="section-title"><h2>相似账号</h2><span>同一内容赛道里的可参考样本</span></div>
-          <p id="benchmark-intro" class="benchmark-intro">对标的重点不是照搬内容，而是观察相似账号如何固定栏目、包装场景并形成用户记忆。</p>
-          <div id="benchmark-list" class="benchmark-list"></div>
-        </section>
-        <section id="takeaways" class="takeaways-section">
-          <div class="takeaway-column"><div class="section-title"><h2>账号当前优势</h2><span>值得继续保留</span></div><ul id="strength-list"></ul></div>
-          <div class="takeaway-column weakness"><div class="section-title"><h2>当前主要短板</h2><span>优先修复</span></div><ul id="weakness-list"></ul></div>
-        </section>
-        <section class="bottom-note"><span>ⓘ</span><p>这份报告的价值不是告诉你“账号好不好”，而是帮你找到下一步最值得投入的动作。</p></section>
       </main>
-      <footer>公众号账号诊断 · 数据来自公开数据接口 · 仅作运营参考</footer>
+
+      <footer class="v3-foot">
+        <div class="l">
+          <span>宇宙第一工作台 · Build 2026.09.01</span>
+        </div>
+        <div class="r">
+          <span>Gelen Studio</span>
+          <span class="dot-sep">·</span>
+          <span>v3.2.0</span>
+        </div>
+      </footer>
     </div>
+
     <script src="/static/vendor/lucide.min.js"></script>
     <script src="/static/app.js?v=20260831-tab"></script>
     <script>
-      // 样例账号与最近诊断记录：点击即填充并触发诊断（复用 app.js 已挂载的 submit 逻辑）。
+      // 同步 recent-item（首页样例：点击触发诊断）
       (function () {
-        var form = document.querySelector('#diagnose-form');
-        var input = document.querySelector('#account-name');
+        const form = document.querySelector('#diagnose-form');
+        const input = document.querySelector('#account-name');
         if (!form || !input) return;
-        var run = function (name) {
+        const run = (name) => {
           if (!name) return;
           input.value = name;
           if (typeof form.requestSubmit === 'function') form.requestSubmit();
           else form.dispatchEvent(new Event('submit', { cancelable: true }));
         };
-        document.querySelectorAll('.sample-row .chip').forEach(function (chip) {
-          chip.addEventListener('click', function () { run(chip.dataset.account); });
+        document.querySelectorAll('.sample-row .chip').forEach((chip) => {
+          chip.addEventListener('click', () => run(chip.dataset.account));
         });
-        document.querySelectorAll('.recent-item').forEach(function (item) {
-          var go = function () { run(item.dataset.account); };
-          item.addEventListener('click', go);
-          item.addEventListener('keydown', function (e) {
-            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); }
+        document.querySelectorAll('.recent-item').forEach((item) => {
+          item.addEventListener('click', () => run(item.dataset.account));
+        });
+      })();
+
+      // 工作台常用主题
+      (function () {
+        const ta = document.querySelector('#workbench-topic');
+        if (!ta) return;
+        document.querySelectorAll('.topic-chip').forEach((chip) => {
+          chip.addEventListener('click', () => {
+            ta.value = chip.dataset.topic || '';
+            ta.focus();
+            ta.dispatchEvent(new Event('input', { bubbles: true }));
           });
         });
       })();
 
-      // 创作工作台「常用主题」：点击即填入输入框
+      // 模块墙行式 list 点击 → 跳到对应 tab
       (function () {
-        var ta = document.querySelector('#workbench-topic');
+        document.querySelectorAll('.mod[data-view-link]').forEach((el) => {
+          el.addEventListener('click', () => {
+            const href = el.dataset.viewLink;
+            if (href) window.history.pushState(null, '', href);
+            // 同步触发 nav tab click
+            const target = document.querySelector(`.v3-topbar .tabs a[href="${href}"]`);
+            if (target) target.click();
+          });
+        });
+      })();
+
+      // 顶 nav avatar 弹窗（与 app.js 的 hidden 机制统一）
+      (function () {
+        const wrap = document.getElementById('nav-menu-wrap');
+        if (!wrap) return;
+        const menu = document.getElementById('settings-menu');
+        const avatar = wrap.querySelector('.avatar');
+        avatar.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (menu) menu.hidden = !menu.hidden;
+        });
+        document.addEventListener('click', (e) => {
+          if (!e.target.closest('#nav-menu-wrap') && menu) menu.hidden = true;
+        });
+      })();
+
+      // 灵感速达 chip → 填入主题
+      (function () {
+        const ta = document.querySelector('#workbench-topic');
         if (!ta) return;
-        document.querySelectorAll('.topic-chip').forEach(function (chip) {
-          chip.addEventListener('click', function () {
-            ta.value = chip.dataset.topic || '';
+        document.querySelectorAll('.inspiration li').forEach((li) => {
+          li.addEventListener('click', () => {
+            ta.value = li.dataset.inspiration || li.textContent.trim();
             ta.focus();
+            ta.dispatchEvent(new Event('input', { bubbles: true }));
           });
         });
       })();
     </script>
   </body>
 </html>
-

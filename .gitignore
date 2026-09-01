@@ -12,5 +12,13 @@ data/*.db-wal
 # self-test artifacts
 pw-browsers/
 selftest-*.png
+selftest_*.py
 screenshot_*.py
+shot_*.py
+diag_*.py
+verify_*.py
+check_*.py
+qa-*.png
+cur-*.png
+*.bak-v2
 uvicorn.log

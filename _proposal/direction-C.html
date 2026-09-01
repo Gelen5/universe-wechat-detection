@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1440, initial-scale=1">
+<title>方向 C — 「指挥所」命令行质感</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Inter:wght@300;400;500;600&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0A0A0B;
+    --bg-2:#101012;
+    --bg-3:#16161A;
+    --line:rgba(255,255,255,.06);
+    --line-strong:rgba(255,255,255,.12);
+    --text:#E5E5E7;
+    --text-2:#8A8A92;
+    --text-3:#5C5C66;
+    --text-4:#3A3A42;
+    --ikb:#002FA7;
+    --ikb-bright:#3354FF;
+    --ikb-soft:rgba(0,47,167,.18);
+    --green:#3FB950;
+    --amber:#D29922;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono','SF Mono',monospace;font-size:13px;line-height:1.55;-webkit-font-smoothing:antialiased;}
+  a{color:inherit;text-decoration:none;}
+  .frame{width:1440px;height:900px;display:grid;grid-template-columns:72px 280px 1fr;border-bottom:1px solid var(--line);position:relative;overflow:hidden;}
+  .frame + .frame{margin-top:0;border-top:1px solid var(--line);}
+  .label{position:absolute;top:18px;right:24px;font-size:9px;letter-spacing:.18em;color:var(--text-3);z-index:5;text-transform:uppercase;}
+
+  /* ICON RAIL */
+  .rail{background:var(--bg-2);border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;padding:20px 0;gap:4px;}
+  .rail .logo{width:32px;height:32px;border:1px solid var(--line-strong);display:grid;place-items:center;margin-bottom:24px;font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:500;color:var(--text);background:var(--bg-3);border-radius:6px;}
+  .rail .ico{width:40px;height:40px;display:grid;place-items:center;color:var(--text-3);border-radius:6px;cursor:pointer;font-size:14px;}
+  .rail .ico:hover{color:var(--text);background:var(--bg-3);}
+  .rail .ico.on{color:#fff;background:var(--ikb);box-shadow:0 0 0 1px var(--ikb-bright), 0 0 16px rgba(51,84,255,.35);}
+  .rail .ico svg{width:18px;height:18px;}
+  .rail .spacer{flex:1;}
+  .rail .profile{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#3F3F46,#27272A);border:1px solid var(--line-strong);}
+
+  /* MID RAIL */
+  .mid{background:var(--bg);border-right:1px solid var(--line);padding:20px 0;display:flex;flex-direction:column;overflow:hidden;}
+  .mid .head{padding:0 20px 16px;border-bottom:1px solid var(--line);}
+  .mid .head .ws{font-size:10px;letter-spacing:.18em;color:var(--text-3);text-transform:uppercase;}
+  .mid .head .h{font-size:14px;font-weight:500;color:var(--text);margin-top:6px;letter-spacing:-.01em;}
+  .mid .head .sub{font-size:10px;letter-spacing:.1em;color:var(--text-3);margin-top:4px;}
+  .mid .search{padding:12px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;}
+  .mid .search input{background:transparent;border:0;outline:0;color:var(--text);font-family:inherit;font-size:12px;flex:1;letter-spacing:.04em;}
+  .mid .search input::placeholder{color:var(--text-3);}
+  .mid .search .k{font-size:9px;color:var(--text-3);border:1px solid var(--line-strong);padding:2px 5px;border-radius:3px;}
+  .mid .sec{padding:14px 20px 6px;font-size:9px;letter-spacing:.2em;color:var(--text-3);text-transform:uppercase;}
+  .mid .item{display:grid;grid-template-columns:20px 1fr;align-items:center;gap:10px;padding:7px 20px;color:var(--text-2);cursor:pointer;}
+  .mid .item:hover{color:var(--text);background:var(--bg-2);}
+  .mid .item.on{color:var(--text);background:var(--bg-3);box-shadow:inset 2px 0 0 var(--ikb-bright);}
+  .mid .item .n{color:var(--text-3);font-size:11px;}
+  .mid .item .l{font-size:12px;}
+  .mid .item .dot{width:6px;height:6px;border-radius:50%;background:var(--green);justify-self:end;margin-right:8px;}
+
+  /* MAIN */
+  main{display:flex;flex-direction:column;background:var(--bg);min-width:0;}
+  .topbar{height:40px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 24px;font-size:10px;letter-spacing:.14em;color:var(--text-3);text-transform:uppercase;}
+  .topbar .path span{color:var(--text-3);}
+  .topbar .path span.sep{color:var(--text-4);margin:0 6px;}
+  .topbar .path span.cur{color:var(--text);}
+  .topbar .right{display:flex;gap:18px;align-items:center;}
+  .topbar .right b{color:var(--text);font-weight:500;}
+
+  /* HOME — terminal style */
+  .terminal{flex:1;padding:32px 40px;display:flex;flex-direction:column;gap:18px;overflow:hidden;}
+  .tline{display:flex;gap:12px;font-size:13px;line-height:1.7;}
+  .tline .pr{color:var(--ikb-bright);user-select:none;}
+  .tline .cmd{color:var(--text);}
+  .tline .ok{color:var(--green);font-size:11px;padding-top:3px;letter-spacing:.12em;text-transform:uppercase;}
+  .tline .meta{color:var(--text-3);font-size:11px;padding-top:3px;letter-spacing:.12em;text-transform:uppercase;}
+  .tline .val{color:var(--amber);font-style:italic;}
+
+  .hero{font-family:'JetBrains Mono',monospace;font-size:160px;line-height:.9;font-weight:500;letter-spacing:-.05em;color:var(--text);margin-top:18px;}
+  .hero .ok{color:var(--green);font-size:24px;vertical-align:super;letter-spacing:0;}
+  .hero .lbl{font-size:11px;letter-spacing:.24em;color:var(--text-3);text-transform:uppercase;display:block;margin-top:14px;}
+
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--line);border:1px solid var(--line);margin-top:14px;}
+  .gcell{background:var(--bg);padding:18px 20px;display:flex;flex-direction:column;gap:8px;}
+  .gcell .n{font-size:10px;letter-spacing:.18em;color:var(--text-3);text-transform:uppercase;display:flex;justify-content:space-between;}
+  .gcell .n b{color:var(--text-2);font-weight:400;}
+  .gcell .name{font-size:14px;color:var(--text);font-weight:500;}
+  .gcell .desc{font-size:11px;color:var(--text-2);line-height:1.55;}
+  .gcell .run{font-size:10px;letter-spacing:.16em;color:var(--ikb-bright);text-transform:uppercase;padding-top:8px;border-top:1px solid var(--line);margin-top:4px;}
+
+  /* DIAGNOSE */
+  .dhero{flex:1;padding:32px 40px;display:flex;flex-direction:column;gap:14px;overflow:hidden;}
+  .drun{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:start;padding:24px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);}
+  .dscore{font-family:'JetBrains Mono',monospace;font-size:240px;line-height:.85;font-weight:500;letter-spacing:-.06em;color:var(--text);text-align:right;}
+  .dscore .den{font-size:32px;color:var(--text-3);font-weight:300;letter-spacing:0;margin-left:4px;}
+  .dscore .lbl{font-size:10px;letter-spacing:.22em;color:var(--text-3);text-transform:uppercase;display:block;margin-top:6px;text-align:right;}
+  .dcol{display:flex;flex-direction:column;gap:12px;}
+  .drow{display:grid;grid-template-columns:50px 1fr 60px;align-items:center;gap:16px;padding:6px 0;font-size:12px;}
+  .drow .k{color:var(--text-3);font-size:10px;letter-spacing:.1em;}
+  .drow .n{color:var(--text);}
+  .drow .v{color:var(--text);text-align:right;font-weight:500;}
+  .drow .bar{grid-column:2;height:1px;background:var(--line-strong);position:relative;margin-top:4px;}
+  .drow .bar i{position:absolute;left:0;top:-1px;height:3px;background:var(--ikb-bright);box-shadow:0 0 8px rgba(51,84,255,.5);}
+  .dlog{padding:18px 0 0;display:flex;flex-direction:column;gap:6px;font-size:11px;}
+  .dlog .line{color:var(--text-3);}
+  .dlog .line .ts{color:var(--text-4);margin-right:10px;}
+  .dlog .line .ok{color:var(--green);}
+  .dlog .line .cmd{color:var(--ikb-bright);}
+</style>
+</head>
+<body>
+
+<!-- ============ HOME ============ -->
+<div class="frame">
+  <span class="label">C / 01 — HOME</span>
+  <div class="rail">
+    <div class="logo">C</div>
+    <div class="ico on" title="Home">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 12L12 3l9 9M5 10v10h14V10"/></svg>
+    </div>
+    <div class="ico" title="Diagnose">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    </div>
+    <div class="ico" title="Write">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+    </div>
+    <div class="ico" title="XHS">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+    </div>
+    <div class="ico" title="TieTu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="14" rx="1"/><circle cx="9" cy="9" r="1.5"/><path d="m21 17-5-5L5 21"/></svg>
+    </div>
+    <div class="ico" title="Hit">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2 4 6v6c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6l-8-4z"/><path d="m9 12 2 2 4-4"/></svg>
+    </div>
+    <div class="ico" title="Morning">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="14" r="4"/><path d="M12 2v2M2 14h2M20 14h2M5 6l1.5 1.5M17.5 6 19 7.5"/></svg>
+    </div>
+    <div class="spacer"></div>
+    <div class="profile"></div>
+  </div>
+
+  <div class="mid">
+    <div class="head">
+      <div class="ws">— workspace</div>
+      <div class="h">cosmos-station</div>
+      <div class="sub">main · 6 modules</div>
+    </div>
+    <div class="search">
+      <span style="color:var(--text-3);">⌕</span>
+      <input placeholder="jump to module, run command…" readonly>
+      <span class="k">⌘K</span>
+    </div>
+    <div class="sec">— Modules</div>
+    <div class="item on">
+      <span class="n">01</span>
+      <span class="l">diagnose</span>
+      <span class="dot"></span>
+    </div>
+    <div class="item">
+      <span class="n">02</span>
+      <span class="l">wechat-write</span>
+    </div>
+    <div class="item">
+      <span class="n">03</span>
+      <span class="l">xhs-write</span>
+    </div>
+    <div class="item">
+      <span class="n">04</span>
+      <span class="l">tie-tu</span>
+    </div>
+    <div class="item">
+      <span class="n">05</span>
+      <span class="l">hit-check</span>
+    </div>
+    <div class="item">
+      <span class="n">06</span>
+      <span class="l">morning</span>
+    </div>
+  </div>
+
+  <main>
+    <div class="topbar">
+      <div class="path">
+        <span>cosmos</span>
+        <span class="sep">/</span>
+        <span>workspaces</span>
+        <span class="sep">/</span>
+        <span class="cur">overview</span>
+      </div>
+      <div class="right">
+        <span>queue <b>0</b></span>
+        <span>credits <b>247</b></span>
+        <span>v3.1.0</span>
+        <span>21:01 gmt+8</span>
+      </div>
+    </div>
+    <div class="terminal">
+      <div class="tline"><span class="pr">→</span><span class="cmd">cosmos status</span><span class="ok">READY</span></div>
+      <div class="tline"><span class="pr">→</span><span class="cmd">cosmos modules list</span><span class="meta">06 modules · 0 in queue</span></div>
+      <div class="tline"><span class="pr">→</span><span class="cmd">cosmos run diagnose --account</span><span class="val">"滚去睡"</span></div>
+      <div class="hero">READY<span class="ok">·</span><span class="lbl">— 06 modules online · queue empty · 247 credits</span></div>
+      <div class="grid">
+        <div class="gcell">
+          <div class="n"><span>module · 01</span><b>ready</b></div>
+          <div class="name">diagnose</div>
+          <div class="desc">公众号号号诊断 · 内容力与商业潜力报告 · 全维度扫描</div>
+          <div class="run">→ cosmos run diagnose</div>
+        </div>
+        <div class="gcell">
+          <div class="n"><span>module · 02</span><b>ready</b></div>
+          <div class="name">wechat-write</div>
+          <div class="desc">公众号创作 · 从选题到排版发布 · 8 步全链路管道</div>
+          <div class="run">→ cosmos run wechat-write</div>
+        </div>
+        <div class="gcell">
+          <div class="n"><span>module · 03</span><b>ready</b></div>
+          <div class="name">xhs-write</div>
+          <div class="desc">小红书创作 · 一键生成完整种草内容包 · 含配图</div>
+          <div class="run">→ cosmos run xhs-write</div>
+        </div>
+        <div class="gcell">
+          <div class="n"><span>module · 04</span><b>ready</b></div>
+          <div class="name">tie-tu</div>
+          <div class="desc">微信贴图号 · 卡片设计与批量生图 · 贴图号专属</div>
+          <div class="run">→ cosmos run tie-tu</div>
+        </div>
+        <div class="gcell">
+          <div class="n"><span>module · 05</span><b>ready</b></div>
+          <div class="name">hit-check</div>
+          <div class="desc">爆文检测 · 发布前编辑质量复核 · 结构与风险</div>
+          <div class="run">→ cosmos run hit-check</div>
+        </div>
+        <div class="gcell">
+          <div class="n"><span>module · 06</span><b>ready</b></div>
+          <div class="name">morning</div>
+          <div class="desc">早安祝福 · 图片与文案自动生成 · 早安号专用</div>
+          <div class="run">→ cosmos run morning</div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ============ DIAGNOSE TAB ============ -->
+<div class="frame">
+  <span class="label">C / 02 — DIAGNOSE</span>
+  <div class="rail">
+    <div class="logo">C</div>
+    <div class="ico" title="Home">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 12L12 3l9 9M5 10v10h14V10"/></svg>
+    </div>
+    <div class="ico on" title="Diagnose">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    </div>
+    <div class="ico" title="Write"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg></div>
+    <div class="ico" title="XHS"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></div>
+    <div class="ico" title="TieTu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="14" rx="1"/><circle cx="9" cy="9" r="1.5"/><path d="m21 17-5-5L5 21"/></svg></div>
+    <div class="ico" title="Hit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2 4 6v6c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6l-8-4z"/><path d="m9 12 2 2 4-4"/></svg></div>
+    <div class="ico" title="Morning"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="14" r="4"/><path d="M12 2v2M2 14h2M20 14h2M5 6l1.5 1.5M17.5 6 19 7.5"/></svg></div>
+    <div class="spacer"></div>
+    <div class="profile"></div>
+  </div>
+  <div class="mid">
+    <div class="head">
+      <div class="ws">— module · 01</div>
+      <div class="h">diagnose</div>
+      <div class="sub">公众号号号诊断</div>
+    </div>
+    <div class="search">
+      <span style="color:var(--text-3);">⌕</span>
+      <input placeholder="filter dimensions…" readonly>
+      <span class="k">⌘K</span>
+    </div>
+    <div class="sec">— Dimensions</div>
+    <div class="item on"><span class="n">A1</span><span class="l">content-power</span></div>
+    <div class="item"><span class="n">A2</span><span class="l">quality</span></div>
+    <div class="item"><span class="n">A3</span><span class="l">topic-fresh</span></div>
+    <div class="item"><span class="n">A4</span><span class="l">readability</span></div>
+    <div class="item"><span class="n">A5</span><span class="l">engagement</span></div>
+    <div class="item"><span class="n">A6</span><span class="l">monetize</span></div>
+  </div>
+  <main>
+    <div class="topbar">
+      <div class="path">
+        <span>cosmos</span>
+        <span class="sep">/</span>
+        <span>diagnose</span>
+        <span class="sep">/</span>
+        <span class="cur">滚去睡</span>
+      </div>
+      <div class="right">
+        <span>report <b>#2026-09-01-007</b></span>
+        <span>12s</span>
+        <span>21:01 gmt+8</span>
+      </div>
+    </div>
+    <div class="dhero">
+      <div class="tline"><span class="pr">→</span><span class="cmd">cosmos run diagnose --account</span><span class="val">"滚去睡"</span><span class="ok">DONE · 12s</span></div>
+      <div class="tline"><span class="pr">→</span><span class="cmd">cosmos report open --id 2026-09-01-007</span><span class="meta">composite 82/100 · 优质档</span></div>
+      <div class="drun">
+        <div class="dcol">
+          <div class="drow">
+            <span class="k">A1</span>
+            <span class="n">content-power · 商业潜力 · 张粉力</span>
+            <span class="v">82</span>
+          </div>
+          <div class="drow">
+            <span class="bar"><i style="width:82%"></i></span>
+            <span class="v"></span>
+          </div>
+          <div class="drow">
+            <span class="k">A2</span>
+            <span class="n">content-quality · 价值密度</span>
+            <span class="v">88</span>
+          </div>
+          <div class="drow">
+            <span class="bar"><i style="width:88%"></i></span>
+            <span class="v"></span>
+          </div>
+          <div class="drow">
+            <span class="k">A3</span>
+            <span class="n">topic-fresh · 时效与稀缺</span>
+            <span class="v">76</span>
+          </div>
+          <div class="drow">
+            <span class="bar"><i style="width:76%"></i></span>
+            <span class="v"></span>
+          </div>
+          <div class="drow">
+            <span class="k">A4</span>
+            <span class="n">readability · 排版与移动端</span>
+            <span class="v">91</span>
+          </div>
+          <div class="drow">
+            <span class="bar"><i style="width:91%"></i></span>
+            <span class="v"></span>
+          </div>
+          <div class="drow">
+            <span class="k">A5</span>
+            <span class="n">engagement · 互动与留资</span>
+            <span class="v">73</span>
+          </div>
+          <div class="drow">
+            <span class="bar"><i style="width:73%"></i></span>
+            <span class="v"></span>
+          </div>
+          <div class="drow">
+            <span class="k">A6</span>
+            <span class="n">monetize · 商业合作密度</span>
+            <span class="v">68</span>
+          </div>
+          <div class="drow">
+            <span class="bar"><i style="width:68%"></i></span>
+            <span class="v"></span>
+          </div>
+        </div>
+        <div class="dscore">82<span class="den">/100</span><span class="lbl">— composite · content power</span></div>
+      </div>
+      <div class="dlog">
+        <div class="line"><span class="ts">21:00:48</span><span class="cmd">→</span> scanned 1,247 articles · range 2025-09 → 2026-08</div>
+        <div class="line"><span class="ts">21:00:54</span><span class="cmd">→</span> computed 6 dimensions · ok</div>
+        <div class="line"><span class="ts">21:00:59</span><span class="cmd">→</span> cross-checked against 87 peers · ok</div>
+        <div class="line"><span class="ts">21:01:00</span><span class="ok">✓</span> report ready · export pdf / clipboard / wechat-draft</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+</body>
+</html>

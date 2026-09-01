@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1440, initial-scale=1">
+<title>v3 — Stripe-grade 极致克制</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+SC:wght@300;400;500;600&family=Noto+Serif+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ========== v3 — 极致克制 · Stripe-grade ========== */
+  :root{
+    --bg:#000000;
+    --bg-2:#0A0A0B;
+    --bg-3:#131316;
+    --bg-4:#1C1C20;
+    --paper:#FFFFFF;
+    --line:rgba(255,255,255,.06);
+    --line-2:rgba(255,255,255,.10);
+    --line-3:rgba(255,255,255,.16);
+    --line-4:rgba(255,255,255,.24);
+    --text:#FFFFFF;
+    --text-2:#A1A1AA;
+    --text-3:#71717A;
+    --text-4:#52525B;
+    --text-5:#3F3F46;
+    --ikb:#002FA7;
+    --ikb-bright:#3D5BFF;
+    --ikb-glow:rgba(61,91,255,.32);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;}
+  body{background:var(--bg);color:var(--text);font-family:'Inter','Noto Sans SC',-apple-system,sans-serif;font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;font-feature-settings:"ss01","cv11";letter-spacing:-.005em;}
+  a{color:inherit;text-decoration:none;}
+  button{font-family:inherit;}
+
+  /* ========== NAV ========== */
+  .nav{position:relative;height:64px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 40px;}
+  .nav .brand{display:flex;align-items:center;gap:10px;letter-spacing:-.01em;}
+  .nav .brand .mark{width:22px;height:22px;border-radius:6px;background:var(--ikb);position:relative;overflow:hidden;}
+  .nav .brand .mark::after{content:"";position:absolute;inset:5px;border:1.5px solid #fff;border-radius:50%;border-top-color:transparent;border-right-color:transparent;transform:rotate(-45deg);}
+  .nav .brand .name{font-size:15px;font-weight:600;color:var(--text);}
+  .nav .tabs{display:flex;align-items:center;gap:0;height:100%;}
+  .nav .tabs a{height:100%;display:flex;align-items:center;padding:0 14px;font-size:13px;color:var(--text-3);font-weight:500;border-bottom:2px solid transparent;margin-bottom:-1px;}
+  .nav .tabs a:hover{color:var(--text-2);}
+  .nav .tabs a.on{color:var(--text);border-bottom-color:var(--text);}
+  .nav .right{display:flex;align-items:center;gap:16px;font-size:12px;color:var(--text-3);font-weight:500;}
+  .nav .right .dot{width:6px;height:6px;border-radius:50%;background:#3FB950;box-shadow:0 0 8px rgba(63,185,80,.5);display:inline-block;margin-right:6px;vertical-align:middle;}
+  .nav .right .avatar{width:24px;height:24px;border-radius:50%;background:var(--bg-4);border:1px solid var(--line-2);}
+
+  /* ========== HERO ========== */
+  .hero{padding:80px 40px 0;display:grid;grid-template-columns:1fr 1fr;column-gap:80px;align-items:start;min-height:540px;}
+  .hero-l .kicker{font-size:12px;letter-spacing:.18em;color:var(--ikb-bright);text-transform:uppercase;font-weight:600;display:flex;align-items:center;gap:10px;margin-bottom:24px;}
+  .hero-l .kicker .line{width:24px;height:1px;background:var(--ikb-bright);}
+  .hero-l h1{font-size:72px;line-height:1.02;letter-spacing:-.04em;font-weight:600;color:var(--text);font-family:'Inter','Noto Serif SC',serif;}
+  .hero-l h1 .serif{font-family:'Noto Serif SC',serif;font-weight:500;font-style:italic;color:var(--text-2);}
+  .hero-l h1 .blue{color:var(--ikb-bright);}
+  .hero-l .lede{font-size:18px;line-height:1.55;color:var(--text-2);max-width:46ch;margin-top:24px;font-weight:400;}
+  .hero-l .cta-row{display:flex;gap:8px;margin-top:32px;align-items:center;}
+  .hero-l .cta-row .primary{height:48px;padding:0 22px;background:var(--text);color:#0A0A0B;border:0;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;letter-spacing:-.01em;}
+  .hero-l .cta-row .primary:hover{background:#E5E5E7;}
+  .hero-l .cta-row .secondary{height:48px;padding:0 18px;background:transparent;color:var(--text);border:1px solid var(--line-3);border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;}
+  .hero-l .proof{margin-top:48px;padding-top:24px;border-top:1px solid var(--line);display:flex;align-items:center;gap:16px;font-size:12px;color:var(--text-3);}
+  .hero-l .proof b{color:var(--text);font-weight:600;}
+  .hero-l .proof .sep{width:1px;height:12px;background:var(--line-2);}
+
+  /* ========== HERO RIGHT — report mock ========== */
+  .hero-r{position:relative;align-self:start;padding-top:8px;}
+  .hero-r .frame{background:var(--bg-2);border:1px solid var(--line-2);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:14px;box-shadow:0 30px 80px -20px rgba(0,0,0,.8), 0 0 0 1px var(--line);}
+  .hero-r .frame .head{display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--text-3);font-weight:500;letter-spacing:.04em;}
+  .hero-r .frame .head .lbl{font-family:'JetBrains Mono',monospace;}
+  .hero-r .frame .head .live{display:inline-flex;align-items:center;gap:5px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-2);}
+  .hero-r .frame .head .live i{width:5px;height:5px;border-radius:50%;background:var(--ikb-bright);box-shadow:0 0 8px var(--ikb-glow);}
+  .hero-r .frame .account{font-size:18px;font-weight:600;letter-spacing:-.01em;color:var(--text);}
+  .hero-r .frame .score-row{display:flex;align-items:flex-end;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);}
+  .hero-r .frame .score-row .v{font-size:64px;line-height:.9;font-weight:500;letter-spacing:-.04em;color:var(--text);font-family:'Inter',sans-serif;font-feature-settings:"tnum";}
+  .hero-r .frame .score-row .v .den{font-size:18px;color:var(--text-3);font-weight:300;margin-left:2px;}
+  .hero-r .frame .score-row .meta{text-align:right;font-size:11px;color:var(--text-3);line-height:1.6;letter-spacing:.04em;}
+  .hero-r .frame .score-row .meta .big{color:var(--text);font-size:13px;font-weight:500;display:block;margin-bottom:2px;font-family:'Inter',sans-serif;}
+  .hero-r .frame .dimlist{display:flex;flex-direction:column;gap:8px;}
+  .hero-r .frame .dim{display:grid;grid-template-columns:50px 1fr 30px 28px;align-items:center;gap:10px;font-size:12px;}
+  .hero-r .frame .dim .k{color:var(--text-3);font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;}
+  .hero-r .frame .dim .n{color:var(--text);font-weight:500;}
+  .hero-r .frame .dim .v{color:var(--text);text-align:right;font-family:'JetBrains Mono',monospace;font-weight:500;font-feature-settings:"tnum";}
+  .hero-r .frame .dim .bar{height:1px;background:var(--line-2);position:relative;}
+  .hero-r .frame .dim .bar i{position:absolute;left:0;top:-1px;height:3px;background:var(--ikb-bright);box-shadow:0 0 6px var(--ikb-glow);border-radius:2px;}
+
+  /* ========== MODULES ========== */
+  .modules{padding:80px 40px 60px;border-top:1px solid var(--line);margin-top:80px;}
+  .modules .head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:32px;}
+  .modules .head .l{display:flex;flex-direction:column;gap:6px;}
+  .modules .head .l .lbl{font-size:11px;letter-spacing:.18em;color:var(--text-3);text-transform:uppercase;font-weight:600;}
+  .modules .head .l h2{font-size:28px;font-weight:600;letter-spacing:-.025em;color:var(--text);}
+  .modules .head .l h2 .serif{font-family:'Noto Serif SC',serif;font-weight:500;font-style:italic;color:var(--text-2);}
+  .modules .head .r{font-size:12px;color:var(--text-3);font-family:'JetBrains Mono',monospace;letter-spacing:.04em;}
+  .modlist{border-top:1px solid var(--line);}
+  .mod{display:grid;grid-template-columns:48px 1.2fr 1.4fr 100px 24px;align-items:center;gap:32px;padding:24px 0;border-bottom:1px solid var(--line);cursor:pointer;transition:background .15s ease, padding .15s ease;position:relative;}
+  .mod:hover{background:var(--bg-2);padding-left:16px;padding-right:16px;}
+  .mod:hover .name{color:var(--text);}
+  .mod .num{font-size:13px;color:var(--text-3);font-family:'JetBrains Mono',monospace;font-weight:500;letter-spacing:.04em;}
+  .mod .name{font-size:18px;font-weight:500;color:var(--text);letter-spacing:-.01em;transition:color .15s;}
+  .mod .name .serif{font-family:'Noto Serif SC',serif;font-weight:500;}
+  .mod .desc{font-size:13px;color:var(--text-2);line-height:1.6;}
+  .mod .stat{font-size:10px;color:var(--text-3);text-align:right;letter-spacing:.18em;text-transform:uppercase;font-weight:600;font-family:'JetBrains Mono',monospace;}
+  .mod .stat .dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:#3FB950;margin-right:6px;vertical-align:middle;box-shadow:0 0 6px rgba(63,185,80,.4);}
+  .mod .arrow{color:var(--text-3);font-size:16px;text-align:right;transition:transform .15s ease, color .15s;}
+  .mod:hover .arrow{color:var(--ikb-bright);transform:translateX(2px);}
+
+  /* ========== FOOT ========== */
+  .foot{padding:32px 40px;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--text-3);font-weight:500;letter-spacing:.04em;}
+  .foot .l{display:flex;gap:24px;align-items:center;}
+  .foot .r{display:flex;gap:16px;align-items:center;font-family:'JetBrains Mono',monospace;}
+
+  /* ========== DIAGNOSE VIEW ========== */
+  .diag{padding:60px 40px;display:grid;grid-template-columns:1fr 400px;column-gap:64px;align-items:start;}
+  .diag .l-head .kicker{font-size:11px;letter-spacing:.18em;color:var(--ikb-bright);text-transform:uppercase;font-weight:600;display:flex;align-items:center;gap:10px;margin-bottom:16px;}
+  .diag .l-head .kicker .line{width:20px;height:1px;background:var(--ikb-bright);}
+  .diag .l-head h1{font-size:56px;line-height:1.05;letter-spacing:-.035em;font-weight:600;}
+  .diag .l-head h1 .serif{font-family:'Noto Serif SC',serif;font-weight:500;font-style:italic;color:var(--text-2);}
+  .diag .l-head .meta{margin-top:16px;font-size:12px;color:var(--text-3);font-family:'JetBrains Mono',monospace;letter-spacing:.04em;}
+  .diag .l-head .meta b{color:var(--text);font-weight:500;}
+  .diag .l-list{margin-top:48px;border-top:1px solid var(--line);}
+  .ditem{display:grid;grid-template-columns:60px 1fr 60px 20px;align-items:center;gap:20px;padding:20px 0;border-bottom:1px solid var(--line);cursor:pointer;transition:padding .15s, background .15s;}
+  .ditem:hover{background:var(--bg-2);padding-left:16px;padding-right:16px;}
+  .ditem .k{font-size:11px;color:var(--text-3);font-family:'JetBrains Mono',monospace;font-weight:500;letter-spacing:.04em;}
+  .ditem .n{font-size:15px;color:var(--text);font-weight:500;letter-spacing:-.01em;}
+  .ditem .v{font-size:15px;color:var(--text);text-align:right;font-family:'JetBrains Mono',monospace;font-weight:500;letter-spacing:-.01em;font-feature-settings:"tnum";}
+  .ditem .arrow{color:var(--text-3);font-size:14px;text-align:right;}
+  .ditem .sub{margin-top:6px;grid-column:2;font-size:12px;color:var(--text-3);line-height:1.5;}
+  .ditem .bwrap{grid-column:2 / -1;margin-top:8px;}
+  .ditem .bar{height:1px;background:var(--line-2);position:relative;}
+  .ditem .bar i{position:absolute;left:0;top:-1px;height:3px;background:var(--ikb-bright);box-shadow:0 0 8px var(--ikb-glow);border-radius:2px;}
+  .diag-r{border-left:1px solid var(--line);padding-left:48px;display:flex;flex-direction:column;gap:24px;position:sticky;top:60px;}
+  .diag-r .label{font-size:11px;letter-spacing:.18em;color:var(--text-3);text-transform:uppercase;font-weight:600;display:flex;align-items:center;gap:8px;}
+  .diag-r .label .line{width:16px;height:1px;background:var(--text-3);}
+  .diag-r .score{font-size:144px;line-height:.92;font-weight:500;letter-spacing:-.05em;color:var(--text);font-feature-settings:"tnum";margin-top:8px;}
+  .diag-r .score .den{font-size:28px;color:var(--text-3);font-weight:300;margin-left:6px;letter-spacing:-.02em;}
+  .diag-r .verdict{font-size:14px;color:var(--text);font-weight:500;letter-spacing:-.01em;margin-top:8px;}
+  .diag-r .verdict .serif{font-family:'Noto Serif SC',serif;font-style:italic;font-weight:400;color:var(--text-2);}
+  .diag-r .breakdown{display:flex;flex-direction:column;gap:14px;margin-top:8px;}
+  .brow{display:grid;grid-template-columns:36px 1fr 36px;align-items:center;gap:14px;font-size:13px;}
+  .brow .v{font-family:'JetBrains Mono',monospace;font-weight:500;color:var(--text);text-align:right;font-feature-settings:"tnum";}
+  .brow .n{color:var(--text-2);font-size:12px;}
+  .brow .bar{height:1px;background:var(--line-2);position:relative;}
+  .brow .bar i{position:absolute;left:0;top:-1px;height:3px;background:var(--ikb-bright);box-shadow:0 0 6px var(--ikb-glow);border-radius:2px;}
+  .diag-r .actions{display:flex;gap:8px;margin-top:8px;}
+  .diag-r .actions .ghost{flex:1;height:40px;background:transparent;color:var(--text);border:1px solid var(--line-3);border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;letter-spacing:-.005em;}
+  .diag-r .actions .solid{flex:1;height:40px;background:var(--text);color:#0A0A0B;border:0;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;letter-spacing:-.005em;}
+  .diag-r .proof{margin-top:8px;padding-top:18px;border-top:1px solid var(--line);font-size:11px;color:var(--text-3);line-height:1.7;letter-spacing:.02em;}
+  .diag-r .proof b{color:var(--text-2);font-weight:500;}
+</style>
+</head>
+<body>
+
+<!-- ========== HOME ========== -->
+<div style="width:1440px;height:900px;border-bottom:1px solid var(--line);overflow:hidden;position:relative;">
+  <span style="position:absolute;top:18px;right:40px;font-size:10px;letter-spacing:.18em;color:var(--text-3);z-index:5;text-transform:uppercase;font-weight:500;">v3 · HOME</span>
+  <nav class="nav">
+    <div class="brand">
+      <div class="mark"></div>
+      <span class="name">Cosmos Station</span>
+    </div>
+    <div class="tabs">
+      <a class="on">诊断</a>
+      <a>公众号创作</a>
+      <a>小红书创作</a>
+      <a>贴图号</a>
+      <a>爆文检测</a>
+      <a>早安祝福</a>
+    </div>
+    <div class="right">
+      <span><i class="dot"></i>247 credits</span>
+      <span>v3.1.0</span>
+      <div class="avatar"></div>
+    </div>
+  </nav>
+
+  <div class="hero">
+    <div class="hero-l">
+      <div class="kicker"><span class="line"></span><span>Workspace D/01 · Diagnose</span></div>
+      <h1>把内容力<br><span class="serif">说清楚</span><span class="blue">.</span></h1>
+      <p class="lede">输入公众号名字，启动一次全维度诊断，看清内容力、张粉力与商业潜力。无需登录，AI Key 由平台安全托管。</p>
+      <div class="cta-row">
+        <button class="primary">开始诊断 <span style="font-family:'JetBrains Mono',monospace;font-size:12px;">→</span></button>
+        <button class="secondary">查看示例报告</button>
+      </div>
+      <div class="proof">
+        <span><b>1,247</b> 公众号已建档</span>
+        <span class="sep"></span>
+        <span><b>87%</b> 用户首测拿到优质档</span>
+        <span class="sep"></span>
+        <span><b>12s</b> 平均完成</span>
+      </div>
+    </div>
+    <div class="hero-r">
+      <div class="frame">
+        <div class="head">
+          <span class="lbl">#2026-09-01-007</span>
+          <span class="live"><i></i>scanning</span>
+        </div>
+        <div class="account">滚去睡 <span style="color:var(--text-3);font-size:13px;font-weight:400;margin-left:6px;">— 公众号</span></div>
+        <div class="score-row">
+          <div class="v">82<span class="den">/100</span></div>
+          <div class="meta">
+            <span class="big">优质档</span>
+            内容力领跑同赛道 87%
+          </div>
+        </div>
+        <div class="dimlist">
+          <div class="dim"><span class="k">A1</span><span class="n">内容力</span><span class="v">82</span><span class="bar"><i style="width:82%"></i></span></div>
+          <div class="dim"><span class="k">A2</span><span class="n">内容质量</span><span class="v">88</span><span class="bar"><i style="width:88%"></i></span></div>
+          <div class="dim"><span class="k">A3</span><span class="n">选题敏感度</span><span class="v">76</span><span class="bar"><i style="width:76%"></i></span></div>
+          <div class="dim"><span class="k">A4</span><span class="n">排版可读性</span><span class="v">91</span><span class="bar"><i style="width:91%"></i></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== HOME · modules section (scroll) ========== -->
+<div style="width:1440px;height:900px;background:var(--bg);border-top:1px solid var(--line);position:relative;overflow:hidden;">
+  <span style="position:absolute;top:18px;right:40px;font-size:10px;letter-spacing:.18em;color:var(--text-3);z-index:5;text-transform:uppercase;font-weight:500;">v3 · MODULES</span>
+  <div class="modules" style="padding-top:64px;">
+    <div class="head">
+      <div class="l">
+        <span class="lbl">— All Workspaces · 06 modules</span>
+        <h2>六个工具，一套<span class="serif">节奏</span>。</h2>
+      </div>
+      <div class="r">last sync 21:01 · 12s</div>
+    </div>
+    <div class="modlist">
+      <div class="mod">
+        <span class="num">01</span>
+        <span class="name"><span class="serif">公众号</span>号号诊断</span>
+        <span class="desc">内容力与商业潜力报告。全维度扫描，给出可执行的改稿方向。</span>
+        <span class="stat"><span class="dot"></span>READY</span>
+        <span class="arrow">→</span>
+      </div>
+      <div class="mod">
+        <span class="num">02</span>
+        <span class="name"><span class="serif">公众号</span>创作</span>
+        <span class="desc">从选题到排版发布。8 步全链路管道，集成反 AI 改稿与排版。</span>
+        <span class="stat"><span class="dot"></span>READY</span>
+        <span class="arrow">→</span>
+      </div>
+      <div class="mod">
+        <span class="num">03</span>
+        <span class="name">小红书<span class="serif">创作</span></span>
+        <span class="desc">一键生成完整种草内容包。含配图与封面，社媒属性专属排版。</span>
+        <span class="stat"><span class="dot"></span>READY</span>
+        <span class="arrow">→</span>
+      </div>
+      <div class="mod">
+        <span class="num">04</span>
+        <span class="name">微信<span class="serif">贴图</span>号</span>
+        <span class="desc">卡片设计与批量生图。贴图号专属工作流，分镜自动排布。</span>
+        <span class="stat"><span class="dot"></span>READY</span>
+        <span class="arrow">→</span>
+      </div>
+      <div class="mod">
+        <span class="num">05</span>
+        <span class="name">爆文<span class="serif">检测</span></span>
+        <span class="desc">发布前编辑质量复核。结构参考分、事实账本、可执行改稿建议。</span>
+        <span class="stat"><span class="dot"></span>READY</span>
+        <span class="arrow">→</span>
+      </div>
+      <div class="mod">
+        <span class="num">06</span>
+        <span class="name">早安<span class="serif">祝福</span></span>
+        <span class="desc">图片与文案自动生成。早安号专用工作流，每日定时产出。</span>
+        <span class="stat"><span class="dot"></span>READY</span>
+        <span class="arrow">→</span>
+      </div>
+    </div>
+  </div>
+  <div class="foot">
+    <div class="l">
+      <span>Cosmos Station · Build 2026.09.01</span>
+    </div>
+    <div class="r">
+      <span>Gelen Studio</span>
+      <span style="color:var(--text-4);">·</span>
+      <span>v3.1.0</span>
+    </div>
+  </div>
+</div>
+
+<!-- ========== DIAGNOSE VIEW ========== -->
+<div style="width:1440px;height:900px;background:var(--bg);position:relative;overflow:hidden;border-top:1px solid var(--line);">
+  <span style="position:absolute;top:18px;right:40px;font-size:10px;letter-spacing:.18em;color:var(--text-3);z-index:5;text-transform:uppercase;font-weight:500;">v3 · DIAGNOSE</span>
+  <nav class="nav">
+    <div class="brand">
+      <div class="mark"></div>
+      <span class="name">Cosmos Station</span>
+    </div>
+    <div class="tabs">
+      <a class="on">诊断</a>
+      <a>公众号创作</a>
+      <a>小红书创作</a>
+      <a>贴图号</a>
+      <a>爆文检测</a>
+      <a>早安祝福</a>
+    </div>
+    <div class="right">
+      <span><i class="dot"></i>247 credits</span>
+      <span>v3.1.0</span>
+      <div class="avatar"></div>
+    </div>
+  </nav>
+  <div class="diag">
+    <div>
+      <div class="l-head">
+        <div class="kicker"><span class="line"></span><span>Report · D/01</span></div>
+        <h1>滚去睡 <span class="serif">诊断报告</span><span style="color:var(--ikb-bright);">.</span></h1>
+        <div class="meta">报告编号 <b>#2026-09-01-007</b> · 扫描耗时 <b>12s</b> · 样本 <b>1,247 篇</b></div>
+      </div>
+      <div class="l-list">
+        <div class="ditem">
+          <span class="k">A1</span>
+          <span class="n">内容力 · 商业潜力 · 张粉力</span>
+          <span class="v">82</span>
+          <span class="arrow">→</span>
+        </div>
+        <div class="ditem">
+          <span class="k">A2</span>
+          <span class="n">内容质量 · 价值密度</span>
+          <span class="v">88</span>
+          <span class="arrow">→</span>
+        </div>
+        <div class="ditem">
+          <span class="k">A3</span>
+          <span class="n">选题敏感度 · 时效与稀缺</span>
+          <span class="v">76</span>
+          <span class="arrow">→</span>
+        </div>
+        <div class="ditem">
+          <span class="k">A4</span>
+          <span class="n">排版与可读性</span>
+          <span class="v">91</span>
+          <span class="arrow">→</span>
+        </div>
+        <div class="ditem">
+          <span class="k">A5</span>
+          <span class="n">读者互动与留资</span>
+          <span class="v">73</span>
+          <span class="arrow">→</span>
+        </div>
+        <div class="ditem">
+          <span class="k">A6</span>
+          <span class="n">变现力 · 商业合作密度</span>
+          <span class="v">68</span>
+          <span class="arrow">→</span>
+        </div>
+      </div>
+    </div>
+    <div class="diag-r">
+      <div class="label"><span class="line"></span><span>Composite</span></div>
+      <div class="score">82<span class="den">/100</span></div>
+      <div class="verdict">优质档 · <span class="serif">内容力</span>领跑同赛道 87%</div>
+      <div class="breakdown">
+        <div class="brow"><span class="v">82</span><span class="n">内容力</span><span class="bar"><i style="width:82%"></i></span></div>
+        <div class="brow"><span class="v">74</span><span class="n">传播力</span><span class="bar"><i style="width:74%"></i></span></div>
+        <div class="brow"><span class="v">68</span><span class="n">变现力</span><span class="bar"><i style="width:68%"></i></span></div>
+        <div class="brow"><span class="v">91</span><span class="n">可读性</span><span class="bar"><i style="width:91%"></i></span></div>
+      </div>
+      <div class="actions">
+        <button class="ghost">导出 PDF</button>
+        <button class="solid">复制报告</button>
+      </div>
+      <div class="proof">
+        <b>在同赛道 1,247 个公众号里位列前 13%</b><br>
+        内容力与张粉力均显著领先，下一步建议强化选题稀缺度。
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

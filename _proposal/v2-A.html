@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1440, initial-scale=1">
+<title>v2 A — 暗色极致克制</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+SC:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#000000;
+    --bg-2:#0A0A0B;
+    --bg-3:#101013;
+    --line:rgba(255,255,255,.06);
+    --line-2:rgba(255,255,255,.10);
+    --line-3:rgba(255,255,255,.16);
+    --text:#FAFAFA;
+    --text-2:#8A8A92;
+    --text-3:#5C5C66;
+    --text-4:#3A3A42;
+    --accent:#5B57FF;
+    --accent-2:#7A77FF;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;}
+  body{background:var(--bg);color:var(--text);font-family:'Inter','Noto Sans SC',-apple-system,sans-serif;font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;font-feature-settings:"ss01","cv11";}
+  a{color:inherit;text-decoration:none;}
+  .frame{width:1440px;height:900px;display:grid;grid-template-columns:240px 1fr;border-bottom:1px solid var(--line);position:relative;overflow:hidden;}
+  .frame + .frame{margin-top:0;border-top:1px solid var(--line);}
+  .label{position:absolute;top:18px;right:24px;font-family:'Inter',monospace;font-size:10px;letter-spacing:.18em;color:var(--text-3);z-index:5;text-transform:uppercase;font-weight:500;}
+
+  /* SIDEBAR */
+  .side{padding:24px 16px;display:flex;flex-direction:column;gap:24px;border-right:1px solid var(--line);}
+  .brand{display:flex;align-items:center;gap:8px;padding:0 8px;}
+  .brand .mark{width:18px;height:18px;border-radius:5px;background:linear-gradient(135deg,#5B57FF 0%,#3D3AED 100%);}
+  .brand .name{font-size:13px;font-weight:600;letter-spacing:-.01em;color:var(--text);}
+  .side .sec{font-size:10px;letter-spacing:.14em;color:var(--text-3);text-transform:uppercase;padding:0 8px;font-weight:500;}
+  .nav{display:flex;flex-direction:column;gap:1px;}
+  .nav a{display:flex;align-items:center;gap:10px;padding:6px 8px;font-size:13px;color:var(--text-2);border-radius:6px;font-weight:400;transition:all .12s ease;}
+  .nav a:hover{color:var(--text);background:var(--bg-2);}
+  .nav a.on{color:var(--text);background:var(--bg-3);}
+  .nav a .ico{width:14px;height:14px;color:var(--text-3);flex-shrink:0;}
+  .nav a.on .ico{color:var(--text);}
+  .nav a .badge{margin-left:auto;font-size:10px;color:var(--text-3);font-weight:500;}
+
+  /* TOPBAR */
+  .topbar{height:48px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 32px;}
+  .crumbs{font-size:12px;color:var(--text-3);font-weight:400;display:flex;align-items:center;gap:6px;}
+  .crumbs .sep{color:var(--text-4);}
+  .crumbs .cur{color:var(--text);font-weight:500;}
+  .right{display:flex;align-items:center;gap:18px;font-size:11px;color:var(--text-3);font-weight:500;letter-spacing:.04em;}
+  .right .pill{display:flex;align-items:center;gap:6px;padding:4px 10px;border:1px solid var(--line-2);border-radius:6px;color:var(--text-2);}
+  .right .pill .dot{width:5px;height:5px;border-radius:50%;background:#3FB950;box-shadow:0 0 6px rgba(63,185,80,.5);}
+
+  /* HOME */
+  .home{flex:1;padding:64px 80px 0;display:flex;flex-direction:column;align-items:flex-start;gap:32px;max-width:1280px;}
+  .home .lede{font-size:11px;letter-spacing:.16em;color:var(--text-3);text-transform:uppercase;font-weight:500;display:flex;align-items:center;gap:8px;}
+  .home .lede .line{width:24px;height:1px;background:var(--line-3);}
+  .home h1{font-size:56px;line-height:1.05;font-weight:500;letter-spacing:-.035em;color:var(--text);margin-top:-12px;}
+  .home h1 .dim{color:var(--text-2);font-weight:400;}
+  .home p.sub{font-size:16px;line-height:1.6;color:var(--text-2);max-width:48ch;margin-top:-12px;}
+  .row-input{display:flex;gap:8px;width:100%;max-width:640px;margin-top:8px;}
+  .row-input .field{flex:1;display:flex;align-items:center;gap:10px;height:44px;padding:0 14px;border:1px solid var(--line-2);border-radius:8px;background:var(--bg-2);transition:border-color .15s;}
+  .row-input .field:focus-within{border-color:var(--accent);}
+  .row-input .field .lbl{font-size:11px;letter-spacing:.12em;color:var(--text-3);text-transform:uppercase;font-weight:500;}
+  .row-input .field .val{font-size:14px;color:var(--text);background:transparent;border:0;outline:0;flex:1;font-weight:400;}
+  .row-input .field .val::placeholder{color:var(--text-3);}
+  .row-input .btn{height:44px;padding:0 18px;border-radius:8px;background:var(--text);color:#0A0A0B;font-size:13px;font-weight:500;display:flex;align-items:center;gap:6px;letter-spacing:-.005em;cursor:pointer;border:0;}
+  .row-input .btn .arr{font-family:'JetBrains Mono',monospace;font-size:11px;}
+
+  .try{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text-3);letter-spacing:.06em;margin-top:0;}
+  .try .lbl{color:var(--text-3);text-transform:uppercase;font-weight:500;letter-spacing:.16em;margin-right:4px;}
+  .try .chip{padding:4px 10px;border:1px solid var(--line-2);border-radius:6px;color:var(--text-2);font-weight:400;}
+
+  /* MODULE LIST */
+  .modulelist{flex:1;margin:48px 0 0;padding:24px 0 0;border-top:1px solid var(--line);}
+  .modulelist .head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+  .modulelist .head .ttl{font-size:11px;letter-spacing:.16em;color:var(--text-3);text-transform:uppercase;font-weight:500;}
+  .modulelist .head .meta{font-size:11px;color:var(--text-3);font-family:'JetBrains Mono',monospace;letter-spacing:.04em;}
+  .mrow{display:grid;grid-template-columns:32px 200px 1fr 80px 16px;align-items:center;gap:24px;padding:18px 0;border-bottom:1px solid var(--line);font-size:14px;color:var(--text);transition:background .12s;}
+  .mrow:hover{background:var(--bg-2);}
+  .mrow .num{font-size:11px;color:var(--text-3);font-family:'JetBrains Mono',monospace;letter-spacing:.04em;font-weight:500;}
+  .mrow .name{font-size:14px;color:var(--text);font-weight:500;letter-spacing:-.01em;}
+  .mrow .desc{font-size:13px;color:var(--text-2);font-weight:400;}
+  .mrow .stat{font-size:11px;color:var(--text-3);text-align:right;letter-spacing:.12em;text-transform:uppercase;font-weight:500;font-family:'JetBrains Mono',monospace;}
+  .mrow .arrow{color:var(--text-3);font-size:14px;text-align:right;}
+
+  /* DIAGNOSE */
+  .diag{flex:1;padding:56px 80px 0;display:grid;grid-template-columns:1fr 360px;column-gap:64px;row-gap:32px;align-items:start;}
+  .diag .head h1{font-size:40px;line-height:1.1;font-weight:500;letter-spacing:-.025em;color:var(--text);}
+  .diag .head h1 .dim{color:var(--text-2);font-weight:400;}
+  .diag .head .meta{font-size:12px;color:var(--text-3);margin-top:8px;font-family:'JetBrains Mono',monospace;letter-spacing:.04em;}
+  .diag-left .dimlist{margin-top:32px;border-top:1px solid var(--line);}
+  .drow{display:grid;grid-template-columns:60px 1fr 48px 14px;align-items:center;gap:16px;padding:16px 0;border-bottom:1px solid var(--line);font-size:13px;}
+  .drow .k{font-size:11px;color:var(--text-3);font-family:'JetBrains Mono',monospace;font-weight:500;}
+  .drow .n{color:var(--text);font-weight:500;}
+  .drow .v{font-size:14px;color:var(--text);text-align:right;font-family:'JetBrains Mono',monospace;font-weight:500;letter-spacing:-.01em;}
+  .drow .arrow{color:var(--text-3);font-size:14px;text-align:right;}
+  .diag-right{border-left:1px solid var(--line);padding-left:48px;display:flex;flex-direction:column;gap:24px;}
+  .diag-right .score{font-size:120px;line-height:.95;font-weight:500;letter-spacing:-.05em;color:var(--text);font-feature-settings:"tnum";margin-top:-4px;}
+  .diag-right .score .den{font-size:24px;color:var(--text-3);font-weight:300;margin-left:6px;letter-spacing:-.02em;}
+  .diag-right .label{position:static;font-size:11px;letter-spacing:.16em;color:var(--text-3);text-transform:uppercase;font-weight:500;margin-top:8px;}
+  .diag-right .breakdown{display:flex;flex-direction:column;gap:14px;margin-top:16px;}
+  .brow{display:grid;grid-template-columns:36px 1fr 36px;align-items:center;gap:12px;font-size:12px;}
+  .brow .v{font-size:13px;color:var(--text);font-family:'JetBrains Mono',monospace;font-weight:500;text-align:right;}
+  .brow .n{color:var(--text-2);font-size:12px;}
+  .brow .bar{height:1px;background:var(--line-2);position:relative;}
+  .brow .bar i{position:absolute;left:0;top:-1px;height:3px;background:var(--accent);border-radius:2px;}
+</style>
+</head>
+<body>
+
+<!-- ============ HOME ============ -->
+<div class="frame">
+  <span class="label">A · HOME</span>
+  <aside class="side">
+    <div class="brand"><div class="mark"></div><div class="name">Cosmos Station</div></div>
+    <div>
+      <div class="sec" style="margin-bottom:8px;">Workspaces</div>
+      <nav class="nav">
+        <a class="on">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <span>公众号号号诊断</span>
+        </a>
+        <a>
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+          <span>公众号创作</span>
+        </a>
+        <a>
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          <span>小红书创作</span>
+        </a>
+        <a>
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="14" rx="1"/><circle cx="9" cy="9" r="1.5"/><path d="m21 17-5-5L5 21"/></svg>
+          <span>微信贴图号</span>
+        </a>
+        <a>
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2 4 6v6c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6l-8-4z"/><path d="m9 12 2 2 4-4"/></svg>
+          <span>爆文检测</span>
+        </a>
+        <a>
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="14" r="4"/><path d="M12 2v2M2 14h2M20 14h2M5 6l1.5 1.5M17.5 6 19 7.5"/></svg>
+          <span>早安祝福</span>
+        </a>
+      </nav>
+    </div>
+    <div style="margin-top:auto;">
+      <div class="sec" style="margin-bottom:8px;">Account</div>
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;font-size:12px;color:var(--text-2);">
+        <div style="width:18px;height:18px;border-radius:50%;background:linear-gradient(135deg,#5B57FF,#3D3AED);"></div>
+        <span style="color:var(--text);">Gelen</span>
+      </div>
+    </div>
+  </aside>
+  <main style="display:flex;flex-direction:column;">
+    <div class="topbar">
+      <div class="crumbs">
+        <span>Workspaces</span>
+        <span class="sep">/</span>
+        <span class="cur">Overview</span>
+      </div>
+      <div class="right">
+        <span class="pill"><span class="dot"></span>All systems normal</span>
+        <span>Credits 247</span>
+        <span>21:01 GMT+8</span>
+      </div>
+    </div>
+    <div class="home">
+      <div class="lede"><span class="line"></span><span>Workspace · D/01</span></div>
+      <h1>把内容力 <span class="dim">说清楚</span></h1>
+      <p class="sub">输入公众号名字，启动一次全维度诊断，看清内容力、张粉力与商业潜力。</p>
+      <div class="row-input">
+        <div class="field">
+          <span class="lbl">account</span>
+          <input class="val" value="滚去睡" readonly>
+        </div>
+        <button class="btn"><span>开始诊断</span><span class="arr">→</span></button>
+      </div>
+      <div class="try">
+        <span class="lbl">try</span>
+        <span class="chip">滚去睡</span>
+        <span class="chip">星空漫游</span>
+        <span class="chip">奔龟日记</span>
+      </div>
+      <div class="modulelist">
+        <div class="head">
+          <span class="ttl">Modules · 06</span>
+          <span class="meta">last sync 21:01</span>
+        </div>
+        <div class="mrow">
+          <span class="num">01</span>
+          <span class="name">公众号号号诊断</span>
+          <span class="desc">内容力与商业潜力报告 · 全维度扫描</span>
+          <span class="stat">READY</span>
+          <span class="arrow">→</span>
+        </div>
+        <div class="mrow">
+          <span class="num">02</span>
+          <span class="name">公众号创作</span>
+          <span class="desc">从选题到排版发布 · 8 步全链路管道</span>
+          <span class="stat">READY</span>
+          <span class="arrow">→</span>
+        </div>
+        <div class="mrow">
+          <span class="num">03</span>
+          <span class="name">小红书创作</span>
+          <span class="desc">一键生成完整种草内容包 · 含配图</span>
+          <span class="stat">READY</span>
+          <span class="arrow">→</span>
+        </div>
+        <div class="mrow">
+          <span class="num">04</span>
+          <span class="name">微信贴图号</span>
+          <span class="desc">卡片设计与批量生图 · 贴图号专属</span>
+          <span class="stat">READY</span>
+          <span class="arrow">→</span>
+        </div>
+        <div class="mrow">
+          <span class="num">05</span>
+          <span class="name">爆文检测</span>
+          <span class="desc">发布前编辑质量复核 · 结构与风险</span>
+          <span class="stat">READY</span>
+          <span class="arrow">→</span>
+        </div>
+        <div class="mrow">
+          <span class="num">06</span>
+          <span class="name">早安祝福</span>
+          <span class="desc">图片与文案自动生成 · 早安号专用</span>
+          <span class="stat">READY</span>
+          <span class="arrow">→</span>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ============ DIAGNOSE ============ -->
+<div class="frame">
+  <span class="label">A · DIAGNOSE</span>
+  <aside class="side">
+    <div class="brand"><div class="mark"></div><div class="name">Cosmos Station</div></div>
+    <div>
+      <div class="sec" style="margin-bottom:8px;">Workspaces</div>
+      <nav class="nav">
+        <a class="on">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <span>公众号号号诊断</span>
+        </a>
+        <a><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg><span>公众号创作</span></a>
+        <a><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg><span>小红书创作</span></a>
+        <a><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="14" rx="1"/><circle cx="9" cy="9" r="1.5"/><path d="m21 17-5-5L5 21"/></svg><span>微信贴图号</span></a>
+        <a><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2 4 6v6c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6l-8-4z"/><path d="m9 12 2 2 4-4"/></svg><span>爆文检测</span></a>
+        <a><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="14" r="4"/><path d="M12 2v2M2 14h2M20 14h2M5 6l1.5 1.5M17.5 6 19 7.5"/></svg><span>早安祝福</span></a>
+      </nav>
+    </div>
+    <div style="margin-top:auto;">
+      <div class="sec" style="margin-bottom:8px;">Account</div>
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;font-size:12px;color:var(--text-2);">
+        <div style="width:18px;height:18px;border-radius:50%;background:linear-gradient(135deg,#5B57FF,#3D3AED);"></div>
+        <span style="color:var(--text);">Gelen</span>
+      </div>
+    </div>
+  </aside>
+  <main style="display:flex;flex-direction:column;">
+    <div class="topbar">
+      <div class="crumbs">
+        <span>Workspaces</span>
+        <span class="sep">/</span>
+        <span>公众号号号诊断</span>
+        <span class="sep">/</span>
+        <span class="cur">滚去睡</span>
+      </div>
+      <div class="right">
+        <span>Report #2026-09-01-007</span>
+        <span>12s</span>
+      </div>
+    </div>
+    <div class="diag">
+      <div class="diag-left">
+        <div class="head">
+          <h1>滚去睡 <span class="dim">— 诊断报告</span></h1>
+          <div class="meta">/ 1,247 articles · range 2025-09 → 2026-08 · composite 82/100</div>
+        </div>
+        <div class="dimlist">
+          <div class="drow"><span class="k">A1</span><span class="n">内容力 · 商业潜力 · 张粉力</span><span class="v">82</span><span class="arrow">→</span></div>
+          <div class="drow"><span class="k">A2</span><span class="n">内容质量 · 价值密度</span><span class="v">88</span><span class="arrow">→</span></div>
+          <div class="drow"><span class="k">A3</span><span class="n">选题敏感度 · 时效与稀缺</span><span class="v">76</span><span class="arrow">→</span></div>
+          <div class="drow"><span class="k">A4</span><span class="n">排版与可读性</span><span class="v">91</span><span class="arrow">→</span></div>
+          <div class="drow"><span class="k">A5</span><span class="n">读者互动与留资</span><span class="v">73</span><span class="arrow">→</span></div>
+          <div class="drow"><span class="k">A6</span><span class="n">变现力 · 商业合作密度</span><span class="v">68</span><span class="arrow">→</span></div>
+        </div>
+      </div>
+      <div class="diag-right">
+        <div class="label">Composite</div>
+        <div class="score">82<span class="den">/100</span></div>
+        <div class="label">优质档 · 内容力领跑同赛道 87%</div>
+        <div class="breakdown">
+          <div class="brow"><span class="v">82</span><span class="n">内容力</span><span class="bar"><i style="width:82%;"></i></span></div>
+          <div class="brow"><span class="v">74</span><span class="n">传播力</span><span class="bar"><i style="width:74%;"></i></span></div>
+          <div class="brow"><span class="v">68</span><span class="n">变现力</span><span class="bar"><i style="width:68%;"></i></span></div>
+          <div class="brow"><span class="v">91</span><span class="n">可读性</span><span class="bar"><i style="width:91%;"></i></span></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button style="flex:1;height:36px;border:1px solid var(--line-2);background:transparent;color:var(--text);font-size:12px;font-weight:500;border-radius:7px;cursor:pointer;letter-spacing:-.005em;">导出 PDF</button>
+          <button style="flex:1;height:36px;background:var(--text);color:#0A0A0B;font-size:12px;font-weight:500;border-radius:7px;border:0;cursor:pointer;letter-spacing:-.005em;">复制报告</button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+</body>
+</html>

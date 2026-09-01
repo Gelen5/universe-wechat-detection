@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1440, initial-scale=1">
+<title>方向 B — 「编辑室」浅色印刷感</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,700;1,9..144,400;1,9..144,500&family=Inter:wght@300;400;500;600&family=Noto+Serif+SC:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F2EFE7;
+    --paper:#FBFAF5;
+    --ink:#1A1714;
+    --ink-2:#4A4641;
+    --ink-3:#8B8579;
+    --line:rgba(26,23,20,.12);
+    --line-soft:rgba(26,23,20,.06);
+    --clay:#C2542F;
+    --olive:#5B5A2A;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--ink);font-family:'Inter','PingFang SC',sans-serif;font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased;}
+  a{color:inherit;text-decoration:none;}
+  .frame{width:1440px;height:900px;display:grid;grid-template-columns:248px 1fr;border-bottom:1px solid var(--line);position:relative;overflow:hidden;}
+  .frame + .frame{margin-top:0;border-top:1px solid var(--line);}
+  .label{position:absolute;top:18px;right:24px;font-family:'Inter',monospace;font-size:10px;letter-spacing:.2em;color:var(--ink-3);z-index:5;text-transform:uppercase;}
+
+  /* SIDEBAR */
+  .side{padding:36px 22px 24px;border-right:1px solid var(--line);background:var(--paper);display:flex;flex-direction:column;gap:30px;}
+  .brand{font-family:'Fraunces',serif;font-size:24px;font-weight:500;letter-spacing:-.02em;line-height:1.05;}
+  .brand em{font-style:italic;font-weight:400;color:var(--clay);}
+  .brand .sub{font-family:'Inter',sans-serif;font-size:9px;letter-spacing:.22em;color:var(--ink-3);text-transform:uppercase;margin-top:8px;}
+  .side .sec-label{font-family:'Inter',sans-serif;font-size:9px;letter-spacing:.22em;color:var(--ink-3);text-transform:uppercase;padding-bottom:8px;border-bottom:1px solid var(--line);}
+  .nav{display:flex;flex-direction:column;gap:0;}
+  .nav a{display:grid;grid-template-columns:18px 1fr;align-items:baseline;gap:10px;padding:11px 0;border-bottom:1px solid var(--line-soft);font-family:'Fraunces',serif;font-size:16px;color:var(--ink-2);font-weight:400;transition:color .15s;}
+  .nav a:hover{color:var(--ink);}
+  .nav a.active{color:var(--ink);font-weight:500;}
+  .nav a.active .num{color:var(--clay);font-style:italic;}
+  .nav a .num{font-family:'Fraunces',serif;font-size:11px;font-style:italic;color:var(--ink-3);font-weight:400;letter-spacing:0;}
+  .side .footer{margin-top:auto;padding-top:16px;border-top:1px solid var(--line);font-family:'Inter',sans-serif;font-size:9px;letter-spacing:.2em;color:var(--ink-3);text-transform:uppercase;display:flex;flex-direction:column;gap:4px;}
+
+  /* MAIN */
+  main{position:relative;display:flex;flex-direction:column;background:var(--bg);}
+  .topbar{height:48px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 56px;font-family:'Inter',sans-serif;font-size:10px;letter-spacing:.2em;color:var(--ink-3);text-transform:uppercase;background:var(--paper);}
+  .topbar .crumbs span + span::before{content:"·";margin:0 12px;color:var(--ink-3);}
+  .topbar .crumbs span:last-child{color:var(--ink);}
+  .topbar .stats{display:flex;gap:22px;}
+  .topbar .stats b{color:var(--ink);font-weight:500;}
+
+  /* HOME */
+  .home{flex:1;padding:48px 56px 40px;display:grid;grid-template-columns:repeat(12,1fr);column-gap:24px;row-gap:32px;align-content:start;background:var(--bg);}
+  .home .issue{grid-column:1 / span 3;font-family:'Inter',sans-serif;font-size:10px;letter-spacing:.22em;color:var(--clay);text-transform:uppercase;align-self:start;padding-top:6px;}
+  .home .issue .num{font-family:'Fraunces',serif;font-size:48px;font-style:italic;font-weight:400;letter-spacing:-.02em;line-height:1;display:block;margin-top:6px;color:var(--ink);}
+  .home h1{grid-column:1 / span 8;font-family:'Fraunces','Noto Serif SC',serif;font-size:108px;line-height:.92;font-weight:500;letter-spacing:-.04em;color:var(--ink);}
+  .home h1 em{font-style:italic;font-weight:400;color:var(--clay);}
+  .home h1 .thin{font-weight:300;color:var(--ink-2);}
+  .home .lede{grid-column:9 / span 4;align-self:end;font-family:'Fraunces',serif;font-size:20px;line-height:1.5;font-style:italic;font-weight:300;color:var(--ink-2);padding-bottom:6px;}
+  .home .inputline{grid-column:1 / span 8;border-bottom:1px solid var(--ink);display:flex;align-items:baseline;gap:24px;padding:18px 0 16px;}
+  .home .inputline .lbl{font-family:'Inter',sans-serif;font-size:10px;letter-spacing:.22em;color:var(--ink-3);text-transform:uppercase;padding-bottom:3px;}
+  .home .inputline .val{font-family:'Fraunces','Noto Serif SC',serif;font-size:36px;font-style:italic;color:var(--ink);background:transparent;border:0;outline:0;flex:1;font-weight:400;}
+  .home .inputline .val::placeholder{color:var(--ink-3);}
+  .home .inputline .go{font-family:'Inter',sans-serif;font-size:10px;letter-spacing:.22em;color:var(--clay);text-transform:uppercase;padding-bottom:3px;}
+  .home .chips{grid-column:1 / span 8;display:flex;gap:8px;margin-top:-12px;}
+  .home .chips span{font-family:'Inter',sans-serif;font-size:10px;letter-spacing:.16em;color:var(--ink-3);text-transform:uppercase;padding:5px 0;margin-right:18px;border-bottom:1px solid var(--line);}
+
+  /* MODULE LIST (asymmetric, no card) */
+  .modulelist{flex:1;border-top:1px solid var(--line);padding:32px 56px 40px;background:var(--paper);}
+  .modulelist .head{display:grid;grid-template-columns:repeat(12,1fr);column-gap:24px;align-items:baseline;margin-bottom:24px;}
+  .modulelist .head .sec{grid-column:1 / span 4;font-family:'Inter',sans-serif;font-size:10px;letter-spacing:.22em;color:var(--ink-3);text-transform:uppercase;}
+  .modulelist .head .lede{grid-column:5 / span 6;font-family:'Fraunces',serif;font-style:italic;font-weight:300;font-size:18px;color:var(--ink-2);line-height:1.45;}
+  .modulelist .head .meta{grid-column:11 / span 2;font-family:'Inter',sans-serif;font-size:9px;letter-spacing:.2em;color:var(--ink-3);text-align:right;text-transform:uppercase;}
+  .mrow{display:grid;grid-template-columns:repeat(12,1fr);column-gap:24px;align-items:start;padding:28px 0;border-top:1px solid var(--line);}
+  .mrow:last-child{border-bottom:1px solid var(--line);}
+  .mrow .num{grid-column:1 / span 1;font-family:'Fraunces',serif;font-size:64px;line-height:1;font-weight:400;font-style:italic;color:var(--ink-3);letter-spacing:-.02em;}
+  .mrow .name{grid-column:2 / span 4;font-family:'Fraunces','Noto Serif SC',serif;font-size:32px;line-height:1.05;font-weight:500;letter-spacing:-.02em;color:var(--ink);}
+  .mrow .desc{grid-column:6 / span 4;font-family:'Inter',sans-serif;font-size:14px;line-height:1.65;color:var(--ink-2);padding-top:8px;}
+  .mrow .stat{grid-column:10 / span 2;font-family:'Inter',sans-serif;font-size:10px;letter-spacing:.18em;color:var(--ink-3);text-transform:uppercase;padding-top:14px;}
+  .mrow .arrow{grid-column:12 / span 1;font-family:'Fraunces',serif;font-size:32px;color:var(--clay);text-align:right;padding-top:6px;}
+  .mrow:hover .num{color:var(--clay);}
+
+  /* DIAGNOSE */
+  .diag{flex:1;padding:48px 56px 40px;display:grid;grid-template-columns:repeat(12,1fr);column-gap:24px;row-gap:32px;align-content:start;background:var(--bg);}
+  .diag .issue{grid-column:1 / span 3;font-family:'Inter',sans-serif;font-size:10px;letter-spacing:.22em;color:var(--clay);text-transform:uppercase;align-self:start;padding-top:6px;}
+  .diag .issue .num{font-family:'Fraunces',serif;font-size:64px;font-style:italic;font-weight:400;line-height:1;display:block;margin-top:6px;color:var(--ink);}
+  .diag h1{grid-column:1 / span 7;font-family:'Fraunces','Noto Serif SC',serif;font-size:96px;line-height:.92;font-weight:500;letter-spacing:-.04em;}
+  .diag h1 em{font-style:italic;font-weight:400;color:var(--clay);}
+  .diag .meta{grid-column:1 / span 6;font-family:'Inter',sans-serif;font-size:10px;letter-spacing:.2em;color:var(--ink-3);text-transform:uppercase;margin-top:8px;}
+  .diag .score{grid-column:9 / span 4;display:flex;flex-direction:column;align-items:flex-start;align-self:start;padding-top:6px;}
+  .diag .score .v{font-family:'Fraunces',serif;font-size:200px;line-height:.9;font-weight:500;letter-spacing:-.05em;color:var(--clay);}
+  .diag .score .lbl{font-family:'Inter',sans-serif;font-size:10px;letter-spacing:.22em;color:var(--ink-3);text-transform:uppercase;margin-top:8px;}
+  .diag .score .sub{font-family:'Fraunces',serif;font-style:italic;font-size:18px;color:var(--ink-2);margin-top:8px;line-height:1.4;}
+  .dim{grid-column:1 / span 12;display:grid;grid-template-columns:60px 1fr 60px;align-items:center;gap:24px;padding:14px 0;border-top:1px solid var(--line-soft);font-family:'Inter',sans-serif;}
+  .dim:last-child{border-bottom:1px solid var(--line-soft);}
+  .dim .lbl{font-family:'Inter',sans-serif;font-size:10px;letter-spacing:.18em;color:var(--ink-3);text-transform:uppercase;}
+  .dim .name{font-family:'Fraunces',serif;font-size:18px;font-weight:500;color:var(--ink);}
+  .dim .v{font-family:'Fraunces',serif;font-size:24px;font-weight:500;text-align:right;font-feature-settings:"tnum";}
+</style>
+</head>
+<body>
+
+<!-- ============ HOME ============ -->
+<div class="frame">
+  <span class="label">B / 01 — HOME</span>
+  <aside class="side">
+    <div>
+      <div class="brand">Cosmos<br><em>station.</em><div class="sub">— Issue No. 09 · Sept 2026</div></div>
+    </div>
+    <div>
+      <div class="sec-label">Workspaces</div>
+      <nav class="nav">
+        <a class="active"><span class="num">01</span><span>公众号号号诊断</span></a>
+        <a><span class="num">02</span><span>公众号创作</span></a>
+        <a><span class="num">03</span><span>小红书创作</span></a>
+        <a><span class="num">04</span><span>微信贴图号</span></a>
+        <a><span class="num">05</span><span>爆文检测</span></a>
+        <a><span class="num">06</span><span>早安祝福</span></a>
+      </nav>
+    </div>
+    <div class="footer">
+      <div>Edition 2026.09</div>
+      <div>Gelen Studio</div>
+    </div>
+  </aside>
+  <main>
+    <div class="topbar">
+      <div class="crumbs"><span>Cosmos Station</span><span>Workspaces</span><span>Overview</span></div>
+      <div class="stats">
+        <span>Queue <b>0</b></span>
+        <span>Credits <b>247</b></span>
+        <span>21:01 GMT+8</span>
+      </div>
+    </div>
+    <div class="home">
+      <div class="issue">— Feature<span class="num">№ 01</span></div>
+      <h1>把内容力<br><em>说清楚。</em></h1>
+      <p class="lede">输入公众号名字，启动一次全维度诊断，看清内容力、张粉力与商业潜力。</p>
+      <div class="inputline">
+        <span class="lbl">Account</span>
+        <input class="val" value="滚去睡" readonly>
+        <span class="go">Diagnose →</span>
+      </div>
+      <div class="chips">
+        <span>try · 滚去睡</span>
+        <span>try · 星空漫游</span>
+        <span>try · 奔龟日记</span>
+      </div>
+    </div>
+    <div class="modulelist">
+      <div class="head">
+        <span class="sec">— Workspaces / 06 modules</span>
+        <span class="lede">不只是一组卡片，而是一份持续再版的目录。</span>
+        <span class="meta">12s · synced</span>
+      </div>
+      <div class="mrow">
+        <span class="num">01</span>
+        <span class="name">公众号号号诊断</span>
+        <span class="desc">内容力与商业潜力报告。一次检测，看清内容力、张粉力与商业潜力，全维度扫描。</span>
+        <span class="stat">Ready</span>
+        <span class="arrow">↗</span>
+      </div>
+      <div class="mrow">
+        <span class="num">02</span>
+        <span class="name">公众号创作</span>
+        <span class="desc">从选题到排版发布。8 步全链路管道，集成反 AI 改稿与排版。</span>
+        <span class="stat">Ready</span>
+        <span class="arrow">↗</span>
+      </div>
+      <div class="mrow">
+        <span class="num">03</span>
+        <span class="name">小红书创作</span>
+        <span class="desc">一键生成完整种草内容包。含配图与封面，社媒属性专属排版。</span>
+        <span class="stat">Ready</span>
+        <span class="arrow">↗</span>
+      </div>
+      <div class="mrow">
+        <span class="num">04</span>
+        <span class="name">微信贴图号</span>
+        <span class="desc">卡片设计与批量生图。贴图号专属工作流，分镜自动排布。</span>
+        <span class="stat">Ready</span>
+        <span class="arrow">↗</span>
+      </div>
+      <div class="mrow">
+        <span class="num">05</span>
+        <span class="name">爆文检测</span>
+        <span class="desc">发布前编辑质量复核。结构参考分、事实账本、可执行改稿建议。</span>
+        <span class="stat">Ready</span>
+        <span class="arrow">↗</span>
+      </div>
+      <div class="mrow">
+        <span class="num">06</span>
+        <span class="name">早安祝福</span>
+        <span class="desc">图片与文案自动生成。早安号专用工作流，每日定时产出。</span>
+        <span class="stat">Ready</span>
+        <span class="arrow">↗</span>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ============ DIAGNOSE TAB ============ -->
+<div class="frame">
+  <span class="label">B / 02 — DIAGNOSE</span>
+  <aside class="side">
+    <div>
+      <div class="brand">Cosmos<br><em>station.</em><div class="sub">— Issue No. 09 · Sept 2026</div></div>
+    </div>
+    <div>
+      <div class="sec-label">Workspaces</div>
+      <nav class="nav">
+        <a class="active"><span class="num">01</span><span>公众号号号诊断</span></a>
+        <a><span class="num">02</span><span>公众号创作</span></a>
+        <a><span class="num">03</span><span>小红书创作</span></a>
+        <a><span class="num">04</span><span>微信贴图号</span></a>
+        <a><span class="num">05</span><span>爆文检测</span></a>
+        <a><span class="num">06</span><span>早安祝福</span></a>
+      </nav>
+    </div>
+    <div class="footer">
+      <div>Report № 007</div>
+      <div>12s</div>
+    </div>
+  </aside>
+  <main>
+    <div class="topbar">
+      <div class="crumbs"><span>Cosmos Station</span><span>Workspaces</span><span>公众号号号诊断</span></div>
+      <div class="stats">
+        <span>Account <b>滚去睡</b></span>
+        <span>1,247 articles</span>
+        <span>21:01 GMT+8</span>
+      </div>
+    </div>
+    <div class="diag">
+      <div class="issue">— Report<span class="num">№ 007</span></div>
+      <h1>滚去睡<br><em>82 / 100.</em></h1>
+      <div class="meta">Composite · 优质档 · 内容力领跑同赛道 87%</div>
+      <div class="score">
+        <span class="v">82</span>
+        <span class="lbl">— Content Power</span>
+        <span class="sub">在同赛道 1,247 个公众号里位列前 13%，内容力与张粉力均显著领先。</span>
+      </div>
+      <div class="dim"><span class="lbl">A1</span><span class="name">内容力 · 商业潜力 · 张粉力</span><span class="v">82</span></div>
+      <div class="dim"><span class="lbl">A2</span><span class="name">内容质量 · 价值密度</span><span class="v">88</span></div>
+      <div class="dim"><span class="lbl">A3</span><span class="name">选题敏感度 · 时效与稀缺</span><span class="v">76</span></div>
+      <div class="dim"><span class="lbl">A4</span><span class="name">排版与可读性</span><span class="v">91</span></div>
+      <div class="dim"><span class="lbl">A5</span><span class="name">读者互动与留资</span><span class="v">73</span></div>
+      <div class="dim"><span class="lbl">A6</span><span class="name">变现力 · 商业合作密度</span><span class="v">68</span></div>
+    </div>
+  </main>
+</div>
+
+</body>
+</html>
