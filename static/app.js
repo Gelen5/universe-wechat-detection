@@ -272,7 +272,8 @@ async function openWallet() {
   toggleSettingsMenu(false);
   try {
     await refreshWallet(true);
-    if (currentAccount?.role === 'admin') {
+    const isOwnerAdmin = currentAccount?.role === 'admin' && currentAccount?.email?.toLowerCase() === 'gelen5@163.com';
+    if (isOwnerAdmin) {
       document.querySelector('#admin-recharge-panel').hidden = false;
       await searchAdminUsers();
     }
