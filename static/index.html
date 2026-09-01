@@ -189,53 +189,28 @@
       </section>
 
       <section id="workbench" class="workbench-page article-workspace" hidden>
-        <div class="workbench-intro">
-          <span class="micro-label">内容创作工作台</span>
-          <h1>从一个主题，开始一篇好文章</h1>
-          <p>AI 陪你完成选题、写作、反 AI、配图、排版和预览。你可以一次完成，也可以在每一步亲自确认。</p>
-        </div>
-        <div class="mode-switch" role="tablist" aria-label="创作模式">
-          <button class="mode-option active" data-mode="interactive" type="button"><strong>交互模式</strong><small>每个关键节点由你确认</small></button>
-          <button class="mode-option" data-mode="auto" type="button"><strong>全自动模式</strong><small>从主题一路生成到预览</small></button>
-          <button class="mode-option" data-mode="single" type="button"><strong>单步模式</strong><small>只做你当前需要的一步</small></button>
-        </div>
-        <div id="workflow-steps" class="workflow-rail"></div>
-        <div class="workbench-grid wb-3col">
-          <section class="creator-card">
-            <div class="card-topline"><span class="card-label">开始创作</span><span id="workbench-status" class="status-pill">等待输入</span></div>
-            <label for="workbench-topic">你想写什么？</label>
-            <textarea id="workbench-topic" placeholder="输入一个主题、一个问题，或者一句还没想完整的念头"></textarea>
-            <div class="creator-options"><label>人格 <select id="workbench-persona"><option>深度观察者</option><option>亲切分享者</option><option>锐评手</option><option>故事大王</option><option>暖心治愈</option></select></label><label>排版主题 <select id="workbench-theme"><option value="default">极简白</option><option value="tech-card-green">科技卡片绿</option><option value="minimal-elegant">极简优雅</option></select></label></div>
-            <button id="start-workbench" class="primary-action" type="button">开始创作 <span>↗</span></button>
-            <p class="helper-copy">你可以先输入一个模糊想法，后面每一步都能修改。</p>
-            <div class="topic-chips" aria-label="常用主题">
-              <span>常用主题</span>
-              <button type="button" class="topic-chip" data-topic="老年人晚上总起夜，睡不踏实">老年人起夜</button>
-              <button type="button" class="topic-chip" data-topic="养老金又要涨了，到底怎么算">养老金计算</button>
-              <button type="button" class="topic-chip" data-topic="养龟新手最容易踩的坑">养龟避坑</button>
-              <button type="button" class="topic-chip" data-topic="早安语录怎么写出治愈感">早安语录</button>
-            </div>
-          </section>
-          <section id="workbench-result" class="workbench-result" hidden>
-            <div class="result-head"><div><span class="micro-label">当前创作</span><h2 id="result-title">正在准备</h2></div><div class="result-actions"><a id="download-workbench-html" class="secondary-action" href="#" hidden>下载 HTML</a><button id="edit-current" class="secondary-action" type="button">编辑正文</button><button id="run-next" class="primary-action compact" type="button">继续下一步</button><button id="open-preview" class="primary-action compact" type="button" hidden>预览并复制 ↗</button></div></div>
-            <section id="workbench-decision" class="workbench-decision" aria-live="polite"></section>
-            <div id="topic-list" class="topic-list"></div>
+        <div id="workflow-steps" class="workflow-rail sr-only"></div>
+        <div class="conversation-workbench-layout">
+          <aside class="conversation-panel" aria-label="创作对话">
+            <header class="conversation-panel-head"><strong>AI 共创助手</strong><div class="conversation-panel-tools"><span id="workbench-status" class="work-status">等待你的想法</span><button id="new-workbench-chat" class="new-chat-button" type="button"><i data-lucide="plus"></i> 新对话</button></div></header>
+            <div id="workbench-chat-thread" class="chat-thread" aria-live="polite"></div>
+            <div id="topic-list" class="chat-choice-list"></div>
+            <div class="composer-shell"><textarea id="workbench-topic" placeholder="继续说你的要求，或直接告诉我哪里不满意…" aria-label="对 AI 说"></textarea><div class="composer-actions"><button id="workbench-regenerate-topics" class="composer-text-action" type="button">换一批方向</button><button id="start-workbench" class="composer-send" type="button" aria-label="发送"><i data-lucide="arrow-up"></i></button></div></div>
+            <div class="creator-options sr-only"><select id="workbench-persona"><option>深度观察者</option><option>亲切分享者</option><option>锐评手</option><option>故事大王</option><option>暖心治愈</option></select><select id="workbench-theme"><option value="default">极简白</option><option value="tech-card-green">科技卡片绿</option><option value="minimal-elegant">极简优雅</option></select></div>
+          </aside>
+          <section id="workbench-result" class="article-canvas">
+            <header class="article-canvas-head"><div><h2 id="result-title">还没有开始写</h2><p><i></i><span id="article-save-state">输入一个主题后，我会先和你确认写作方向</span></p></div><div class="canvas-actions"><button id="version-back" class="icon-action" type="button" title="上一个版本"><i data-lucide="undo-2"></i></button><button id="version-forward" class="icon-action" type="button" title="下一个版本"><i data-lucide="redo-2"></i></button><button id="edit-current" class="icon-action" type="button" title="编辑正文"><i data-lucide="pen-line"></i></button></div></header>
+            <div class="version-strip"><span id="article-version-label">当前草稿 · 尚未生成</span><span>·</span><span id="article-change-label">等待你的写作意图</span></div>
+            <section id="workbench-decision" class="current-work-card" aria-live="polite"></section>
+            <div class="editor-wrap"><div class="editor-head"><span>当前输出</span><span id="score-label">可直接编辑，也可选中一段再让 AI 重写</span></div><textarea id="article-editor" aria-label="当前文章正文" placeholder="文章会在这里持续更新"></textarea><div class="selection-actions"><button data-rewrite-selection="改短一点" type="button">改短一点</button><button data-rewrite-selection="换成故事开头" type="button">换成故事开头</button><button data-rewrite-selection="重写这一段" type="button">重写这一段</button></div></div>
             <div id="generated-images" class="generated-images" hidden></div>
-            <div class="editor-wrap"><div class="editor-head"><span>文章正文（可直接编辑）</span><span id="score-label">反 AI 评分将在第 4 步生成</span></div><textarea id="article-editor" aria-label="文章正文"></textarea></div>
-            <div class="result-foot"><span id="result-meta">—</span><button id="publish-draft" class="text-action" type="button">写入公众号草稿箱</button></div>
+            <footer class="article-canvas-foot"><span id="result-meta">当前没有正文</span><span>自动保存</span></footer>
           </section>
-          <aside class="workflow-card wb-side">
-            <div class="card-topline"><span class="card-label">怎么使用</span></div>
-            <div class="workflow-note"><strong>怎么使用</strong><span>先输入主题，选择模式。交互模式会在选题、框架和配图处停下来等你确认。</span></div>
-            <section class="inspiration" aria-label="灵感速达">
-              <div class="card-topline"><span class="card-label">灵感速达</span></div>
-              <ul>
-                <li>🔥 延迟退休细则解读</li>
-                <li>💡 中老年睡眠痛点选题</li>
-                <li>📝 反 AI 检测自查清单</li>
-                <li>🎯 中老年痛点词库</li>
-              </ul>
-            </section>
+          <aside class="outcome-panel" aria-label="本轮成果">
+            <header><strong>本轮成果</strong><i data-lucide="chevron-down"></i></header>
+            <section><h3>当前文章结构</h3><ol id="workbench-outline" class="outline-list"><li><span>01</span><p>等待你确认写作方向</p></li></ol></section>
+            <section class="version-history"><h3>版本记录</h3><div id="workbench-version-list"></div></section>
+            <div class="outcome-actions"><button id="run-next" class="generate-next" type="button"><i data-lucide="sparkles"></i> 生成下一版</button><button id="open-preview" class="outline-action" type="button"><i data-lucide="eye"></i> 查看排版预览</button><a id="download-workbench-html" class="outline-action" href="#" hidden><i data-lucide="code-2"></i> 导出 HTML</a><button id="publish-draft" class="text-action sr-only" type="button">写入公众号草稿箱</button></div>
           </aside>
         </div>
       </section>

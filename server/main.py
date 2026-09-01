@@ -115,6 +115,13 @@ class WorkbenchStepRequest(BaseModel):
     imageModel: str | None = Field(default=None, max_length=120)
 
 
+class WorkbenchChatRequest(BaseModel):
+    session_id: str = Field(min_length=8, max_length=80)
+    message: str = Field(min_length=1, max_length=4000)
+    action: str = Field(default="rewrite_article", pattern="^(rewrite_article|regenerate_topics|regenerate_framework)$")
+    selection_text: str = Field(default="", max_length=20000)
+
+
 class WorkbenchPreviewRequest(BaseModel):
     session_id: str = Field(min_length=8, max_length=80)
     article: str | None = Field(default=None, max_length=200000)
@@ -912,6 +919,23 @@ def advance_workbench(payload: WorkbenchStepRequest, request: Request):
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"工作台执行失败：{exc}") from exc
+
+
+@app.post("/api/workbench/chat")
+def chat_workbench(payload: WorkbenchChatRequest, request: Request):
+    try:
+        with workbench.provider_overrides():
+            session = workbench.chat(
+                payload.session_id, payload.message, payload.action, payload.selection_text,
+                user_id=request.state.user["id"],
+            )
+            return {"status": "success", "session": session}
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except (ValueError, workbench.ProviderError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"创作调整失败：{exc}") from exc
 
 
 @app.post("/api/workbench/preview")

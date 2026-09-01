@@ -537,10 +537,13 @@ def create(topic: str, mode: str = "interactive", persona: str = "深度观察�
         "current_step": 1, "status": "calling_text_api", "suggestions": [], "framework": None,
         "article": "", "review": None, "score": None, "images": [], "typeset_html": "", "preview_document": "", "typeset_source": None, "preview_url": None,
         "publish": None, "provider": provider_status(), "created_at": datetime.now().isoformat(timespec="seconds"), "files": {},
+        "conversation": ([{"role": "user", "content": topic.strip(), "at": datetime.now().isoformat(timespec="seconds")}] if topic.strip() else []),
+        "versions": [], "last_change": "等待你确认写作方向",
     }
     _save_session(session)
     session["suggestions"] = _suggestions(topic, persona)
     session["status"] = "awaiting_topic"
+    session["conversation"].append({"role": "assistant", "content": "我先为你拆出了三种可展开的写法方向。你可以直接采用其中一个，也可以继续告诉我：想更犀利、更多故事，还是换一个受众。", "at": datetime.now().isoformat(timespec="seconds")})
     if mode == "auto":
         _advance(session, 7)
         session["current_step"] = 8
@@ -590,6 +593,85 @@ def step(session_id: str, target: int, selection: int | None = None, article: st
     result = _advance(session, target, selection)
     _save_session(session)
     return result
+
+
+def chat(session_id: str, message: str, action: str = "rewrite_article", selection_text: str = "", *, user_id: str) -> dict[str, Any]:
+    """Apply a conversational revision while preserving the current article session."""
+    session = _get_session(session_id, user_id)
+    message = message.strip()
+    if not message:
+        raise ValueError("请先告诉我你希望怎么调整")
+    conversation = session.setdefault("conversation", [])
+    conversation.append({"role": "user", "content": message, "at": datetime.now().isoformat(timespec="seconds")})
+    versions = session.setdefault("versions", [])
+    if session.get("article"):
+        versions.append({"label": f"V{len(versions) + 1}", "summary": session.get("last_change") or "调整前版本", "article": session["article"]})
+        versions[:] = versions[-8:]
+
+    if action == "regenerate_topics":
+        # A new direction starts a fresh branch.  Keeping the previous outline or
+        # article here made the next "采用" action silently reuse stale content.
+        session.update({
+            "selected_topic": None,
+            "framework": None,
+            "article": "",
+            "review": None,
+            "score": None,
+            "images": [],
+            "typeset_html": "",
+            "preview_url": "",
+            "published": None,
+        })
+        session["topic"] = message
+        session["suggestions"] = _suggestions(message, session["persona"])
+        session["current_step"] = 1
+        session["status"] = "awaiting_topic"
+        reply = "好的，我已经把上一版收进版本记录，先按你刚才的新要求重新拆了三种方向。"
+    elif not session.get("framework"):
+        session["topic"] = message
+        session["suggestions"] = _suggestions(message, session["persona"])
+        session["current_step"] = 1
+        session["status"] = "awaiting_topic"
+        reply = "我重新整理了三个更适合展开的方向。选一个采用，或继续告诉我你真正想写的角度。"
+    elif action == "regenerate_framework":
+        session["framework"] = _framework(session["topic"], session["persona"])
+        session["current_step"] = 2
+        session["status"] = "ready_for_review"
+        reply = "框架已换一版。你可以先看骨架，也可以直接让我把它写成完整文章。"
+    else:
+        original = selection_text.strip() or session.get("article") or ""
+        if not original:
+            session["article"] = _draft(session["topic"], session["framework"], session["persona"])
+        else:
+            scope = "只改写下面选中的段落，其余文章保持不变" if selection_text.strip() else "改写整篇文章"
+            prompt = f"""你是资深微信公众号编辑。用户正在与写作助手共同修改文章。
+文章标题：{session['topic']}
+写作人格：{session['persona']}
+用户要求：{message}
+处理范围：{scope}
+原文：
+{original}
+
+请直接输出修改后的中文正文，不要解释、不用 Markdown 标题、不加任何前言。保留真实边界，不编造事实或数据。"""
+            rewritten = _text(prompt)
+            if selection_text.strip():
+                session["article"] = (session.get("article") or "").replace(selection_text, rewritten, 1)
+            else:
+                session["article"] = rewritten
+        session["current_step"] = max(3, int(session.get("current_step") or 3))
+        session["status"] = "ready_for_review"
+        session["review"] = None
+        session["score"] = None
+        session["typeset_html"] = ""
+        session["preview_document"] = ""
+        session["typeset_source"] = None
+        reply = "已经按你的要求更新了当前草稿。你可以继续对某一段提出要求，或让我再生成一版。"
+    session["last_change"] = message[:80]
+    conversation.append({"role": "assistant", "content": reply, "at": datetime.now().isoformat(timespec="seconds")})
+    _save_session(session)
+    view = _session_view(session)
+    view["chat_reply"] = reply
+    return view
 
 
 def preview(session_id: str, article: str | None = None, *, user_id: str | None = None) -> dict[str, Any]:

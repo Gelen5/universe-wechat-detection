@@ -39,6 +39,7 @@ DEFAULT_PRICING = [
     ("POST", "/api/hit-detector/analyze", "爆文检测", 5, 0),
     ("POST", "/api/hit-detector/rewrite", "文章改稿", 5, 0),
     ("POST", "/api/workbench/sessions", "公众号完整工作流", 30, 0),
+    ("POST", "/api/workbench/chat", "公众号创作调整", 5, 0),
     ("POST", "/api/images/generations", "早安图片生成", 30, 0),
 ]
 
