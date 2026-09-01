@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
-from . import accounts, creator_tools, workbench
+from . import accounts, creator_tools, diagnosis_service, image_provider, workbench
 
 
 LANES = {"diagnose": 1, "text": 2, "image": 1, "light": 3}
@@ -22,6 +22,8 @@ def execute(job: dict[str, Any]) -> dict[str, Any]:
     """Run a task with explicit payload and ContextVar-scoped provider settings."""
     payload = _payload(job)
     kind = job["type"]
+    if kind == "diagnose":
+        return diagnosis_service.run(payload["account_name"], _enrich_diagnosis_report)
     if kind == "xiaohongshu":
         with workbench.provider_overrides():
             package = creator_tools.xiaohongshu_package(**payload)
@@ -38,11 +40,19 @@ def execute(job: dict[str, Any]) -> dict[str, Any]:
     if kind == "creator_image":
         with workbench.provider_overrides():
             return {"status": "success", "image": creator_tools.generate_card_image(**payload)}
+    if kind == "morning_image":
+        return image_provider.generate(payload)
     if kind == "workbench":
         with workbench.provider_overrides():
             session = workbench.create(payload["topic"], payload["mode"], payload["persona"], payload["theme"], user_id=job["user_id"], session_id=payload["session_id"])
             return {"status": "success", "session": session}
     raise ValueError(f"未知任务类型：{kind}")
+
+
+def _enrich_diagnosis_report(report: dict[str, Any]) -> dict[str, Any]:
+    # Keep the report transformation in one place while avoiding a FastAPI import cycle.
+    from .main import _enrich_report
+    return _enrich_report(report)
 
 
 def _run(job: dict[str, Any]) -> None:

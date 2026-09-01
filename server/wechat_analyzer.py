@@ -4,6 +4,8 @@ import math
 import os
 import re
 import sys
+from contextlib import contextmanager
+from contextvars import ContextVar
 from datetime import datetime
 
 import requests
@@ -13,6 +15,17 @@ API_HOST = "redfox.hk"
 API_PATH_SEARCH_USER = "/story/api/gzh/data/searchUser"  # 接口1：关键词搜索账号 → 获取微信号
 API_PATH_QUERY_DATA = "/story/api/gzhUser/queryData"      # 接口2：按微信号+名称精确查询完整数据
 RAW_DATA_FILE = "raw_data.json"
+REQUEST_OUTPUT_DIR: ContextVar[str] = ContextVar("wechat_analyzer_output_dir", default="")
+
+
+@contextmanager
+def output_dir_override(path: str):
+    """Set an output directory only for this task's execution context."""
+    token = REQUEST_OUTPUT_DIR.set(os.path.abspath(path))
+    try:
+        yield
+    finally:
+        REQUEST_OUTPUT_DIR.reset(token)
 
 
 def _runtime_output_dir():
@@ -22,7 +35,7 @@ def _runtime_output_dir():
     wrapper sets WECHAT_ANALYZER_OUTPUT_DIR per request so concurrent users
     cannot overwrite each other's reports.
     """
-    configured = os.getenv("WECHAT_ANALYZER_OUTPUT_DIR")
+    configured = REQUEST_OUTPUT_DIR.get() or os.getenv("WECHAT_ANALYZER_OUTPUT_DIR")
     if configured:
         os.makedirs(configured, exist_ok=True)
         return os.path.abspath(configured)

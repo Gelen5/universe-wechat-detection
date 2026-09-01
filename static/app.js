@@ -536,9 +536,7 @@ form?.addEventListener('submit', async (event) => {
   button.disabled = true;
   button.querySelector('span').textContent = '…';
   try {
-    const response = await fetch('/api/diagnose', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ account_name: input.value.trim() }) });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.detail || data.message || '诊断失败，请稍后重试');
+    const data = await submitQueuedTask('diagnose', { account_name: input.value.trim() });
     renderReport(data.report);
     reportRoot.scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (error) {
@@ -694,14 +692,7 @@ async function postCreator(path, payload, signal) {
       : path === '/api/hit-detector/analyze' ? { title: payload.title, body: payload.body, track: payload.track, fans: payload.fans, open_rate: payload.openRate }
       : path === '/api/hit-detector/rewrite' ? { title: payload.title, body: payload.body, detector_result: payload.detectorResult }
       : { tool: payload.tool, session_id: payload.sessionId, card: payload.card, style: payload.style };
-    const accepted = await readApiResponse(await fetch('/api/tasks', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: taskTypes[path], idempotency_key: newIdempotencyKey(), payload: taskPayload }), signal }));
-    const jobId = accepted.job.id;
-    while (true) {
-      await new Promise(resolve => setTimeout(resolve, 700));
-      const state = await readApiResponse(await fetch(`/api/tasks/${encodeURIComponent(jobId)}`, { signal }));
-      if (state.job.status === 'succeeded') return state.job.result;
-      if (['failed', 'canceled'].includes(state.job.status)) throw new Error(state.job.error || '任务未完成');
-    }
+    return submitQueuedTask(taskTypes[path], taskPayload, signal);
   }
   const response = await fetch(path, {
     method: 'POST',
@@ -710,6 +701,24 @@ async function postCreator(path, payload, signal) {
     signal,
   });
   return readApiResponse(response);
+}
+
+async function submitQueuedTask(type, payload, signal) {
+  const accepted = await readApiResponse(await fetch('/api/tasks', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type, idempotency_key: newIdempotencyKey(), payload }), signal }));
+  const jobId = accepted.job?.id;
+  if (!jobId) throw new Error('任务未返回编号');
+  const cancel = () => fetch(`/api/tasks/${encodeURIComponent(jobId)}/cancel`, { method: 'POST' }).catch(() => undefined);
+  signal?.addEventListener('abort', cancel, { once: true });
+  while (true) {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 700));
+      const state = await readApiResponse(await fetch(`/api/tasks/${encodeURIComponent(jobId)}`, { signal }));
+      if (state.job.status === 'succeeded') return state.job.result;
+      if (['failed', 'canceled'].includes(state.job.status)) throw new Error(state.job.error || '任务未完成');
+    } finally {
+      if (signal?.aborted) cancel();
+    }
+  }
 }
 
 function beginButton(button, label) {
