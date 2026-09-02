@@ -181,7 +181,7 @@ class CreatorApiIntegrationTests(unittest.TestCase):
         self.assertIn("确认框架，生成初稿", script)
         self.assertIn("打开预览并复制", script)
         self.assertNotIn("shared-use-real", html)
-        self.assertEqual(html.count("data-view="), 6)
+        self.assertEqual(html.count("data-view="), 7)
 
 
 if __name__ == "__main__":

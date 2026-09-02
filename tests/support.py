@@ -12,3 +12,4 @@ os.environ["CREATOR_ACCOUNTS_DB"] = str(TEST_DB)
 os.environ["CREATOR_OWNER_EMAIL"] = "admin@example.com"
 os.environ["CREATOR_ADMIN_PASSWORD"] = "testing-pass-123"
 os.environ["CREATOR_ADMIN_NAME"] = "测试管理员"
+os.environ["CREATOR_NEW_USER_TRIAL_POINTS"] = "0"
