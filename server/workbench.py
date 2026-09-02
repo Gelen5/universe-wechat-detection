@@ -478,9 +478,10 @@ def _generate_image(prompt: str, output: Path) -> dict[str, Any]:
             raw = base64.b64decode(item["b64_json"])
             break
         if isinstance(item, dict) and item.get("url"):
-            downloader = requests.Session()
-            downloader.trust_env = False
-            response = downloader.get(item["url"], timeout=90, verify=_verify_ssl())
+            # Provider image URLs can be hosted on a separate CDN. Keep the
+            # normal requests environment here so server proxy/TLS settings
+            # are available for that second network hop.
+            response = requests.get(item["url"], timeout=90, verify=_verify_ssl())
             response.raise_for_status()
             raw = response.content
             break
