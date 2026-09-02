@@ -3213,3 +3213,124 @@ iframe.generator-frame {
   .empty-grid { grid-template-columns: 1fr; }
   .home-page, .diagnose-page { padding: 12px; }
 }
+
+/* ================================================================
+   14. r5 (2026-09-02): 结果渲染子卡压回 V3 暗色 + hover 微动效
+   ----------------------------------------------------------------
+   根因：app.js 运行时渲染走 style.css / taste-chatgpt.css 的浅色默认
+   （.suggestion-list article → #fff、.ledger-list > div → #f1f3f6、
+    .issue-list li → #fff8e8、.detector-score 轨道 → #e8e8ed 土金条）。
+   glass-theme 遗留的 .hit-scores/.hit-suggestions/.hit-ledger 结构
+   从未被 app.js 采用（渲染用的是裸 .detector-score / .suggestion-list
+   article / .ledger-list > div），故按真实 DOM 强压。
+   ================================================================ */
+
+/* 14.1 hit 八维评分行（轨道 #e8e8ed 亮灰 + 土金 #e2bd7c 条 → V3 暗轨 + IKB 蓝条） */
+#hit-result .detector-score {
+  border-radius: 8px;
+  transition: background 180ms cubic-bezier(.22, .61, .36, 1), border-color 180ms cubic-bezier(.22, .61, .36, 1);
+}
+#hit-result .detector-score > div { background: var(--bg-3) !important; }
+#hit-result .detector-score i {
+  background: linear-gradient(90deg, var(--ikb), var(--ikb-bright)) !important;
+  box-shadow: 0 0 8px var(--ikb-glow);
+}
+#hit-result .detector-score small { color: var(--text-3) !important; }
+/* hover 高亮反馈：整行蓝晕底 + 名称提亮 + 进度条辉光 */
+#hit-result .detector-score:hover {
+  background: linear-gradient(90deg, rgba(61, 91, 255, .07), transparent 72%);
+}
+#hit-result .detector-score:hover span { color: var(--ikb-bright); }
+#hit-result .detector-score:hover i { box-shadow: 0 0 12px var(--ikb-glow); }
+
+/* 14.2 hit 优先修改建议卡（taste-chatgpt.css .suggestion-list article → #fff） */
+#hit-result .suggestion-list article {
+  background: var(--bg-2) !important;
+  border: 1px solid var(--line) !important;
+  box-shadow: none !important;
+  border-radius: 8px;
+  transition: background 180ms cubic-bezier(.22, .61, .36, 1), border-color 180ms cubic-bezier(.22, .61, .36, 1);
+}
+#hit-result .suggestion-list article:hover {
+  background: var(--bg-3) !important;
+  border-color: rgba(61, 91, 255, .35) !important;
+}
+/* P0/P1/P2 渲染时无 class 无法按级配色：统一红系表达“优先修改”语义 */
+#hit-result .suggestion-list article > span { color: var(--bad) !important; }
+#hit-result .suggestion-list article strong { color: var(--text) !important; }
+#hit-result .suggestion-list article p { color: var(--text-3) !important; }
+
+/* 14.3 hit 事实声明账本（style.css .ledger-list > div → var(--surface-soft) 浅灰） */
+#hit-result .ledger-list > div {
+  background: var(--bg-2) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 8px;
+  transition: background 180ms cubic-bezier(.22, .61, .36, 1), border-color 180ms cubic-bezier(.22, .61, .36, 1);
+}
+#hit-result .ledger-list > div:hover {
+  background: var(--bg-3) !important;
+  border-color: rgba(61, 91, 255, .35) !important;
+}
+#hit-result .ledger-list > div > span {
+  background: var(--bg-3) !important;
+  border: 1px solid var(--line-2) !important;
+  color: var(--text-3) !important;
+  font-family: var(--mono); font-size: 10px;
+  letter-spacing: .04em; padding: 3px 8px; border-radius: 4px;
+  width: max-content;
+}
+#hit-result .ledger-list > div p { color: var(--text-2) !important; }
+
+/* 14.4 xhs 发布前检查（style.css .issue-list li → #fff8e8 米黄 / .ok → #ecf9ef 绿） */
+#xhs-result .issue-list li {
+  background: var(--bg-2) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 7px;
+  color: var(--text-2) !important;
+  transition: background 180ms cubic-bezier(.22, .61, .36, 1), border-color 180ms cubic-bezier(.22, .61, .36, 1);
+}
+#xhs-result .issue-list li:hover {
+  background: var(--bg-3) !important;
+  border-color: rgba(255, 176, 32, .35) !important;
+}
+#xhs-result .issue-list li.ok {
+  background: rgba(63, 185, 80, .08) !important;
+  border-color: rgba(63, 185, 80, .3) !important;
+  color: var(--good) !important;
+}
+#xhs-result .issue-list li.ok:hover {
+  background: rgba(63, 185, 80, .12) !important;
+  border-color: rgba(63, 185, 80, .45) !important;
+}
+
+/* 14.5 xhs 标题方案卡统一 V3 暗卡 + hover（防非 selected 卡回落 taste #fff） */
+#xhs-result .title-option {
+  background: var(--bg-2) !important;
+  border: 1px solid var(--line) !important;
+  box-shadow: none !important;
+  border-radius: 8px;
+  transition: background 180ms cubic-bezier(.22, .61, .36, 1),
+              border-color 180ms cubic-bezier(.22, .61, .36, 1),
+              transform 160ms cubic-bezier(.22, .61, .36, 1);
+}
+#xhs-result .title-option:hover {
+  background: var(--bg-3) !important;
+  border-color: rgba(61, 91, 255, .5) !important;
+  transform: translateY(-1px);
+}
+#xhs-result .title-option.selected {
+  background: var(--ikb-soft) !important;
+  border-color: var(--ikb-bright) !important;
+}
+#xhs-result .title-option > span { color: var(--text-3) !important; }
+#xhs-result .title-option strong { color: var(--text) !important; }
+#xhs-result .title-option small { color: var(--text-3) !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  #xhs-result .title-option,
+  #hit-result .detector-score,
+  #hit-result .suggestion-list article,
+  #hit-result .ledger-list > div,
+  #xhs-result .issue-list li { transition: none !important; }
+  #xhs-result .title-option:hover { transform: none; }
+}
