@@ -462,16 +462,15 @@ def _compress_image(raw: bytes, output: Path) -> int:
 
 
 def _generate_image(prompt: str, output: Path) -> dict[str, Any]:
+    # Keep the workbench on the same provider path as the standalone image tool.
+    # That path owns authentication, async task polling, and response handling.
+    from . import image_provider
     model = _setting("WECHAT_IMAGE_MODEL", "gpt-image-2")
     raw: bytes | None = None
     last_shape = "empty"
     for attempt in range(2):
         request_prompt = prompt if attempt == 0 else f"{prompt}。画面自然、友善、适合大众阅读。"
-        data = _post("image", "images/generations", {
-            "model": model, "prompt": request_prompt, "n": 1,
-            "size": "1024x1024", "output_format": "png",
-        }, timeout=360)
-        data = _resolve_image_response(data)
+        data = image_provider.generate({"model": model, "prompt": request_prompt, "n": 1, "size": "1024x1024"})
         items = data.get("data") or []
         item = items[0] if isinstance(items, list) and items else {}
         last_shape = f"root={','.join(sorted(data.keys()))}; item={','.join(sorted(item.keys())) if isinstance(item, dict) else type(item).__name__}"
