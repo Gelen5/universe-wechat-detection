@@ -65,9 +65,10 @@ WECHAT_IMAGE_API_KEY=可选的服务端图片模型 Key
 CREATOR_OWNER_EMAIL=gelen5@163.com
 CREATOR_ADMIN_PASSWORD=首位管理员初始密码
 CREATOR_COOKIE_SECURE=1
+CREATOR_NEW_USER_TRIAL_POINTS=30
 ```
 
-文字和图片 API Key 只由服务器环境变量托管，浏览器不再保存或传递生产密钥。公开部署应使用 HTTPS，并设置 `CREATOR_COOKIE_SECURE=1`。`CREATOR_OWNER_EMAIL` 是唯一允许执行管理员操作的邮箱；系统启动时会把其他邮箱全部校正为普通用户。可以让所有者直接注册，也可以通过 `CREATOR_ADMIN_PASSWORD` 在首次启动时预创建所有者账号。
+文字和图片 API Key 只由服务器环境变量托管，浏览器不再保存或传递生产密钥。公开部署应使用 HTTPS，并设置 `CREATOR_COOKIE_SECURE=1`。新注册账号默认获得一份试用积分，可通过 `CREATOR_NEW_USER_TRIAL_POINTS` 调整，设置为 `0` 可关闭注册赠送。`CREATOR_OWNER_EMAIL` 是唯一允许执行管理员操作的邮箱；系统启动时会把其他邮箱全部校正为普通用户。可以让所有者直接注册，也可以通过 `CREATOR_ADMIN_PASSWORD` 在首次启动时预创建所有者账号。
 
 ### 账号与积分
 

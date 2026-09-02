@@ -30,6 +30,7 @@ SESSION_DAYS = 30
 PBKDF2_ROUNDS = 260_000
 DB_LOCK = threading.RLock()
 OWNER_EMAIL = (os.getenv("CREATOR_OWNER_EMAIL") or "gelen5@163.com").strip().lower()
+NEW_USER_TRIAL_POINTS = max(0, int(os.getenv("CREATOR_NEW_USER_TRIAL_POINTS", "30") or 30))
 
 DEFAULT_PRICING = [
     ("POST", "/api/diagnose", "公众号诊断", 10, 0),
@@ -280,9 +281,16 @@ def create_user(email: str, password: str, display_name: str, *, role: str = "us
                 (user_id, email, display_name, _hash_password(password), role, now),
             )
             connection.execute(
-                "INSERT INTO wallets(user_id,balance,trial_balance,bonus_balance,paid_balance,updated_at) VALUES (?,0,0,0,0,?)",
-                (user_id, now),
+                "INSERT INTO wallets(user_id,balance,trial_balance,bonus_balance,paid_balance,updated_at) VALUES (?,?,?,?,?,?)",
+                (user_id, NEW_USER_TRIAL_POINTS, NEW_USER_TRIAL_POINTS, 0, 0, now),
             )
+            if NEW_USER_TRIAL_POINTS:
+                connection.execute(
+                    """INSERT INTO point_transactions
+                       (id,user_id,amount,balance_before,balance_after,bucket,kind,source,feature,note,created_at)
+                       VALUES (?,?,?,?,?,'trial','recharge','system','新用户试用','注册赠送试用积分',?)""",
+                    (uuid.uuid4().hex, user_id, NEW_USER_TRIAL_POINTS, 0, NEW_USER_TRIAL_POINTS, now),
+                )
             connection.execute("COMMIT")
             row = connection.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
     except sqlite3.IntegrityError as exc:
