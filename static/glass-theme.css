@@ -1233,6 +1233,89 @@ body { overflow-x: hidden; }
 .skill-form textarea { min-height: 84px; resize: vertical; }
 .skill-form textarea::placeholder, .skill-form input::placeholder { color: var(--text-4); }
 
+/* V3 暗色 r4：诊断/工作台等剩余白板 + <footer> 通用白底 + 浏览器默认 input 白
+   1) taste-chatgpt.css:62 用 !important 把 .entry-panel/.skill-page 等面板铺成 --taste-bg（浅色），
+      但 #diagnose-page 在 V3 r2 已重写为 hero 形态，#diagnose-form 仍继承 .entry-form 的玻璃白
+   2) taste-chatgpt.css:132 通用 footer { background: #fff }，无 !important，但 .start-templates>footer /
+      .article-canvas-foot / footer.empty-foot 在 glass-theme.css 里没设 background，被白色吞掉
+   3) #workbench-topic / #workbench-persona / #workbench-theme 在 .composer-shell / .creator-options 内，
+      不在 .skill-form 容器里，浏览器默认 input/select/textarea 白底漏出
+   全部用 !important 在最后加载层强压回 V3 暗色。 */
+#diagnose .entry-form,
+#diagnose .entry-form input,
+#diagnose .entry-form select,
+#diagnose .entry-form textarea {
+  background: var(--bg) !important;
+  background-color: var(--bg) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--line-2);
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+#diagnose .entry-form input:focus,
+#diagnose .entry-form select:focus,
+#diagnose .entry-form textarea:focus { border-color: var(--ikb-bright) !important; }
+#diagnose .entry-form input::placeholder,
+#diagnose .entry-form textarea::placeholder { color: var(--text-4) !important; }
+#diagnose .entry-form button { color: #fff; }
+#diagnose .entry-form button[type="submit"],
+#diagnose .entry-form .skill-primary { background: var(--ikb) !important; color: #fff !important; border: 0 !important; }
+
+#workbench .composer-shell textarea,
+#workbench #workbench-topic,
+#workbench #workbench-persona,
+#workbench #workbench-theme,
+#workbench .creator-options select,
+#workbench .creator-options input,
+#workbench .article-canvas textarea,
+#workbench .article-canvas input,
+#workbench .article-canvas select {
+  background: var(--bg-2) !important;
+  background-color: var(--bg-2) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--line-2);
+  color-scheme: dark;
+  box-shadow: none !important;
+  -webkit-appearance: none;
+  appearance: none;
+}
+#workbench .composer-shell textarea:focus,
+#workbench .article-canvas textarea:focus { border-color: var(--ikb-bright) !important; outline: none; }
+
+#workbench .start-templates > footer,
+#workbench .article-canvas-foot,
+#workbench .outcome-panel footer,
+#workbench .current-work-card > footer,
+#workbench .chat-choice footer {
+  background: var(--bg) !important;
+  background-color: var(--bg) !important;
+  color: var(--text-4) !important;
+  border-color: var(--line) !important;
+}
+#workbench .start-templates > footer a { color: var(--ikb-bright) !important; }
+
+#xiaohongshu footer.empty-foot,
+#tie-tu footer.empty-foot,
+#hit-detector footer.empty-foot,
+#diagnose .empty-foot {
+  background: var(--bg) !important;
+  background-color: var(--bg) !important;
+  color: var(--text-4) !important;
+  border-top: 1px solid var(--line) !important;
+  border-bottom: 0 !important; border-left: 0 !important; border-right: 0 !important;
+  padding: 12px 16px !important;
+  font-size: 11px !important;
+}
+
+iframe.generator-frame {
+  background: var(--bg) !important;
+  background-color: var(--bg) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: var(--r-md) !important;
+  box-shadow: none !important;
+}
+
 .form-section {
   margin: 8px 0 4px;
   padding-top: 18px;
