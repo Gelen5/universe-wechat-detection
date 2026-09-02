@@ -18,7 +18,11 @@ shot_*.py
 diag_*.py
 verify_*.py
 check_*.py
+qa_*.py
+qa_*.py.bak
 qa-*.png
+qa-*.html
+qa-*.md
 cur-*.png
 *.bak-v2
 uvicorn.log
