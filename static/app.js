@@ -562,6 +562,12 @@ const generatedImages = document.querySelector('#generated-images');
 const decisionPanel = document.querySelector('#workbench-decision');
 const runNextButton = document.querySelector('#run-next');
 const previewButton = document.querySelector('#open-preview');
+const workbenchProgress = document.querySelector('#workbench-progress');
+const workbenchProgressTitle = document.querySelector('#workbench-progress-title');
+const workbenchProgressDetail = document.querySelector('#workbench-progress-detail');
+const workbenchProgressBar = document.querySelector('#workbench-progress-bar');
+const cancelWorkbenchButton = document.querySelector('#cancel-workbench');
+let workbenchController = null;
 const editCurrentButton = document.querySelector('#edit-current');
 let workbenchMode = 'interactive';
 let workbenchSession = null;
@@ -662,8 +668,20 @@ function renderWorkbenchSession(session) {
   generatedImages.innerHTML = images.length ? `<div class="image-section-head"><div><span class="micro-label">API 生成配图</span><h3>封面与正文配图</h3></div><span>${images.length} 张 · 已自动压缩至微信限制内</span></div><div class="image-grid">${images.map(image => `<a href="${esc(image.url)}" target="_blank" rel="noopener"><img src="${esc(image.url)}" alt="${image.kind === 'cover' ? '文章封面' : '正文配图'}" /><span><strong>${image.kind === 'cover' ? '文章封面' : '正文配图'}</strong><small>${esc(image.model)} · ${Math.round(Number(image.bytes || 0) / 1024)} KB</small></span></a>`).join('')}</div>` : '';
 }
 
-async function callWorkbench(path, payload) {
-  const response = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...sharedApiPayload(), ...payload }) });
+function setWorkbenchProgress(target, active = true, message = '') {
+  if (!workbenchProgress) return;
+  workbenchProgress.hidden = !active;
+  if (!active) return;
+  const labels = { 2: '正在生成文章框架', 3: '正在生成完整初稿', 4: '正在进行反 AI 审校', 5: '正在生成封面与正文配图', 6: '正在生成公众号排版', 7: '正在生成手机端预览' };
+  const details = { 2: '先确认文章怎么展开', 3: '文字模型正在组织正文', 4: '检查表达、事实边界和可读性', 5: '图片生成可能需要数分钟，请勿重复点击', 6: '把正文和图片整理成可复制内容', 7: '生成最终可查看、可下载的文件' };
+  workbenchProgressTitle.textContent = message || labels[target] || '正在处理';
+  workbenchProgressDetail.textContent = details[target] || '请稍候';
+  workbenchProgressBar.style.width = `${Math.max(8, Math.min(96, target / 8 * 100))}%`;
+  runNextButton.disabled = true;
+}
+
+async function callWorkbench(path, payload, signal) {
+  const response = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...sharedApiPayload(), ...payload }), signal });
   const data = await readApiResponse(response);
   return data.session;
 }
@@ -686,8 +704,15 @@ async function waitForWorkbenchJob(jobId) {
 async function advance(selection = null, nextStep = null) {
   if (!workbenchSession) return;
   const target = nextStep || Math.min(8, (workbenchSession.current_step || 1) + 1);
-  workbenchSession = await callWorkbench('/api/workbench/steps', { session_id: workbenchSession.id, step: target, selection, article: articleEditor.value });
-  renderWorkbenchSession(workbenchSession);
+  workbenchController = new AbortController();
+  setWorkbenchProgress(target);
+  try {
+    workbenchSession = await callWorkbench('/api/workbench/steps', { session_id: workbenchSession.id, step: target, selection, article: articleEditor.value }, workbenchController.signal);
+    renderWorkbenchSession(workbenchSession);
+  } finally {
+    setWorkbenchProgress(target, false);
+    workbenchController = null;
+  }
 }
 
 modeButtons.forEach(button => button.addEventListener('click', () => { modeButtons.forEach(item => item.classList.remove('active')); button.classList.add('active'); workbenchMode = button.dataset.mode; }));
@@ -726,6 +751,19 @@ runNextButton?.addEventListener('click', async () => {
   if (current < 2 || current >= 7) return;
   runNextButton.disabled = true;
   try { await advance(null, current + 1); } catch (error) { alert(error.message); } finally { runNextButton.disabled = false; }
+});
+cancelWorkbenchButton?.addEventListener('click', async () => {
+  if (!workbenchSession || !workbenchController) return;
+  cancelWorkbenchButton.disabled = true;
+  try {
+    await fetch('/api/workbench/cancel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...sharedApiPayload(), session_id: workbenchSession.id, step: workbenchSession.current_step || 1 }) });
+  } finally {
+    workbenchController.abort();
+    workbenchProgressTitle.textContent = '已取消等待';
+    workbenchProgressDetail.textContent = '服务器会在当前图片请求结束后停止后续生成，请稍后刷新会话状态。';
+    workbenchProgressBar.style.width = '0%';
+    cancelWorkbenchButton.disabled = false;
+  }
 });
 document.querySelector('#workbench-regenerate-topics')?.addEventListener('click', () => { if (workbenchSession) sendWorkbenchChat('请重新给我三个方向，角度更具体，不要泛泛而谈。', 'regenerate_topics'); else topicInput.focus(); });
 document.querySelector('#new-workbench-chat')?.addEventListener('click', () => { workbenchSession = null; workbenchVersionIndex = -1; topicInput.value = ''; articleEditor.value = ''; document.querySelector('#result-title').textContent = '还没有开始写'; document.querySelector('#article-save-state').textContent = '输入一个主题后，我会先和你确认写作方向'; document.querySelector('#article-version-label').textContent = '当前草稿 · 尚未生成'; document.querySelector('#article-change-label').textContent = '等待你的写作意图'; document.querySelector('#workbench-status').textContent = '等待你的想法'; topicList.innerHTML = ''; renderChatThread(null); renderOutline({}); });

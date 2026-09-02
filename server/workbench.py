@@ -38,6 +38,7 @@ ANTI_AI_SKILL_DIR = Path(os.environ.get("UNIVERSE_ANTI_AI_SKILL_DIR") or (
 ))
 OUTPUT_DIR = ROOT / "output" / "workbench"
 SESSIONS: dict[str, dict[str, Any]] = {}
+CANCEL_REQUESTS: set[str] = set()
 STEPS = ["选题", "框架", "写作", "反 AI", "配图", "排版", "预览", "发布"]
 REQUEST_SETTINGS: ContextVar[dict[str, str]] = ContextVar("REQUEST_SETTINGS", default={})
 
@@ -498,8 +499,11 @@ def _images(session: dict[str, Any]) -> list[dict[str, Any]]:
         ("body", f"微信公众号正文配图，表达《{title}》中的核心冲突：{outline[1] if len(outline)>1 else title}，纪实感编辑插画，无文字，无水印，构图清晰，情绪真实克制"),
     ]
     output_dir = OUTPUT_DIR / session["id"] / "images"
+    output_dir.mkdir(parents=True, exist_ok=True)
     result = []
     for index, (kind, prompt) in enumerate(prompts, 1):
+        if session["id"] in CANCEL_REQUESTS:
+            raise ProviderError("已取消本次生成")
         image = _generate_image(prompt, output_dir / f"{kind}-{index}.jpg")
         image.update({"kind": kind, "url": f"/api/workbench/assets/{session['id']}/{image['file']}"})
         result.append(image)
@@ -553,6 +557,8 @@ def create(topic: str, mode: str = "interactive", persona: str = "深度观察�
 
 
 def _advance(session: dict[str, Any], target: int, selection: int | None = None) -> dict[str, Any]:
+    if session["id"] in CANCEL_REQUESTS:
+        raise ProviderError("已取消本次生成")
     target = max(1, min(8, target))
     if target >= 2 and session["framework"] is None:
         chosen = session["suggestions"][selection - 1] if selection and 1 <= selection <= len(session["suggestions"]) else session["suggestions"][0]
@@ -583,6 +589,7 @@ def _advance(session: dict[str, Any], target: int, selection: int | None = None)
 def step(session_id: str, target: int, selection: int | None = None, article: str | None = None,
          *, user_id: str) -> dict[str, Any]:
     session = _get_session(session_id, user_id)
+    CANCEL_REQUESTS.discard(session_id)
     if article is not None and article.strip() and article != session.get("article"):
         session["article"] = article
         session["score"] = None
@@ -593,6 +600,13 @@ def step(session_id: str, target: int, selection: int | None = None, article: st
     result = _advance(session, target, selection)
     _save_session(session)
     return result
+
+
+def cancel(session_id: str, *, user_id: str) -> dict[str, Any]:
+    """Request cancellation of the current synchronous step."""
+    _get_session(session_id, user_id)
+    CANCEL_REQUESTS.add(session_id)
+    return {"status": "cancelling", "message": "已收到取消请求，当前图片请求结束后会停止后续生成"}
 
 
 def chat(session_id: str, message: str, action: str = "rewrite_article", selection_text: str = "", *, user_id: str) -> dict[str, Any]:

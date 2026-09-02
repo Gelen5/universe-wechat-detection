@@ -921,6 +921,14 @@ def advance_workbench(payload: WorkbenchStepRequest, request: Request):
         raise HTTPException(status_code=502, detail=f"工作台执行失败：{exc}") from exc
 
 
+@app.post("/api/workbench/cancel")
+def cancel_workbench(payload: WorkbenchStepRequest, request: Request):
+    try:
+        return {"status": "success", "cancel": workbench.cancel(payload.session_id, user_id=request.state.user["id"])}
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
 @app.post("/api/workbench/chat")
 def chat_workbench(payload: WorkbenchChatRequest, request: Request):
     try:
