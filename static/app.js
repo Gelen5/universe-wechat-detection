@@ -750,7 +750,7 @@ runNextButton?.addEventListener('click', async () => {
   const current = workbenchSession.current_step || 1;
   if (current < 2 || current >= 7) return;
   runNextButton.disabled = true;
-  try { await advance(null, current + 1); } catch (error) { alert(error.message); } finally { runNextButton.disabled = false; }
+  try { await advance(null, current + 1); } catch (error) { if (error.name !== 'AbortError') alert(error.message); } finally { runNextButton.disabled = false; }
 });
 cancelWorkbenchButton?.addEventListener('click', async () => {
   if (!workbenchSession || !workbenchController) return;

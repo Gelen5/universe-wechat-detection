@@ -468,8 +468,8 @@ def _generate_image(prompt: str, output: Path) -> dict[str, Any]:
     model = _setting("WECHAT_IMAGE_MODEL", "gpt-image-2")
     raw: bytes | None = None
     last_shape = "empty"
-    for attempt in range(2):
-        request_prompt = prompt if attempt == 0 else f"{prompt}。画面自然、友善、适合大众阅读。"
+    for attempt in range(1):
+        request_prompt = prompt
         data = image_provider.generate({"model": model, "prompt": request_prompt, "n": 1, "size": "1024x1024"})
         items = data.get("data") or []
         item = items[0] if isinstance(items, list) and items else {}
@@ -596,7 +596,13 @@ def step(session_id: str, target: int, selection: int | None = None, article: st
         session["typeset_html"] = ""
         session["preview_document"] = ""
         session["typeset_source"] = None
-    result = _advance(session, target, selection)
+    try:
+        result = _advance(session, target, selection)
+    except ProviderError as exc:
+        session["status"] = "ready_for_review"
+        session["last_change"] = str(exc)
+        _save_session(session)
+        raise
     _save_session(session)
     return result
 
