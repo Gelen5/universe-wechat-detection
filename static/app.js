@@ -592,7 +592,7 @@ function renderDecisionPanel(session) {
   runNextButton.textContent = step === 1 ? '先选择一个方向' : `下一步：${guide.action}`;
   runNextButton.disabled = step === 1;
   runNextButton.hidden = step >= 7;
-  previewButton.hidden = !(session.article || session.preview_url);
+  previewButton.hidden = !(session.preview_url || step >= 7);
   document.querySelector('#publish-draft').hidden = step < 7;
 }
 
