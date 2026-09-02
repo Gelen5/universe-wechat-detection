@@ -665,7 +665,8 @@ function renderWorkbenchSession(session) {
   window.lucide?.createIcons();
   const images = session.images || [];
   generatedImages.hidden = !images.length;
-  generatedImages.innerHTML = images.length ? `<div class="image-section-head"><div><span class="micro-label">API 生成配图</span><h3>封面与正文配图</h3></div><span>${images.length} 张 · 已自动压缩至微信限制内</span></div><div class="image-grid">${images.map(image => `<a href="${esc(image.url)}" target="_blank" rel="noopener"><img src="${esc(image.url)}" alt="${image.kind === 'cover' ? '文章封面' : '正文配图'}" /><span><strong>${image.kind === 'cover' ? '文章封面' : '正文配图'}</strong><small>${esc(image.model)} · ${Math.round(Number(image.bytes || 0) / 1024)} KB</small></span></a>`).join('')}</div>` : '';
+  const remoteImages = images.filter(image => image.delivery === 'remote').length;
+  generatedImages.innerHTML = images.length ? `<div class="image-section-head"><div><span class="micro-label">API 生成配图</span><h3>封面与正文配图</h3></div><span>${images.length} 张 · ${remoteImages ? `${remoteImages} 张由供应商 CDN 提供` : '已自动压缩至微信限制内'}</span></div><div class="image-grid">${images.map(image => `<a href="${esc(image.url)}" target="_blank" rel="noopener"><img src="${esc(image.url)}" alt="${image.kind === 'cover' ? '文章封面' : '正文配图'}" /><span><strong>${image.kind === 'cover' ? '文章封面' : '正文配图'}</strong><small>${esc(image.model)} · ${image.delivery === 'remote' ? '外链预览' : `${Math.round(Number(image.bytes || 0) / 1024)} KB`}</small></span></a>`).join('')}</div>` : '';
 }
 
 function setWorkbenchProgress(target, active = true, message = '') {

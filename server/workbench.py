@@ -481,12 +481,19 @@ def _generate_image(prompt: str, output: Path) -> dict[str, Any]:
             # Provider image URLs can be hosted on a separate CDN. Keep the
             # normal requests environment here so server proxy/TLS settings
             # are available for that second network hop.
-            response = requests.get(item["url"], timeout=90, verify=_verify_ssl())
-            response.raise_for_status()
-            raw = response.content
-            break
+            try:
+                response = requests.get(item["url"], timeout=(8, 12), verify=_verify_ssl())
+                response.raise_for_status()
+                raw = response.content
+                break
+            except requests.RequestException:
+                # Some providers return a short-lived CDN URL that is not
+                # reachable from the server region. Keep it for browser
+                # preview instead of blocking the whole article workflow.
+                return {"file": "", "bytes": 0, "model": model, "prompt": prompt,
+                        "remote_url": item["url"], "delivery": "remote"}
     if not raw:
-        raise ProviderError(f"图片 API 连续两次未返回图片（{last_shape}）")
+        raise ProviderError(f"图片 API 未返回可用图片（{last_shape}）")
     size = _compress_image(raw, output)
     return {"file": output.name, "bytes": size, "model": model, "prompt": prompt}
 
@@ -505,7 +512,7 @@ def _images(session: dict[str, Any]) -> list[dict[str, Any]]:
         if session["id"] in CANCEL_REQUESTS:
             raise ProviderError("已取消本次生成")
         image = _generate_image(prompt, output_dir / f"{kind}-{index}.jpg")
-        image.update({"kind": kind, "url": f"/api/workbench/assets/{session['id']}/{image['file']}"})
+        image.update({"kind": kind, "url": image.get("remote_url") or f"/api/workbench/assets/{session['id']}/{image['file']}"})
         result.append(image)
     return result
 
