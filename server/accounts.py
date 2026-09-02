@@ -671,8 +671,26 @@ def fail_job(job_id: str, error: str) -> None:
 
 def cancel_job(job_id: str, user_id: str) -> dict[str, Any] | None:
     with DB_LOCK, _connect() as connection:
-        connection.execute("UPDATE jobs SET status='canceled',canceled_at=?,finished_at=? WHERE id=? AND user_id=? AND status='queued'", (utc_now(), utc_now(), job_id, user_id))
+        now = utc_now()
+        connection.execute(
+            "UPDATE jobs SET status='canceled',canceled_at=?,finished_at=? WHERE id=? AND user_id=? AND status='queued'",
+            (now, now, job_id, user_id),
+        )
+        connection.execute(
+            "UPDATE jobs SET canceled_at=? WHERE id=? AND user_id=? AND status='running' AND canceled_at IS NULL",
+            (now, job_id, user_id),
+        )
     return job(job_id, user_id)
+
+
+def mark_job_canceled(job_id: str) -> None:
+    """Finalize a running job after its current provider call returns."""
+    now = utc_now()
+    with DB_LOCK, _connect() as connection:
+        connection.execute(
+            "UPDATE jobs SET status='canceled',finished_at=? WHERE id=? AND status='running' AND canceled_at IS NOT NULL",
+            (now, job_id),
+        )
 
 
 def list_jobs(limit: int = 100, user_id: str | None = None) -> list[dict[str, Any]]:
