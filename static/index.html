@@ -17,12 +17,15 @@
            ============================================================ -->
       <header class="v3-topbar">
         <div class="brand">
-          <span class="mark"></span>
-          <span class="name">宇宙第一工作台</span>
-          <span class="ver">v3.2.0</span>
+          <a href="/" aria-label="宇宙第一工作台 首页">
+            <span class="mark"></span>
+            <span class="name">宇宙第一工作台</span>
+            <span class="ver">v3.2.0</span>
+          </a>
         </div>
         <nav class="tabs app-tabs" aria-label="产品模块">
-          <a data-view="diagnose" href="/" class="active">诊断</a>
+          <a data-view="home" href="/" class="active">首页</a>
+          <a data-view="diagnose" href="/diagnose">诊断</a>
           <a data-view="workbench" href="/workbench">公众号创作</a>
           <a data-view="xiaohongshu" href="/xiaohongshu">小红书</a>
           <a data-view="tie-tu" href="/tie-tu">贴图号</a>
@@ -123,64 +126,42 @@
       </div>
 
       <!-- ============================================================
-           TAB 1 · / — 公众号诊断首页
+           TAB 1 · / — 首页（产品 hero + 六个工具模块墙）
            ============================================================ -->
-      <section id="entry" class="entry-panel">
+      <section id="home" class="home-page">
         <div class="v3-meta">
-          <span class="l"><span class="line"></span><span>Workspace D/01 · Diagnose</span></span>
-          <span class="r"><i></i>last sync 13:01 · 12s</span>
+          <span class="l"><span class="line"></span><span>Workspace H/00 · Home</span></span>
+          <span class="r"><i></i>all-in-one · 6 modules</span>
         </div>
 
         <div class="v3-hero">
           <div class="v3-hero-l">
-            <div class="kicker"><span class="line"></span><span>公众号账号诊断</span></div>
-            <h1>把内容力<br><span class="serif">说清楚</span><span class="blue">.</span></h1>
-            <p class="lede">输入公众号名字，启动一次全维度诊断，看清内容力、涨粉力与商业潜力。无需登录，AI Key 由平台安全托管。</p>
+            <div class="kicker"><span class="line"></span><span>AI · CREATOR · WORKSPACE</span></div>
+            <h1>六个 AI 工具，<br>一套<span class="serif">节奏</span><span class="blue">.</span></h1>
+            <p class="lede">为公众号作者打造的一站式 AI 工作台。从账号诊断到文章发布，全链路托管，AI Key 由平台安全保管。</p>
 
-            <form id="diagnose-form" class="entry-form">
-              <label for="account-name">输入公众号名称</label>
-              <div>
-                <input id="account-name" name="account_name" placeholder="例如：滚去睡" autocomplete="organization" required />
-                <button id="submit-button" type="submit">开始诊断 <span class="arr">→</span></button>
-              </div>
-            </form>
-
-            <div class="sample-row">
-              <span class="lbl">试试：</span>
-              <button type="button" class="chip" data-account="滚去睡">滚去睡</button>
-              <button type="button" class="chip" data-account="星空漫游">星空漫游</button>
-              <button type="button" class="chip" data-account="养龟日记">养龟日记</button>
+            <div class="cta-row">
+              <a class="primary" href="/diagnose">开始诊断 <span class="arr">→</span></a>
+              <a class="secondary" href="/workbench">去创作 <span class="arr">→</span></a>
             </div>
 
             <div class="proof">
               <span><b>1,247</b> 公众号已建档</span>
               <span class="sep"></span>
-              <span><b>87%</b> 用户首测拿到优质档</span>
+              <span><b>87%</b> 首测拿到优质档</span>
               <span class="sep"></span>
               <span><b>12s</b> 平均完成</span>
             </div>
           </div>
 
           <div class="v3-hero-r">
-            <div class="frame">
-              <div class="head">
-                <span class="lbl" id="hero-frame-id">#2026-09-01-007</span>
-                <span class="live"><i></i>scanning</span>
-              </div>
-              <div class="account">滚去睡 <small>— 公众号</small></div>
-              <div class="score-row">
-                <div class="v">82<span class="den">/100</span></div>
-                <div class="meta">
-                  <span class="big">优质档</span>
-                  内容力领跑同赛道 87%
-                </div>
-              </div>
-              <div class="dimlist">
-                <div class="dim"><span class="k">A1</span><span class="n">内容力</span><span class="v">82</span><span class="bar"><i style="width:82%"></i></span></div>
-                <div class="dim"><span class="k">A2</span><span class="n">内容质量</span><span class="v">88</span><span class="bar"><i style="width:88%"></i></span></div>
-                <div class="dim"><span class="k">A3</span><span class="n">选题敏感度</span><span class="v">76</span><span class="bar"><i style="width:76%"></i></span></div>
-                <div class="dim"><span class="k">A4</span><span class="n">排版可读性</span><span class="v">91</span><span class="bar"><i style="width:91%"></i></span></div>
-              </div>
+            <div class="hero-collage">
+              <a class="hc-card hc-1" href="/diagnose"><span class="n">01</span><span class="t">号号诊断</span><span class="d">全维度内容力扫描</span></a>
+              <a class="hc-card hc-2" href="/workbench"><span class="n">02</span><span class="t">公众号创作</span><span class="d">8 步从选题到发布</span></a>
+              <a class="hc-card hc-3" href="/xiaohongshu"><span class="n">03</span><span class="t">小红书创作</span><span class="d">3 标题 + 6 图文 + 1 封面</span></a>
+              <a class="hc-card hc-4" href="/tie-tu"><span class="n">04</span><span class="t">贴图号</span><span class="d">3:4 卡片分镜批量</span></a>
+              <a class="hc-card hc-5" href="/hit-detector"><span class="n">05</span><span class="t">爆文检测</span><span class="d">发布前质量复核</span></a>
+              <a class="hc-card hc-6" href="/morning-generator"><span class="n">06</span><span class="t">早安祝福</span><span class="d">每日图片 + 文案</span></a>
             </div>
           </div>
         </div>
@@ -256,6 +237,72 @@
         </section>
       </section>
 
+      </section>
+
+      <!-- ============================================================
+           TAB 2 · /diagnose — 公众号账号诊断（拆自原 #entry 的诊断表单）
+           ============================================================ -->
+      <section id="diagnose" class="diagnose-page" hidden>
+        <div class="v3-meta">
+          <span class="l"><span class="line"></span><span>Workspace D/01 · Diagnose</span></span>
+          <span class="r"><i></i>last sync 13:01 · 12s</span>
+        </div>
+
+        <div class="diagnose-shell">
+          <div class="v3-hero-l">
+            <div class="kicker"><span class="line"></span><span>公众号账号诊断</span></div>
+            <h1>把内容力<br><span class="serif">说清楚</span><span class="blue">.</span></h1>
+            <p class="lede">输入公众号名字，启动一次全维度诊断，看清内容力、涨粉力与商业潜力。无需登录，AI Key 由平台安全托管。</p>
+
+            <form id="diagnose-form" class="entry-form">
+              <label for="account-name">输入公众号名称</label>
+              <div>
+                <input id="account-name" name="account_name" placeholder="例如：滚去睡" autocomplete="organization" required />
+                <button id="submit-button" type="submit">开始诊断 <span class="arr">→</span></button>
+              </div>
+            </form>
+
+            <div class="sample-row">
+              <span class="lbl">试试：</span>
+              <button type="button" class="chip" data-account="滚去睡">滚去睡</button>
+              <button type="button" class="chip" data-account="星空漫游">星空漫游</button>
+              <button type="button" class="chip" data-account="养龟日记">养龟日记</button>
+            </div>
+
+            <div class="proof">
+              <span><b>1,247</b> 公众号已建档</span>
+              <span class="sep"></span>
+              <span><b>87%</b> 用户首测拿到优质档</span>
+              <span class="sep"></span>
+              <span><b>12s</b> 平均完成</span>
+            </div>
+          </div>
+
+          <div class="v3-hero-r">
+            <div class="frame">
+              <div class="head">
+                <span class="lbl" id="hero-frame-id">#2026-09-01-007</span>
+                <span class="live"><i></i>scanning</span>
+              </div>
+              <div class="account">滚去睡 <small>— 公众号</small></div>
+              <div class="score-row">
+                <div class="v">82<span class="den">/100</span></div>
+                <div class="meta">
+                  <span class="big">优质档</span>
+                  内容力领跑同赛道 87%
+                </div>
+              </div>
+              <div class="dimlist">
+                <div class="dim"><span class="k">A1</span><span class="n">内容力</span><span class="v">82</span><span class="bar"><i style="width:82%"></i></span></div>
+                <div class="dim"><span class="k">A2</span><span class="n">内容质量</span><span class="v">88</span><span class="bar"><i style="width:88%"></i></span></div>
+                <div class="dim"><span class="k">A3</span><span class="n">选题敏感度</span><span class="v">76</span><span class="bar"><i style="width:76%"></i></span></div>
+                <div class="dim"><span class="k">A4</span><span class="n">排版可读性</span><span class="v">91</span><span class="bar"><i style="width:91%"></i></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- ============================================================
            TAB 2 · /workbench — 公众号创作（对话式共创）
            ============================================================ -->
@@ -276,7 +323,15 @@
           <section id="workbench-result" class="article-canvas">
             <header class="article-canvas-head"><div><h2 id="result-title">还没有开始写</h2><p><i></i><span id="article-save-state">输入一个主题后，我会先和你确认写作方向</span></p></div><div class="canvas-actions"><button id="version-back" class="icon-action" type="button" title="上一个版本"><i data-lucide="undo-2"></i></button><button id="version-forward" class="icon-action" type="button" title="下一个版本"><i data-lucide="redo-2"></i></button><button id="edit-current" class="icon-action" type="button" title="编辑正文"><i data-lucide="pen-line"></i></button></div></header>
             <div class="version-strip"><span id="article-version-label">当前草稿 · 尚未生成</span><span>·</span><span id="article-change-label">等待你的写作意图</span></div>
-            <section id="workbench-decision" class="current-work-card" aria-live="polite"></section>
+            <section id="workbench-decision" class="current-work-card start-templates" aria-live="polite">
+              <header><span>从 3 个方向挑一个</span><em>可直接采用，也可继续让 AI 调整</em></header>
+              <div class="start-template-grid">
+                <button type="button" class="start-template" data-topic="我把公众号运营做成一个 Skill，8 步把选题到发布跑通"><span class="n">01</span><strong>教育与建立信任</strong><p>我把公众号运营做成一个 Skill，8 步把选题到发布跑通。</p><em>适合·新手教程</em></button>
+                <button type="button" class="start-template" data-topic="AI 写作真能写出爆款？别自欺欺人了"><span class="n">02</span><strong>观点判断型</strong><p>AI 写作真能写出爆款？别自欺欺人了。</p><em>适合·反共识</em></button>
+                <button type="button" class="start-template" data-topic="做了 8 年公众号，我决定把工作流全部公开"><span class="n">03</span><strong>故事大王</strong><p>做了 8 年公众号，我决定把工作流全部公开。</p><em>适合·个人复盘</em></button>
+              </div>
+              <footer><span>点选任意卡片 → 自动填入主题并启动 8 步共创</span><a href="#" id="start-templates-more">换一批方向</a></footer>
+            </section>
             <div class="editor-wrap"><div class="editor-head"><span>当前输出</span><span id="score-label">可直接编辑，也可选中一段再让 AI 重写</span></div><textarea id="article-editor" aria-label="当前文章正文" placeholder="文章会在这里持续更新"></textarea><div class="selection-actions"><button data-rewrite-selection="改短一点" type="button">改短一点</button><button data-rewrite-selection="换成故事开头" type="button">换成故事开头</button><button data-rewrite-selection="重写这一段" type="button">重写这一段</button></div></div>
             <div id="generated-images" class="generated-images" hidden></div>
             <footer class="article-canvas-foot"><span id="result-meta">当前没有正文</span><span>自动保存</span></footer>
@@ -330,10 +385,41 @@
           </div>
 
           <div class="skill-output-col" aria-live="polite">
-            <div id="xhs-empty" class="skill-empty">
-              <span class="tag">— 待编排内容包</span>
-              <h2>填写主题后，<span class="serif">按发布顺序</span>展开</h2>
-              <p>填写主题后，按发布顺序生成可编辑的四个部分：3 个标题、6 页图文结构、正文、置顶评论。</p>
+            <div id="xhs-empty" class="skill-empty skill-empty-grid">
+              <div class="empty-head">
+                <span class="tag">— 待编排内容包</span>
+                <h2>填写主题后，<span class="serif">按发布顺序</span>展开</h2>
+                <p>一份小红书内容包包含四个部分，按发布顺序填满。</p>
+              </div>
+              <div class="empty-grid">
+                <article class="empty-preview empty-preview-titles">
+                  <header><span class="ep-tag">01 · 三个标题</span><em class="ep-meta">3 candidates</em></header>
+                  <ol>
+                    <li><span class="ep-num">01</span><strong>爆款标题候选 · 钩子型</strong><p>把读者痛点撕开的写法，前 2 句破防。</p></li>
+                    <li><span class="ep-num">02</span><strong>反差认知型 · 收藏率优</strong><p>打破常规认知 + 具体场景画面。</p></li>
+                    <li><span class="ep-num">03</span><strong>清单罗列型 · 易读</strong><p>数字 + 结构化清单，长尾搜索友好。</p></li>
+                  </ol>
+                </article>
+                <article class="empty-preview empty-preview-cover">
+                  <header><span class="ep-tag">02 · 封面</span><em class="ep-meta">3:4 · 1 shot</em></header>
+                  <div class="ep-cover-frame">
+                    <div class="ep-cover-bg"></div>
+                    <span class="ep-cover-title">封面大字<br>压缩标题 8 字内</span>
+                    <span class="ep-cover-sub">左下小字 · 副标</span>
+                  </div>
+                </article>
+                <article class="empty-preview empty-preview-body">
+                  <header><span class="ep-tag">03 · 正文</span><em class="ep-meta">5–7 段</em></header>
+                  <div class="ep-body-lines">
+                    <i style="width:92%"></i><i style="width:78%"></i><i style="width:88%"></i><i style="width:64%"></i><i style="width:84%"></i><i style="width:72%"></i>
+                  </div>
+                </article>
+                <article class="empty-preview empty-preview-pin">
+                  <header><span class="ep-tag">04 · 置顶评论</span><em class="ep-meta">提升互动</em></header>
+                  <div class="ep-pin"><strong>📌 留个钩子问读者</strong><p>你踩过哪个坑？评论区告诉我。</p></div>
+                </article>
+              </div>
+              <footer class="empty-foot"><span>提交表单后 4 部分按顺序生成</span><small>4 outputs · 1 click</small></footer>
             </div>
             <div id="xhs-result" class="xhs-output" hidden></div>
           </div>
@@ -379,10 +465,51 @@
           </div>
 
           <div class="skill-output-col" aria-live="polite">
-            <div id="tie-empty" class="skill-empty">
-              <span class="tag">— 卡片分镜待建立</span>
-              <h2>先定人物、画幅和风格，<br>再确认每张<span class="serif">文字</span>。</h2>
-              <p>先设定人物、画幅和风格，再确认每一张的文字、场景与动作。</p>
+            <div id="tie-empty" class="skill-empty skill-empty-grid">
+              <div class="empty-head">
+                <span class="tag">— 卡片分镜待建立</span>
+                <h2>先定人物、画幅和风格，<br>再确认每张<span class="serif">文字</span>。</h2>
+                <p>一张卡片只讲一个重点。生成计划后逐张调整。</p>
+              </div>
+              <div class="empty-grid">
+                <article class="empty-preview empty-preview-tietu">
+                  <header><span class="ep-tag">分镜预览 · 3:4</span><em class="ep-meta">default 5 cards</em></header>
+                  <div class="tietu-board">
+                    <div class="tietu-card tc-1"><span class="tc-n">01</span><span class="tc-t">开场</span></div>
+                    <div class="tietu-card tc-2"><span class="tc-n">02</span><span class="tc-t">冲突</span></div>
+                    <div class="tietu-card tc-3"><span class="tc-n">03</span><span class="tc-t">转折</span></div>
+                    <div class="tietu-card tc-4"><span class="tc-n">04</span><span class="tc-t">结果</span></div>
+                    <div class="tietu-card tc-5"><span class="tc-n">05</span><span class="tc-t">收束</span></div>
+                    <div class="tietu-card tc-6"><span class="tc-n">+</span><span class="tc-t">加一张</span></div>
+                  </div>
+                </article>
+                <article class="empty-preview empty-preview-style">
+                  <header><span class="ep-tag">视觉风格</span><em class="ep-meta">点击填入风格框</em></header>
+                  <div class="style-chip-row">
+                    <button type="button" class="style-chip" data-style="赛博朋克 · 霓虹紫 + 故障感">赛博朋克</button>
+                    <button type="button" class="style-chip" data-style="治愈系 · 莫兰迪 + 柔光">治愈系</button>
+                    <button type="button" class="style-chip" data-style="复古港风 · 暖金 + 颗粒">复古港风</button>
+                    <button type="button" class="style-chip" data-style="极简白 · 黑白 + 衬线">极简白</button>
+                    <button type="button" class="style-chip" data-style="胶片摄影 · 高反差 + 暖色">胶片摄影</button>
+                    <button type="button" class="style-chip" data-style="国风手绘 · 水墨 + 留白">国风手绘</button>
+                  </div>
+                </article>
+                <article class="empty-preview empty-preview-portrait">
+                  <header><span class="ep-tag">人物模式</span><em class="ep-meta">人物一致性</em></header>
+                  <div class="portrait-row">
+                    <span class="portrait-dot portrait-off"></span><strong>保持同一人物</strong><p>同系列图片保持人物面部与服饰一致。</p>
+                  </div>
+                </article>
+                <article class="empty-preview empty-preview-tip">
+                  <header><span class="ep-tag">生成策略</span><em class="ep-meta">plan · generate</em></header>
+                  <ul class="tip-list">
+                    <li><span class="tip-n">01</span><strong>先建分镜</strong><small>确认每张讲什么再批量生图</small></li>
+                    <li><span class="tip-n">02</span><strong>逐张调整</strong><small>对单张重做不影响其他卡片</small></li>
+                    <li><span class="tip-n">03</span><strong>保持系统</strong><small>人物/调性一致是贴图号最值钱的部分</small></li>
+                  </ul>
+                </article>
+              </div>
+              <footer class="empty-foot"><span>点击风格 chip 自动填入右侧「视觉风格」输入框</span><small>6 chips · 1 click</small></footer>
             </div>
             <div id="tie-result" class="tie-result" hidden></div>
           </div>
@@ -421,10 +548,58 @@
           </div>
 
           <div class="skill-output-col" aria-live="polite">
-            <div id="hit-empty" class="skill-empty">
-              <span class="tag">— 等待编辑复核</span>
-              <h2>先判断是否存在发布阻断项，<br>再处理<span class="serif">高优先级</span>修改。</h2>
-              <p>先判断是否存在发布阻断项（事实、来源、读者价值），再处理高优先级修改（标题兑现、开头、段落节奏）。</p>
+            <div id="hit-empty" class="skill-empty skill-empty-grid">
+              <div class="empty-head">
+                <span class="tag">— 等待编辑复核</span>
+                <h2>先判断是否存在<span class="serif">发布阻断项</span>，<br>再处理高优先级修改。</h2>
+                <p>结构参考分用于定位机械短板，不是爆款概率预测。</p>
+              </div>
+              <div class="empty-grid">
+                <article class="empty-preview empty-preview-score">
+                  <header><span class="ep-tag">总分预览</span><em class="ep-meta">/100 · reference only</em></header>
+                  <div class="score-ring-row">
+                    <div class="score-ring">
+                      <svg viewBox="0 0 80 80" aria-hidden="true">
+                        <circle cx="40" cy="40" r="34" stroke="rgba(255,255,255,.06)" stroke-width="6" fill="none"/>
+                        <circle cx="40" cy="40" r="34" stroke="var(--ikb-bright)" stroke-width="6" fill="none" stroke-dasharray="213.6" stroke-dashoffset="213.6" transform="rotate(-90 40 40)" class="score-arc"/>
+                      </svg>
+                      <strong>—</strong><span>复检后</span>
+                    </div>
+                    <div class="score-summary">
+                      <span class="status-chip status-pending">等待数据</span>
+                      <p>粘贴正文后这里会显示综合分数与发布建议。</p>
+                    </div>
+                  </div>
+                </article>
+                <article class="empty-preview empty-preview-dims">
+                  <header><span class="ep-tag">六维结构参考</span><em class="ep-meta">6 dims · structural</em></header>
+                  <ul class="dim-skeleton">
+                    <li><span class="dk">标题兑现</span><span class="db"><i style="width:0%"></i></span></li>
+                    <li><span class="dk">事实来源</span><span class="db"><i style="width:0%"></i></span></li>
+                    <li><span class="dk">读者价值</span><span class="db"><i style="width:0%"></i></span></li>
+                    <li><span class="dk">开头钩子</span><span class="db"><i style="width:0%"></i></span></li>
+                    <li><span class="dk">段落节奏</span><span class="db"><i style="width:0%"></i></span></li>
+                    <li><span class="dk">移动阅读</span><span class="db"><i style="width:0%"></i></span></li>
+                  </ul>
+                </article>
+                <article class="empty-preview empty-preview-suggestions">
+                  <header><span class="ep-tag">优先修改建议</span><em class="ep-meta">P0 priority</em></header>
+                  <ul class="suggestion-skeleton">
+                    <li><span class="ss-tag">P0</span><strong>标题是否兑现 · 等待数据</strong><p>复检后这里列出最值得先改的 3 个点。</p></li>
+                    <li><span class="ss-tag">P0</span><strong>开头是否抓人 · 等待数据</strong><p>前 2 句是否把读者抓进来。</p></li>
+                    <li><span class="ss-tag">P1</span><strong>事实是否可核 · 等待数据</strong><p>每条事实声明是否标了来源。</p></li>
+                  </ul>
+                </article>
+                <article class="empty-preview empty-preview-tip">
+                  <header><span class="ep-tag">复核准则</span><em class="ep-meta">guiding · not predicting</em></header>
+                  <ul class="tip-list">
+                    <li><span class="tip-n">01</span><strong>不复检爆款</strong><small>不复检就预测阅读量、爆款概率</small></li>
+                    <li><span class="tip-n">02</span><strong>只标硬伤</strong><small>事实、来源、兑现、读者价值</small></li>
+                    <li><span class="tip-n">03</span><strong>先改阻断</strong><small>P0 修完再考虑 P0 之后</small></li>
+                  </ul>
+                </article>
+              </div>
+              <footer class="empty-foot"><span>提交表单后 6 维度评分 + P0 修改建议</span><small>8 inputs · 1 click</small></footer>
             </div>
             <div id="hit-result" class="hit-result" hidden></div>
           </div>
@@ -627,6 +802,60 @@
             ta.focus();
             ta.dispatchEvent(new Event('input', { bubbles: true }));
           });
+        });
+      })();
+
+      // 启动模板卡（公众号创作初始 3 方向）：点击 → 填入 + 启动 8 步
+      (function () {
+        const ta = document.querySelector('#workbench-topic');
+        const startBtn = document.querySelector('#start-workbench');
+        if (!ta || !startBtn) return;
+        document.querySelectorAll('.start-template').forEach((card) => {
+          card.addEventListener('click', () => {
+            ta.value = card.dataset.topic || '';
+            ta.focus();
+            ta.dispatchEvent(new Event('input', { bubbles: true }));
+            startBtn.click();
+          });
+        });
+        const moreBtn = document.querySelector('#start-templates-more');
+        moreBtn?.addEventListener('click', (e) => {
+          e.preventDefault();
+          startBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        });
+      })();
+
+      // 贴图号风格 chip → 填入 #tie-style
+      (function () {
+        const styleInput = document.querySelector('#tie-style');
+        if (!styleInput) return;
+        document.querySelectorAll('.style-chip').forEach((chip) => {
+          chip.addEventListener('click', () => {
+            styleInput.value = chip.dataset.style || chip.textContent.trim();
+            styleInput.dispatchEvent(new Event('input', { bubbles: true }));
+            styleInput.focus();
+          });
+        });
+      })();
+
+      // 内部路由 delegate：拦截 <a href="/..."> 走 SPA，避免刷新
+      (function () {
+        document.addEventListener('click', (e) => {
+          const a = e.target.closest('a[href]');
+          if (!a) return;
+          const href = a.getAttribute('href') || '';
+          // 仅拦截同源、相对路径、内部 SPA 路由
+          if (!/^\/(?!\/)/.test(href)) return;
+          // 顶栏 tab 已经有自己的 handler，避免重复
+          if (a.closest('.app-tabs')) return;
+          // 模块墙行（[data-view-link]）已有独立 handler
+          if (a.classList.contains('mod')) return;
+          // 跳过带 target=_blank 或 download
+          if (a.target && a.target !== '_self') return;
+          const tab = document.querySelector(`.app-tabs a[href="${href}"]`);
+          if (!tab) return;
+          e.preventDefault();
+          tab.click();
         });
       })();
     </script>

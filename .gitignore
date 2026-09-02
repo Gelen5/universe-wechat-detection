@@ -22,3 +22,7 @@ qa-*.png
 cur-*.png
 *.bak-v2
 uvicorn.log
+scripts_css_append.py
+scripts_refactor_entry.py
+shot_v3r2.py
+selftest_v3r2.py

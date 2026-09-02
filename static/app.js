@@ -549,7 +549,8 @@ downloadButton?.addEventListener('click', () => window.print());
 
 // Content workbench: a thin, stateful UI over the installed Skill adapter.
 const workbench = document.querySelector('#workbench');
-const entry = document.querySelector('#entry');
+const homePage = document.querySelector('#home');
+const diagnosePage = document.querySelector('#diagnose');
 const modeButtons = [...document.querySelectorAll('.mode-option')];
 const workflowSteps = document.querySelector('#workflow-steps');
 const topicInput = document.querySelector('#workbench-topic');
@@ -578,6 +579,13 @@ const stepGuidance = {
 };
 
 function renderDecisionPanel(session) {
+  if (!session) {
+    // 初次进入：保留 #workbench-decision 静态模板卡（不要 innerHTML 清空）
+    runNextButton.textContent = '先选一个方向';
+    previewButton.hidden = true;
+    document.querySelector('#publish-draft').hidden = true;
+    return;
+  }
   const step = session.current_step || 1;
   const guide = stepGuidance[step] || stepGuidance[1];
   decisionPanel.innerHTML = `<span>正在做</span><strong>${esc(guide.label)}</strong><p>${esc(guide.title)}</p>`;
@@ -937,7 +945,8 @@ function bindCopyButtons(root = document) {
 }
 
 const viewMap = {
-  diagnose: entry,
+  home: homePage,
+  diagnose: diagnosePage,
   workbench,
   xiaohongshu: xiaohongshuPage,
   'tie-tu': tieTuPage,
@@ -947,7 +956,7 @@ const viewMap = {
 };
 
 const viewTitles = {
-  diagnose: '公众号诊断',
+  home: '宇宙第一工作台',
   workbench: '公众号创作',
   xiaohongshu: '小红书创作',
   'tie-tu': '微信贴图号',
@@ -958,21 +967,21 @@ const viewTitles = {
 
 function pathToView(path) {
   const p = String(path || '').replace(/^\/+|\/+$/g, '');
-  if (!p) return 'diagnose';
+  if (!p) return 'home';
   if (p === 'morning-generator') return 'morning';
-  return Object.prototype.hasOwnProperty.call(viewMap, p) ? p : 'diagnose';
+  return Object.prototype.hasOwnProperty.call(viewMap, p) ? p : 'home';
 }
 
 function setActiveView(view, updateHash = false) {
   Object.entries(viewMap).forEach(([name, element]) => { if (element) element.hidden = name !== view; });
   document.querySelectorAll('.app-tabs [data-view]').forEach(item => item.classList.toggle('active', item.dataset.view === view));
-  appShell?.classList.toggle('workbench-active', view !== 'diagnose' && view !== 'report');
+  appShell?.classList.toggle('workbench-active', view !== 'home' && view !== 'diagnose' && view !== 'report');
   if (downloadButton) downloadButton.hidden = view !== 'report';
   if (view === 'morning') syncMorningApiKey();
   const commandTitle = document.querySelector('#command-title');
   if (commandTitle) commandTitle.textContent = viewTitles[view] || '宇宙第一工作台';
   if (updateHash && view !== 'report') {
-    const url = view === 'diagnose' ? '/' : `/${view === 'morning' ? 'morning-generator' : view}`;
+    const url = view === 'home' ? '/' : `/${view === 'morning' ? 'morning-generator' : view}`;
     history.replaceState(null, '', url);
   }
   window.scrollTo({ top: 0, behavior: 'smooth' });
