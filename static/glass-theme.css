@@ -1199,6 +1199,21 @@ body { overflow-x: hidden; }
 }
 
 .skill-form { display: flex; flex-direction: column; gap: 14px; }
+
+/* V3 暗色：taste-chatgpt.css 用 !important 给 .skill-form / 输入框铺了
+   rgba(255,255,255,.64-.78) 的玻璃白底，必须再用 !important 强压。 */
+#hit-detector .skill-form,
+#workbench .skill-form,
+#xiaohongshu .skill-form,
+#tie-tu .skill-form,
+#morning-generator .skill-form {
+  background: var(--bg) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: var(--r-md) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
 .skill-form label {
   display: flex; flex-direction: column; gap: 6px;
   font-size: 11px; color: var(--text-3); font-weight: 600;
@@ -1206,7 +1221,8 @@ body { overflow-x: hidden; }
 }
 .skill-form input, .skill-form select, .skill-form textarea {
   width: 100%; padding: 11px 12px;
-  background: var(--bg-2); border: 1px solid var(--line-2);
+  background: var(--bg-2) !important;
+  border: 1px solid var(--line-2);
   border-radius: 8px; color: var(--text);
   font-size: 13px; line-height: 1.5;
   outline: none;
