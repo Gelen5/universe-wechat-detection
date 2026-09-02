@@ -46,6 +46,13 @@ def execute(job: dict[str, Any]) -> dict[str, Any]:
         with workbench.provider_overrides():
             session = workbench.create(payload["topic"], payload["mode"], payload["persona"], payload["theme"], user_id=job["user_id"], session_id=payload["session_id"])
             return {"status": "success", "session": session}
+    if kind == "workbench_step":
+        with workbench.provider_overrides():
+            session = workbench.step(
+                payload["session_id"], payload["step"], payload.get("selection"),
+                payload.get("article"), user_id=job["user_id"],
+            )
+            return {"status": "success", "session": session}
     raise ValueError(f"未知任务类型：{kind}")
 
 

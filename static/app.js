@@ -568,6 +568,7 @@ const workbenchProgressDetail = document.querySelector('#workbench-progress-deta
 const workbenchProgressBar = document.querySelector('#workbench-progress-bar');
 const cancelWorkbenchButton = document.querySelector('#cancel-workbench');
 let workbenchController = null;
+let workbenchTaskId = null;
 const editCurrentButton = document.querySelector('#edit-current');
 let workbenchMode = 'interactive';
 let workbenchSession = null;
@@ -682,6 +683,16 @@ function setWorkbenchProgress(target, active = true, message = '') {
 }
 
 async function callWorkbench(path, payload, signal) {
+  if (path === '/api/workbench/steps' && Number(payload.step) >= 5) {
+    const result = await submitQueuedTask('workbench_step', {
+      session_id: payload.session_id,
+      step: payload.step,
+      selection: payload.selection,
+      article: payload.article,
+    }, signal, job => { workbenchTaskId = job.id; });
+    workbenchTaskId = null;
+    return result.session;
+  }
   const response = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...sharedApiPayload(), ...payload }), signal });
   const data = await readApiResponse(response);
   return data.session;
@@ -757,7 +768,11 @@ cancelWorkbenchButton?.addEventListener('click', async () => {
   if (!workbenchSession || !workbenchController) return;
   cancelWorkbenchButton.disabled = true;
   try {
-    await fetch('/api/workbench/cancel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...sharedApiPayload(), session_id: workbenchSession.id, step: workbenchSession.current_step || 1 }) });
+    if (workbenchTaskId) {
+      await fetch(`/api/tasks/${encodeURIComponent(workbenchTaskId)}/cancel`, { method: 'POST' });
+    } else {
+      await fetch('/api/workbench/cancel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...sharedApiPayload(), session_id: workbenchSession.id, step: workbenchSession.current_step || 1 }) });
+    }
   } finally {
     workbenchController.abort();
     workbenchProgressTitle.textContent = '已取消等待';
@@ -809,10 +824,11 @@ async function postCreator(path, payload, signal) {
   return readApiResponse(response);
 }
 
-async function submitQueuedTask(type, payload, signal) {
+async function submitQueuedTask(type, payload, signal, onAccepted) {
   const accepted = await readApiResponse(await fetch('/api/tasks', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type, idempotency_key: newIdempotencyKey(), payload }), signal }));
   const jobId = accepted.job?.id;
   if (!jobId) throw new Error('任务未返回编号');
+  onAccepted?.(accepted.job);
   const cancel = () => fetch(`/api/tasks/${encodeURIComponent(jobId)}/cancel`, { method: 'POST' }).catch(() => undefined);
   signal?.addEventListener('abort', cancel, { once: true });
   while (true) {

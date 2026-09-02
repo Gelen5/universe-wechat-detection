@@ -193,7 +193,7 @@ class ImpersonateRequest(BaseModel):
 
 
 class TaskCreateRequest(BaseModel):
-    type: str = Field(pattern="^(diagnose|xiaohongshu|tie_tu|hit_detect|hit_rewrite|creator_image|morning_image|workbench)$")
+    type: str = Field(pattern="^(diagnose|xiaohongshu|tie_tu|hit_detect|hit_rewrite|creator_image|morning_image|workbench|workbench_step)$")
     idempotency_key: str = Field(min_length=8, max_length=120)
     payload: dict[str, Any]
 
@@ -595,6 +595,7 @@ TASK_DEFINITIONS = {
     "creator_image": ("image", "POST", "/api/creator-tools/image"),
     "morning_image": ("image", "POST", "/api/images/generations"),
     "workbench": ("text", "POST", "/api/workbench/sessions"),
+    "workbench_step": ("image", "POST", "/api/workbench/steps"),
 }
 
 
@@ -635,6 +636,10 @@ def get_task(job_id: str, request: Request):
 
 @app.post("/api/tasks/{job_id}/cancel")
 def cancel_task(job_id: str, request: Request):
+    existing = accounts.job(job_id, request.state.user["id"])
+    if existing and existing.get("status") == "running" and existing.get("type") == "workbench_step":
+        payload = json.loads(existing.get("payload_json") or "{}")
+        workbench.cancel(payload["session_id"], user_id=request.state.user["id"])
     job = accounts.cancel_job(job_id, request.state.user["id"])
     if not job:
         raise HTTPException(status_code=404, detail="任务不存在或不属于当前用户")
