@@ -94,11 +94,10 @@ body { overflow-x: hidden; }
    ========================================================= */
 .v3-topbar {
   position: sticky; top: 0; z-index: 50;
-  height: 64px;
+  height: 60px;
   display: flex; align-items: center; justify-content: space-between;
   padding: 0 40px;
-  background: rgba(0, 0, 0, .72);
-  backdrop-filter: blur(20px) saturate(180%);
+  background: var(--bg);
   border-bottom: 1px solid var(--line);
   font-family: var(--sans);
 }
@@ -107,51 +106,60 @@ body { overflow-x: hidden; }
   letter-spacing: -.01em;
 }
 .v3-topbar .brand .mark {
-  width: 22px; height: 22px; border-radius: 6px;
+  width: 20px; height: 20px; border-radius: 5px;
   background: var(--ikb-bright);
   position: relative; overflow: hidden;
-  box-shadow: 0 0 12px var(--ikb-glow);
 }
 .v3-topbar .brand .mark::after {
-  content: ""; position: absolute; inset: 5px;
+  content: ""; position: absolute; inset: 4px;
   border: 1.5px solid #fff; border-radius: 50%;
   border-top-color: transparent; border-right-color: transparent;
   transform: rotate(-45deg);
 }
 .v3-topbar .brand .name {
-  font-size: 15px; font-weight: 600; color: var(--text);
-  letter-spacing: -.01em;
+  font-size: 14px; font-weight: 600; color: var(--text);
+  letter-spacing: -.005em;
 }
 .v3-topbar .brand .ver {
   margin-left: 4px; font-family: var(--mono);
-  font-size: 11px; color: var(--text-4); letter-spacing: .04em;
+  font-size: 10.5px; color: var(--text-4); letter-spacing: .04em;
 }
 .v3-topbar .tabs {
   display: flex; align-items: center; gap: 0;
-  height: 100%; margin: 0 -14px;
+  height: 100%;
 }
 .v3-topbar .tabs a {
   height: calc(100% + 1px);
-  display: flex; align-items: center;
-  padding: 0 14px;
-  font-size: 13px; color: var(--text-3); font-weight: 500;
+  display: flex; align-items: center; gap: 6px;
+  padding: 0 13px;
+  font-size: 12.5px; color: var(--text-3); font-weight: 500;
   border-bottom: 2px solid transparent; margin-bottom: -1px;
-  transition: color .15s ease;
-  letter-spacing: -.005em;
+  letter-spacing: -.003em;
+  position: relative;
+  transition: color .2s cubic-bezier(.22,.61,.36,1), background .2s ease, border-color .2s ease;
 }
-.v3-topbar .tabs a:hover { color: var(--text-2); }
+.v3-topbar .tabs a .tab-icon {
+  width: 14px; height: 14px;
+  flex-shrink: 0;
+  opacity: .75;
+  transition: opacity .2s ease, stroke-width .2s ease;
+}
+.v3-topbar .tabs a:hover { color: var(--text); background: rgba(255,255,255,.02); }
+.v3-topbar .tabs a:hover .tab-icon { opacity: 1; }
 .v3-topbar .tabs a.active {
-  color: var(--text); border-bottom-color: var(--text);
+  color: var(--text); font-weight: 600;
+  border-bottom-color: var(--ikb-bright);
+  background: linear-gradient(180deg, transparent 0%, rgba(61,91,255,.07) 100%);
 }
+.v3-topbar .tabs a.active .tab-icon { opacity: 1; }
 .v3-topbar .right {
-  display: flex; align-items: center; gap: 16px;
+  display: flex; align-items: center; gap: 12px;
   font-size: 12px; color: var(--text-3); font-weight: 500;
 }
 .v3-topbar .right .stat { display: inline-flex; align-items: center; gap: 6px; }
 .v3-topbar .right .dot-live {
   width: 6px; height: 6px; border-radius: 50%;
   background: var(--good); display: inline-block;
-  box-shadow: 0 0 8px rgba(63, 185, 80, .5);
 }
 .v3-topbar .right .ver { font-family: var(--mono); font-size: 11px; color: var(--text-4); letter-spacing: .04em; }
 .v3-topbar .right .avatar {
@@ -802,35 +810,49 @@ body { overflow-x: hidden; }
   max-width: 60ch; margin: 14px 0 0;
 }
 
-/* 顶部 8 步流程条 */
+/* 顶部 8 步流程条（V3 r6：4 列 × 2 行精致化） */
 .wb-rail {
-  padding: 0 40px;
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
+  padding: 24px 40px 0;
 }
 .wb-rail-list {
-  display: grid; grid-template-columns: repeat(8, 1fr);
+  display: grid; grid-template-columns: repeat(4, 1fr);
   gap: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--bg-2);
 }
 .wb-rail-list .step {
-  display: flex; align-items: center; gap: 10px;
-  padding: 16px 14px;
+  display: flex; align-items: center; gap: 12px;
+  padding: 18px 18px;
   border-right: 1px solid var(--line);
-  font-size: 12px; color: var(--text-2);
+  border-bottom: 1px solid var(--line);
+  font-size: 12.5px; color: var(--text-2);
   position: relative;
+  transition: background .2s ease;
 }
-.wb-rail-list .step:last-child { border-right: 0; }
+.wb-rail-list .step:nth-child(4n) { border-right: 0; }
+.wb-rail-list .step:nth-child(n+5) { border-bottom: 0; }
+.wb-rail-list .step:hover { background: var(--bg-3); }
 .wb-rail-list .step .i {
-  font-family: var(--mono); font-size: 10px; color: var(--text-3);
-  letter-spacing: .04em; font-weight: 500;
+  font-family: var(--mono); font-size: 10.5px; color: var(--text-4);
+  letter-spacing: .06em; font-weight: 500;
+  flex-shrink: 0; min-width: 20px;
 }
 .wb-rail-list .step .n {
-  font-size: 13px; color: var(--text); font-weight: 500;
+  font-size: 13.5px; color: var(--text); font-weight: 500;
   letter-spacing: -.005em;
 }
 .wb-rail-list .step.done .n { color: var(--text-3); text-decoration: line-through; text-decoration-color: var(--text-5); }
 .wb-rail-list .step.done .i { color: var(--good); }
-.wb-rail-list .step.active .n { color: var(--ikb-bright); }
+.wb-rail-list .step.active {
+  background: linear-gradient(90deg, rgba(61,91,255,.12) 0%, transparent 90%);
+}
+.wb-rail-list .step.active::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 2px; background: var(--ikb-bright);
+}
+.wb-rail-list .step.active .n { color: var(--text); font-weight: 600; }
 .wb-rail-list .step.active .i { color: var(--ikb-bright); }
 
 /* 三栏工作区 */
@@ -2610,37 +2632,52 @@ iframe.generator-frame {
   overflow: visible;
 }
 
-/* 8 步流程条：可见化（taste 设为 display:none，V3 要求展示） */
-.article-workspace .workflow-rail { display: flex; }
+/* 8 步流程条：可见化（V3 r6：4 列 × 2 行精致化） */
+.article-workspace .workflow-rail { display: grid; grid-template-columns: repeat(4, 1fr); }
 .workflow-rail {
   width: min(1440px, 100%);
   margin: 0 auto 14px;
-  display: grid; grid-template-columns: repeat(8, 1fr);
-  border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
-  background: rgba(255,255,255,.02);
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
+  background: var(--bg-2);
 }
 .workflow-rail .workflow-step {
-  padding: 10px 12px;
-  display: flex; align-items: center; gap: 9px;
+  padding: 18px 18px;
+  display: flex; align-items: center; gap: 12px;
   border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  position: relative;
+  transition: background .2s ease;
 }
-.workflow-rail .workflow-step:last-child { border-right: 0; }
+.workflow-rail .workflow-step:nth-child(4n) { border-right: 0; }
+.workflow-rail .workflow-step:nth-child(n+5) { border-bottom: 0; }
+.workflow-rail .workflow-step:hover { background: var(--bg-3); }
 .workflow-rail .workflow-step > span {
-  font-family: var(--mono); font-size: 10px; color: var(--text-4);
-  letter-spacing: .04em;
+  font-family: var(--mono); font-size: 10.5px; color: var(--text-4);
+  letter-spacing: .06em; font-weight: 500;
+  flex-shrink: 0; min-width: 20px;
 }
 .workflow-rail .workflow-step strong {
-  display: block; font-size: 12px; font-weight: 500; color: var(--text-2);
-  white-space: nowrap;
+  display: block; font-size: 13.5px; font-weight: 500; color: var(--text);
+  white-space: nowrap; letter-spacing: -.005em;
 }
 .workflow-rail .workflow-step small {
-  display: block; margin-top: 2px; font-size: 10px; color: var(--text-4);
-  white-space: nowrap;
+  display: block; margin-top: 2px; font-size: 10.5px; color: var(--text-4);
+  white-space: nowrap; letter-spacing: -.003em;
 }
-.workflow-rail .workflow-step.active { background: rgba(61,91,255,.08); }
+.workflow-rail .workflow-step.active {
+  background: linear-gradient(90deg, rgba(61,91,255,.12) 0%, transparent 90%);
+}
+.workflow-rail .workflow-step.active::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 2px; background: var(--ikb-bright);
+}
 .workflow-rail .workflow-step.active > span { color: var(--ikb-bright); }
-.workflow-rail .workflow-step.active strong { color: var(--ikb-bright); }
+.workflow-rail .workflow-step.active strong { color: var(--text); font-weight: 600; }
 .workflow-rail .workflow-step.done > span { color: var(--good); }
+.workflow-rail .workflow-step.done strong {
+  color: var(--text-3); text-decoration: line-through; text-decoration-color: var(--text-5);
+}
 
 /* 三栏容器 */
 .conversation-workbench-layout {
@@ -3340,4 +3377,18 @@ iframe.generator-frame {
   #hit-result .ledger-list > div,
   #xhs-result .issue-list li { transition: none !important; }
   #xhs-result .title-option:hover { transform: none; }
+}
+
+/* 14 页面级白色光晕强压（V3 r6） —— 干掉 taste-chatgpt 的 radial 白雾 */
+.workbench-page {
+  background: var(--bg) !important;
+  background-image: none !important;
+}
+.workbench-page::before { content: none !important; }
+.skill-page::before,
+.entry-panel::before,
+.report-page::before,
+.morning-generator-page::before {
+  content: none !important;
+  background: none !important;
 }
