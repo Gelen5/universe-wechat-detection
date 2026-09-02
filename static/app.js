@@ -589,7 +589,9 @@ function renderDecisionPanel(session) {
   const step = session.current_step || 1;
   const guide = stepGuidance[step] || stepGuidance[1];
   decisionPanel.innerHTML = `<span>正在做</span><strong>${esc(guide.label)}</strong><p>${esc(guide.title)}</p>`;
-  runNextButton.textContent = session.article ? '✦ 生成下一版' : (step === 1 ? '先选一个方向' : guide.action);
+  runNextButton.textContent = step === 1 ? '先选择一个方向' : `下一步：${guide.action}`;
+  runNextButton.disabled = step === 1;
+  runNextButton.hidden = step >= 7;
   previewButton.hidden = !(session.article || session.preview_url);
   document.querySelector('#publish-draft').hidden = step < 7;
 }
@@ -651,7 +653,7 @@ function renderWorkbenchSession(session) {
   }
   const suggestions = session.suggestions || [];
   topicList.innerHTML = session.current_step === 1 && suggestions.length ? `<div class="chat-choice-head"><strong>我先给你三个写法方向</strong><span>可采用，也可继续让我调整</span></div>${suggestions.slice(0, 3).map(item => `<article class="chat-choice"><span>${String(item.id).padStart(2, '0')}</span><div><strong>${esc(item.title)}</strong><p>${esc(item.reason)}</p><small>${esc(item.type)}</small></div><footer><button class="adopt-topic" data-topic-id="${item.id}" type="button">采用</button><button class="regenerate-topic" type="button">重新生成</button></footer></article>`).join('')}` : '';
-  topicList.querySelectorAll('.adopt-topic').forEach(item => item.addEventListener('click', async () => { await advance(Number(item.dataset.topicId), 3); renderChatThread(workbenchSession); }));
+  topicList.querySelectorAll('.adopt-topic').forEach(item => item.addEventListener('click', async () => { await advance(Number(item.dataset.topicId), 2); renderChatThread(workbenchSession); }));
   topicList.querySelectorAll('.regenerate-topic').forEach(item => item.addEventListener('click', () => sendWorkbenchChat('这个方向不错，但请换一个更有冲突和具体场景的写法。', 'regenerate_topics')));
   renderOutline(session);
   window.lucide?.createIcons();
@@ -718,7 +720,13 @@ async function sendWorkbenchChat(message, action = 'rewrite_article', selectionT
   } catch (error) { alert(error.message); } finally { send.disabled = false; send.textContent = original || '↑'; }
 }
 
-runNextButton?.addEventListener('click', async () => { if (workbenchSession) await sendWorkbenchChat('请保留核心观点，换一种更有冲突、更容易读下去的写法。'); });
+runNextButton?.addEventListener('click', async () => {
+  if (!workbenchSession) return;
+  const current = workbenchSession.current_step || 1;
+  if (current < 2 || current >= 7) return;
+  runNextButton.disabled = true;
+  try { await advance(null, current + 1); } catch (error) { alert(error.message); } finally { runNextButton.disabled = false; }
+});
 document.querySelector('#workbench-regenerate-topics')?.addEventListener('click', () => { if (workbenchSession) sendWorkbenchChat('请重新给我三个方向，角度更具体，不要泛泛而谈。', 'regenerate_topics'); else topicInput.focus(); });
 document.querySelector('#new-workbench-chat')?.addEventListener('click', () => { workbenchSession = null; workbenchVersionIndex = -1; topicInput.value = ''; articleEditor.value = ''; document.querySelector('#result-title').textContent = '还没有开始写'; document.querySelector('#article-save-state').textContent = '输入一个主题后，我会先和你确认写作方向'; document.querySelector('#article-version-label').textContent = '当前草稿 · 尚未生成'; document.querySelector('#article-change-label').textContent = '等待你的写作意图'; document.querySelector('#workbench-status').textContent = '等待你的想法'; topicList.innerHTML = ''; renderChatThread(null); renderOutline({}); });
 document.querySelectorAll('[data-rewrite-selection]').forEach(button => button.addEventListener('click', () => { if (!workbenchSession) return; const selection = articleEditor.value.slice(articleEditor.selectionStart, articleEditor.selectionEnd); if (!selection) { alert('先在当前文章中选中一段，再告诉我如何改写。'); return; } sendWorkbenchChat(button.dataset.rewriteSelection, 'rewrite_article', selection); }));
