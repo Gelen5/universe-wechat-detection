@@ -609,8 +609,6 @@ def _public_job(job: dict[str, Any]) -> dict[str, Any]:
 @app.post("/api/tasks", status_code=202)
 def create_task(payload: TaskCreateRequest, request: Request):
     user = request.state.user
-    if accounts.active_job_count(user["id"]) >= 1:
-        raise HTTPException(status_code=429, detail="内测期间每位用户同时只能运行 1 个任务")
     lane, method, path = TASK_DEFINITIONS[payload.type]
     rule = accounts.pricing_rule(method, path)
     if not rule:

@@ -465,14 +465,25 @@ def _build_article_markdown(session: dict[str, Any]) -> str:
             source = f"data:{mime};base64,{encoded}"
         image_markdown.append(f"![{label}]({source})")
     cover = image_markdown[0] if image_markdown else ""
-    body_images = "\n\n".join(image_markdown[1:])
+    body_images = image_markdown[1:]
     article = str(session.get("article") or "").strip()
     heading = f"# {session['topic']}"
     if article.startswith("#"):
         article = article.split("\n", 1)[1].lstrip() if "\n" in article else ""
+    # Keep the cover below the title and place body art inside the reading flow.
+    # The first section boundary is a stable, understandable insertion point.
+    for body_image in body_images:
+        section = re.search(r"(?m)^##\s+", article)
+        if section:
+            article = f"{article[:section.start()].rstrip()}\n\n{body_image}\n\n{article[section.start():].lstrip()}"
+        else:
+            paragraphs = article.split("\n\n")
+            insertion = max(1, min(len(paragraphs), len(paragraphs) // 2))
+            paragraphs.insert(insertion, body_image)
+            article = "\n\n".join(paragraphs)
     return (
         f"---\ntitle: '{session['topic'].replace(chr(39), '')}'\ntheme: {session['theme']}\n"
-        f"---\n{heading}\n\n{cover}\n\n{article}\n\n{body_images}"
+        f"---\n{heading}\n\n{cover}\n\n{article}"
     )
 
 

@@ -178,6 +178,18 @@ class AccountAndBillingTests(unittest.TestCase):
         self.assertEqual(job["status"], "failed")
         self.assertEqual(self.client.get("/api/wallet").json()["wallet"]["balance"], 30)
 
+    def test_same_user_can_queue_multiple_tasks(self):
+        self._recharge(100)
+        first = self.client.post("/api/tasks", json={
+            "type": "tie_tu", "idempotency_key": f"queue-one-{id(self)}", "payload": {"topic": "任务一"},
+        })
+        second = self.client.post("/api/tasks", json={
+            "type": "tie_tu", "idempotency_key": f"queue-two-{id(self)}", "payload": {"topic": "任务二"},
+        })
+        self.assertEqual(first.status_code, 202, first.text)
+        self.assertEqual(second.status_code, 202, second.text)
+        self.assertNotEqual(first.json()["job"]["id"], second.json()["job"]["id"])
+
     def test_restart_recovery_marks_unfinished_job_failed_and_refunds(self):
         self._recharge(30)
         rule = accounts.pricing_rule("POST", "/api/workbench/sessions")
