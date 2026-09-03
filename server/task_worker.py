@@ -66,11 +66,21 @@ def _run(job: dict[str, Any]) -> None:
     started = time.perf_counter()
     try:
         result = execute(job)
+        current = accounts.job(job["id"]) or {}
+        if current.get("canceled_at"):
+            accounts.mark_job_canceled(job["id"])
+            if job.get("usage_id"):
+                accounts.refund_usage(job["usage_id"], 499, int((time.perf_counter() - started) * 1000))
+            return
         accounts.finish_job(job["id"], result)
         if job.get("usage_id"):
             accounts.settle_usage(job["usage_id"], 200, int((time.perf_counter() - started) * 1000))
     except Exception as exc:
-        accounts.fail_job(job["id"], str(exc))
+        current = accounts.job(job["id"]) or {}
+        if current.get("canceled_at"):
+            accounts.mark_job_canceled(job["id"])
+        else:
+            accounts.fail_job(job["id"], str(exc))
         if job.get("usage_id"):
             accounts.refund_usage(job["usage_id"], 500, int((time.perf_counter() - started) * 1000))
 
