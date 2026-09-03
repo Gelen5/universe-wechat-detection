@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="/static/style.css?v=20260901-v3-merge" />
     <link rel="stylesheet" href="/static/taste-chatgpt.css?v=20260901-v3-merge" />
     <link rel="stylesheet" href="/static/admin.css?v=20260901-v3-merge" />
-    <link rel="stylesheet" href="/static/glass-theme.css?v=20260903-v3r6-tab-redesign" />
+    <link rel="stylesheet" href="/static/glass-theme.css?v=20260903-v3r7-flow-ui" />
   </head>
   <body>
     <div class="app-shell">
@@ -353,6 +353,7 @@
               <footer><span>点选任意卡片 → 自动填入主题并启动 8 步共创</span><a href="#" id="start-templates-more">换一批方向</a></footer>
             </section>
             <div class="editor-wrap"><div class="editor-head"><span>当前输出</span><span id="score-label">可直接编辑，也可选中一段再让 AI 重写</span></div><textarea id="article-editor" aria-label="当前文章正文" placeholder="文章会在这里持续更新"></textarea><div class="selection-actions"><button data-rewrite-selection="改短一点" type="button">改短一点</button><button data-rewrite-selection="换成故事开头" type="button">换成故事开头</button><button data-rewrite-selection="重写这一段" type="button">重写这一段</button></div></div>
+            <div id="score-report" class="score-report" hidden></div>
             <div id="generated-images" class="generated-images" hidden></div>
             <footer class="article-canvas-foot"><span id="result-meta">当前没有正文</span><span>自动保存</span></footer>
           </section>
@@ -361,8 +362,16 @@
             <section><h3>当前文章结构</h3><ol id="workbench-outline" class="outline-list"><li><span>01</span><p>等待你确认写作方向</p></li></ol></section>
             <section class="version-history"><h3>版本记录</h3><div id="workbench-version-list"></div></section>
             <div id="workbench-progress" class="workbench-progress" hidden><div><strong id="workbench-progress-title">正在处理</strong><span id="workbench-progress-detail">请稍候</span></div><div class="workbench-progress-track"><i id="workbench-progress-bar"></i></div><button id="cancel-workbench" class="outline-action" type="button"><i data-lucide="square"></i> 取消生成</button></div>
-            <div class="outcome-actions"><button id="run-next" class="generate-next" type="button"><i data-lucide="arrow-right"></i> 下一步</button><button id="open-preview" class="outline-action" type="button"><i data-lucide="eye"></i> 查看排版预览</button><a id="download-workbench-html" class="outline-action" href="#" hidden><i data-lucide="download"></i> 下载 HTML</a><button id="publish-draft" class="outline-action" type="button" hidden><i data-lucide="send"></i> 写入公众号草稿箱</button></div>
           </aside>
+          <div class="flow-actionbar">
+            <div class="flow-status"><span class="flow-dot"></span><div><strong id="flow-step-label">等待你的想法</strong><span id="flow-step-hint">从三个方向里挑一个开始</span></div></div>
+            <div class="flow-actions">
+              <button id="open-preview" class="flow-secondary" type="button" hidden><i data-lucide="eye"></i> 查看排版预览</button>
+              <a id="download-workbench-html" class="flow-secondary" href="#" hidden><i data-lucide="download"></i> 下载 HTML</a>
+              <button id="publish-draft" class="flow-secondary publish" type="button" hidden><i data-lucide="send"></i> 写入公众号草稿箱</button>
+              <button id="run-next" class="flow-primary" type="button" disabled><i data-lucide="arrow-right"></i> 先选择一个方向</button>
+            </div>
+          </div>
         </div>
       </section>
 

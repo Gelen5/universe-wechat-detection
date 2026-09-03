@@ -585,10 +585,43 @@ const stepGuidance = {
   8: { label: '发布完成', title: '草稿写入流程已完成。', detail: '你仍可返回正文修改，并重新生成预览。', action: '完成', next: '—' },
 };
 
+function renderScoreReport(session) {
+  const wrap = document.querySelector('#score-report');
+  if (!wrap) return;
+  const scoreObj = session?.score;
+  const score = scoreObj?.score;
+  if (score == null) { wrap.hidden = true; wrap.innerHTML = ''; return; }
+  const val = Number(score);
+  const ok = val >= 80;
+  const pct = Math.round(Math.max(0, Math.min(100, val)));
+  const dims = scoreObj?.dimensions || scoreObj?.scores || null;
+  const dimRows = dims ? Object.entries(dims).filter(([, v]) => v != null).map(([k, v]) => {
+    const nv = Math.round(Math.max(0, Math.min(100, Number(v))));
+    return `<div class="srow"><span>${esc(k)}</span><div class="sbar"><i style="width:${nv}%"></i></div><em>${nv}</em></div>`;
+  }).join('') : '';
+  const fixes = session.suggestions && session.suggestions.length
+    ? `<div class="score-fixes-head"><span class="micro-label">优先修改</span><h4>按建议改稿后重新审校</h4></div><ul class="score-fixes">${session.suggestions.slice(0, 6).map(x => `<li>${esc(typeof x === 'string' ? x : (x.text || x.title || ''))}</li>`).join('')}</ul>` : '';
+  wrap.hidden = false;
+  wrap.innerHTML = `<section class="score-report-card">
+    <div class="score-ring" style="--p:${pct}"><div><strong>${val}</strong><span>结构参考</span></div></div>
+    <div class="score-body">
+      <header><span class="score-badge ${ok ? 'ok' : 'revise'}">${ok ? '可以发布' : '修改后复核'}</span><h3>反 AI 审校报告</h3><p>${esc(scoreObj.summary || (ok ? '表达与结构达到可发布标准。' : '发现可优化的表达与事实边界，建议按清单调整。'))}</p></header>
+      ${dimRows ? `<div class="score-dims">${dimRows}</div>` : ''}
+      ${fixes}
+    </div>
+  </section>`;
+  window.lucide?.createIcons();
+}
+
 function renderDecisionPanel(session) {
   if (!session) {
     // 初次进入：保留 #workbench-decision 静态模板卡（不要 innerHTML 清空）
-    runNextButton.textContent = '先选一个方向';
+    const flowLabel = document.querySelector('#flow-step-label');
+    const flowHint = document.querySelector('#flow-step-hint');
+    if (flowLabel) flowLabel.textContent = '等待你的想法';
+    if (flowHint) flowHint.textContent = '从三个方向里挑一个，或直接说你的选题';
+    runNextButton.innerHTML = '<i data-lucide="arrow-right"></i> 先选择一个方向';
+    runNextButton.disabled = true;
     previewButton.hidden = true;
     document.querySelector('#publish-draft').hidden = true;
     return;
@@ -596,7 +629,11 @@ function renderDecisionPanel(session) {
   const step = session.current_step || 1;
   const guide = stepGuidance[step] || stepGuidance[1];
   decisionPanel.innerHTML = `<span>正在做</span><strong>${esc(guide.label)}</strong><p>${esc(guide.title)}</p>`;
-  runNextButton.textContent = step === 1 ? '先选择一个方向' : `下一步：${guide.action}`;
+  const flowLabel = document.querySelector('#flow-step-label');
+  const flowHint = document.querySelector('#flow-step-hint');
+  if (flowLabel) flowLabel.textContent = `第 ${step} 步 · ${guide.label}`;
+  if (flowHint) flowHint.textContent = guide.detail;
+  runNextButton.innerHTML = `<i data-lucide="arrow-right"></i> ${step === 1 ? '先选择一个方向' : `下一步：${guide.action}`}`;
   runNextButton.disabled = step === 1;
   runNextButton.hidden = step >= 7;
   previewButton.hidden = !(session.preview_url || step >= 7);
@@ -604,11 +641,48 @@ function renderDecisionPanel(session) {
 }
 
 function paintWorkflow(current = 1) {
-  workflowSteps.innerHTML = ['选题', '框架', '写作', '反 AI', '配图', '排版', '预览', '发布'].map((name, index) => {
+  const steps = ['选题', '框架', '写作', '反 AI', '配图', '排版', '预览', '发布'];
+  const notes = { 1: '找到值得写的方向', 2: '确定文章骨架', 3: '形成完整初稿', 4: '检查 AI 痕迹', 5: '规划视觉表达', 6: '生成公众号排版', 7: '手机端预览效果', 8: '确认后进入草稿箱' };
+  workflowSteps.innerHTML = steps.map((name, index) => {
     const n = index + 1;
     const state = n < current ? 'done' : n === current ? 'active' : '';
-    return `<div class="workflow-step ${state}"><span>${String(n).padStart(2, '0')}</span><div><strong>${name}</strong><small>${n === 1 ? '找到值得写的方向' : n === 2 ? '确定文章骨架' : n === 3 ? '形成完整初稿' : n === 4 ? '检查 AI 痕迹' : n === 5 ? '规划视觉表达' : n === 6 ? '生成公众号排版' : n === 7 ? '手机端预览效果' : '确认后进入草稿箱'}</small></div></div>`;
+    const clickable = n < current ? 'clickable' : '';
+    return `<button type="button" class="workflow-step ${state} ${clickable}" data-step="${n}" ${n === current ? 'aria-current="step"' : ''} ${n > current ? 'tabindex="-1"' : ''}><span>${String(n).padStart(2, '0')}</span><div><strong>${name}</strong><small>${notes[n]}</small></div></button>`;
   }).join('');
+  workflowSteps.querySelectorAll('.workflow-step.clickable').forEach(el => {
+    el.addEventListener('click', () => reviewStep(Number(el.dataset.step)));
+  });
+}
+
+function flashProduct(id, message) {
+  const el = document.getElementById(id);
+  const hint = document.querySelector('#flow-step-hint');
+  if (hint && message) hint.textContent = message;
+  if (!el) return;
+  if (el.hidden) el.hidden = false;
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  el.classList.add('flash-ring');
+  setTimeout(() => el.classList.remove('flash-ring'), 1400);
+}
+
+function reviewStep(n) {
+  const s = workbenchSession;
+  if (!s) return;
+  const label = ['', '选题方向', '文章结构', '当前正文', '反 AI 审校报告', '配图', '排版富文本', '预览页', '当前正文'][n] || '第 ' + n + ' 步产物';
+  switch (n) {
+    case 2: flashProduct('workbench-outline', `已回到第 ${n} 步 · ${label}`); break;
+    case 3: case 8: flashProduct('article-editor', `已回到第 ${n} 步 · ${label}`); break;
+    case 4: renderScoreReport(s); flashProduct('score-report', `已回到第 ${n} 步 · ${label}`); break;
+    case 5: flashProduct('generated-images', `已回到第 ${n} 步 · ${label}`); break;
+    case 6:
+      if (s.html_download_url) { flashProduct('article-editor', '第 6 步产物 · 排版富文本已生成，可在底部下载 HTML'); }
+      else { const hint = document.querySelector('#flow-step-hint'); if (hint) hint.textContent = '该步产物尚未生成，继续推进后即可回看'; }
+      break;
+    case 7:
+      if (s.preview_url) window.open(s.preview_url, '_blank');
+      else { const hint = document.querySelector('#flow-step-hint'); if (hint) hint.textContent = '预览尚未生成，先推进排版步骤'; }
+      break;
+  }
 }
 
 function renderChatThread(session) {
@@ -649,7 +723,8 @@ function renderWorkbenchSession(session) {
   renderChatThread(session);
   articleEditor.value = session.article || '';
   const score = session.score?.score;
-  document.querySelector('#score-label').textContent = score == null ? '反 AI 评分将在第 4 步生成' : `反 AI 综合评分 ${Number(score).toFixed(1)} · ${session.score.status === 'success' ? '统计层与模式层已完成' : '评分不可用'}`;
+  renderScoreReport(session);
+  document.querySelector('#score-label').textContent = score == null ? '反 AI 评分将在第 4 步生成' : `反 AI 综合评分 ${Number(score).toFixed(1)} · 详细报告见下方审校卡`;
   const textModel = session.provider?.text?.model || '文本模型';
   const imageModel = session.provider?.image?.model || '图片模型';
   document.querySelector('#result-meta').textContent = session.framework ? `${session.framework.name} 框架 · ${session.persona || '默认人格'} · 文本 ${textModel} · 图片 ${imageModel}` : `选题由 ${textModel} 实时生成`;
