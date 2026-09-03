@@ -1,0 +1,92 @@
+/*
+ * tokens.css — 宇宙创作者工作台 · 苹果浅色设计令牌层
+ * 作用：覆盖 glass-theme.css 的暗色 :root 变量，把整套深空驾驶舱翻成苹果浅色。
+ * 加载顺序：必须位于 style.css / taste-chatgpt.css / admin.css / glass-theme.css 之后。
+ * 长期约定：新增功能只引用本文件的 token，不要硬编码颜色，防止 CSS 再次腐烂。
+ * 暗色模式：给 <html data-theme="dark"> 即可整站切回深空（见文末 [data-theme="dark"] 块）。
+ */
+
+:root {
+  /* 画布与表面 */
+  --bg: #fbfbfd;
+  --bg-2: #ffffff;
+  --bg-3: #f5f5f7;
+  --bg-4: #ececf0;
+
+  /* 文本（苹果近黑 / 灰阶层级） */
+  --text: #1d1d1f;
+  --text-2: #515154;
+  --text-3: #6e6e73;
+  --text-4: #86868b;
+  --text-5: #aeaeb2;
+
+  /* 分隔线：浅色用黑色透明，替代暗色的白色透明 */
+  --line: rgba(0, 0, 0, .08);
+  --line-2: rgba(0, 0, 0, .12);
+  --line-3: rgba(0, 0, 0, .16);
+  --line-4: rgba(0, 0, 0, .24);
+
+  /* IKB 克莱因蓝：唯一品牌色 */
+  --ikb: #002FA7;
+  --ikb-bright: #002FA7;             /* 关闭霓虹亮蓝，统一为实心 IKB */
+  --ikb-bright-2: #002FA7;           /* 关闭 .flow-primary:hover 的霓虹回退 */
+  --ikb-glow: rgba(0, 47, 167, .14); /* 去掉发光，改为极淡蓝晕 */
+  --ikb-soft: rgba(0, 47, 167, .08);
+
+  /* 语义色（贴近苹果系统色，国内习惯：支出红/收入绿） */
+  --good: #248a3d;
+  --bad: #d70015;
+  --warn: #b25000;
+
+  /* 字体栈：SF Pro 优先，零外部字体依赖 */
+  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "PingFang SC", "Segoe UI", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  --serif: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Segoe UI", "Microsoft YaHei", sans-serif; /* 关闭衬线，标题走无衬线 */
+  --mono: "SF Mono", "JetBrains Mono", "Roboto Mono", Menlo, Consolas, monospace;
+
+  /* 圆角 */
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 20px;
+
+  /* 柔和分层阴影，替代发光 */
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, .04), 0 4px 16px rgba(0, 0, 0, .05);
+  --shadow-2: 0 2px 6px rgba(0, 0, 0, .05), 0 10px 30px rgba(0, 0, 0, .07);
+
+  /* 对齐 style.css 浅色骨架的变量，保证报告/认证页配色一致 */
+  --paper: #fbfbfd;
+  --ink: #1d1d1f;
+  --sub: #6e6e73;
+  --blue: #002FA7;
+  --blue-soft: rgba(0, 47, 167, .08);
+  --sage: #2f7d4f;
+  --sage-soft: rgba(47, 125, 79, .10);
+  --orange: #b25000;
+  --orange-soft: rgba(178, 80, 0, .10);
+  --red: #d70015;
+  --red-soft: rgba(215, 0, 21, .10);
+}
+
+/* 暗色模式（未来钩子，默认不启用；切回深空驾驶舱原貌） */
+[data-theme="dark"] {
+  --bg: #000000;
+  --bg-2: #0A0A0B;
+  --bg-3: #131316;
+  --bg-4: #1C1C20;
+  --text: #FFFFFF;
+  --text-2: #A1A1AA;
+  --text-3: #71717A;
+  --text-4: #52525B;
+  --text-5: #3F3F46;
+  --line: rgba(255, 255, 255, .06);
+  --line-2: rgba(255, 255, 255, .10);
+  --line-3: rgba(255, 255, 255, .16);
+  --line-4: rgba(255, 255, 255, .24);
+  --ikb: #002FA7;
+  --ikb-bright: #3D5BFF;
+  --ikb-glow: rgba(61, 91, 255, .32);
+  --ikb-soft: rgba(61, 91, 255, .08);
+  --good: #3FB950;
+  --bad: #FF5C5C;
+  --warn: #FFB020;
+  --serif: "Noto Serif SC", "Songti SC", "STSong", Georgia, serif;
+}
