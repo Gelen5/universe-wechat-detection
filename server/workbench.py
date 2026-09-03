@@ -43,6 +43,48 @@ CANCEL_REQUESTS: set[str] = set()
 STEPS = ["选题", "框架", "写作", "反 AI", "配图", "排版", "预览", "发布"]
 REQUEST_SETTINGS: ContextVar[dict[str, str]] = ContextVar("REQUEST_SETTINGS", default={})
 
+# Selected from the authoritative dbs-wechat-html style library. Values are
+# inline-friendly because WeChat strips page-level CSS when rich text is pasted.
+DBS_THEME_ALIASES = {
+    "default": "medium", "minimal-elegant": "editorial", "tech-card-green": "stripe",
+    "minimal": "minimal", "medium": "medium", "editorial": "editorial",
+    "magazine": "magazine", "stripe": "stripe", "course": "course",
+}
+DBS_INLINE_STYLES = {
+    "minimal": {
+        "section": "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;font-size:16px;line-height:1.82;color:#2b2b2b;max-width:740px;margin:0 auto;word-wrap:break-word;",
+        "h1": "font-size:24px;line-height:1.35;font-weight:800;text-align:left;margin:34px 0 24px;color:#111;padding-bottom:16px;border-bottom:1px solid #111;",
+        "h2": "font-size:19px;line-height:1.45;font-weight:800;margin:42px 0 14px;color:#111;padding-top:12px;border-top:3px solid #111;",
+        "h3": "font-size:17px;line-height:1.5;font-weight:760;margin:30px 0 10px;color:#222;",
+        "p": "margin:12px 0;line-height:1.82;color:#2b2b2b;font-size:16px;", "blockquote": "margin:20px 0;padding:13px 16px;border-left:3px solid #111;background:#f7f7f7;color:#555;font-style:normal;", "strong": "font-weight:850;color:#111;",
+    },
+    "medium": {
+        "section": "font-family:Georgia,'Times New Roman','Songti SC',SimSun,serif;font-size:16px;line-height:1.92;color:#242424;max-width:680px;margin:0 auto;word-wrap:break-word;",
+        "h1": "font-size:28px;line-height:1.28;font-weight:700;text-align:left;margin:42px 0 28px;color:#111;", "h2": "font-size:22px;line-height:1.35;font-weight:700;margin:52px 0 18px;color:#111;", "h3": "font-size:18px;line-height:1.45;font-weight:700;margin:34px 0 12px;color:#333;",
+        "p": "margin:15px 0;line-height:1.92;color:#242424;font-size:16px;", "blockquote": "margin:28px 0;padding:0 0 0 22px;border-left:3px solid #242424;color:#444;font-size:17px;line-height:1.86;font-style:italic;", "strong": "font-weight:800;color:#111;",
+    },
+    "editorial": {
+        "section": "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;font-size:16px;line-height:1.92;color:#252525;max-width:680px;margin:0 auto;word-wrap:break-word;",
+        "h1": "font-size:25px;line-height:1.42;font-weight:650;text-align:left;margin:38px 0 24px;color:#111;", "h2": "font-size:19px;line-height:1.5;font-weight:700;margin:46px 0 16px;color:#111;padding-top:12px;border-top:2px solid #111;", "h3": "font-size:17px;line-height:1.55;font-weight:700;margin:32px 0 12px;color:#333;",
+        "p": "margin:14px 0;line-height:1.92;color:#252525;font-size:16px;", "blockquote": "margin:22px 0;padding:0 0 0 18px;border-left:2px solid #222;color:#4f4f4f;font-size:15px;line-height:1.9;font-style:normal;", "strong": "font-weight:800;color:#111;background:linear-gradient(transparent 62%,#eee 0);",
+    },
+    "magazine": {
+        "section": "font-family:Georgia,'Times New Roman','Songti SC',SimSun,serif;font-size:16px;line-height:1.94;color:#282828;max-width:700px;margin:0 auto;word-wrap:break-word;",
+        "h1": "font-size:28px;line-height:1.3;font-weight:700;text-align:center;margin:42px 0 30px;color:#111;padding-bottom:20px;border-bottom:1px solid #111;", "h2": "font-size:21px;line-height:1.45;font-weight:700;margin:50px 0 18px;color:#111;text-align:center;", "h3": "font-size:18px;line-height:1.5;font-weight:700;margin:34px 0 12px;color:#333;text-align:center;",
+        "p": "margin:15px 0;line-height:1.94;color:#282828;font-size:16px;", "blockquote": "margin:26px 0;padding:0 22px;border-left:0;color:#555;font-size:15px;line-height:1.95;text-align:center;font-style:italic;", "strong": "font-weight:800;color:#111;",
+    },
+    "stripe": {
+        "section": "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;font-size:16px;line-height:1.78;color:#2a2f45;max-width:760px;margin:0 auto;word-wrap:break-word;",
+        "h1": "font-size:25px;line-height:1.32;font-weight:850;text-align:left;margin:36px 0 24px;color:#0a2540;", "h2": "font-size:19px;line-height:1.45;font-weight:820;margin:42px 0 14px;color:#0a2540;padding:10px 12px;background:#f1f5ff;border-left:4px solid #635bff;", "h3": "font-size:17px;line-height:1.5;font-weight:780;margin:30px 0 10px;color:#425466;",
+        "p": "margin:12px 0;line-height:1.78;color:#2a2f45;font-size:16px;", "blockquote": "margin:20px 0;padding:14px 16px;background:#fff;border:1px solid #d9e2f3;border-left:4px solid #635bff;color:#3c4257;font-style:normal;", "strong": "font-weight:850;color:#0a2540;",
+    },
+    "course": {
+        "section": "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;font-size:16px;line-height:1.84;color:#272727;max-width:750px;margin:0 auto;word-wrap:break-word;",
+        "h1": "font-size:24px;line-height:1.38;font-weight:800;text-align:center;margin:34px 0 22px;color:#111;", "h2": "font-size:19px;line-height:1.45;font-weight:800;margin:40px 0 16px;color:#111;padding:11px 14px;background:#f3f3f3;", "h3": "font-size:17px;line-height:1.5;font-weight:800;margin:30px 0 10px;color:#111;padding-bottom:6px;border-bottom:1px dotted #aaa;",
+        "p": "margin:12px 0;line-height:1.84;color:#272727;font-size:16px;", "blockquote": "margin:18px 0;padding:14px 16px;background:#f8f8f8;border-top:1px solid #e1e1e1;border-bottom:1px solid #e1e1e1;color:#444;font-style:normal;", "strong": "font-weight:850;color:#111;",
+    },
+}
+
 
 def _skill_python() -> str:
     """返回 wechat-publisher-ultimate 自带的 venv Python（含 markdown/bs4/yaml 等依赖）。
@@ -434,6 +476,29 @@ def _build_article_markdown(session: dict[str, Any]) -> str:
     )
 
 
+def _apply_dbs_wechat_theme(fragment: str, requested_theme: str) -> tuple[str, str]:
+    """Apply dbs-wechat-html typography as paste-safe inline styles."""
+    style_id = DBS_THEME_ALIASES.get(requested_theme, "medium")
+    styles = DBS_INLINE_STYLES[style_id]
+    shared = {
+        "img": "display:block;width:100%;max-width:100%;height:auto;margin:24px auto;border:0;border-radius:0;",
+        "ul": "margin:14px 0;padding-left:22px;", "li": "margin:8px 0;line-height:1.86;",
+        "hr": "border:0;border-top:1px solid #d8d8d8;margin:38px auto;width:38%;",
+        "code": "font-family:SFMono-Regular,Consolas,monospace;background:#f2f2f2;color:#222;padding:2px 6px;font-size:14px;",
+        "pre": "background:#f2f2f2;color:#222;padding:14px 16px;overflow:auto;font-size:14px;line-height:1.6;",
+    }
+    for tag, inline_style in {**styles, **shared}.items():
+        pattern = rf"<{tag}(\s[^>]*)?>"
+
+        def replace(match: re.Match[str], *, tag_name: str = tag, css: str = inline_style) -> str:
+            attrs = match.group(1) or ""
+            attrs = re.sub(r'\sstyle=("[^"]*"|\'[^\']*\')', "", attrs, flags=re.I)
+            return f'<{tag_name}{attrs} style="{css}">'
+
+        fragment = re.sub(pattern, replace, fragment, flags=re.I)
+    return fragment, style_id
+
+
 def _typeset(session: dict[str, Any]) -> str:
     """第6步排版：调用 Skill CLI，执行质量门禁、转换、主题与富文本复制预览。"""
     _require_skill()
@@ -457,9 +522,11 @@ def _typeset(session: dict[str, Any]) -> str:
     match = re.search(r'<main id="article-content">(.*?)</main>', document, flags=re.S)
     if not match:
         raise RuntimeError("Skill 预览缺少可复制的 article-content 区域")
-    session["typeset_html"] = match.group(1).strip()
-    session["preview_document"] = document
-    session["typeset_source"] = "wechat-publisher-ultimate"
+    themed_html, style_id = _apply_dbs_wechat_theme(match.group(1).strip(), session["theme"])
+    session["typeset_html"] = themed_html
+    session["preview_document"] = document[:match.start(1)] + themed_html + document[match.end(1):]
+    session["typeset_source"] = f"dbs-wechat-html:{style_id}+wechat-publisher-ultimate"
+    session["typeset_style"] = style_id
     return session["typeset_html"]
 
 
@@ -550,13 +617,37 @@ def _save_session(session: dict[str, Any]) -> None:
     accounts.save_workbench_session(user_id, session)
 
 
+def _recover_local_images(session: dict[str, Any]) -> None:
+    """Rebuild metadata if an older stale process erased images from SQLite."""
+    if session.get("images"):
+        return
+    image_dir = OUTPUT_DIR / session["id"] / "images"
+    if not image_dir.is_dir():
+        return
+    recovered = []
+    for image_path in sorted(image_dir.iterdir()):
+        if not image_path.is_file() or image_path.suffix.lower() not in {".jpg", ".jpeg", ".png", ".webp"}:
+            continue
+        kind = "cover" if image_path.name.startswith("cover") else "body"
+        recovered.append({"file": image_path.name, "bytes": image_path.stat().st_size,
+                          "model": _setting("WECHAT_IMAGE_MODEL", "gpt-image-2"),
+                          "prompt": "从已生成文件恢复", "kind": kind,
+                          "url": f"/api/workbench/assets/{session['id']}/{image_path.name}",
+                          "delivery": "local-recovered"})
+    if recovered:
+        recovered.sort(key=lambda item: 0 if item["kind"] == "cover" else 1)
+        session["images"] = recovered
+
+
 def _get_session(session_id: str, user_id: str) -> dict[str, Any]:
-    session = SESSIONS.get(session_id)
-    if session and session.get("user_id") == user_id:
-        return session
+    # Web and Worker are separate processes. Always prefer the SQLite row so a
+    # stale Web cache cannot erase images just written by the Worker.
     session = accounts.load_workbench_session(session_id, user_id)
     if not session:
+        session = SESSIONS.get(session_id)
+    if not session or session.get("user_id") != user_id:
         raise KeyError("创作会话不存在、已过期或不属于当前用户")
+    _recover_local_images(session)
     SESSIONS[session_id] = session
     return session
 

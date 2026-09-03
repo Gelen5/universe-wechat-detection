@@ -635,6 +635,10 @@ function renderOutline(session) {
 }
 
 function renderWorkbenchSession(session) {
+  // Do not let a stale response hide images already returned by a queued step.
+  if ((!session.images || !session.images.length) && workbenchSession?.images?.length) {
+    session = { ...session, images: workbenchSession.images };
+  }
   workbenchSession = session;
   workbenchResult.hidden = false;
   workbenchVersionIndex = -1;
