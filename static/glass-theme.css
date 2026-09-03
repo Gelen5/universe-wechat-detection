@@ -3617,3 +3617,128 @@ iframe.generator-frame {
 #workbench .article-canvas .image-grid strong { color: var(--text) !important; }
 #workbench .article-canvas .image-grid small { color: var(--text-3) !important; }
 #workbench .article-canvas .image-grid img { background: var(--bg-2) !important; }
+
+/* =========================================================
+   21 V3 r8 全站统一收敛（白底清剿 · 数据态防御性强压）
+   —— 目标：taste-chatgpt.css 遗留浅色（--taste-soft #f1f3f6 /
+   rgba(255,255,255,.52-.94)）在「渲染结果态 / 弹层内部」的漏网点，
+   一律压回 V3 暗色 token。按真实渲染 DOM 圈定：
+   #xhs-result（置顶评论/低压 CTA 两格）、#tie-result（画幅/图片/
+   一致性摘要条）、.api-settings-card（API 配置白面板+白输入+蓝绿
+   icon+状态 chip）、.wallet-card .admin-recharge（管理员充值控件）。
+   新增任何浅色 DOM 都必须在此追加同款 !important 强压。
+   ========================================================= */
+
+/* 21.1 小红书结果：.result-meta-grid > div 两格（taste 锁 --taste-soft 亮灰） */
+#xhs-result .result-meta-grid > div {
+  background: var(--bg-3) !important;
+  background-color: var(--bg-3) !important;
+  border-right: 1px solid var(--line) !important;
+}
+
+/* 21.2 贴图号结果：.plan-summary 三格摘要条（画幅/图片/人物一致性） */
+#tie-result .plan-summary {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 0 !important;
+  background: var(--bg-2) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 10px !important;
+  overflow: hidden !important;
+}
+#tie-result .plan-summary > div {
+  padding: 12px 16px !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  border-right: 1px solid var(--line) !important;
+}
+#tie-result .plan-summary > div:last-child { border-right: 0 !important; }
+#tie-result .plan-summary span {
+  display: block !important;
+  font-family: var(--mono);
+  font-size: 10px !important;
+  letter-spacing: .1em; text-transform: uppercase;
+  color: var(--text-3) !important;
+}
+#tie-result .plan-summary strong {
+  display: block !important;
+  margin-top: 4px !important;
+  font-size: 13px !important;
+  font-weight: 500;
+  color: var(--text) !important;
+}
+
+/* 21.3 API 配置弹层内部：.api-config-group 白面板 → 暗卡 + 白输入 → 暗输入 */
+.api-settings-card .api-config-group {
+  background: var(--bg-3) !important;
+  background-color: var(--bg-3) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+}
+.api-settings-card .config-group-head h3 { color: var(--text) !important; }
+.api-settings-card .config-group-head p { color: var(--text-3) !important; }
+.api-settings-card .api-config-group label { color: var(--text-3) !important; }
+.api-settings-card .api-config-group input {
+  background: var(--bg-2) !important;
+  background-color: var(--bg-2) !important;
+  border: 1px solid var(--line-2) !important;
+  border-radius: 8px !important;
+  color: var(--text) !important;
+  color-scheme: dark;
+  box-shadow: none !important;
+}
+.api-settings-card .api-config-group input:focus { border-color: var(--ikb-bright) !important; outline: none; }
+.api-settings-card .api-config-group input::placeholder { color: var(--text-4) !important; }
+/* config-icon 蓝绿方块 → 统一 IKB 克莱因蓝（V3 唯一强调色） */
+.api-settings-card .config-icon { background: var(--ikb) !important; color: #fff !important; }
+/* connection-status 状态 chip */
+.api-settings-card .connection-status {
+  color: var(--text-3) !important;
+  background: rgba(255, 255, 255, .04) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 999px !important;
+  padding: 2px 10px !important;
+  font-size: 11px !important;
+  font-weight: 500;
+}
+/* test-provider 测试按钮 → V3 次要按钮 */
+.api-settings-card .test-provider {
+  background: var(--bg-4) !important;
+  color: var(--text-2) !important;
+  border: 1px solid var(--line-3) !important;
+  border-radius: 8px !important;
+}
+.api-settings-card .test-provider:hover { border-color: var(--ikb-bright) !important; color: var(--text) !important; }
+
+/* 21.4 管理员充值区控件（taste 玻璃锁白 → 暗） */
+.wallet-card .admin-recharge input,
+.wallet-card .admin-recharge select {
+  background: var(--bg-2) !important;
+  background-color: var(--bg-2) !important;
+  border: 1px solid var(--line-2) !important;
+  border-radius: 8px !important;
+  color: var(--text) !important;
+  color-scheme: dark;
+  box-shadow: none !important;
+}
+.wallet-card .admin-recharge label { color: var(--text-3) !important; }
+
+/* 21.5 报告/结果遗留类防御组（taste 玻璃白卡兜底——即便旧渲染结构回归也不会变白） */
+.report-hero, .report-section, .workbench-result,
+.metric-card, .judgment-card, .signal-section,
+.benchmark-section, .route-panel, .takeaways-section,
+.output-empty {
+  background: var(--bg-2) !important;
+  background-color: var(--bg-2) !important;
+  border-color: var(--line) !important;
+  box-shadow: none !important;
+  color: var(--text) !important;
+}
+.report-hero h1, .report-hero h2, .metric-card h3, .judgment-card h3,
+.signal-section h3, .benchmark-section h3, .route-panel h3,
+.takeaways-section h3 { color: var(--text) !important; }
+.report-hero p, .metric-card p, .judgment-card p, .signal-section p,
+.benchmark-section p, .route-panel p, .takeaways-section p { color: var(--text-2) !important; }
+.output-empty h2 { color: var(--text) !important; }
+.output-empty p { color: var(--text-3) !important; }
