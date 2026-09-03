@@ -1,0 +1,66 @@
+/*
+ * components.css — 可复用组件层（给"以后加功能"用）
+ * 命名前缀 .uw- 避免与现有 class 冲突。全部只引用 tokens.css 变量，零硬编码颜色。
+ * 用法：新增模块时写 <div class="uw-card">…</div> 即可，不要新硬编码颜色。
+ * 现有页面（v3- / skill- / admin- / wallet- 等）仍由旧表 + tokens 覆盖驱动，不依赖本文件。
+ */
+
+.uw-card {
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-1);
+  padding: 18px;
+}
+.uw-card--inset { background: var(--bg-3); box-shadow: none; }
+
+.uw-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 44px; padding: 0 18px; border-radius: 980px;
+  font-size: 15px; font-weight: 500; font-family: var(--sans);
+  border: 1px solid var(--line-2); background: var(--bg-2); color: var(--text);
+  cursor: pointer; transition: transform .15s ease, background .15s ease;
+}
+.uw-btn:hover { background: var(--bg-3); }
+.uw-btn:active { transform: translateY(1px); }
+.uw-btn--primary { background: var(--ikb); color: #fff; border-color: transparent; }
+.uw-btn--primary:hover { background: #00248f; }
+.uw-btn--ghost { background: transparent; }
+
+.uw-input {
+  width: 100%; height: 46px; padding: 0 14px;
+  border: 1px solid var(--line-2); border-radius: var(--r-md);
+  background: var(--bg-2); color: var(--text); font-size: 16px; font-family: var(--sans);
+  outline: none;
+}
+.uw-input:focus { border-color: var(--ikb); box-shadow: 0 0 0 3px var(--ikb-soft); }
+
+.uw-tag {
+  display: inline-flex; align-items: center; padding: 3px 10px;
+  border-radius: 980px; font-size: 12px; background: var(--bg-3); color: var(--text-2);
+}
+.uw-tag--accent { background: var(--ikb-soft); color: var(--ikb); }
+
+.uw-badge {
+  display: inline-flex; align-items: center; min-width: 20px; height: 20px; padding: 0 6px;
+  border-radius: 980px; font-size: 12px; font-weight: 600; background: var(--ikb); color: #fff;
+}
+
+.uw-stat { display: flex; flex-direction: column; gap: 4px; }
+.uw-stat__num { font-size: 28px; font-weight: 600; letter-spacing: -0.02em; color: var(--text); }
+.uw-stat__label { font-size: 13px; color: var(--text-3); }
+
+.uw-progress { height: 8px; border-radius: 980px; background: var(--bg-3); overflow: hidden; }
+.uw-progress > i { display: block; height: 100%; background: var(--ikb); border-radius: inherit; }
+
+.uw-modal-mask { position: fixed; inset: 0; background: rgba(0, 0, 0, .18); backdrop-filter: blur(8px); z-index: 60; }
+.uw-modal {
+  width: min(460px, 100%); background: var(--bg-2); border: 1px solid var(--line-2);
+  border-radius: 20px; box-shadow: var(--shadow-2); padding: 22px;
+}
+
+.uw-row { display: flex; gap: 12px; align-items: center; }
+.uw-stack { display: flex; flex-direction: column; gap: 12px; }
+.uw-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+.uw-muted { color: var(--text-3); }
+.uw-dim { color: var(--text-4); }
