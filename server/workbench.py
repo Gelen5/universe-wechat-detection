@@ -11,6 +11,7 @@ from __future__ import annotations
 import base64
 import io
 import json
+import mimetypes
 import os
 import re
 import subprocess
@@ -403,13 +404,33 @@ def _score(text: str) -> dict[str, Any]:
 
 
 def _build_article_markdown(session: dict[str, Any]) -> str:
-    image_markdown = ""
+    """Build a portable Markdown source for the installed Skill.
+
+    The browser asset route is authenticated and cannot be resolved by the
+    Skill subprocess or by a downloaded HTML file. Embed locally stored image
+    bytes so the Skill receives real image data and its output remains portable.
+    External provider URLs remain as a fallback when the CDN was unreachable.
+    """
+    image_markdown = []
+    image_dir = OUTPUT_DIR / session["id"] / "images"
     for image in session.get("images", []):
         label = "文章封面" if image["kind"] == "cover" else "正文配图"
-        image_markdown += f"\n\n![{label}]({image['url']})\n"
+        image_path = image_dir / str(image.get("file") or "")
+        source = image.get("url") or image.get("remote_url") or ""
+        if image_path.is_file():
+            mime = mimetypes.guess_type(image_path.name)[0] or "image/jpeg"
+            encoded = base64.b64encode(image_path.read_bytes()).decode("ascii")
+            source = f"data:{mime};base64,{encoded}"
+        image_markdown.append(f"![{label}]({source})")
+    cover = image_markdown[0] if image_markdown else ""
+    body_images = "\n\n".join(image_markdown[1:])
+    article = str(session.get("article") or "").strip()
+    heading = f"# {session['topic']}"
+    if article.startswith("#"):
+        article = article.split("\n", 1)[1].lstrip() if "\n" in article else ""
     return (
         f"---\ntitle: '{session['topic'].replace(chr(39), '')}'\ntheme: {session['theme']}\n"
-        f"---\n{image_markdown}\n{session['article']}"
+        f"---\n{heading}\n\n{cover}\n\n{article}\n\n{body_images}"
     )
 
 
