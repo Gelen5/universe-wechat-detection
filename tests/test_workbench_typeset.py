@@ -36,6 +36,27 @@ class WorkbenchTypesetTests(unittest.TestCase):
         self.assertIn("border:0;border-radius:0", themed)
         self.assertNotIn("color:blue", themed)
 
+    def test_article_markdown_places_body_image_before_first_section(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            old_output = workbench.OUTPUT_DIR
+            workbench.OUTPUT_DIR = Path(temp_dir)
+            try:
+                session_id = "image-placement"
+                image_dir = workbench.OUTPUT_DIR / session_id / "images"
+                image_dir.mkdir(parents=True)
+                (image_dir / "cover.jpg").write_bytes(b"cover")
+                (image_dir / "body.jpg").write_bytes(b"body")
+                markdown = workbench._build_article_markdown({
+                    "id": session_id, "topic": "标题", "theme": "default",
+                    "article": "导语第一段。\n\n导语第二段。\n\n## 第一节\n\n正文。",
+                    "images": [{"kind": "cover", "file": "cover.jpg"}, {"kind": "body", "file": "body.jpg"}],
+                })
+                body_position = markdown.rfind("![正文配图]")
+                self.assertGreater(body_position, markdown.find("导语第二段"))
+                self.assertLess(body_position, markdown.find("## 第一节"))
+            finally:
+                workbench.OUTPUT_DIR = old_output
+
 
 if __name__ == "__main__":
     unittest.main()
