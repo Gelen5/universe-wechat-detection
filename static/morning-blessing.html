@@ -8,7 +8,17 @@
   <link rel="stylesheet" href="/static/taste-chatgpt.css?v=20260831-morning">
   <link rel="stylesheet" href="/static/admin.css?v=20260831-morning">
   <link rel="stylesheet" href="/static/glass-theme.css?v=20260901-v3-merge">
+  <link rel="stylesheet" href="/static/tokens.css?v=20260904-apple-light">
+  <link rel="stylesheet" href="/static/theme-apple.css?v=20260904-apple-light">
   <style>
+    /* 早安页浅色收尾：压掉 glass-theme 残留的暗色硬编码 */
+    .morning-topbar {
+      background: rgba(251, 251, 253, .82) !important;
+      border-bottom: 1px solid var(--line, rgba(0, 0, 0, .08)) !important;
+    }
+    .morning-actions button.primary { box-shadow: var(--shadow-1, none) !important; }
+    .morning-progress-bar { box-shadow: none !important; }
+    .morning-topbar .badge i { box-shadow: none !important; }
     /* 仅保留 JS 动态显隐控制，视觉样式由 glass-theme.css 统一提供 */
     .is-sticker .article-only { display:none !important; }
     .is-article #downloadTextBtn, .is-article #downloadImagesBtn { display:none !important; }
