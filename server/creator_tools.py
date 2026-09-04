@@ -192,7 +192,6 @@ Constraints: generate image and accurate Chinese text in this one call; no borde
     output.write_bytes(raw)
     return {
         "index": index,
-        "model": model,
         "bytes": output.stat().st_size,
         "url": f"/api/creator-tools/assets/{safe_tool}/{output_dir.name}/{output.name}",
         "prompt": prompt,

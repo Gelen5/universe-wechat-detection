@@ -7,6 +7,35 @@ from server import workbench
 
 
 class WorkbenchTypesetTests(unittest.TestCase):
+    def test_public_session_view_removes_all_model_metadata(self):
+        session = {
+            "id": "public-session",
+            "provider": {
+                "text": {"configured": True, "model": "private-text-model"},
+                "image": {"configured": True, "model": "private-image-model"},
+            },
+            "images": [{"url": "/image.png", "model": "private-image-model"}],
+            "review": {"audit": {"text_model": "private-text-model"}},
+        }
+
+        view = workbench._session_view(session)
+
+        self.assertEqual(view["provider"]["text"], {"configured": True})
+        self.assertEqual(view["images"], [{"url": "/image.png"}])
+        self.assertEqual(view["review"], {"audit": {}})
+
+    def test_provider_status_does_not_expose_configured_model(self):
+        with patch.object(workbench, "_setting", side_effect=lambda name, default="": {
+            "WECHAT_TEXT_API_KEY": "text-key",
+            "WECHAT_IMAGE_API_KEY": "image-key",
+            "WECHAT_TEXT_MODEL": "private-text-model",
+            "WECHAT_IMAGE_MODEL": "private-image-model",
+        }.get(name, default)):
+            status = workbench.provider_status()
+
+        self.assertEqual(status["text"], {"configured": True})
+        self.assertEqual(status["image"], {"configured": True})
+
     def test_persisted_session_wins_over_stale_process_cache_and_recovers_images(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             old_output = workbench.OUTPUT_DIR
