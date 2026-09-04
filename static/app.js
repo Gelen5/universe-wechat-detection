@@ -35,8 +35,6 @@ const sharedKeys = {
   image: 'shared_image_api_key_v1',
   textBaseUrl: 'shared_text_base_url_v1',
   imageBaseUrl: 'shared_image_base_url_v1',
-  textModel: 'shared_text_model_v1',
-  imageModel: 'shared_image_model_v1',
 };
 
 const esc = (value) => String(value ?? '无').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
@@ -54,8 +52,6 @@ const getSharedImageKey = () => cleanApiKey(localStorage.getItem(sharedKeys.imag
 const getStored = (key, fallback = '') => String(localStorage.getItem(key) ?? fallback);
 const getTextBaseUrl = () => getStored(sharedKeys.textBaseUrl, 'https://huoxingapi.com/v1').trim();
 const getImageBaseUrl = () => getStored(sharedKeys.imageBaseUrl, 'https://img.rjm.us.ci').trim();
-const getTextModel = () => getStored(sharedKeys.textModel, 'deepseek-v4-flash').trim();
-const getImageModel = () => getStored(sharedKeys.imageModel, 'gpt-image-2').trim();
 const sharedApiPayload = () => ({});
 
 function syncAdminVisibility() {
@@ -364,8 +360,8 @@ async function openApiSettings() {
     sharedImageKeyInput.value = '';
     sharedTextBaseUrlInput.value = settings.text_base_url || 'https://huoxingapi.com/v1';
     sharedImageBaseUrlInput.value = settings.image_base_url || 'https://img.rjm.us.ci';
-    sharedTextModelInput.value = settings.text_model || 'deepseek-v4-flash';
-    sharedImageModelInput.value = settings.image_model || 'gpt-image-2';
+    sharedTextModelInput.value = settings.text_model || '';
+    sharedImageModelInput.value = settings.image_model || '';
     textConfigStatus.textContent = settings.text_configured ? '已配置' : '未配置';
     imageConfigStatus.textContent = settings.image_configured ? '已配置' : '未配置';
     textConfigStatus.classList.toggle('ready', Boolean(settings.text_configured));
@@ -731,16 +727,16 @@ function renderWorkbenchSession(session) {
   articleEditor.value = session.article || '';
   renderScoreReport(session);
   document.querySelector('#score-label').textContent = session.review ? '去 AI 改写稿 · 实际审计记录见下方' : '当前正文 · 第 4 步执行去 AI 改写';
-  const textModel = session.provider?.text?.model || '文本模型';
-  const imageModel = session.provider?.image?.model || '图片模型';
-  document.querySelector('#result-meta').textContent = session.framework ? `${session.framework.name} 框架 · ${session.persona || '默认人格'} · 文本 ${textModel} · 图片 ${imageModel}` : `选题由 ${textModel} 实时生成`;
+  document.querySelector('#result-meta').textContent = session.framework
+    ? `${session.framework.name} 框架 · ${session.persona || '默认人格'} · 平台服务已连接`
+    : '正在生成写作方向';
   const htmlDownload = document.querySelector('#download-workbench-html');
   if (htmlDownload) {
     htmlDownload.hidden = !session.html_download_url;
     htmlDownload.href = session.html_download_url || '#';
   }
   const suggestions = session.suggestions || [];
-  topicList.innerHTML = session.current_step === 1 && suggestions.length ? `<div class="chat-choice-head"><strong>我先给你三个写法方向</strong><span>可采用，也可继续让我调整</span></div>${suggestions.slice(0, 3).map(item => `<article class="chat-choice"><span>${String(item.id).padStart(2, '0')}</span><div><strong>${esc(item.title)}</strong><p>${esc(item.reason)}</p><small>${esc(item.type)}</small></div><footer><button class="adopt-topic" data-topic-id="${item.id}" type="button">采用</button><button class="regenerate-topic" type="button">重新生成</button></footer></article>`).join('')}` : '';
+  topicList.innerHTML = session.current_step === 1 && suggestions.length ? `<div class="chat-choice-head"><strong>10 个可写方向</strong><span>热度与涨粉分均为 Skill 基于检索信号的估计，不是平台真实统计</span></div>${suggestions.slice(0, 10).map(item => `<article class="chat-choice"><span>${String(item.id).padStart(2, '0')}</span><div><strong>${esc(item.title)}</strong><p>${esc(item.reason)}</p><small>${esc(item.type)} · 竞争度 ${esc(item.competition || '中')}</small><div class="topic-metrics"><span>热度 <b>${Number(item.heat || 0)}/10</b></span><span>涨粉潜力 <b>${Number(item.fan_score || 0)}/100</b></span></div></div><footer><button class="adopt-topic" data-topic-id="${item.id}" type="button">采用这个方向</button></footer></article>`).join('')}` : '';
   topicList.querySelectorAll('.adopt-topic').forEach(item => item.addEventListener('click', async () => { await advance(Number(item.dataset.topicId), 2); renderChatThread(workbenchSession); }));
   topicList.querySelectorAll('.regenerate-topic').forEach(item => item.addEventListener('click', () => sendWorkbenchChat('这个方向不错，但请换一个更有冲突和具体场景的写法。', 'regenerate_topics')));
   renderOutline(session);
@@ -752,7 +748,7 @@ function renderWorkbenchSession(session) {
   const images = session.images || [];
   generatedImages.hidden = !images.length;
   const remoteImages = images.filter(image => image.delivery === 'remote').length;
-  generatedImages.innerHTML = images.length ? `<div class="image-section-head"><div><span class="micro-label">API 生成配图</span><h3>封面与正文配图</h3></div><span>${images.length} 张 · ${remoteImages ? `${remoteImages} 张由供应商 CDN 提供` : '已自动压缩至微信限制内'}</span></div><div class="image-grid">${images.map(image => `<a href="${esc(image.url)}" target="_blank" rel="noopener"><img src="${esc(image.url)}" alt="${image.kind === 'cover' ? '文章封面' : '正文配图'}" /><span><strong>${image.kind === 'cover' ? '文章封面' : '正文配图'}</strong><small>${esc(image.model)} · ${image.delivery === 'remote' ? '外链预览' : `${Math.round(Number(image.bytes || 0) / 1024)} KB`}</small></span></a>`).join('')}</div>` : '';
+  generatedImages.innerHTML = images.length ? `<div class="image-section-head"><div><span class="micro-label">API 生成配图</span><h3>封面与正文配图</h3></div><span>${images.length} 张 · ${remoteImages ? `${remoteImages} 张由供应商 CDN 提供` : '已自动压缩至微信限制内'}</span></div><div class="image-grid">${images.map(image => `<a href="${esc(image.url)}" target="_blank" rel="noopener"><img src="${esc(image.url)}" alt="${image.kind === 'cover' ? '文章封面' : '正文配图'}" /><span><strong>${image.kind === 'cover' ? '文章封面' : '正文配图'}</strong><small>${image.delivery === 'remote' ? '外链预览' : `${Math.round(Number(image.bytes || 0) / 1024)} KB`}</small></span></a>`).join('')}</div>` : '';
   if (session.image_plan) {
     generatedImages.hidden = false;
     generatedImages.insertAdjacentHTML('afterbegin', `<details open><summary>配图方案 · ${esc(session.image_plan.status)}</summary><p>${esc(session.image_plan.reason || '')}</p>${(session.image_plan.images || []).map((item,index)=>`<p><strong>${index+1}. ${item.kind === 'cover' ? '封面' : esc(item.section || '正文图')}</strong><br>${esc(item.claim || '')}<br>图注：${esc(item.caption || '')}</p>`).join('')}</details>`);
@@ -764,7 +760,7 @@ function setWorkbenchProgress(target, active = true, message = '') {
   workbenchProgress.hidden = !active;
   if (!active) return;
   const labels = { 2: '正在检索素材并生成框架', 3: '正在生成完整初稿', 4: '正在进行去 AI 修改与复核', 5: '正在策划配图方案', 6: '正在生成图片并排版', 7: '正在生成手机端预览' };
-  const details = { 2: '先确认文章怎么展开', 3: '文字模型正在组织正文', 4: '检查表达、事实边界和可读性', 5: '图片生成可能需要数分钟，请勿重复点击', 6: '把正文和图片整理成可复制内容', 7: '生成最终可查看、可下载的文件' };
+  const details = { 2: '先确认文章怎么展开', 3: '正在组织正文', 4: '检查表达、事实边界和可读性', 5: '图片生成可能需要数分钟，请勿重复点击', 6: '把正文和图片整理成可复制内容', 7: '生成最终可查看、可下载的文件' };
   workbenchProgressTitle.textContent = message || labels[target] || '正在处理';
   workbenchProgressDetail.textContent = details[target] || '请稍候';
   workbenchProgressBar.style.width = `${Math.max(8, Math.min(96, target / 8 * 100))}%`;
@@ -876,7 +872,7 @@ cancelWorkbenchButton?.addEventListener('click', async () => {
     cancelWorkbenchButton.disabled = false;
   }
 });
-document.querySelector('#workbench-regenerate-topics')?.addEventListener('click', () => { if (workbenchSession) sendWorkbenchChat('请重新给我三个方向，角度更具体，不要泛泛而谈。', 'regenerate_topics'); else topicInput.focus(); });
+document.querySelector('#workbench-regenerate-topics')?.addEventListener('click', () => { if (workbenchSession) sendWorkbenchChat('请重新给我 10 个方向，角度更具体，不要泛泛而谈，并返回每条的热度和涨粉潜力分。', 'regenerate_topics'); else topicInput.focus(); });
 document.querySelector('#new-workbench-chat')?.addEventListener('click', () => { workbenchSession = null; workbenchVersionIndex = -1; topicInput.value = ''; articleEditor.value = ''; document.querySelector('#result-title').textContent = '还没有开始写'; document.querySelector('#article-save-state').textContent = '输入一个主题后，我会先和你确认写作方向'; document.querySelector('#article-version-label').textContent = '当前草稿 · 尚未生成'; document.querySelector('#article-change-label').textContent = '等待你的写作意图'; document.querySelector('#workbench-status').textContent = '等待你的想法'; topicList.innerHTML = ''; renderChatThread(null); renderOutline({}); });
 document.querySelectorAll('[data-rewrite-selection]').forEach(button => button.addEventListener('click', () => { if (!workbenchSession) return; const selection = articleEditor.value.slice(articleEditor.selectionStart, articleEditor.selectionEnd); if (!selection) { alert('先在当前文章中选中一段，再告诉我如何改写。'); return; } sendWorkbenchChat(button.dataset.rewriteSelection, 'rewrite_article', selection); }));
 document.querySelector('#version-back')?.addEventListener('click', () => { const versions = workbenchSession?.versions || []; if (!versions.length) return; workbenchVersionIndex = workbenchVersionIndex < 0 ? versions.length - 1 : Math.max(0, workbenchVersionIndex - 1); articleEditor.value = versions[workbenchVersionIndex].article || ''; document.querySelector('#article-version-label').textContent = `${versions[workbenchVersionIndex].label} · 历史版本预览`; });

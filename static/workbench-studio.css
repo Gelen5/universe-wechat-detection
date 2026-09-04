@@ -140,3 +140,6 @@
   #workbench #workbench-topic { font-size:16px; }
   #workbench .article-canvas-head h2 { font-size:19px; }
 }
+.topic-metrics { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+.topic-metrics span { padding:4px 8px; border:1px solid var(--line, #e4e7ec); border-radius:999px; color:var(--text-3, #667085); font-size:12px; }
+.topic-metrics b { color:var(--text, #1d2939); font-weight:600; }

@@ -308,8 +308,8 @@ def _json_text(prompt: str) -> dict[str, Any]:
 
 def provider_status() -> dict[str, Any]:
     return {
-        "text": {"configured": bool(_setting("WECHAT_TEXT_API_KEY")), "model": _setting("WECHAT_TEXT_MODEL", "未配置")},
-        "image": {"configured": bool(_setting("WECHAT_IMAGE_API_KEY")), "model": _setting("WECHAT_IMAGE_MODEL", "未配置")},
+        "text": {"configured": bool(_setting("WECHAT_TEXT_API_KEY"))},
+        "image": {"configured": bool(_setting("WECHAT_IMAGE_API_KEY"))},
         "text_base_url_configured": bool(_setting("WECHAT_TEXT_API_BASE_URL") or _setting("WECHAT_API_BASE_URL")),
         "image_base_url_configured": bool(_setting("WECHAT_IMAGE_API_BASE_URL") or _setting("WECHAT_API_BASE_URL")),
     }
@@ -330,7 +330,7 @@ def _suggestions(topic: str, persona: str, session=None) -> list[dict[str, Any]]
 不得与最近历史相似。搜索失败则明确按一般创意降级；热度只是估计，不是平台数据。只输出指定JSON。
 你是微信公众号资深选题编辑。围绕用户方向「{seed}」，为「{persona}」写作人格生成10个差异明显、可以真正展开的中文选题。
 要求：避免编造热点数据；不承诺够用一年、必然成功、收益倍增等无证据结果；标题要具体、自然、有读者收益；覆盖观点、教程、故事、对比、清单、案例、趋势、复盘等类型。
-只返回合法JSON，不要Markdown：{{"topics":[{{"title":"...","type":"观点","reason":"推荐理由","heat":8,"competition":"中"}}]}}。topics必须正好10项。""")
+只返回合法JSON，不要Markdown：{{"topics":[{{"title":"...","type":"观点","reason":"推荐理由","heat":8,"fan_score":82,"competition":"中"}}]}}。topics必须正好10项。heat为1-10的模型估计热度，fan_score为0-100的模型估计涨粉潜力；两者都不是平台真实统计，必须根据搜索信号、受众匹配和可传播性解释，不能伪装成真实粉丝数据。""")
     items = data.get("topics") or []
     if len(items) < 10:
         raise ProviderError("文本 API 返回的选题不足10个")
@@ -342,14 +342,15 @@ def _suggestions(topic: str, persona: str, session=None) -> list[dict[str, Any]]
             "type": str(item.get("type") or "观点").strip(),
             "reason": str(item.get("reason") or "具备可展开空间").strip(),
             "heat": max(1, min(10, int(item.get("heat") or 7))),
+            "fan_score": max(0, min(100, int(item.get("fan_score") or 60))),
             "competition": str(item.get("competition") or "中").strip(),
             "source": "text-api",
         })
     if any(not item["title"] for item in result):
         raise ProviderError("文本 API 返回了空选题")
     result = [item for item in result if not workbench_research.duplicate(item['title'], history['titles'])]
-    if not result:
-        raise ProviderError('候选选题与近30天历史重复，请调整方向')
+    if len(result) < 10:
+        raise ProviderError('去重后可用选题不足10个，请重新生成或调整方向')
     for index,item in enumerate(result,1):
         item['id'] = index
         item['heat_label'] = '模型估计，非平台热度'
@@ -809,7 +810,17 @@ def _images(session: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _session_view(session: dict[str, Any]) -> dict[str, Any]:
-    return {k: v for k, v in session.items() if k not in {"user_id", "files", "typeset_html", "preview_document"}}
+    private_keys = {"model", "text_model", "image_model"}
+
+    def public_value(value: Any) -> Any:
+        if isinstance(value, dict):
+            return {key: public_value(item) for key, item in value.items() if key not in private_keys}
+        if isinstance(value, list):
+            return [public_value(item) for item in value]
+        return value
+
+    visible = {k: v for k, v in session.items() if k not in {"user_id", "files", "typeset_html", "preview_document"}}
+    return public_value(visible)
 
 
 def _save_session(session: dict[str, Any]) -> None:
@@ -1006,7 +1017,7 @@ def chat(session_id: str, message: str, action: str = "rewrite_article", selecti
         session["suggestions"] = _suggestions(message, session["persona"], session)
         session["current_step"] = 1
         session["status"] = "awaiting_topic"
-        reply = "我重新整理了三个更适合展开的方向。选一个采用，或继续告诉我你真正想写的角度。"
+        reply = "我重新整理了 10 个更适合展开的方向，并补充了热度与涨粉潜力估计。选一个采用，或继续告诉我你真正想写的角度。"
     elif action == "regenerate_framework":
         session["framework"] = _framework(session["topic"], session["persona"], skill_runtime.brief(session))
         session.update(article='', review=None, score=None, image_plan=None, images=[],
