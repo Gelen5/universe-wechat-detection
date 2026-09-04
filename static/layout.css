@@ -408,16 +408,82 @@
 .diagnose-page .v3-hero-r .frame .dim .bar i { box-shadow: none; }
 
 /* ============================================================
-   4. 报告页 — 右侧 sticky 给空间锚点
+   4. 报告页 — 左证据 + 右 sticky 评分栏
+      （重设计：修 5 列死网格/巨标题/分数溢出三大病灶）
    ============================================================ */
 
 .report-page .v3-diag {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
-  gap: clamp(24px, 3vw, 44px);
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 400px);
+  gap: clamp(28px, 3.5vw, 56px);
   align-items: start;
   padding-block: clamp(8px, 2vw, 20px) var(--stack-lg);
 }
+
+/* —— 标题：装的是「一句话结论」，不是展示字 —— */
+.report-page .v3-diag-l h1 {
+  font-size: clamp(25px, 2.4vw, 33px) !important;
+  line-height: 1.3;
+  letter-spacing: -.018em;
+  max-width: 26ch;
+  margin: 0;
+}
+.report-page .v3-diag-l .meta {
+  margin-top: 12px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  max-width: 60ch;
+}
+
+/* —— 账号资料表：标签 + 值两列，值列吃满宽度 ——
+   旧表是 200px+4×1fr 五列死网格，但每行只有 4 个子元素，
+   值被挤成火柴盒；后两个空 span 直接隐藏 */
+.report-page .sitem {
+  grid-template-columns: 148px minmax(0, 1fr);
+  gap: 24px;
+  padding-block: 13px;
+}
+.report-page .sitem > span:nth-child(n+3) { display: none; }
+.report-page .sitem .k {
+  font-size: 12px;
+  color: var(--text-3, #86868b);
+  padding-top: 3px; /* 与值行基线对齐 */
+}
+.report-page .sitem .v {
+  font-size: 20px;
+  line-height: 1.35;
+  letter-spacing: -.015em;
+}
+/* 长文本行（简介/核心判断）降级为正文尺度，不跟数字抢视觉 */
+.report-page #profile-description,
+.report-page #overview-judgment {
+  font-size: 15px !important;
+  line-height: 1.6;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+/* —— 右侧评分栏：加宽 + 分数 clamp，根治横向溢出 ——
+   旧 144px 巨号分数在 340px 窄栏里放不下，就是截图里那条横向滚动条 */
+.report-page .v3-diag-r {
+  min-width: 0;
+  overflow-x: hidden;
+  gap: 16px;
+}
+.report-page .v3-diag-r .score {
+  font-size: clamp(68px, 6vw, 100px) !important;
+  line-height: .95;
+}
+.report-page .v3-diag-r .score .den { font-size: 20px; }
+.report-page .v3-diag-r .verdict { font-size: 15px; line-height: 1.5; }
+.report-page .v3-diag-r .score-line { margin-top: 12px; }
+.report-page .v3-diag-r .actions button {
+  height: 44px;
+  border-radius: 12px;
+  font-size: 13.5px;
+  font-weight: 590;
+}
+.report-page .v3-diag-r .proof { font-size: 12px; line-height: 1.65; }
 
 /* 关键：评分侧栏跟随滚动，滚动看证据时分数始终可见 */
 .report-page .v3-diag-r {
@@ -430,7 +496,7 @@
 
 /* 左侧证据列表节奏统一 */
 .report-page .signal-list { margin-block: var(--stack); }
-.report-page .sitem { padding-block: 12px; }
+.report-page .sitem { padding-block: 13px; }
 
 /* ── 报告页「下一步」CTA（DOM 由 flow.js 注入）── */
 .uw-nextcard {
@@ -527,6 +593,12 @@
   .diagnose-page .v3-hero-l h1 { font-size: clamp(30px, 8vw, 38px) !important; }
   .diagnose-page .v3-hero-r .frame { padding: 18px; }
   .diagnose-page .v3-hero-r .frame .score-row .v { font-size: 44px; }
+  .report-page .sitem {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+    padding-block: 14px;
+  }
+  .report-page .sitem .k { padding-top: 0; }
   .uw-nextcard { flex-direction: column; align-items: stretch; }
   .uw-nextcard__btn { justify-content: center; }
 }
