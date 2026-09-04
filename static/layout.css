@@ -262,35 +262,46 @@
 .uw-quickstart__body span { font-size: 12px; color: var(--text-3, #86868b); }
 
 /* ============================================================
-   3. 诊断页 — 单列聚焦（一个动作不该做分栏）
+   3. 诊断页 — 工作台双栏：左输入（主操作），右完整报告预览
+      （替代旧「单列居中落地页」——那是营销页思维，不是工具页）
    ============================================================ */
 
 .diagnose-page .diagnose-shell {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--stack-lg);
-  max-width: 760px;
-  margin-inline: auto;
-  padding-block: clamp(8px, 2vw, 24px);
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(300px, .92fr);
+  gap: clamp(36px, 4.5vw, 72px);
+  align-items: center; /* 两栏垂直重心对齐：输入行与报告卡互相呼应 */
+  padding-block: clamp(16px, 3vw, 40px);
 }
-.diagnose-page .diagnose-shell .v3-hero-l,
-.diagnose-page .diagnose-shell .v3-hero-r {
-  width: 100%;
-  max-width: none;
+
+/* —— 左栏：紧凑左对齐，把「开始诊断」做成视觉锚点 —— */
+.diagnose-page .v3-hero-l > .kicker {
+  justify-content: flex-start;
+  margin-bottom: 14px;
 }
-.diagnose-page .v3-hero-l .lede { max-width: 52ch; margin-inline: auto; }
-.diagnose-page .v3-hero-l > .kicker { justify-content: center; }
-.diagnose-page h1 { text-align: center; }
-.diagnose-page .v3-hero-l .lede { text-align: center; }
+.diagnose-page .v3-hero-l h1 {
+  font-size: clamp(34px, 3.4vw, 46px) !important;
+  line-height: 1.08;
+  letter-spacing: -.024em;
+  text-align: left;
+}
+.diagnose-page .v3-hero-l .lede {
+  font-size: 15px;
+  line-height: 1.6;
+  max-width: 42ch;
+  margin: 14px 0 0;
+  text-align: left;
+  color: var(--text-2, #515154);
+}
 
 /* 输入框 + 按钮：去掉旧表（style.css）给 form 套的卡片壳——
-   border+padding 会让 flex 子项收缩后右侧留出一截空盒 */
+   border+padding 会让 flex 子项收缩后右侧留出一截空盒。
+   这是全页唯一的主操作，做到最大最醒目 */
 .diagnose-page .entry-form {
   display: flex;
-  gap: 8px;
-  max-width: 560px;
-  margin-inline: auto;
+  gap: 10px;
+  max-width: 540px;
+  margin: 32px 0 0; /* 左对齐，不再居中 */
   border: none !important;
   padding: 0 !important;
   background: transparent !important;
@@ -303,15 +314,16 @@
 .diagnose-page .entry-form input {
   flex: 1;
   min-width: 0;
-  height: 46px;
-  font-size: 16px; /* iOS 防放大 */
-  padding: 0 16px;
-  border-radius: 980px;
-  border: 1px solid var(--line, rgba(0, 0, 0, .1));
+  height: 54px;
+  font-size: 17px; /* 主输入框放大一号，iOS 防放大同时更醒目 */
+  padding: 0 20px;
+  border-radius: 14px;
+  border: 1px solid var(--line, rgba(0, 0, 0, .12));
   background: var(--surface, #fff);
   box-shadow: var(--shadow-1);
   transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
 }
+.diagnose-page .entry-form input::placeholder { color: var(--text-3, #a1a1a6); }
 .diagnose-page .entry-form input:focus {
   outline: none;
   border-color: var(--ikb);
@@ -319,29 +331,69 @@
 }
 .diagnose-page .entry-form button[type="submit"] {
   flex: none;
-  height: 46px;
-  padding: 0 22px;
-  border-radius: 980px;
+  height: 54px;
+  padding: 0 26px;
+  border-radius: 14px;
   background: var(--ikb);
   color: #fff;
   border: none;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 590;
   cursor: pointer;
-  transition: transform var(--dur) var(--ease), filter var(--dur) var(--ease);
+  transition: transform var(--dur) var(--ease), filter var(--dur) var(--ease), border-radius var(--dur) var(--ease);
 }
 .diagnose-page .entry-form button[type="submit"]:hover { filter: brightness(1.06); transform: translateY(-1px); }
-
-.diagnose-page .sample-row { justify-content: center; flex-wrap: wrap; }
-.diagnose-page .proof { justify-content: center; flex-wrap: wrap; }
-
-/* 示例报告预览：降级为次要信息，缩小居中 */
-.diagnose-page .v3-hero-r .frame {
-  max-width: 460px;
-  margin-inline: auto;
-  opacity: .92;
+.diagnose-page .entry-form button[type="submit"] .arr {
+  display: inline-block;
+  transition: transform var(--dur) var(--ease);
 }
-.diagnose-page .v3-hero-r .frame .head { margin-bottom: 14px; }
+.diagnose-page .entry-form button[type="submit"]:hover .arr { transform: translateX(3px); }
+
+.diagnose-page .sample-row {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+.diagnose-page .proof {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  margin-top: 32px !important;
+  padding-top: 18px !important;
+}
+
+/* —— 右栏：示例报告完整可见，输入前就知道「会拿到什么」 —— */
+.diagnose-page .v3-hero-r {
+  max-width: none !important;
+}
+.diagnose-page .v3-hero-r .frame-cap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--text-3, #86868b);
+  margin-bottom: 12px;
+}
+.diagnose-page .v3-hero-r .frame-cap i {
+  width: 6px;
+  height: 6px;
+  border-radius: 2px;
+  background: var(--ikb);
+}
+.diagnose-page .v3-hero-r .frame {
+  max-width: none;
+  margin-inline: 0;
+  opacity: 1;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .04), 0 16px 40px -16px rgba(0, 47, 167, .14);
+  border-color: var(--line, rgba(0, 0, 0, .08));
+}
+.diagnose-page .v3-hero-r .frame .head { margin-bottom: 4px; }
+.diagnose-page .v3-hero-r .frame .score-row .v { font-size: 56px; }
+.diagnose-page .v3-hero-r .frame .dim .bar i { box-shadow: none; }
 
 /* ============================================================
    4. 报告页 — 右侧 sticky 给空间锚点
@@ -444,6 +496,12 @@
   }
   .workbench-page .outcome-panel { position: static; max-height: none; }
   .home-page .v3-hero { grid-template-columns: minmax(0, 1fr); }
+  .diagnose-page .diagnose-shell {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 36px;
+    align-items: start;
+  }
+  .diagnose-page .v3-hero-r { max-width: 560px; }
 }
 
 @media (max-width: 768px) {
@@ -454,6 +512,9 @@
   .diagnose-page .entry-form button[type="submit"] { width: 100%; }
   /* display:contents 后 input+button 是 form 的直接子项，窄屏改为纵向 */
   .diagnose-page .entry-form { flex-direction: column; }
+  .diagnose-page .v3-hero-l h1 { font-size: clamp(30px, 8vw, 38px) !important; }
+  .diagnose-page .v3-hero-r .frame { padding: 18px; }
+  .diagnose-page .v3-hero-r .frame .score-row .v { font-size: 44px; }
   .uw-nextcard { flex-direction: column; align-items: stretch; }
   .uw-nextcard__btn { justify-content: center; }
 }
