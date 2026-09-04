@@ -388,9 +388,13 @@ async function saveApiSettings() {
   } catch (error) { showToast(error.message, 'error'); }
 }
 
-settingsButton?.addEventListener('click', (event) => {
+settingsButton?.addEventListener('click', async (event) => {
   event.stopPropagation();
-  toggleSettingsMenu();
+  if (!apiSettingsButton?.hidden) {
+    await openApiSettings();
+    return;
+  }
+  openWallet();
 });
 apiSettingsButton?.addEventListener('click', openApiSettings);
 adminUsersButton?.addEventListener('click', openAdminUsers);
@@ -441,7 +445,7 @@ apiSettingsModal?.addEventListener('click', (event) => {
   if (event.target === apiSettingsModal) closeApiSettings();
 });
 document.addEventListener('click', (event) => {
-  if (!event.target.closest?.('.settings-wrap')) toggleSettingsMenu(false);
+  if (!event.target.closest?.('.menu-wrap')) toggleSettingsMenu(false);
 });
 morningFrame?.addEventListener('load', syncMorningApiKey);
 
