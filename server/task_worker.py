@@ -12,6 +12,21 @@ from . import accounts, creator_tools, diagnosis_service, image_provider, workbe
 
 
 LANES = {"diagnose": 1, "text": 2, "image": 1, "light": 3}
+WORKBENCH_EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix='workbench-request')
+
+
+def dispatch_workbench_job(job_id: str) -> None:
+    """Execute only this explicitly submitted job; never drain unrelated queues.
+
+    Atomic claiming also allows a deployed dedicated worker to win safely.
+    """
+    def claim_and_run():
+        candidate = accounts.job(job_id)
+        if candidate and candidate['type'] == 'workbench_step':
+            claimed = accounts.claim_job([candidate['lane']], job_id=job_id)
+            if claimed:
+                _run(claimed)
+    WORKBENCH_EXECUTOR.submit(claim_and_run)
 
 
 def _payload(job: dict[str, Any]) -> dict[str, Any]:

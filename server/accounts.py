@@ -643,13 +643,15 @@ def job(job_id: str, user_id: str | None = None) -> dict[str, Any] | None:
     return dict(row) if row else None
 
 
-def claim_job(lanes: list[str]) -> dict[str, Any] | None:
+def claim_job(lanes: list[str], job_id: str | None = None) -> dict[str, Any] | None:
     if not lanes:
         return None
     marks = ",".join("?" for _ in lanes)
     with DB_LOCK, _connect() as connection:
         connection.execute("BEGIN IMMEDIATE")
-        row = connection.execute(f"SELECT * FROM jobs WHERE status='queued' AND lane IN ({marks}) ORDER BY created_at LIMIT 1", lanes).fetchone()
+        clause = ' AND id=?' if job_id else ''
+        params = [*lanes, job_id] if job_id else lanes
+        row = connection.execute(f"SELECT * FROM jobs WHERE status='queued' AND lane IN ({marks}){clause} ORDER BY created_at LIMIT 1", params).fetchone()
         if not row:
             connection.execute("COMMIT")
             return None

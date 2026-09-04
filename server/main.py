@@ -118,7 +118,7 @@ class WorkbenchStepRequest(BaseModel):
 class WorkbenchChatRequest(BaseModel):
     session_id: str = Field(min_length=8, max_length=80)
     message: str = Field(min_length=1, max_length=4000)
-    action: str = Field(default="rewrite_article", pattern="^(rewrite_article|regenerate_topics|regenerate_framework)$")
+    action: str = Field(default="rewrite_article", pattern="^(rewrite_article|regenerate_topics|regenerate_framework|revise_image_plan)$")
     selection_text: str = Field(default="", max_length=20000)
 
 
@@ -621,6 +621,9 @@ def create_task(payload: TaskCreateRequest, request: Request):
         raise
     if job.get("usage_id") != usage_id:
         accounts.refund_usage(usage_id, 409, 0)
+    if job['type'] == 'workbench_step' and job['status'] == 'queued':
+        from .task_worker import dispatch_workbench_job
+        dispatch_workbench_job(job['id'])
     return {"status": "accepted", "job": _public_job(job), "idempotent_replay": job.get("usage_id") != usage_id}
 
 
@@ -911,6 +914,15 @@ def get_workbench_provider_status():
     return {"status": "success", "provider": workbench.provider_status()}
 
 
+@app.get('/api/workbench/sessions/{session_id}')
+def read_workbench_session(session_id: str, request: Request):
+    try:
+        session = workbench._get_session(session_id, request.state.user['id'])
+        return {'session':workbench._session_view(session)}
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail='创作会话不存在或不属于当前用户') from exc
+
+
 @app.post("/api/workbench/steps")
 def advance_workbench(payload: WorkbenchStepRequest, request: Request):
     try:
@@ -968,6 +980,9 @@ def _require_workbench_owner(session_id: str, request: Request) -> None:
 @app.get("/api/workbench/preview/{session_id}")
 def get_workbench_preview(session_id: str, request: Request):
     _require_workbench_owner(session_id, request)
+    current = workbench._get_session(session_id,request.state.user['id'])
+    if not workbench._review_is_current(current) or current.get('typeset_article_sha256') != workbench.skill_runtime.digest(current.get('article','')):
+        raise HTTPException(status_code=409,detail='正文已更新，请重新复核并生成预览')
     path = workbench.preview_file(session_id)
     if not path.exists():
         raise HTTPException(status_code=404, detail="预览尚未生成")
@@ -977,6 +992,9 @@ def get_workbench_preview(session_id: str, request: Request):
 @app.get("/api/workbench/html/{session_id}")
 def download_workbench_html(session_id: str, request: Request):
     _require_workbench_owner(session_id, request)
+    current = workbench._get_session(session_id,request.state.user['id'])
+    if not workbench._review_is_current(current) or current.get('typeset_article_sha256') != workbench.skill_runtime.digest(current.get('article','')):
+        raise HTTPException(status_code=409,detail='正文已更新，请重新生成排版')
     path = workbench.preview_file(session_id)
     if not path.exists():
         raise HTTPException(status_code=404, detail="排版 HTML 尚未生成")

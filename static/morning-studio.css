@@ -1,0 +1,27 @@
+/* Embedded document: one page scroll, inputs on the left, exports with the result. */
+:root { --ikb:#0075de; --accent:#0075de; --text:#31302e; --text-2:#615d59; }
+body.morning-iframe, body.morning-iframe :is(button,input,select,textarea,label,span,h2,p) { font-family:'Segoe UI','Microsoft YaHei','PingFang SC',system-ui,sans-serif !important; }
+body.morning-iframe .morning-panel { border-color:#e9e7e4; border-radius:8px; }
+body.morning-iframe .morning-controls :is(input,select,textarea) { background:#fff; border-color:#dedbd7; color:#31302e; border-radius:6px; }
+body.morning-iframe .morning-preview { background:#faf9f7; }
+html, body.morning-iframe { height:auto !important; min-height:0 !important; overflow:visible !important; background:transparent; }
+body.morning-iframe { margin:0; padding:0; }
+.morning-topbar { display:none !important; }
+.morning-workbench { display:grid !important; grid-template-columns:minmax(320px,.85fr) minmax(0,1.15fr) !important; gap:20px; height:auto !important; min-height:0 !important; padding:0 !important; margin:0 !important; align-items:start; }
+.morning-panel { min-width:0; height:auto !important; max-height:none !important; overflow:visible !important; padding:20px !important; background:#fff; border:1px solid #e1e5ed; border-radius:12px; }
+.morning-controls .morning-field-row { gap:10px; }
+.morning-controls :is(input,select,textarea) { box-sizing:border-box; min-width:0; max-width:100%; font-size:14px; border-radius:7px; }
+.morning-controls .morning-section-title { margin:20px 0 10px; font-size:13px; font-weight:600; color:#343e50; }
+.morning-controls .morning-section-title:first-child { margin-top:0; }
+.morning-actions { position:sticky; bottom:0; display:flex; flex-wrap:wrap; gap:8px; padding:12px 0; background:#fff; border-top:1px solid #e1e5ed; }
+.morning-actions button, .morning-export button { height:auto; min-height:40px; padding:10px 14px; white-space:normal; font-size:13px; line-height:1.5; border-radius:7px; }
+.morning-export { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; padding-bottom:16px; border-bottom:1px solid #e1e5ed; }
+.morning-export button { background:#fff; color:#354258; border:1px solid #d3dae5; cursor:pointer; }
+.morning-article { min-height:340px !important; padding:20px !important; }
+.morning-article h2 { font-size:22px; line-height:1.5; }
+@media(max-width:900px) {
+ .morning-workbench { grid-template-columns:minmax(0,1fr) !important; }
+ .morning-panel { padding:16px !important; }
+ .morning-controls .morning-field-row { grid-template-columns:repeat(2,minmax(0,1fr)); }
+ .morning-controls :is(input,textarea,select) { font-size:16px; }
+}

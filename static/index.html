@@ -14,6 +14,9 @@
     <link rel="stylesheet" href="/static/components.css?v=20260903-apple-light" />
     <link rel="stylesheet" href="/static/layout.css?v=20260904-layout-v1" />
     <link rel="stylesheet" href="/static/conversation.css?v=20260904-flow-v1" />
+    <link rel="stylesheet" href="/static/workbench-studio.css?v=20260904-review-3" />
+    <link rel="stylesheet" href="/static/studio-tools.css?v=20260904-1" />
+    <link rel="stylesheet" href="/static/notion-workspace.css?v=20260904-1" />
   </head>
   <body>
     <div class="app-shell">
@@ -276,7 +279,7 @@
           <div class="v3-hero-l">
             <div class="kicker"><span class="line"></span><span>公众号账号诊断</span></div>
             <h1>把内容力<span class="serif">说清楚</span><span class="blue">.</span></h1>
-            <p class="lede">输入公众号名字，启动一次全维度诊断，看清内容力、涨粉力与商业潜力。无需登录，AI Key 由平台安全托管。</p>
+            <p class="lede">输入公众号名称，获取内容表现、运营问题和改进建议。先核对账号，再查看诊断报告。</p>
 
             <form id="diagnose-form" class="entry-form">
               <label for="account-name">输入公众号名称</label>
@@ -332,37 +335,28 @@
            TAB 2 · /workbench — 公众号创作（对话式共创）
            ============================================================ -->
       <section id="workbench" class="workbench-page article-workspace" hidden>
-        <div class="v3-meta">
-          <span class="l"><span class="line"></span><span>Workspace W/02 · Compose</span></span>
-          <span class="r"><i></i>skill · wechat-publisher-ultimate · 8 steps</span>
-        </div>
+        <header class="studio-heading"><div><h1>公众号创作</h1><p>从一个想法，到一篇准备好的文章。</p></div><div class="studio-heading-actions"><button id="studio-details-toggle" type="button" aria-expanded="false" aria-controls="studio-details">结构与版本</button><button id="assistant-toggle" type="button" aria-expanded="true" aria-controls="creation-assistant">收起助手</button></div></header>
         <div id="workflow-steps" class="workflow-rail"></div>
+        <div class="studio-switch" role="group" aria-label="工作区视图"><button type="button" data-studio-view="chat" aria-pressed="true">对话与选题</button><button type="button" data-studio-view="article" aria-pressed="false">文章画布</button></div>
         <div class="conversation-workbench-layout">
-          <aside class="conversation-panel" aria-label="创作对话">
+          <aside id="creation-assistant" class="conversation-panel" aria-label="创作对话">
             <header class="conversation-panel-head"><strong>AI 共创助手</strong><div class="conversation-panel-tools"><span id="workbench-status" class="work-status">等待你的想法</span><button id="new-workbench-chat" class="new-chat-button" type="button"><i data-lucide="plus"></i> 新对话</button></div></header>
             <div id="workbench-chat-thread" class="chat-thread" aria-live="polite"></div>
             <div id="topic-list" class="chat-choice-list"></div>
-            <div class="composer-shell"><textarea id="workbench-topic" placeholder="继续说你的要求，或直接告诉我哪里不满意…" aria-label="对 AI 说"></textarea><div class="composer-actions"><button id="workbench-regenerate-topics" class="composer-text-action" type="button">换一批方向</button><button id="start-workbench" class="composer-send" type="button" aria-label="发送"><i data-lucide="arrow-up"></i></button></div></div>
+            <div class="composer-shell"><label for="workbench-topic">你想写什么？</label><textarea id="workbench-topic" placeholder="输入主题、读者或想表达的观点，也可以粘贴素材…" aria-label="对 AI 说"></textarea><div class="composer-actions"><button id="workbench-regenerate-topics" class="composer-text-action" type="button">换一批方向</button><button id="start-workbench" class="composer-send" type="button" aria-label="发送"><i data-lucide="arrow-up"></i></button></div></div>
             <div class="creator-options sr-only"><select id="workbench-persona"><option>深度观察者</option><option>亲切分享者</option><option>锐评手</option><option>故事大王</option><option>暖心治愈</option></select><select id="workbench-theme"><option value="default">极简白</option><option value="tech-card-green">科技卡片绿</option><option value="minimal-elegant">极简优雅</option></select></div>
           </aside>
           <section id="workbench-result" class="article-canvas">
             <header class="article-canvas-head"><div><h2 id="result-title">还没有开始写</h2><p><i></i><span id="article-save-state">输入一个主题后，我会先和你确认写作方向</span></p></div><div class="canvas-actions"><button id="version-back" class="icon-action" type="button" title="上一个版本"><i data-lucide="undo-2"></i></button><button id="version-forward" class="icon-action" type="button" title="下一个版本"><i data-lucide="redo-2"></i></button><button id="edit-current" class="icon-action" type="button" title="编辑正文"><i data-lucide="pen-line"></i></button></div></header>
             <div class="version-strip"><span id="article-version-label">当前草稿 · 尚未生成</span><span>·</span><span id="article-change-label">等待你的写作意图</span></div>
-            <section id="workbench-decision" class="current-work-card start-templates" aria-live="polite">
-              <header><span>从 3 个方向挑一个</span><em>可直接采用，也可继续让 AI 调整</em></header>
-              <div class="start-template-grid">
-                <button type="button" class="start-template" data-topic="我把公众号运营做成一个 Skill，8 步把选题到发布跑通"><span class="n">01</span><strong>教育与建立信任</strong><p>我把公众号运营做成一个 Skill，8 步把选题到发布跑通。</p><em>适合·新手教程</em></button>
-                <button type="button" class="start-template" data-topic="AI 写作真能写出爆款？别自欺欺人了"><span class="n">02</span><strong>观点判断型</strong><p>AI 写作真能写出爆款？别自欺欺人了。</p><em>适合·反共识</em></button>
-                <button type="button" class="start-template" data-topic="做了 8 年公众号，我决定把工作流全部公开"><span class="n">03</span><strong>故事大王</strong><p>做了 8 年公众号，我决定把工作流全部公开。</p><em>适合·个人复盘</em></button>
-              </div>
-              <footer><span>点选任意卡片 → 自动填入主题并启动 8 步共创</span><a href="#" id="start-templates-more">换一批方向</a></footer>
-            </section>
+            <section id="workbench-decision" class="current-work-card" aria-live="polite"><strong>先告诉我，你想写什么</strong><p>在对话区输入主题、目标读者和已有素材。先确认选题，再确定框架；每一步确认后继续。</p></section>
+            <section id="studio-stage-output" aria-label="当前步骤产物"></section>
             <div class="editor-wrap"><div class="editor-head"><span>当前输出</span><span id="score-label">可直接编辑，也可选中一段再让 AI 重写</span></div><textarea id="article-editor" aria-label="当前文章正文" placeholder="文章会在这里持续更新"></textarea><div class="selection-actions"><button data-rewrite-selection="改短一点" type="button">改短一点</button><button data-rewrite-selection="换成故事开头" type="button">换成故事开头</button><button data-rewrite-selection="重写这一段" type="button">重写这一段</button></div></div>
             <div id="score-report" class="score-report" hidden></div>
             <div id="generated-images" class="generated-images" hidden></div>
             <footer class="article-canvas-foot"><span id="result-meta">当前没有正文</span><span>自动保存</span></footer>
           </section>
-          <aside class="outcome-panel" aria-label="本轮成果">
+          <aside id="studio-details" class="outcome-panel" aria-label="文章结构与版本" hidden>
             <header><strong>本轮成果</strong><i data-lucide="chevron-down"></i></header>
             <section><h3>当前文章结构</h3><ol id="workbench-outline" class="outline-list"><li><span>01</span><p>等待你确认写作方向</p></li></ol></section>
             <section class="version-history"><h3>版本记录</h3><div id="workbench-version-list"></div></section>
@@ -656,7 +650,7 @@
             <p>支持文章和贴图两种模式，图片生成走本站后端代理，适合部署到云服务器后直接使用。</p>
           </div>
           <div class="morning-frame-wrap">
-            <iframe class="generator-frame" src="/static/morning-blessing.html?v=20260901-v3" title="早安祝福自动生成器"></iframe>
+            <iframe class="generator-frame" src="/static/morning-blessing.html?v=20260904-notion-2" title="早安祝福自动生成器"></iframe>
           </div>
         </div>
       </section>
@@ -765,8 +759,11 @@
     </div>
 
     <script src="/static/vendor/lucide.min.js"></script>
-    <script src="/static/app.js?v=20260901-v3-merge"></script>
-    <script src="/static/flow.js?v=20260904-flow-v1"></script>
+    <script src="/static/app.js?v=20260905-skill-chain-2"></script>
+    <script src="/static/flow.js?v=20260904-tools-1"></script>
+    <script src="/static/studio-tools.js?v=20260904-1"></script>
+    <script src="/static/workbench-studio.js?v=20260904-studio-2"></script>
+    <script src="/static/notion-workspace.js?v=20260904-1"></script>
     <script>
       // 同步 recent-item（首页样例：点击触发诊断）
       (function () {

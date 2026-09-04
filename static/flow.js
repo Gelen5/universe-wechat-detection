@@ -778,10 +778,12 @@
      初始化（防御性：严格单向，只调一次）
      ============================================================ */
   function init() {
-    try { buildQuickStart(); } catch (e) { /* 首页缺失不影响其他页 */ }
+    // Home already contains all six tool links; avoid a duplicate launcher.
     try { buildReportNext(); } catch (e) { /* 报告页动态渲染，观察即可 */ }
 
-    var ids = Object.keys(FLOWS);
+    // These tools collect a finite brief. Keep the native forms visible so users
+    // can review and edit every field before an explicit submission.
+    var ids = [];
     for (var i = 0; i < ids.length; i++) {
       try { buildFlow(ids[i]); } catch (e) { /* 单页失败不拖垮全局 */ }
     }

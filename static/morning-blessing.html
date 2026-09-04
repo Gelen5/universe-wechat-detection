@@ -27,6 +27,7 @@
     .is-custom-size .custom-size { display:grid !important; }
     [hidden] { display:none !important; }
   </style>
+<link rel="stylesheet" href="/static/morning-studio.css?v=20260904-notion-2">
 </head>
 <body class="morning-iframe is-article">
   <header class="morning-topbar">
@@ -100,15 +101,12 @@
         <button id="previewBtn" type="button">预览提示词</button>
         <button id="generateBtn" class="primary" type="button">开始生成</button>
         <button id="cancelBtn" class="danger" type="button" hidden>取消生成</button>
-        <button id="copyHtmlBtn" type="button">复制公众号HTML</button>
-        <button id="downloadHtmlBtn" type="button">下载HTML</button>
-        <button id="downloadTextBtn" type="button">下载文案TXT</button>
-        <button id="downloadImagesBtn" type="button">下载图片说明</button>
       </div>
       <div id="copyWarn" class="morning-warn" hidden></div>
     </aside>
 
     <section class="morning-panel morning-preview">
+      <div class="morning-export"><button id="copyHtmlBtn" type="button">复制公众号排版</button><button id="downloadHtmlBtn" type="button">下载 HTML</button><button id="downloadTextBtn" type="button">下载文案</button><button id="downloadImagesBtn" type="button">下载图片说明</button></div>
       <div class="morning-status">
         <span id="status">就绪</span>
         <span id="summary">文章模式：输出文章 HTML</span>

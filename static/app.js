@@ -578,8 +578,8 @@ const stepGuidance = {
   1: { label: '选择选题', title: '从下面的方向里，选一个你愿意写下去的。', detail: '选择后才会生成文章框架，不会直接生成整篇文章。', action: '选择方向后生成框架', next: '生成文章框架' },
   2: { label: '确认框架', title: '先看文章怎么展开，再决定是否写正文。', detail: '确认后会生成一篇可直接编辑的完整初稿。', action: '确认框架，生成初稿', next: '生成完整初稿' },
   3: { label: '编辑初稿', title: '这是你的文章初稿，可以直接改成自己的表达。', detail: '确认后才进入反 AI 审校；请先补充个人经历、事实或具体判断。', action: '确认正文，开始审校', next: '反 AI 审校' },
-  4: { label: '确认文字', title: '文字审校完成，请检查语气和事实边界。', detail: '确认后会依据文章内容生成封面与正文配图。', action: '确认文字，生成配图', next: '生成两张配图' },
-  5: { label: '确认配图', title: '封面和正文图已经就绪，确认它们是否服务文章。', detail: '确认后会调用排版 Skill，生成可复制到公众号的富文本。', action: '确认配图，开始排版', next: 'Skill 排版' },
+  4: { label: '确认文字', title: '文字复核完成，请检查语气和事实边界。', detail: '下一步先展示配图方案，不会直接生成图片。', action: '确认文字，策划配图', next: '配图方案' },
+  5: { label: '确认配图方案', title: '检查每张图的用途、对应段落和图注。', detail: '确认后逐张生成并保存，再按 Skill 组件库排版。', action: '确认方案，生成图片并排版', next: '生图与排版' },
   6: { label: '生成预览', title: '排版已完成，下一步查看公众号实际粘贴效果。', detail: '预览页支持一键复制富文本，也可以下载 HTML 存档。', action: '打开预览并复制', next: '公众号富文本预览' },
   7: { label: '交付内容', title: '内容已经可以交付到公众号后台。', detail: '复制或下载 HTML 后粘贴到公众号；确认无误再写入草稿箱。', action: '写入公众号草稿箱', next: '写入草稿箱' },
   8: { label: '发布完成', title: '草稿写入流程已完成。', detail: '你仍可返回正文修改，并重新生成预览。', action: '完成', next: '—' },
@@ -588,39 +588,45 @@ const stepGuidance = {
 function renderScoreReport(session) {
   const wrap = document.querySelector('#score-report');
   if (!wrap) return;
-  const scoreObj = session?.score;
-  const score = scoreObj?.score;
-  if (score == null) { wrap.hidden = true; wrap.innerHTML = ''; return; }
-  const val = Number(score);
-  const ok = val >= 80;
-  const pct = Math.round(Math.max(0, Math.min(100, val)));
-  const dims = scoreObj?.dimensions || scoreObj?.scores || null;
-  const dimRows = dims ? Object.entries(dims).filter(([, v]) => v != null).map(([k, v]) => {
-    const nv = Math.round(Math.max(0, Math.min(100, Number(v))));
-    return `<div class="srow"><span>${esc(k)}</span><div class="sbar"><i style="width:${nv}%"></i></div><em>${nv}</em></div>`;
-  }).join('') : '';
-  const fixes = session.suggestions && session.suggestions.length
-    ? `<div class="score-fixes-head"><span class="micro-label">优先修改</span><h4>按建议改稿后重新审校</h4></div><ul class="score-fixes">${session.suggestions.slice(0, 6).map(x => `<li>${esc(typeof x === 'string' ? x : (x.text || x.title || ''))}</li>`).join('')}</ul>` : '';
+  const review = session?.review;
+  if (session?.review_run?.status === 'blocked') {
+    const run = session.review_run;
+    const last = run.rounds?.[run.rounds.length - 1];
+    wrap.hidden = false;
+    wrap.innerHTML = `<section class="skill-review-result" role="status"><h3>去 AI 复核未通过</h3><p>已保留上一次正文，未进入配图。</p><p>${esc(run.error || '仍有问题需要处理')}</p><details><summary>查看本轮实际问题与审计</summary><pre>${esc(JSON.stringify(last || {}, null, 2))}</pre></details></section>`;
+    return;
+  }
+  if (!review) { wrap.hidden = true; wrap.innerHTML = ''; return; }
+  const audit = review.audit || {};
+  const available = audit.status === 'success';
+  const printable = value => typeof value === 'string' ? value : JSON.stringify(value);
+  const warnings = Array.isArray(audit.warnings) ? audit.warnings : [];
+  const missing = Object.entries(audit.missing_protected_spans || {}).filter(([, value]) =>
+    Array.isArray(value) ? value.length : value && (typeof value !== 'object' || Object.keys(value).length));
+  const numberOrMissing = value => value == null ? '未返回' : esc(value);
+  const warningList = warnings.length ? `<ul>${warnings.map(item => `<li>${esc(printable(item))}</li>`).join('')}</ul>` : '<p>本次审计未返回可读性警告。</p>';
+  const missingList = missing.length ? `<ul>${missing.map(([key,value]) => `<li><strong>${esc(key)}</strong>：${esc(printable(value))}</li>`).join('')}</ul>` : '<p>本次审计未报告保护片段缺失。</p>';
   wrap.hidden = false;
-  wrap.innerHTML = `<section class="score-report-card">
-    <div class="score-ring" style="--p:${pct}"><div><strong>${val}</strong><span>结构参考</span></div></div>
-    <div class="score-body">
-      <header><span class="score-badge ${ok ? 'ok' : 'revise'}">${ok ? '可以发布' : '修改后复核'}</span><h3>反 AI 审校报告</h3><p>${esc(scoreObj.summary || (ok ? '表达与结构达到可发布标准。' : '发现可优化的表达与事实边界，建议按清单调整。'))}</p></header>
-      ${dimRows ? `<div class="score-dims">${dimRows}</div>` : ''}
-      ${fixes}
-    </div>
+  wrap.innerHTML = `<section class="skill-review-result">
+    <header><h3>去 AI 改写结果</h3><span>${available ? '审计已返回' : '审计不可用'}</span></header>
+    <p>上方正文为本次返回的改写稿，可继续编辑并核对事实。</p>
+    <p class="review-source">来源：${esc(review.source || '未返回')} · ${esc(review.action || '未返回处理说明')}</p>
+    ${available ? `<dl><div><dt>改写前信号数</dt><dd>${numberOrMissing(audit.original_signal_total)}</dd></div><div><dt>改写后信号数</dt><dd>${numberOrMissing(audit.revision_signal_total)}</dd></div><div><dt>完整句比例</dt><dd>${audit.complete_sentence_ratio == null ? '未返回' : esc((Number(audit.complete_sentence_ratio) * 100).toFixed(1)) + '%'}</dd></div></dl>
+      <h4>保护片段核对</h4>${missingList}<h4>可读性审计</h4>${warningList}
+      <p class="review-source">信号数量用于对照改稿，不代表 AI 生成概率或发布结论。</p>` : '<p>未取得有效审计结果，不能判断保护片段和可读性是否通过。</p>'}
+    <details><summary>查看 Skill 返回的审计数据</summary><pre>${esc(JSON.stringify(audit,null,2))}</pre></details>
   </section>`;
-  window.lucide?.createIcons();
 }
 
 function renderDecisionPanel(session) {
   if (!session) {
-    // 初次进入：保留 #workbench-decision 静态模板卡（不要 innerHTML 清空）
+    decisionPanel.innerHTML = '<strong>先告诉我，你想写什么</strong><p>输入主题、目标读者和已有素材。确认选题后生成框架，再逐步完成正文、审校、配图和排版。</p>';
     const flowLabel = document.querySelector('#flow-step-label');
     const flowHint = document.querySelector('#flow-step-hint');
     if (flowLabel) flowLabel.textContent = '等待你的想法';
-    if (flowHint) flowHint.textContent = '从三个方向里挑一个，或直接说你的选题';
-    runNextButton.innerHTML = '<i data-lucide="arrow-right"></i> 先选择一个方向';
+    if (flowHint) flowHint.textContent = '在对话区输入需求，开始选题';
+    runNextButton.innerHTML = '等待输入需求';
+    runNextButton.hidden = true;
     runNextButton.disabled = true;
     previewButton.hidden = true;
     document.querySelector('#publish-draft').hidden = true;
@@ -709,10 +715,7 @@ function renderOutline(session) {
 }
 
 function renderWorkbenchSession(session) {
-  // Do not let a stale response hide images already returned by a queued step.
-  if ((!session.images || !session.images.length) && workbenchSession?.images?.length) {
-    session = { ...session, images: workbenchSession.images };
-  }
+  // Server invalidates images when the article changes. Never revive stale art.
   workbenchSession = session;
   workbenchResult.hidden = false;
   workbenchVersionIndex = -1;
@@ -726,9 +729,8 @@ function renderWorkbenchSession(session) {
   renderDecisionPanel(session);
   renderChatThread(session);
   articleEditor.value = session.article || '';
-  const score = session.score?.score;
   renderScoreReport(session);
-  document.querySelector('#score-label').textContent = score == null ? '反 AI 评分将在第 4 步生成' : `反 AI 综合评分 ${Number(score).toFixed(1)} · 详细报告见下方审校卡`;
+  document.querySelector('#score-label').textContent = session.review ? '去 AI 改写稿 · 实际审计记录见下方' : '当前正文 · 第 4 步执行去 AI 改写';
   const textModel = session.provider?.text?.model || '文本模型';
   const imageModel = session.provider?.image?.model || '图片模型';
   document.querySelector('#result-meta').textContent = session.framework ? `${session.framework.name} 框架 · ${session.persona || '默认人格'} · 文本 ${textModel} · 图片 ${imageModel}` : `选题由 ${textModel} 实时生成`;
@@ -742,18 +744,26 @@ function renderWorkbenchSession(session) {
   topicList.querySelectorAll('.adopt-topic').forEach(item => item.addEventListener('click', async () => { await advance(Number(item.dataset.topicId), 2); renderChatThread(workbenchSession); }));
   topicList.querySelectorAll('.regenerate-topic').forEach(item => item.addEventListener('click', () => sendWorkbenchChat('这个方向不错，但请换一个更有冲突和具体场景的写法。', 'regenerate_topics')));
   renderOutline(session);
+  let evidence = document.querySelector('#workbench-execution-evidence');
+  if (!evidence) { evidence = document.createElement('details'); evidence.id = 'workbench-execution-evidence'; generatedImages.before(evidence); }
+  const research = session.framework?.research || session.topic_research;
+  evidence.innerHTML = `<summary>实际执行记录与素材来源</summary><p>${esc(research?.limitations || '尚未检索')}</p>${(research?.sources || []).map(source=>`<p><a href="${esc(source.url)}" target="_blank" rel="noopener noreferrer">${esc(source.title)}</a> · ${esc(source.verification)}</p>`).join('')}<p>${esc(session.history_check?.note || '')}</p><pre>${esc(JSON.stringify({layout:session.layout_plan, checks:session.layout_check},null,2))}</pre>`;
   window.lucide?.createIcons();
   const images = session.images || [];
   generatedImages.hidden = !images.length;
   const remoteImages = images.filter(image => image.delivery === 'remote').length;
   generatedImages.innerHTML = images.length ? `<div class="image-section-head"><div><span class="micro-label">API 生成配图</span><h3>封面与正文配图</h3></div><span>${images.length} 张 · ${remoteImages ? `${remoteImages} 张由供应商 CDN 提供` : '已自动压缩至微信限制内'}</span></div><div class="image-grid">${images.map(image => `<a href="${esc(image.url)}" target="_blank" rel="noopener"><img src="${esc(image.url)}" alt="${image.kind === 'cover' ? '文章封面' : '正文配图'}" /><span><strong>${image.kind === 'cover' ? '文章封面' : '正文配图'}</strong><small>${esc(image.model)} · ${image.delivery === 'remote' ? '外链预览' : `${Math.round(Number(image.bytes || 0) / 1024)} KB`}</small></span></a>`).join('')}</div>` : '';
+  if (session.image_plan) {
+    generatedImages.hidden = false;
+    generatedImages.insertAdjacentHTML('afterbegin', `<details open><summary>配图方案 · ${esc(session.image_plan.status)}</summary><p>${esc(session.image_plan.reason || '')}</p>${(session.image_plan.images || []).map((item,index)=>`<p><strong>${index+1}. ${item.kind === 'cover' ? '封面' : esc(item.section || '正文图')}</strong><br>${esc(item.claim || '')}<br>图注：${esc(item.caption || '')}</p>`).join('')}</details>`);
+  }
 }
 
 function setWorkbenchProgress(target, active = true, message = '') {
   if (!workbenchProgress) return;
   workbenchProgress.hidden = !active;
   if (!active) return;
-  const labels = { 2: '正在生成文章框架', 3: '正在生成完整初稿', 4: '正在进行反 AI 审校', 5: '正在生成封面与正文配图', 6: '正在生成公众号排版', 7: '正在生成手机端预览' };
+  const labels = { 2: '正在检索素材并生成框架', 3: '正在生成完整初稿', 4: '正在进行去 AI 修改与复核', 5: '正在策划配图方案', 6: '正在生成图片并排版', 7: '正在生成手机端预览' };
   const details = { 2: '先确认文章怎么展开', 3: '文字模型正在组织正文', 4: '检查表达、事实边界和可读性', 5: '图片生成可能需要数分钟，请勿重复点击', 6: '把正文和图片整理成可复制内容', 7: '生成最终可查看、可下载的文件' };
   workbenchProgressTitle.textContent = message || labels[target] || '正在处理';
   workbenchProgressDetail.textContent = details[target] || '请稍候';
@@ -800,6 +810,12 @@ async function advance(selection = null, nextStep = null) {
   try {
     workbenchSession = await callWorkbench('/api/workbench/steps', { session_id: workbenchSession.id, step: target, selection, article: articleEditor.value }, workbenchController.signal);
     renderWorkbenchSession(workbenchSession);
+  } catch (error) {
+    try {
+      const response = await fetch(`/api/workbench/sessions/${encodeURIComponent(workbenchSession.id)}`);
+      if (response.ok) renderWorkbenchSession((await response.json()).session);
+    } catch { /* Keep the original execution error if readback also fails. */ }
+    throw error;
   } finally {
     setWorkbenchProgress(target, false);
     workbenchController = null;
@@ -810,14 +826,14 @@ modeButtons.forEach(button => button.addEventListener('click', () => { modeButto
 startWorkbench?.addEventListener('click', async () => {
   const message = topicInput.value.trim();
   if (!message) { topicInput.focus(); return; }
-  if (workbenchSession) { await sendWorkbenchChat(message); return; }
+  if (workbenchSession) { await sendWorkbenchChat(message, workbenchSession.current_step === 5 ? 'revise_image_plan' : 'rewrite_article'); return; }
   startWorkbench.disabled = true;
   const originalLabel = startWorkbench.innerHTML;
-  startWorkbench.innerHTML = '任务提交中…';
+  startWorkbench.innerHTML = '正在提交…';
   try {
     const response = await fetch('/api/workbench/sessions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...sharedApiPayload(), topic: message, mode: workbenchMode, persona: document.querySelector('#workbench-persona').value, theme: document.querySelector('#workbench-theme').value, idempotency_key: newIdempotencyKey() }) });
     const accepted = await readApiResponse(response);
-    startWorkbench.innerHTML = 'Skill 执行中…';
+    startWorkbench.innerHTML = '正在生成选题…';
     const session = await waitForWorkbenchJob(accepted.job.id);
     renderWorkbenchSession(session);
     topicInput.value = '';
@@ -827,13 +843,13 @@ async function sendWorkbenchChat(message, action = 'rewrite_article', selectionT
   if (!workbenchSession) return;
   const send = startWorkbench;
   send.disabled = true;
-  const original = send.textContent;
+  const original = send.innerHTML;
   send.textContent = '…';
   try {
     const session = await callWorkbench('/api/workbench/chat', { session_id: workbenchSession.id, message, action, selection_text: selectionText });
     renderWorkbenchSession(session);
     topicInput.value = '';
-  } catch (error) { alert(error.message); } finally { send.disabled = false; send.textContent = original || '↑'; }
+  } catch (error) { alert(error.message); } finally { send.disabled = false; send.innerHTML = original || '↑'; }
 }
 
 runNextButton?.addEventListener('click', async () => {
@@ -870,6 +886,7 @@ document.querySelector('#open-preview')?.addEventListener('click', async () => {
   try { const session = await callWorkbench('/api/workbench/preview', { session_id: workbenchSession.id, article: articleEditor.value }); renderWorkbenchSession(session); window.open(session.preview_url, '_blank', 'noopener'); } catch (error) { alert(error.message); }
 });
 document.querySelector('#publish-draft')?.addEventListener('click', async () => {
+  if (!confirm('将当前预览写入公众号草稿箱？这不会发布文章。')) return;
   if (!workbenchSession) return;
   try { const session = await callWorkbench('/api/workbench/publish', { session_id: workbenchSession.id, draft: true }); renderWorkbenchSession(session); alert(session.publish?.message || '已完成'); } catch (error) { alert(error.message); }
 });
