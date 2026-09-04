@@ -274,6 +274,17 @@
   padding-block: clamp(16px, 3vw, 40px);
 }
 
+/* 桌面端整页重心垂直居中：meta 贴顶，主体居中，底部不再留大片空白 */
+.diagnose-page {
+  min-height: calc(100vh - 170px);
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+.diagnose-page .diagnose-shell { align-self: center; }
+@media (max-width: 1080px) {
+  .diagnose-page { min-height: 0; display: block; }
+}
+
 /* —— 左栏：紧凑左对齐，把「开始诊断」做成视觉锚点 —— */
 .diagnose-page .v3-hero-l > .kicker {
   justify-content: flex-start;
