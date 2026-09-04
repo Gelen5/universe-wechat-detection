@@ -31,7 +31,7 @@
       title: '小红书创作',
       resultId: 'xhs-result',
       formId: 'xhs-form',
-      greet: '想写篇小红书？先告诉我主题是什么，一句话就够。',
+      greet: '想写篇小红书？我带你 30 秒理清楚，右边就是这次要产出的东西。',
       steps: [
         {
           key: 'topic',
@@ -84,7 +84,7 @@
       title: '贴图号创作',
       resultId: 'tie-result',
       formId: 'tie-form',
-      greet: '做一组贴图？先说主题，我来排分镜。',
+      greet: '做一组贴图？右边就是这次的卡片墙，先跟我聊两句。',
       steps: [
         {
           key: 'topic',
@@ -153,7 +153,7 @@
       title: '爆文检测',
       resultId: 'hit-result',
       formId: 'hit-form',
-      greet: '稿子写完了？把标题和正文发给我，我按发布前的标准过一遍。',
+      greet: '稿子写完了？我按发布前的标准过一遍，右边是检测结果的三样东西。',
       steps: [
         {
           key: 'title',
