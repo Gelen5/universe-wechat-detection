@@ -12,6 +12,30 @@ from server import skill_runtime
 
 
 class PipelineTests(unittest.TestCase):
+    def test_changing_theme_keeps_layout_node_and_article_assets(self):
+        article = "已经确认的正文。"
+        session = {
+            "id": "theme-session", "user_id": "user", "current_step": 6,
+            "theme": "default", "article": article, "framework": {},
+            "review": {"gate": "passed", "article_sha256": skill_runtime.digest(article)},
+            "image_plan": {"status": "generated"}, "images": [{"url": "/image.jpg"}],
+            "typeset_html": "old", "preview_document": "old", "conversation": [], "versions": [],
+        }
+
+        def fake_typeset(current):
+            current["typeset_html"] = "new"
+            current["preview_document"] = "new-document"
+
+        with patch.object(w, "_get_session", return_value=session), patch.object(w, "_save_session"), patch.object(w, "_typeset", side_effect=fake_typeset):
+            result = w.chat("theme-session", "换个排版主题", "change_theme", user_id="user")
+
+        self.assertEqual(result["current_step"], 6)
+        self.assertEqual(result["theme"], "minimal-elegant")
+        self.assertEqual(result["article"], article)
+        self.assertEqual(result["images"], [{"url": "/image.jpg"}])
+        self.assertEqual(result["versions"], [])
+        self.assertEqual(result["typeset_source"], None)
+
     def test_delivery_uploads_embedded_image_and_keeps_approved_html(self):
         path = w.ROOT / 'scripts/workbench-skill-publish.py'
         spec = importlib.util.spec_from_file_location('delivery_test',path)

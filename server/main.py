@@ -118,7 +118,7 @@ class WorkbenchStepRequest(BaseModel):
 class WorkbenchChatRequest(BaseModel):
     session_id: str = Field(min_length=8, max_length=80)
     message: str = Field(min_length=1, max_length=4000)
-    action: str = Field(default="rewrite_article", pattern="^(rewrite_article|regenerate_topics|regenerate_framework|revise_image_plan)$")
+    action: str = Field(default="rewrite_article", pattern="^(rewrite_article|regenerate_topics|regenerate_framework|revise_image_plan|change_theme)$")
     selection_text: str = Field(default="", max_length=20000)
 
 

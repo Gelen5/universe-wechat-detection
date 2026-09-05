@@ -823,10 +823,18 @@ async function advance(selection = null, nextStep = null) {
 }
 
 modeButtons.forEach(button => button.addEventListener('click', () => { modeButtons.forEach(item => item.classList.remove('active')); button.classList.add('active'); workbenchMode = button.dataset.mode; }));
+
+function resolveWorkbenchChatAction(message) {
+  const step = workbenchSession?.current_step || 1;
+  if (step === 5) return 'revise_image_plan';
+  if (step >= 6 && /(排版|版式|配色|排版主题|页面样式|换.{0,4}样式)/.test(message)) return 'change_theme';
+  return 'rewrite_article';
+}
+
 startWorkbench?.addEventListener('click', async () => {
   const message = topicInput.value.trim();
   if (!message) { topicInput.focus(); return; }
-  if (workbenchSession) { await sendWorkbenchChat(message, workbenchSession.current_step === 5 ? 'revise_image_plan' : 'rewrite_article'); return; }
+  if (workbenchSession) { await sendWorkbenchChat(message, resolveWorkbenchChatAction(message)); return; }
   startWorkbench.disabled = true;
   const originalLabel = startWorkbench.innerHTML;
   startWorkbench.innerHTML = '正在提交…';

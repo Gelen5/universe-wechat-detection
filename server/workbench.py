@@ -972,11 +972,48 @@ def chat(session_id: str, message: str, action: str = "rewrite_article", selecti
     conversation = session.setdefault("conversation", [])
     conversation.append({"role": "user", "content": message, "at": datetime.now().isoformat(timespec="seconds")})
     versions = session.setdefault("versions", [])
-    if session.get("article"):
+    if session.get("article") and action not in {"change_theme", "revise_image_plan"}:
         versions.append({"label": f"V{len(versions) + 1}", "summary": session.get("last_change") or "调整前版本", "article": session["article"]})
         versions[:] = versions[-8:]
 
-    if action == 'revise_image_plan':
+    if action == "change_theme":
+        if int(session.get("current_step", 1)) < 6 or not session.get("article"):
+            raise ProviderError("请先完成正文、配图并进入排版节点")
+        themes = ["default", "minimal-elegant", "tech-card-green"]
+        requested = next((value for keyword, value in (
+            ("科技卡片", "tech-card-green"),
+            ("科技", "tech-card-green"),
+            ("极简优雅", "minimal-elegant"),
+            ("优雅", "minimal-elegant"),
+            ("极简白", "default"),
+        ) if keyword in message), None)
+        current_theme = session.get("theme") or "default"
+        if requested is None or requested == current_theme:
+            current_index = themes.index(current_theme) if current_theme in themes else 0
+            requested = themes[(current_index + 1) % len(themes)]
+        previous_step = int(session.get("current_step", 6))
+        session.update(
+            theme=requested,
+            typeset_html="",
+            preview_document="",
+            typeset_source=None,
+            preview_url=None,
+            html_download_url=None,
+            layout_plan=None,
+            layout_plan_key=None,
+            publish=None,
+            status="rendering",
+        )
+        _typeset(session)
+        if previous_step >= 7:
+            _preview_session(session)
+            session["current_step"] = 7
+        else:
+            session["current_step"] = previous_step
+        session["status"] = "ready_for_delivery" if session["current_step"] >= 7 else "ready_for_review"
+        theme_names = {"default": "极简白", "minimal-elegant": "极简优雅", "tech-card-green": "科技卡片"}
+        reply = f"排版已切换为{theme_names[requested]}。正文、审校和配图均未修改，当前仍在第 {session['current_step']} 步。"
+    elif action == 'revise_image_plan':
         if not _review_is_current(session):
             raise ProviderError('请先完成正文复核')
         session['image_plan'] = _image_plan(session)
