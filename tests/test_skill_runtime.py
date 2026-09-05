@@ -13,9 +13,19 @@ class SkillRuntimeTests(unittest.TestCase):
         self.assertFalse(w._review_is_current(session))
         with patch.object(w, '_get_session', return_value=session):
             with self.assertRaises(w.ProviderError):
-                w.preview('test', user_id='test')
-            with self.assertRaises(w.ProviderError):
                 w.publish('test', user_id='test')
+
+    def test_preview_does_not_require_rewriting(self):
+        session = {'id': 'test', 'article': '修改稿', 'review': None, 'score': {},
+                   'typeset_html': '<p>修改稿</p>', 'preview_document': '<p>修改稿</p>'}
+        with tempfile.TemporaryDirectory() as directory, patch.object(w, 'OUTPUT_DIR', Path(directory)), \
+             patch.object(w, '_save_session'), patch.object(w, '_score', return_value={}), \
+             patch.object(w, '_review') as review:
+            result = w._preview_session(session)
+            self.assertTrue((Path(directory) / 'test/preview.html').exists())
+        review.assert_not_called()
+        self.assertEqual(result['article'], '修改稿')
+        self.assertIsNone(result['review'])
 
     def test_brief_survives_topic_selection(self):
         self.assertIn('800—1000字', r.brief({'topic':'选中标题','conversation':[{'role':'user','content':'800—1000字'}]}))

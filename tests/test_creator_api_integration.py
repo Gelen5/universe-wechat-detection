@@ -6,7 +6,7 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from tests import support  # noqa: F401 - configures isolated account database before app import
-from server import creator_tools, workbench
+from server import creator_tools, workbench, accounts, task_worker
 from server.main import app
 
 
@@ -41,6 +41,43 @@ def current_settings():
 
 
 class CreatorApiIntegrationTests(unittest.TestCase):
+    def test_creator_chat_queue_worker_and_session_retrieval(self):
+        import uuid
+        response = self.client.post('/api/tasks', json={'type': 'creator_chat',
+            'idempotency_key': uuid.uuid4().hex, 'payload': {'skill':'morning','message':'hello','user_id':'forged'}})
+        self.assertEqual(response.status_code, 202, response.text)
+        job_id = response.json()['job']['id']
+        session_id = response.json()['job']['session_id']
+        job = accounts.claim_job(['text'], job_id=job_id)
+        self.assertNotEqual(job['user_id'], 'forged')
+        def chat(skill, message, user_id, session_id, **kwargs):
+            session = accounts.load_workbench_session(session_id, user_id)
+            session['conversation'].append({'role':'assistant','content':'hello'})
+            accounts.save_workbench_session(user_id, session)
+            return session
+        with patch('server.creator_conversation.chat', side_effect=chat):
+            task_worker._run(job)
+        polled = self.client.get('/api/tasks/' + job_id)
+        self.assertEqual(polled.json()['job']['status'], 'succeeded', polled.text)
+        restored = self.client.get('/api/creator/chat/' + session_id)
+        self.assertEqual(restored.status_code, 200)
+        self.assertEqual(restored.json()['session']['conversation'][-1]['content'], 'hello')
+
+    def test_creator_chat_requires_login(self):
+        with TestClient(app) as anonymous:
+            response = anonymous.post('/api/creator/chat', json={
+                'skill': 'xiaohongshu', 'message': 'hello'})
+        self.assertEqual(response.status_code, 401)
+
+    def test_creator_chat_dispatches_owned_session(self):
+        with patch('server.main.creator_conversation.chat', return_value={'id': 'test-session'}) as chat:
+            response = self.client.post('/api/creator/chat', json={
+                'skill': 'xiaohongshu', 'message': '不要图片', 'session_id': 'test-session'})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(chat.call_args.args[0:2], ('xiaohongshu', '不要图片'))
+        self.assertTrue(chat.call_args.args[2])
+        self.assertEqual(response.headers.get('X-Points-Charged'), '10')
+
     @classmethod
     def setUpClass(cls):
         os.environ.update({

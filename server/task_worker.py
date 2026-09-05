@@ -37,6 +37,15 @@ def execute(job: dict[str, Any]) -> dict[str, Any]:
     """Run a task with explicit payload and ContextVar-scoped provider settings."""
     payload = _payload(job)
     kind = job["type"]
+    if kind == 'creator_chat':
+        from . import creator_conversation
+        def check_cancelled():
+            current = accounts.job(job['id']) or {}
+            if current.get('canceled_at'):
+                raise RuntimeError('已取消后续操作')
+        session = creator_conversation.chat(payload['skill'], payload['message'], job['user_id'],
+            payload.get('session_id'), check_cancelled=check_cancelled)
+        return {'status': 'success', 'session': session}
     if kind == "diagnose":
         return diagnosis_service.run(payload["account_name"], _enrich_diagnosis_report)
     if kind == "xiaohongshu":

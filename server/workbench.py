@@ -9,6 +9,7 @@ humanness scoring, Markdown conversion, themes and WeChat publishing.
 from __future__ import annotations
 
 import base64
+import copy
 import io
 import json
 import mimetypes
@@ -667,7 +668,7 @@ def _typeset(session: dict[str, Any]) -> str:
     generated_preview = output_dir / "article_preview.html"
     generated_preview.unlink(missing_ok=True)
     result = subprocess.run(
-        [_skill_python(), '-X', 'utf8', "-m", "toolkit.cli", "preview", str(markdown_path), "--theme", session["theme"]],
+        [_skill_python(), '-X', 'utf8', str(ROOT / 'server' / 'skill_preview.py'), str(SKILL_DIR), str(markdown_path), session["theme"]],
         capture_output=True, text=True, encoding="utf-8", errors="replace",
         cwd=str(SKILL_DIR), timeout=120,
     )
@@ -675,6 +676,8 @@ def _typeset(session: dict[str, Any]) -> str:
         raise RuntimeError(result.stderr[-2000:] or "Skill 排版质量门禁未通过")
     if not generated_preview.exists():
         raise RuntimeError("Skill 排版完成但未生成预览 HTML")
+    quality_path = markdown_path.with_suffix('.quality.json')
+    session['content_quality'] = json.loads(quality_path.read_text(encoding='utf-8'))
     document = generated_preview.read_text(encoding="utf-8")
     match = re.search(r'<main id="article-content">(.*?)</main>', document, flags=re.S)
     if not match:
@@ -910,10 +913,10 @@ def _advance(session: dict[str, Any], target: int, selection: int | None = None)
         if reviewed_title:
             session['topic'] = reviewed_title.group(1).strip()
         session["score"] = _score(session["article"])
-    if target >= 5 and (session.get('image_plan') or {}).get('article_sha256') != skill_runtime.digest(session['article']):
+    if target >= 5 and session.get('image_policy') != 'none' and (session.get('image_plan') or {}).get('article_sha256') != skill_runtime.digest(session['article']):
         session['image_plan'] = _image_plan(session)
         session['images'] = []
-    if target >= 6 and (session.get('image_plan') or {}).get('status') != 'generated':
+    if target >= 6 and session.get('image_policy') != 'none' and (session.get('image_plan') or {}).get('status') != 'generated':
         session['image_plan']['status'] = 'approved'
         session['status'] = 'calling_image_api'
         session['images'] = _images(session)
@@ -963,20 +966,49 @@ def cancel(session_id: str, *, user_id: str) -> dict[str, Any]:
     return {"status": "cancelling", "message": "已收到取消请求，当前图片请求结束后会停止后续生成"}
 
 
-def chat(session_id: str, message: str, action: str = "rewrite_article", selection_text: str = "", *, user_id: str) -> dict[str, Any]:
+def chat(session_id: str, message: str, action: str = "auto", selection_text: str = "", *, user_id: str) -> dict[str, Any]:
     """Apply a conversational revision while preserving the current article session."""
-    session = _get_session(session_id, user_id)
+    session = copy.deepcopy(_get_session(session_id, user_id))
     message = message.strip()
     if not message:
         raise ValueError("请先告诉我你希望怎么调整")
+    decision = None
+    if action == 'auto':
+        from .conversation_agent import decide
+        instructions, _ = skill_runtime.context(SKILL_DIR)
+        decision = decide(session, message, instructions, _json_text)
+        action = decision['action']
+        policy = decision.get('image_policy', 'keep')
+        if policy != 'keep':
+            session['image_policy'] = policy
+            if policy == 'none':
+                session['images'] = []
+                session['image_plan'] = None
+            session.update(typeset_html='', preview_document='', preview_url=None,
+                           html_download_url=None, layout_plan=None, layout_plan_key=None)
     conversation = session.setdefault("conversation", [])
     conversation.append({"role": "user", "content": message, "at": datetime.now().isoformat(timespec="seconds")})
     versions = session.setdefault("versions", [])
-    if session.get("article") and action not in {"change_theme", "revise_image_plan"}:
+    if session.get("article") and action in {"rewrite_article", "regenerate_topics", "regenerate_framework"}:
         versions.append({"label": f"V{len(versions) + 1}", "summary": session.get("last_change") or "调整前版本", "article": session["article"]})
         versions[:] = versions[-8:]
 
-    if action == "change_theme":
+    if action == 'respond':
+        reply = decision['reply']
+    elif action in {'typeset', 'continue'}:
+        target = 6 if action == 'typeset' else min(7, int(session.get('current_step', 1)) + 1)
+        if action == 'typeset' and not session.get('article'):
+            reply = '还没有正文，请先提供正文或让我起草，再进行排版。'
+        elif action == 'typeset':
+            # Formatting existing text must never draft, review-rewrite or generate images.
+            _typeset(session)
+            session['current_step'] = 6
+            session['status'] = 'ready_for_review'
+            reply = '已用现有正文排版，正文没有改写。' + ('本次不使用图片。' if session.get('image_policy') == 'none' else '保留已生成的图片。')
+        else:
+            _advance(session, target)
+            reply = '已完成当前操作。' + ('这篇文章不使用图片。' if session.get('image_policy') == 'none' else '')
+    elif action == "change_theme":
         if int(session.get("current_step", 1)) < 6 or not session.get("article"):
             raise ProviderError("请先完成正文、配图并进入排版节点")
         themes = ["default", "minimal-elegant", "tech-card-green"]
@@ -1069,7 +1101,14 @@ def chat(session_id: str, message: str, action: str = "rewrite_article", selecti
             session["article"] = _draft(session["topic"], session["framework"], session["persona"], skill_runtime.brief(session))
         else:
             scope = "只改写下面选中的段落，其余文章保持不变" if selection_text.strip() else "改写整篇文章"
-            prompt = f"""你是资深微信公众号编辑。用户正在与写作助手共同修改文章。
+            if selection_text.strip() and selection_text not in session.get('article', ''):
+                raise ValueError('选中段落已发生变化，请重新选择后再修改')
+            instructions, _ = skill_runtime.context(SKILL_DIR, (
+                'references/platform_rules.md', 'references/ai_artifacts_blacklist.md'))
+            prompt = f"""{instructions}
+
+你是资深微信公众号编辑。用户正在与写作助手共同修改文章。
+已确认要求和对话上下文：{skill_runtime.brief(session)}
 文章标题：{session['topic']}
 写作人格：{session['persona']}
 用户要求：{message}
@@ -1120,16 +1159,16 @@ def preview(session_id: str, article: str | None = None, *, user_id: str | None 
 
 
 def _preview_session(session, article=None):
-    if not _review_is_current(session) or (article and article.strip() != session.get('article', '').strip()):
-        raise ProviderError('当前正文尚未通过去 AI 复核；改稿后请重新执行第 4 步')
+    if not session.get('article'):
+        raise ProviderError('请先提供正文')
     session_id = session['id']
     if article is not None and article.strip() and article != session['article']:
         session["article"] = article
         session["typeset_html"] = ""
         session["preview_document"] = ""
         session["typeset_source"] = None
-    if not session.get('score'):
-        session["score"] = _score(session["article"])
+        session['review'] = None
+        session['score'] = None
     # 第6步与预览都复用 wechat-publisher-ultimate CLI：质量门禁、主题排版和
     # 微信富文本复制逻辑保持为同一条 Skill 链路。
     if not session.get("typeset_html"):

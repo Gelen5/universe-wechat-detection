@@ -16,6 +16,7 @@ import secrets
 import sqlite3
 import threading
 import uuid
+from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -41,6 +42,7 @@ DEFAULT_PRICING = [
     ("POST", "/api/hit-detector/rewrite", "文章改稿", 5, 0),
     ("POST", "/api/workbench/sessions", "公众号完整工作流", 30, 0),
     ("POST", "/api/workbench/chat", "公众号创作调整", 5, 0),
+    ("POST", "/api/creator/chat", "创作对话", 10, 0),
     ("POST", "/api/workbench/steps", "公众号工作流步骤", 0, 0),
     ("POST", "/api/images/generations", "早安图片生成", 30, 0),
 ]
@@ -543,6 +545,29 @@ def save_workbench_session(user_id: str, session: dict[str, Any]) -> None:
                WHERE workbench_sessions.user_id=excluded.user_id""",
             (session["id"], user_id, payload, session.get("created_at") or now, now),
         )
+
+
+@contextmanager
+def conversation_lock(session_id: str, user_id: str):
+    """Cross-process lease: a browser retry cannot overwrite an in-flight turn."""
+    token = uuid.uuid4().hex
+    key = user_id + ':' + session_id
+    with DB_LOCK, _connect() as connection:
+        connection.execute('CREATE TABLE IF NOT EXISTS conversation_locks (id TEXT PRIMARY KEY, token TEXT NOT NULL, expires_at TEXT NOT NULL)')
+        connection.execute('BEGIN IMMEDIATE')
+        connection.execute('DELETE FROM conversation_locks WHERE id=? AND expires_at<?', (key, utc_now()))
+        try:
+            connection.execute('INSERT INTO conversation_locks VALUES (?,?,?)',
+                (key, token, (datetime.now(timezone.utc) + timedelta(hours=2)).isoformat()))
+            connection.commit()
+        except sqlite3.IntegrityError as exc:
+            connection.rollback()
+            raise ValueError('这个对话仍在执行上一条请求，请等待完成后再发送') from exc
+    try:
+        yield
+    finally:
+        with DB_LOCK, _connect() as connection:
+            connection.execute('DELETE FROM conversation_locks WHERE id=? AND token=?', (key, token))
 
 
 def load_workbench_session(session_id: str, user_id: str) -> dict[str, Any] | None:

@@ -43,6 +43,7 @@ const one = (value) => Number(value || 0).toFixed(1);
 const safeUrl = (value) => {
   const raw = String(value || '').trim();
   if (/^https?:\/\//i.test(raw)) return raw;
+  if (/^\/api\/creator-tools\/assets\/[a-zA-Z0-9_./-]+$/.test(raw)) return raw;
   if (/^\/\//.test(raw)) return `https:${raw}`;
   return '';
 };
@@ -191,6 +192,7 @@ function setWalletBalance(balance) {
 }
 
 function renderWallet(wallet = {}) {
+  window.dispatchEvent(new Event('creator-account-changed'));
   currentWallet = { ...currentWallet, ...wallet };
   setWalletBalance(currentWallet.balance);
   document.querySelector('#wallet-trial').textContent = number(currentWallet.trial);
@@ -492,7 +494,7 @@ function renderBenchmarks(accounts) {
   }).join('');
 }
 
-function renderReport(report) {
+function renderReport(report, activate = true) {
   const header = report.header || {};
   const scores = report.scores || {};
   const insight = report.web_insights || {};
@@ -526,7 +528,7 @@ function renderReport(report) {
   document.querySelector('#benchmark-list').innerHTML = renderBenchmarks(report.similar_accounts);
   document.querySelector('#strength-list').innerHTML = renderTakeaways(insight.strengths, '当前样本不足，暂未提炼优势。');
   document.querySelector('#weakness-list').innerHTML = renderTakeaways(insight.weaknesses, '当前样本不足，暂未提炼短板。');
-  setActiveView('report');
+  if (activate) setActiveView('report');
   appShell?.classList.remove('landing');
   appShell?.classList.add('has-report');
   document.title = `${header['账号名'] || '公众号'} · 诊断报告`;
@@ -825,10 +827,7 @@ async function advance(selection = null, nextStep = null) {
 modeButtons.forEach(button => button.addEventListener('click', () => { modeButtons.forEach(item => item.classList.remove('active')); button.classList.add('active'); workbenchMode = button.dataset.mode; }));
 
 function resolveWorkbenchChatAction(message) {
-  const step = workbenchSession?.current_step || 1;
-  if (step === 5) return 'revise_image_plan';
-  if (step >= 6 && /(排版|版式|配色|排版主题|页面样式|换.{0,4}样式)/.test(message)) return 'change_theme';
-  return 'rewrite_article';
+  return 'auto';
 }
 
 startWorkbench?.addEventListener('click', async () => {
@@ -1006,7 +1005,16 @@ function renderXhsPackage(pkg) {
     <section class="result-section"><div class="result-section-title"><strong>图文页面</strong><span>1 张封面 + 5 张内容页</span></div><div class="creator-card-grid">${cards.map(card => `<article class="creator-output-card" data-card-index="${Number(card.index)}"><div class="card-image-slot"><span>${String(card.index).padStart(2, '0')}</span><small>等待生成</small></div><div class="creator-card-copy"><span>${esc(card.role)}</span><strong>${esc(card.headline)}</strong><p>${esc(card.message)}</p><small>${esc(card.action)}</small></div></article>`).join('')}</div></section>
     <section class="result-section"><div class="result-section-title"><strong>发布文案</strong><button class="copy-result" data-copy-target="xhs-body" type="button"><i data-lucide="copy"></i>复制</button></div><textarea id="xhs-body" class="result-editor">${esc(pkg.body || '')}</textarea><div class="result-meta-grid"><div><span>置顶评论</span><p>${esc(pkg.pinned_comment || '')}</p></div><div><span>低压 CTA</span><p>${esc(pkg.cta || '')}</p></div></div></section>
     <section class="result-section"><div class="result-section-title"><strong>发布前检查</strong><span>${esc(precheck.status || '')}</span></div><ul class="issue-list">${(precheck.issues || []).map(item => `<li>${esc(item)}</li>`).join('') || '<li class="ok">未发现明确阻断项，进入人工终审。</li>'}</ul></section>`;
-  root.querySelector('#xhs-images').addEventListener('click', () => generateSkillImages('xiaohongshu', pkg.session_id, cards, '真人贴纸爆款教程风，明亮蓝色创作者工作台，人物动作轮换', root.querySelector('.creator-card-grid')));
+  const imageButton = root.querySelector('#xhs-images');
+  imageButton.textContent = `生成 ${cards.length} 张图片`;
+  imageButton.hidden = cards.length === 0;
+  const cardSection = root.querySelector('.creator-card-grid').closest('.result-section');
+  cardSection.hidden = cards.length === 0;
+  cardSection.querySelector('.result-section-title span').textContent = `${cards.length} 张`;
+  imageButton.addEventListener('click', () => pkg.conversation_id
+    ? window.dispatchEvent(new CustomEvent('creator-chat-send', {detail: {skill: 'xiaohongshu', message: '确认当前计划，生成全部未生成图片'}}))
+    : generateSkillImages('xiaohongshu', pkg.session_id, cards, '真人贴纸爆款教程风，明亮蓝色创作者工作台，人物动作轮换', root.querySelector('.creator-card-grid')));
+  renderConversationImages(root, pkg.images);
   bindCopyButtons(root);
   window.lucide?.createIcons();
 }
@@ -1037,7 +1045,13 @@ function renderTiePlan(plan) {
     <div class="plan-summary"><div><span>画幅</span><strong>${esc(plan.ratio)}</strong></div><div><span>图片</span><strong>${cards.length} 张</strong></div><div><span>人物一致性</span><strong>${plan.portrait_enabled ? '已启用' : '未启用'}</strong></div></div>
     <section class="result-section"><div class="result-section-title"><strong>卡片计划</strong><span>文字、动作和场景均可生成前检查</span></div><div class="creator-card-grid">${cards.map(card => `<article class="creator-output-card" data-card-index="${Number(card.index)}"><div class="card-image-slot"><span>${String(card.index).padStart(2, '0')}</span><small>等待生成</small></div><div class="creator-card-copy"><span>${esc(card.role)}</span><strong>${esc(card.overlay_text)}</strong><p>${esc(card.visual_subject)}</p><small>${esc(card.card_brief?.scene || '')} · ${esc(card.card_brief?.action || '')}</small></div></article>`).join('')}</div></section>
     <section class="result-section"><div class="result-section-title"><strong>配套文案</strong><button class="copy-result" data-copy-target="tie-copy" type="button"><i data-lucide="copy"></i>复制</button></div><textarea id="tie-copy" class="result-editor compact">${esc(plan.copy || '')}</textarea><p class="cta-line">${esc(plan.cta || '')}</p></section>`;
-  root.querySelector('#tie-images').addEventListener('click', () => generateSkillImages('tie-tu', plan.session_id, cards, document.querySelector('#tie-style').value.trim(), root.querySelector('.creator-card-grid')));
+  root.querySelector('#tie-images').hidden = cards.length === 0;
+  root.querySelector('.plan-summary').hidden = cards.length === 0;
+  root.querySelector('.creator-card-grid').closest('.result-section').hidden = cards.length === 0;
+  root.querySelector('#tie-images').addEventListener('click', () => plan.conversation_id
+    ? window.dispatchEvent(new CustomEvent('creator-chat-send', {detail: {skill: 'tie-tu', message: '确认当前计划，生成全部未生成图片'}}))
+    : generateSkillImages('tie-tu', plan.session_id, cards, document.querySelector('#tie-style').value.trim(), root.querySelector('.creator-card-grid')));
+  renderConversationImages(root, plan.images);
   bindCopyButtons(root);
   window.lucide?.createIcons();
 }
@@ -1059,6 +1073,15 @@ document.querySelector('#tie-form')?.addEventListener('submit', async event => {
     renderTiePlan(data.plan);
   } catch (error) { showToast(error.message, 'error'); } finally { finish(); }
 });
+
+function renderConversationImages(root, images = []) {
+  for (const image of images) {
+    const slot = root.querySelector(`[data-card-index="${Number(image.index)}"] .card-image-slot`);
+    if (!slot) continue;
+    const img = document.createElement('img'); img.src = safeUrl(image.url); img.alt = `图片 ${image.index}`;
+    slot.replaceChildren(img);
+  }
+}
 
 function scoreRows(scores) {
   const names = { title: '标题', opening: '开头', content: '内容', structure: '结构', topic: '选题', readability: '阅读', visual: '视觉', interaction: '互动' };

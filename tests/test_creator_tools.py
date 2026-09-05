@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from server import creator_tools
+from server import creator_tools, image_provider
 
 
 class CreatorToolsTests(unittest.TestCase):
@@ -46,8 +46,8 @@ class CreatorToolsTests(unittest.TestCase):
         png = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=")
         with tempfile.TemporaryDirectory() as folder:
             with patch.object(creator_tools, "OUTPUT_DIR", Path(folder)), patch.object(
-                creator_tools.workbench,
-                "_post",
+                image_provider,
+                "generate",
                 return_value={"data": [{"b64_json": base64.b64encode(png).decode("ascii")}]},
             ):
                 result = creator_tools.generate_card_image("tie-tu", "session123", {"index": 1, "overlay_text": "早安"}, "温暖")

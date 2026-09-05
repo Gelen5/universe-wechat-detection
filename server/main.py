@@ -15,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from . import accounts, diagnosis_service, image_provider
-from . import creator_tools
+from . import creator_tools, creator_conversation
 from . import workbench
 
 
@@ -118,7 +118,7 @@ class WorkbenchStepRequest(BaseModel):
 class WorkbenchChatRequest(BaseModel):
     session_id: str = Field(min_length=8, max_length=80)
     message: str = Field(min_length=1, max_length=4000)
-    action: str = Field(default="rewrite_article", pattern="^(rewrite_article|regenerate_topics|regenerate_framework|revise_image_plan|change_theme)$")
+    action: str = Field(default="auto", pattern="^(auto|rewrite_article|regenerate_topics|regenerate_framework|revise_image_plan|change_theme)$")
     selection_text: str = Field(default="", max_length=20000)
 
 
@@ -193,7 +193,7 @@ class ImpersonateRequest(BaseModel):
 
 
 class TaskCreateRequest(BaseModel):
-    type: str = Field(pattern="^(diagnose|xiaohongshu|tie_tu|hit_detect|hit_rewrite|creator_image|morning_image|workbench|workbench_step)$")
+    type: str = Field(pattern="^(diagnose|xiaohongshu|tie_tu|hit_detect|hit_rewrite|creator_image|morning_image|workbench|workbench_step|creator_chat)$")
     idempotency_key: str = Field(min_length=8, max_length=120)
     payload: dict[str, Any]
 
@@ -587,6 +587,7 @@ def admin_recharge(payload: RechargeRequest, request: Request):
 
 
 TASK_DEFINITIONS = {
+    "creator_chat": ("text", "POST", "/api/creator/chat"),
     "diagnose": ("diagnose", "POST", "/api/diagnose"),
     "xiaohongshu": ("text", "POST", "/api/xiaohongshu/package"),
     "tie_tu": ("light", "POST", "/api/tie-tu/plan"),
@@ -603,18 +604,28 @@ def _public_job(job: dict[str, Any]) -> dict[str, Any]:
     result = None
     if job.get("result_json"):
         result = json.loads(job["result_json"])
-    return {key: job.get(key) for key in ("id", "type", "lane", "status", "error", "attempts", "created_at", "started_at", "finished_at", "canceled_at")} | {"result": result}
+    public = {key: job.get(key) for key in ("id", "type", "lane", "status", "error", "attempts", "created_at", "started_at", "finished_at", "canceled_at")} | {"result": result}
+    if job.get('type') == 'creator_chat':
+        public['session_id'] = json.loads(job.get('payload_json') or '{}').get('session_id')
+    return public
 
 
 @app.post("/api/tasks", status_code=202)
 def create_task(payload: TaskCreateRequest, request: Request):
     user = request.state.user
+    if payload.type == 'creator_chat':
+        try:
+            payload.payload = CreatorChatRequest(**payload.payload).model_dump()
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail='对话请求参数错误') from exc
     lane, method, path = TASK_DEFINITIONS[payload.type]
     rule = accounts.pricing_rule(method, path)
     if not rule:
         raise HTTPException(status_code=503, detail="该任务的积分规则未启用")
     usage_id = accounts.reserve_points(user["id"], rule, method, path)
     try:
+        if payload.type == 'creator_chat' and not payload.payload.get('session_id'):
+            payload.payload['session_id'] = creator_conversation.new_session(payload.payload['skill'], user['id'])['id']
         job = accounts.create_job(user["id"], payload.type, lane, payload.idempotency_key, usage_id, payload.payload)
     except Exception:
         accounts.refund_usage(usage_id, 500, 0)
@@ -942,6 +953,34 @@ def cancel_workbench(payload: WorkbenchStepRequest, request: Request):
         return {"status": "success", "cancel": workbench.cancel(payload.session_id, user_id=request.state.user["id"])}
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+class CreatorChatRequest(BaseModel):
+    skill: str = Field(pattern='^(xiaohongshu|tie-tu|hit-detector|diagnose|morning)$')
+    message: str = Field(min_length=1, max_length=4000)
+    session_id: str | None = Field(default=None, min_length=8, max_length=80)
+
+
+@app.post('/api/creator/chat')
+def chat_creator(payload: CreatorChatRequest, request: Request):
+    try:
+        session = creator_conversation.chat(payload.skill, payload.message,
+                                            request.state.user['id'], payload.session_id)
+        return {'status': 'success', 'session': session}
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail='会话不存在') from exc
+    except (ValueError, workbench.ProviderError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail='对话执行失败，请稍后重试') from exc
+
+
+@app.get('/api/creator/chat/{session_id}')
+def get_creator_chat(session_id: str, request: Request):
+    session = accounts.load_workbench_session(session_id, request.state.user['id'])
+    if not session or session.get('conversation_skill') not in creator_conversation.SKILLS:
+        raise HTTPException(status_code=404, detail='会话不存在')
+    return {'status': 'success', 'session': session}
 
 
 @app.post("/api/workbench/chat")

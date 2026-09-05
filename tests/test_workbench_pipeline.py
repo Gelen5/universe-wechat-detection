@@ -12,6 +12,50 @@ from server import skill_runtime
 
 
 class PipelineTests(unittest.TestCase):
+    def test_preview_keeps_content_warning_without_blocking_conversion(self):
+        from server import skill_preview
+        converter, theme, quality = (types.ModuleType(name) for name in ('toolkit.converter', 'toolkit.theme', 'toolkit.recommendation_quality'))
+        engine = unittest.mock.Mock()
+        engine.convert.return_value = '<p>unchanged</p>'
+        converter.MarkdownConverter = lambda: engine
+        theme.load_theme = lambda name: name
+        theme.apply_theme = lambda content, name: content
+        quality.check_article_file = lambda *a, **k: {'blocked': True, 'findings': ['review before publishing']}
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'article.md'
+            path.write_text('unchanged', encoding='utf-8')
+            with patch.dict(sys.modules, {'toolkit.converter': converter, 'toolkit.theme': theme, 'toolkit.recommendation_quality': quality}), patch.object(sys, 'argv', ['preview', directory, str(path), 'default']), patch.object(sys, 'path', list(sys.path)):
+                skill_preview.main()
+            engine.convert.assert_called_once_with('unchanged')
+            self.assertIn('<p>unchanged</p>', path.with_name('article_preview.html').read_text(encoding='utf-8'))
+            self.assertTrue(json.loads(path.with_suffix('.quality.json').read_text())['blocked'])
+
+    def test_no_images_chat_typesets_without_rewriting_or_generating(self):
+        article = '已确认正文。'
+        session = {'id': 'no-images', 'current_step': 5, 'article': article,
+                   'framework': {}, 'images': [{'url': '/old.jpg'}],
+                   'review': {'gate': 'passed', 'article_sha256': skill_runtime.digest(article)}}
+        def typeset(current):
+            self.assertEqual(current['images'], [])
+            current['typeset_html'] = '<p>' + current['article'] + '</p>'
+        with patch.object(w, '_get_session', return_value=session), \
+             patch.object(w, '_save_session') as save, \
+             patch.object(w.skill_runtime, 'context', return_value=('rules', [])), \
+             patch.object(w, '_json_text', return_value={'action': 'typeset', 'image_policy': 'none'}), \
+             patch.object(w, '_typeset', side_effect=typeset), \
+             patch.object(w, '_images') as images, \
+             patch.object(w, '_image_plan') as plan, \
+             patch.object(w, '_draft') as draft:
+            result = w.chat('no-images', '不要图片直接排版', user_id='user')
+        images.assert_not_called()
+        plan.assert_not_called()
+        draft.assert_not_called()
+        self.assertEqual(result['article'], article)
+        self.assertEqual(result['current_step'], 6)
+        self.assertEqual(result['image_policy'], 'none')
+        self.assertEqual(session['images'], [{'url': '/old.jpg'}])
+        save.assert_called_once()
+
     def test_changing_theme_keeps_layout_node_and_article_assets(self):
         article = "已经确认的正文。"
         session = {
