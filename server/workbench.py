@@ -472,6 +472,19 @@ JSON的items要逐项覆盖列表中的每个下标；这只是返回报告覆�
                 decisions = adjudication.get('items') or []
                 missing = any(not any(item.get('index')==index and item.get('safe') is True and item.get('reason') for item in decisions) for index in range(len(spans)))
                 records[-1]['protected_span_review'] = adjudication
+            blockers = []
+            if missing:
+                blockers.append({'kind': 'protected_spans', 'missing': protected, 'review': records[-1].get('protected_span_review'), 'fix': '恢复未获安全确认的原话、数字及限定词；只在片段外调整表达，不再改写引号内原文。'})
+            if audit.get('status') != 'success':
+                blockers.append({'kind': 'audit', 'fix': '审计执行未成功，不能宣称通过'})
+            if audit.get('complete_sentence_ratio', 0) < .9:
+                blockers.append({'kind': 'sentences', 'fix': '补全不完整句子，不改动事实'})
+            length_issue = skill_runtime.length_issue(candidate, skill_runtime.brief(session))
+            if length_issue:
+                blockers.append({'kind': 'length', 'fix': length_issue})
+            if diagnosis.get('fidelity_ok') is not True or diagnosis.get('readability_ok') is not True:
+                blockers.append({'kind': 'diagnosis', 'fix': diagnosis['reason']})
+            records[-1]['blockers'] = blockers
             valid = (audit.get('status') == 'success' and not missing
                      and audit.get('complete_sentence_ratio', 0) >= .9
                      and diagnosis.get('fidelity_ok') is True and diagnosis.get('readability_ok') is True
@@ -492,6 +505,9 @@ JSON的items要逐项覆盖列表中的每个下标；这只是返回报告覆�
 当前稿：{candidate}
 本轮明确问题：{json.dumps(diagnosis, ensure_ascii=False)}
 实际审计：{json.dumps(audit, ensure_ascii=False)}
+仍阻止本轮通过的具体原因：{json.dumps(blockers, ensure_ascii=False)}
+issues为空不表示通过；必须同时修复上述拦截原因。原话保护未通过时，把原稿对应原话逐字恢复，不得仅返回空edits。
+引用原话逐字保留；仅作为修辞的引号可以去掉，但其中的文字不要换成近义表达。
 只修改本轮有具体依据的问题，其余保留。禁止输出整篇文章。
 返回JSON：{{"edits":[{{"before":"当前稿中唯一存在的完整片段","after":"替换后的片段"}}]}}。
 每个before必须逐字来自当前稿；不要改变无关内容。''')
@@ -505,7 +521,10 @@ JSON的items要逐项覆盖列表中的每个下标；这只是返回报告覆�
             if revised.strip() == candidate.strip() and diagnosis['issues']:
                 records[-1]['unchanged_with_issues'] = True
             candidate = revised
-        raise ProviderError('去 AI 复核未通过：已完成两轮修稿，仍有问题或原文未得到有效修改；未进入配图。')
+        reasons = [str(issue.get('reason', '')) for issue in diagnosis['issues'] if isinstance(issue, dict)]
+        reasons.extend(str(item['fix']) for item in blockers)
+        detail = '；'.join(reason for reason in reasons if reason)[:500] or '复核结果未满足通过条件'
+        raise ProviderError('自动修稿后仍需处理：' + detail + '。已保留原文，未进入配图。')
     except Exception as exc:
         session['review_run']['status'] = 'blocked'
         session['review_run']['error'] = str(exc)

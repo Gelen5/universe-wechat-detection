@@ -63,6 +63,8 @@ const assert = require('assert');
     }
     await page.waitForFunction(() => document.querySelector('#morning-generator .creator-chat-output img')?.naturalWidth > 0);
     assert.equal(await page.locator('#morning-generator .creator-chat-output').getByText('下载 HTML', {exact:true}).count(), 0);
+    await page.evaluate(() => { setWorkbenchProgress(4); setWorkbenchProgress(4, false); });
+    assert.equal(await page.locator('#workbench-progress').evaluate(el => getComputedStyle(el).display), 'none');
     for (const width of [1440, 390]) {
       await page.setViewportSize({width, height:900});
       await page.screenshot({path:path.join(require('os').tmpdir(), `creator-chat-${width}.png`),fullPage:true});

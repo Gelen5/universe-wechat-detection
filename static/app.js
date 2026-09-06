@@ -764,6 +764,7 @@ function renderWorkbenchSession(session) {
 function setWorkbenchProgress(target, active = true, message = '') {
   if (!workbenchProgress) return;
   workbenchProgress.hidden = !active;
+  workbenchProgress.style.display = active ? '' : 'none';
   if (!active) return;
   const labels = { 2: '正在检索素材并生成框架', 3: '正在生成完整初稿', 4: '正在进行去 AI 修改与复核', 5: '正在策划配图方案', 6: '正在生成图片并排版', 7: '正在生成手机端预览' };
   const details = { 2: '先确认文章怎么展开', 3: '正在组织正文', 4: '检查表达、事实边界和可读性', 5: '图片生成可能需要数分钟，请勿重复点击', 6: '把正文和图片整理成可复制内容', 7: '生成最终可查看、可下载的文件' };
@@ -844,7 +845,7 @@ startWorkbench?.addEventListener('click', async () => {
     const session = await waitForWorkbenchJob(accepted.job.id);
     renderWorkbenchSession(session);
     topicInput.value = '';
-  } catch (error) { alert(error.message); } finally { startWorkbench.disabled = false; startWorkbench.innerHTML = originalLabel; }
+  } catch (error) { showToast(error.message, 'error'); } finally { startWorkbench.disabled = false; startWorkbench.innerHTML = originalLabel; }
 });
 async function sendWorkbenchChat(message, action = 'rewrite_article', selectionText = '') {
   if (!workbenchSession) return;
@@ -856,7 +857,7 @@ async function sendWorkbenchChat(message, action = 'rewrite_article', selectionT
     const session = await callWorkbench('/api/workbench/chat', { session_id: workbenchSession.id, message, action, selection_text: selectionText });
     renderWorkbenchSession(session);
     topicInput.value = '';
-  } catch (error) { alert(error.message); } finally { send.disabled = false; send.innerHTML = original || '↑'; }
+  } catch (error) { showToast(error.message, 'error'); } finally { send.disabled = false; send.innerHTML = original || '↑'; }
 }
 
 runNextButton?.addEventListener('click', async () => {
@@ -864,7 +865,7 @@ runNextButton?.addEventListener('click', async () => {
   const current = workbenchSession.current_step || 1;
   if (current < 2 || current >= 7) return;
   runNextButton.disabled = true;
-  try { await advance(null, current + 1); } catch (error) { if (error.name !== 'AbortError') alert(error.message); } finally { runNextButton.disabled = false; }
+  try { await advance(null, current + 1); } catch (error) { if (error.name !== 'AbortError') showToast(error.message, 'error'); } finally { runNextButton.disabled = false; }
 });
 cancelWorkbenchButton?.addEventListener('click', async () => {
   if (!workbenchSession || !workbenchController) return;
