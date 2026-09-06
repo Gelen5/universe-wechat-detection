@@ -96,6 +96,10 @@ def _chat(skill, message, user_id, session_id, check_cancelled):
         if set(args) - set(defaults):
             raise ValueError('创作参数包含未知字段')
         parameters = {**defaults, **state.get('parameters', {}), **args}
+        if skill == 'morning':
+            for field in ('topic', 'size'):
+                if parameters.get(field) is None or (isinstance(parameters[field], str) and not parameters[field].strip()):
+                    parameters[field] = state.get('parameters', {}).get(field) or defaults[field]
         if not isinstance(parameters['topic'], str) or not parameters['topic'].strip():
             raise ValueError('需要先确认创作主题')
         for name, value in parameters.items():

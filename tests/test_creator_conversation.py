@@ -5,6 +5,13 @@ from server import creator_conversation as c
 
 
 class CreatorConversationTests(unittest.TestCase):
+    def test_morning_empty_optional_fields_use_defaults(self):
+        response = {'type': 'tool', 'name': 'generate_draft', 'arguments': {'topic': '', 'size': '', 'image_count': 0}, 'finish': True}
+        with patch.object(c.workbench, '_json_text', return_value=response), patch.object(c.creator_tools, 'morning_draft', return_value={'copies': ['text'], 'cards': []}) as draft, patch.object(c.accounts, 'save_workbench_session'):
+            c.chat('morning', 'generate greetings', 'user')
+        self.assertEqual(draft.call_args.kwargs['size'], '768x1024')
+        self.assertTrue(draft.call_args.kwargs['topic'])
+
     def test_diagnosis_uses_actual_adapter_not_model_facts(self):
         responses = [{'type': 'tool', 'name': 'diagnose_account', 'arguments': {'account_name': 'test'}},
                      {'type': 'answer', 'reply': 'done'}]
