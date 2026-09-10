@@ -75,6 +75,25 @@ ACTIONS = {
 }
 
 
+def deterministic_workbench_intent(session, message):
+    """Handle high-risk workflow instructions before model classification.
+
+    These phrases change whether images are generated or whether text is
+    rewritten. They must not depend on a model guessing the user's intent.
+    """
+    text = ' '.join(str(message).strip().lower().split())
+    has_layout = '排版' in text or '格式' in text
+    no_image = any(token in text for token in ('不要图片', '不需要图片', '不使用图片', '无图'))
+    direct = any(token in text for token in ('直接排版', '只排版', '仅排版'))
+    if has_layout and no_image and direct:
+        return {'action': 'typeset', 'image_policy': 'none', 'reply': ''}
+    if has_layout and direct:
+        return {'action': 'typeset', 'image_policy': 'keep', 'reply': ''}
+    if any(token in text for token in ('换排版主题', '更换排版主题', '换个排版主题', '换主题')):
+        return {'action': 'change_theme', 'image_policy': 'keep', 'reply': ''}
+    return None
+
+
 def decide(session, message, instructions, generate):
     state = {
         'step': session.get('current_step'),

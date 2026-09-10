@@ -1,4 +1,9 @@
-"""Render with the installed Skill without treating a preview as publication."""
+"""Render with the installed weChat-autoCreate Skill.
+
+The application owns the preview shell, but the article fragment is rendered by
+the installed Skill's converter and theme engine.  A small trace file makes the
+actual renderer and modules auditable from the workbench session.
+"""
 import html
 import json
 import sys
@@ -8,9 +13,11 @@ from pathlib import Path
 def main():
     root, source, theme_name = sys.argv[1:4]
     sys.path.insert(0, root)
+    sys.path.insert(0, str(Path(root) / 'scripts'))
     from toolkit.converter import MarkdownConverter
     from toolkit.theme import apply_theme, load_theme
     from toolkit.recommendation_quality import check_article_file
+    from leaf_autofix import LeafWrapper
     import yaml
 
     path = Path(source)
@@ -23,7 +30,34 @@ def main():
         if len(parts) == 3:
             metadata = yaml.safe_load(parts[1]) or {}
             content = parts[2]
-    rendered = apply_theme(MarkdownConverter().convert(content), load_theme(theme_name))
+    converter = MarkdownConverter()
+    rendered = converter.convert(content)
+    rendered = apply_theme(rendered, load_theme(theme_name))
+    # The latest Skill's compliance contract requires every CJK text node to
+    # have a leaf wrapper. Reuse its official fixer on the rendered fragment.
+    leaf_wrapper = LeafWrapper()
+    leaf_wrapper.feed(rendered)
+    leaf_wrapper.close()
+    rendered = leaf_wrapper.result()
+    modules = []
+    for line in content.splitlines():
+        stripped = line.strip()
+        if not stripped.startswith(":::"):
+            continue
+        match = stripped.removeprefix(":::").strip()
+        if match and not match.startswith("/"):
+            modules.append(match.split("[", 1)[0].strip())
+    path.with_suffix('.render.json').write_text(json.dumps({
+        "skill": "weChat-autoCreate",
+        "renderer": "toolkit.converter.MarkdownConverter",
+        "theme_engine": "toolkit.theme.load_theme+apply_theme",
+        "source": "Markdown + :::module DSL",
+        "leaf_wrapper": "scripts.leaf_autofix.LeafWrapper",
+        "theme": theme_name,
+        "modules": modules,
+        "quality_gate": "toolkit.recommendation_quality.check_article_file",
+        "quality_gate_blocked": bool(report.get("blocked")),
+    }, ensure_ascii=False, indent=2), encoding='utf-8')
     document = '''<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>__TITLE__</title><style>body{max-width:680px;margin:0 auto;padding:20px;font-family:system-ui,sans-serif}button{display:block;margin:0 auto 20px;padding:12px 20px}</style></head>

@@ -12,6 +12,13 @@ from server import skill_runtime
 
 
 class PipelineTests(unittest.TestCase):
+    def test_skill_markdown_contains_content_led_dsl_modules(self):
+        article = '## 第一节\n\n第一段正文。\n\n值得记住的一句。'
+        result = w._skill_dsl_article(article, {'emphasis': '值得记住的一句。'})
+        self.assertIn(':::callout', result)
+        self.assertIn(':::quote', result)
+        self.assertIn('第一段正文。', result)
+
     def test_review_passes_protection_failure_back_to_editor(self):
         good = {'issues': [], 'reason': 'readable', 'fidelity_ok': True, 'readability_ok': True}
         diagnosis = {**good, 'issues': [{'quote': '原话', 'reason': 'style', 'fix': 'outside quote only'}]}
@@ -41,14 +48,21 @@ class PipelineTests(unittest.TestCase):
         theme.load_theme = lambda name: name
         theme.apply_theme = lambda content, name: content
         quality.check_article_file = lambda *a, **k: {'blocked': True, 'findings': ['review before publishing']}
+        leaf = types.ModuleType('leaf_autofix')
+        class TestLeafWrapper:
+            def feed(self, value): self.value = value
+            def close(self): pass
+            def result(self): return self.value
+        leaf.LeafWrapper = TestLeafWrapper
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'article.md'
             path.write_text('unchanged', encoding='utf-8')
-            with patch.dict(sys.modules, {'toolkit.converter': converter, 'toolkit.theme': theme, 'toolkit.recommendation_quality': quality}), patch.object(sys, 'argv', ['preview', directory, str(path), 'default']), patch.object(sys, 'path', list(sys.path)):
+            with patch.dict(sys.modules, {'toolkit.converter': converter, 'toolkit.theme': theme, 'toolkit.recommendation_quality': quality, 'leaf_autofix': leaf}), patch.object(sys, 'argv', ['preview', directory, str(path), 'default']), patch.object(sys, 'path', list(sys.path)):
                 skill_preview.main()
             engine.convert.assert_called_once_with('unchanged')
             self.assertIn('<p>unchanged</p>', path.with_name('article_preview.html').read_text(encoding='utf-8'))
             self.assertTrue(json.loads(path.with_suffix('.quality.json').read_text())['blocked'])
+            self.assertEqual(json.loads(path.with_suffix('.render.json').read_text())['renderer'], 'toolkit.converter.MarkdownConverter')
 
     def test_no_images_chat_typesets_without_rewriting_or_generating(self):
         article = '已确认正文。'

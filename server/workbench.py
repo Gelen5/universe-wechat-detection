@@ -589,6 +589,33 @@ def _score(text: str) -> dict[str, Any]:
         return {"status": "unavailable", "message": "评分结果不是合法 JSON"}
 
 
+def _skill_dsl_article(article: str, plan: dict[str, Any] | None) -> str:
+    """Add only content-led modules supported by weChat-autoCreate's DSL.
+
+    The Skill's converter owns the resulting HTML.  We use a restrained set of
+    modules so the article gains hierarchy without turning every paragraph into
+    a decorative card.
+    """
+    plan = plan or {}
+    emphasis = str(plan.get("emphasis") or "").strip()
+    paragraphs = article.split("\n\n")
+    result: list[str] = []
+    first_body = True
+    for block in paragraphs:
+        clean = block.strip()
+        if not clean:
+            continue
+        if emphasis and clean == emphasis:
+            result.extend([":::quote", clean, ":::"])
+        elif first_body and not clean.startswith(("#", "<")):
+            result.extend([":::callout", clean, ":::"])
+        else:
+            result.append(clean)
+        if not clean.startswith("#") and not clean.startswith("<"):
+            first_body = False
+    return "\n\n".join(result)
+
+
 def _build_article_markdown(session: dict[str, Any]) -> str:
     """Build a portable Markdown source for the installed Skill.
 
@@ -636,6 +663,7 @@ def _build_article_markdown(session: dict[str, Any]) -> str:
             insertion = max(1, min(len(paragraphs), len(paragraphs) // 2))
             paragraphs.insert(insertion, body_image)
             article = "\n\n".join(paragraphs)
+    article = _skill_dsl_article(article, session.get("layout_plan"))
     return (
         f"---\ntitle: '{session['topic'].replace(chr(39), '')}'\ntheme: {session['theme']}\n"
         f"---\n{heading}\n\n{cover}\n\n{article}"
@@ -666,17 +694,17 @@ def _apply_dbs_wechat_theme(fragment: str, requested_theme: str) -> tuple[str, s
 
 
 def _typeset(session: dict[str, Any]) -> str:
-    """第6步排版：调用 Skill CLI，执行质量门禁、转换、主题与富文本复制预览。"""
+    """第6步排版：严格执行 weChat-autoCreate 的 DSL、转换器、主题和质检。"""
     _require_skill()
     instructions, manifest = skill_runtime.context(SKILL_DIR, ('references/mobile-layout-quality.md', 'references/wechat-html-spec.md', 'references/components.md', 'references/article-template.html'))
     layout_key = skill_runtime.digest(session['article'] + session['theme'] + json.dumps(session.get('image_plan',{}),sort_keys=True,ensure_ascii=False))
     if session.get('layout_plan_key') != layout_key:
         session['layout_plan'] = _json_text(f'''{instructions}
-当前只生成排版决策，不改正文。按模式A组件库，以留白和层级组织内容，不套另一套风格。
+当前只生成排版决策，不改正文。必须使用 weChat-autoCreate 的模式B（Markdown + :::module DSL），只选择与内容有功能关系的模块，不堆装饰。
 正文：{session['article']}
 图片方案：{json.dumps(session.get('image_plan',{}),ensure_ascii=False)}
 用户风格选择：{session['theme']}
-返回JSON：{{"first_screen":"首屏安排","components":["选用的组件"],"decoration_budget":3,"emphasis":"需要强调的一句正文原文或空字符串","image_evidence":"图文对应说明","line_break_risks":"断行风险"}}''')
+返回JSON：{{"first_screen":"首屏安排","components":["callout","quote"],"decoration_budget":3,"emphasis":"需要强调的一句正文原文或空字符串","image_evidence":"图文对应说明","line_break_risks":"断行风险"}}''')
         session['layout_plan']['manifest'] = manifest
         session['layout_plan_key'] = layout_key
     md = _build_article_markdown(session)
@@ -701,10 +729,16 @@ def _typeset(session: dict[str, Any]) -> str:
     match = re.search(r'<main id="article-content">(.*?)</main>', document, flags=re.S)
     if not match:
         raise RuntimeError("Skill 预览缺少可复制的 article-content 区域")
-    # The selected Skill owns typography; no second design library overrides it.
-    from .workbench_layout import compose
-    themed_html = compose(match.group(1).strip(), SKILL_DIR, session['layout_plan'])
-    style_id = 'A-components'
+    # The selected Skill owns typography and module rendering.  Do not apply a
+    # second local HTML design system after the Skill has rendered the fragment.
+    themed_html = match.group(1).strip()
+    render_trace_path = markdown_path.with_suffix('.render.json')
+    if not render_trace_path.is_file():
+        raise RuntimeError('Skill 排版完成但缺少真实渲染记录')
+    session['render_trace'] = json.loads(render_trace_path.read_text(encoding='utf-8'))
+    if session['render_trace'].get('renderer') != 'toolkit.converter.MarkdownConverter':
+        raise RuntimeError('排版未经过 weChat-autoCreate 正式转换器')
+    style_id = 'B-dsl'
     session["typeset_html"] = themed_html
     session["preview_document"] = document[:match.start(1)] + themed_html + document[match.end(1):]
     check_path = output_dir / 'layout-check.html'
@@ -718,6 +752,21 @@ def _typeset(session: dict[str, Any]) -> str:
     if checked.returncode:
         session['typeset_html'] = ''
         raise ProviderError('排版质量检查未通过，请查看检查结果')
+    compliance_script = SKILL_DIR / 'scripts' / 'wechat_compliance_check.py'
+    compliance = subprocess.run(
+        [_skill_python(), '-X', 'utf8', str(compliance_script), str(check_path),
+         '--format', 'json', '--strict', '--allow', 'div_tag'],
+        capture_output=True, text=True, encoding='utf-8', errors='replace',
+        cwd=str(SKILL_DIR), timeout=60,
+    )
+    try:
+        session['compliance_check'] = json.loads(compliance.stdout)
+    except ValueError as exc:
+        session['typeset_html'] = ''
+        raise ProviderError('Skill 合规检查没有返回有效结果') from exc
+    if compliance.returncode:
+        session['typeset_html'] = ''
+        raise ProviderError('Skill 微信合规检查未通过，请查看检查结果')
     session["typeset_source"] = f"wechat-publisher-ultimate:{style_id}"
     session["typeset_style"] = style_id
     session['typeset_article_sha256'] = skill_runtime.digest(session['article'])
@@ -993,9 +1042,11 @@ def chat(session_id: str, message: str, action: str = "auto", selection_text: st
         raise ValueError("请先告诉我你希望怎么调整")
     decision = None
     if action == 'auto':
-        from .conversation_agent import decide
+        from .conversation_agent import decide, deterministic_workbench_intent
         instructions, _ = skill_runtime.context(SKILL_DIR)
-        decision = decide(session, message, instructions, _json_text)
+        decision = deterministic_workbench_intent(session, message)
+        if decision is None:
+            decision = decide(session, message, instructions, _json_text)
         action = decision['action']
         policy = decision.get('image_policy', 'keep')
         if policy != 'keep':

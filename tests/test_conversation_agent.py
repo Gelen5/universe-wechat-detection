@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import Mock
 
-from server.conversation_agent import decide, run_turn
+from server.conversation_agent import decide, deterministic_workbench_intent, run_turn
 
 
 class ToolConversationTests(unittest.TestCase):
@@ -41,6 +41,14 @@ class ToolConversationTests(unittest.TestCase):
 
 
 class ConversationDecisionTests(unittest.TestCase):
+    def test_layout_intent_is_deterministic(self):
+        result = deterministic_workbench_intent({'current_step': 5}, '不要图片，直接排版')
+        self.assertEqual(result, {'action': 'typeset', 'image_policy': 'none', 'reply': ''})
+
+    def test_theme_change_is_deterministic(self):
+        result = deterministic_workbench_intent({'current_step': 7}, '换个排版主题')
+        self.assertEqual(result['action'], 'change_theme')
+
     def test_context_and_explicit_no_images_reach_decision(self):
         generate = Mock(return_value={'action': 'typeset', 'image_policy': 'none'})
         result = decide({'article': 'approved draft', 'current_step': 5,
