@@ -749,7 +749,16 @@ function renderWorkbenchSession(session) {
   let evidence = document.querySelector('#workbench-execution-evidence');
   if (!evidence) { evidence = document.createElement('details'); evidence.id = 'workbench-execution-evidence'; generatedImages.before(evidence); }
   const research = session.framework?.research || session.topic_research;
-  evidence.innerHTML = `<summary>实际执行记录与素材来源</summary><p>${esc(research?.limitations || '尚未检索')}</p>${(research?.sources || []).map(source=>`<p><a href="${esc(source.url)}" target="_blank" rel="noopener noreferrer">${esc(source.title)}</a> · ${esc(source.verification)}</p>`).join('')}<p>${esc(session.history_check?.note || '')}</p><pre>${esc(JSON.stringify({layout:session.layout_plan, checks:session.layout_check},null,2))}</pre>`;
+  const executions = session.skill_execution || [];
+  const latestExecution = new Map();
+  executions.forEach(item => latestExecution.set(Number(item.step), item));
+  const executionRows = [...latestExecution.values()].sort((a,b) => Number(a.step) - Number(b.step)).map(item => {
+    const status = item.status === 'passed' ? '已完成' : item.status === 'skipped' ? '按选择跳过' : item.status === 'blocked' ? '已拦截' : '执行中';
+    const scripts = (item.scripts || []).join('、');
+    return `<li class="skill-evidence-${esc(item.status || 'running')}"><b>第${esc(item.step)}步 ${esc(item.name || '')}</b><span>${status}</span><small>${esc(item.operation || '')}${scripts ? ` · ${esc(scripts)}` : ''}</small></li>`;
+  }).join('');
+  const passedSteps = [...latestExecution.values()].filter(item => item.status === 'passed').length;
+  evidence.innerHTML = `<summary>Skill 执行记录 · ${passedSteps}/${Math.max(8, latestExecution.size)} 步已完成</summary><p class="skill-gate-note">${esc(session.skill_gate?.message || '每个节点必须完成 Skill 执行后才能继续')}</p><ol class="skill-evidence-list">${executionRows || '<li>尚未开始</li>'}</ol><p>${esc(research?.limitations || '尚未检索')}</p>${(research?.sources || []).map(source=>`<p><a href="${esc(source.url)}" target="_blank" rel="noopener noreferrer">${esc(source.title)}</a> · ${esc(source.verification)}</p>`).join('')}<p>${esc(session.history_check?.note || '')}</p><pre>${esc(JSON.stringify({layout:session.layout_plan, checks:session.layout_check, compliance:session.compliance_check},null,2))}</pre>`;
   window.lucide?.createIcons();
   const images = session.images || [];
   generatedImages.hidden = !images.length;

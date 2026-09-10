@@ -3604,6 +3604,16 @@ iframe.generator-frame {
 }
 #workbench .article-canvas .image-section-head h3 { color: var(--text) !important; }
 #workbench .article-canvas .image-section-head { color: var(--text-3) !important; }
+
+/* Skill execution evidence: quiet, scannable, and consistent with the workbench. */
+#workbench-execution-evidence { margin: 14px 0; padding: 12px 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--text-2); }
+#workbench-execution-evidence summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text); }
+#workbench-execution-evidence .skill-gate-note { margin: 10px 0; color: var(--text-3); font-size: 12px; }
+#workbench-execution-evidence .skill-evidence-list { display: grid; gap: 6px; margin: 10px 0 14px; padding: 0; list-style: none; }
+#workbench-execution-evidence .skill-evidence-list li { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; padding: 7px 9px; border-radius: 7px; background: var(--surface-2); font-size: 12px; }
+#workbench-execution-evidence .skill-evidence-list li span { color: var(--good); }
+#workbench-execution-evidence .skill-evidence-list li.skill-evidence-blocked span { color: var(--danger); }
+#workbench-execution-evidence .skill-evidence-list li small { grid-column: 1 / -1; color: var(--text-4); font-size: 11px; }
 #workbench .article-canvas .image-grid a {
   background: var(--bg-3) !important;
   border-color: var(--line) !important;

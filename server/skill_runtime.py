@@ -21,8 +21,19 @@ def context(root: Path, references=()):
     return '\n'.join(documents), manifest
 
 
+def python_for(root: Path) -> str:
+    """Run Skill-owned scripts with the Skill's dependency environment."""
+    candidates = (
+        root / '.venv' / 'Scripts' / 'python.exe',
+        root / '.venv' / 'bin' / 'python',
+        root / 'venv' / 'Scripts' / 'python.exe',
+        root / 'venv' / 'bin' / 'python',
+    )
+    return str(next((path for path in candidates if path.exists()), Path(sys.executable)))
+
+
 def script(root: Path, name: str, *args):
-    result = subprocess.run([sys.executable, '-X', 'utf8', str(root / 'scripts' / name),
+    result = subprocess.run([python_for(root), '-X', 'utf8', str(root / 'scripts' / name),
                              *map(str, args), '--json'], capture_output=True,
                             encoding='utf-8', errors='strict', timeout=60)
     if result.returncode:

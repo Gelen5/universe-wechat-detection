@@ -12,6 +12,27 @@ from server import skill_runtime
 
 
 class PipelineTests(unittest.TestCase):
+    def test_topic_node_must_run_skill_hotspot_script(self):
+        topics = [{'title': f'方向{i}', 'type': '观点', 'reason': '可展开', 'heat': 7, 'fan_score': 70, 'competition': '中'} for i in range(10)]
+        session = {'skill_execution': []}
+        with patch.object(w, '_require_skill'), \
+             patch.object(skill_runtime, 'context', return_value=('Skill', [{'file': 'SKILL.md'}])), \
+             patch.object(skill_runtime, 'script', return_value=[{'title': '真实热点'}]) as run_skill, \
+             patch.object(research, 'search', return_value={'status': 'ok', 'sources': []}), \
+             patch.object(research, 'history', return_value={'titles': [], 'status': 'checked'}), \
+             patch.object(w, '_json_text', return_value={'topics': topics}):
+            result = w._suggestions('测试方向', '观察者', session)
+        run_skill.assert_called_once_with(w.SKILL_DIR, 'fetch_hotspots.py', '--source', 'all', '--limit', '30')
+        self.assertEqual(len(result), 10)
+        self.assertEqual(session['skill_execution'][-1]['status'], 'passed')
+
+    def test_skill_gate_blocks_unexecuted_nodes(self):
+        session = {'enforce_skill_pipeline': True, 'skill_execution': [
+            {'step': 1, 'status': 'passed'},
+        ]}
+        with self.assertRaises(w.ProviderError):
+            w._require_skill_steps(session, 3)
+
     def test_skill_markdown_contains_content_led_dsl_modules(self):
         article = '## 第一节\n\n第一段正文。\n\n值得记住的一句。'
         result = w._skill_dsl_article(article, {'emphasis': '值得记住的一句。'})
