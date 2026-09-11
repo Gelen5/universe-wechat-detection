@@ -4,6 +4,10 @@
   const toggle = document.querySelector('#studio-details-toggle');
   const tabs = [...document.querySelectorAll('[data-studio-view]')];
   const layout = workspace.querySelector('.conversation-workbench-layout');
+  const conversation = document.querySelector('#creation-assistant');
+  const canvas = document.querySelector('#workbench-result');
+  const composer = workspace.querySelector('.composer-shell');
+  const actionbar = workspace.querySelector('.flow-actionbar');
   const stage = document.querySelector('#studio-stage-output');
   const decision = document.querySelector('#workbench-decision');
   // Keep actual generated choices beside the current-step instruction.
@@ -11,6 +15,9 @@
   const framework = document.createElement('div');
   framework.className = 'studio-framework';
   stage.append(framework);
+  // Keep every generated artifact in one continuous conversation surface.
+  conversation.insertBefore(canvas, composer);
+  conversation.insertBefore(actionbar, composer);
   let previousStage = 0;
   function syncStage() {
     const session = workbenchSession;
@@ -32,7 +39,6 @@
       framework.append(heading, list);
     }
     if (!step) renderDecisionPanel(null);
-    if (step && step !== previousStage) setView('article');
     previousStage = step;
   }
   // Session rendering updates the title after assigning state. Observe that narrow
@@ -55,7 +61,7 @@
   }
   new MutationObserver(syncSend).observe(send, { attributes:true, attributeFilter:['disabled'] });
   // Progress must remain reachable even with the optional inspector closed.
-  layout.append(document.querySelector('#workbench-progress'));
+  conversation.insertBefore(document.querySelector('#workbench-progress'), composer);
   function setDetails(open) {
     details.hidden = !open;
     toggle.setAttribute('aria-expanded', String(open));
@@ -68,8 +74,8 @@
     }
   });
   function setView(view) {
-    workspace.dataset.studioView = view;
-    tabs.forEach(tab => tab.setAttribute('aria-pressed', String(tab.dataset.studioView === view)));
+    workspace.dataset.studioView = 'chat';
+    tabs.forEach(tab => tab.setAttribute('aria-pressed', String(tab.dataset.studioView === 'chat')));
   }
   tabs.forEach(tab => tab.addEventListener('click', () => setView(tab.dataset.studioView)));
   // Existing workflow navigation can reveal content in the closed inspector/mobile pane.
@@ -77,14 +83,12 @@
     const step = event.target.closest('.clickable');
     if (!step) return;
     if (step.dataset.step === '2') setDetails(true);
-    else if (Number(step.dataset.step) > 2) setView('article');
   }, true);
   document.querySelector('#workbench-version-list').addEventListener('click', event => {
     if (!event.target.closest('.version-item')) return;
-    setView('article');
     setDetails(false);
   });
-  document.querySelector('#edit-current').addEventListener('click', () => setView('article'));
+  document.querySelector('#edit-current').addEventListener('click', () => document.querySelector('#article-editor')?.focus());
   setView('chat');
   document.querySelector('#new-workbench-chat').addEventListener('click', () => {
     paintWorkflow(1);

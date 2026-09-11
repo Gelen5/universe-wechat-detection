@@ -622,7 +622,11 @@ function renderScoreReport(session) {
 
 function renderDecisionPanel(session) {
   if (!session) {
-    decisionPanel.innerHTML = '<strong>先告诉我，你想写什么</strong><p>输入主题、目标读者和已有素材。确认选题后生成框架，再逐步完成正文、审校、配图和排版。</p>';
+    decisionPanel.innerHTML = `<div class="chat-welcome"><span class="chat-welcome-mark"><i data-lucide="sparkles"></i></span><h2>今天想写什么？</h2><p>用一句话告诉我主题。创作助手会先查询近期相关热点，再按最新版公众号 Skill 完成后续工作。</p><div class="starter-prompts"><button type="button" data-starter-prompt="查询最近一周中老年情感热点，给我 10 个适合公众号的选题">查询近期热点并给选题</button><button type="button" data-starter-prompt="写一篇关于婆媳矛盾的公众号文章，面向 45 岁以上女性，表达要真实克制">从一个主题开始写</button><button type="button" data-starter-prompt="我有一段素材，先帮我梳理适合公众号传播的写作方向">把已有素材变成文章</button></div></div>`;
+    decisionPanel.querySelectorAll('[data-starter-prompt]').forEach(button => button.addEventListener('click', () => {
+      topicInput.value = button.dataset.starterPrompt || '';
+      topicInput.focus();
+    }));
     const flowLabel = document.querySelector('#flow-step-label');
     const flowHint = document.querySelector('#flow-step-hint');
     if (flowLabel) flowLabel.textContent = '等待你的想法';
@@ -632,6 +636,7 @@ function renderDecisionPanel(session) {
     runNextButton.disabled = true;
     previewButton.hidden = true;
     document.querySelector('#publish-draft').hidden = true;
+    window.lucide?.createIcons();
     return;
   }
   const step = session.current_step || 1;
@@ -697,8 +702,15 @@ function renderChatThread(session) {
   const thread = document.querySelector('#workbench-chat-thread');
   if (!thread) return;
   const history = session?.conversation || [];
-  const seed = !workbenchSession ? [{ role: 'assistant', content: '你好，我是你的公众号共创助手。告诉我一个想法、一个问题，或者一条想写却没想清楚的内容。' }] : history;
+  const seed = !workbenchSession ? [] : history;
   thread.innerHTML = seed.length ? seed.map(item => `<article class="chat-message ${item.role === 'user' ? 'from-user' : 'from-ai'}"><span>${item.role === 'user' ? '你' : 'AI 共创助手'}</span><p>${esc(item.content)}</p></article>`).join('') : `<article class="chat-message from-ai"><span>AI 共创助手</span><p>我已准备好。你可以选一个方向，也可以说说哪里不满意。</p></article>`;
+  thread.scrollTop = thread.scrollHeight;
+}
+
+function appendWorkbenchPending(message, label = '正在调用公众号创作 Skill…') {
+  const thread = document.querySelector('#workbench-chat-thread');
+  if (!thread) return;
+  thread.insertAdjacentHTML('beforeend', `<article class="chat-message from-user"><span>你</span><p>${esc(message)}</p></article><article class="chat-message from-ai is-pending" data-workbench-pending><span>公众号创作助手</span><p><i></i>${esc(label)}</p></article>`);
   thread.scrollTop = thread.scrollHeight;
 }
 
@@ -768,6 +780,7 @@ function renderWorkbenchSession(session) {
     generatedImages.hidden = false;
     generatedImages.insertAdjacentHTML('afterbegin', `<details open><summary>配图方案 · ${esc(session.image_plan.status)}</summary><p>${esc(session.image_plan.reason || '')}</p>${(session.image_plan.images || []).map((item,index)=>`<p><strong>${index+1}. ${item.kind === 'cover' ? '封面' : esc(item.section || '正文图')}</strong><br>${esc(item.claim || '')}<br>图注：${esc(item.caption || '')}</p>`).join('')}</details>`);
   }
+  document.querySelector('#creation-assistant')?.scrollTo({ top: document.querySelector('#creation-assistant').scrollHeight, behavior: 'smooth' });
 }
 
 function setWorkbenchProgress(target, active = true, message = '') {
@@ -845,6 +858,7 @@ startWorkbench?.addEventListener('click', async () => {
   if (!message) { topicInput.focus(); return; }
   if (workbenchSession) { await sendWorkbenchChat(message, resolveWorkbenchChatAction(message)); return; }
   startWorkbench.disabled = true;
+  appendWorkbenchPending(message, '正在检索近期信号并生成选题…');
   const originalLabel = startWorkbench.innerHTML;
   startWorkbench.innerHTML = '正在提交…';
   try {
@@ -860,6 +874,7 @@ async function sendWorkbenchChat(message, action = 'rewrite_article', selectionT
   if (!workbenchSession) return;
   const send = startWorkbench;
   send.disabled = true;
+  appendWorkbenchPending(message);
   const original = send.innerHTML;
   send.textContent = '…';
   try {
@@ -868,6 +883,12 @@ async function sendWorkbenchChat(message, action = 'rewrite_article', selectionT
     topicInput.value = '';
   } catch (error) { showToast(error.message, 'error'); } finally { send.disabled = false; send.innerHTML = original || '↑'; }
 }
+
+topicInput?.addEventListener('keydown', event => {
+  if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
+  event.preventDefault();
+  if (!startWorkbench.disabled) startWorkbench.click();
+});
 
 runNextButton?.addEventListener('click', async () => {
   if (!workbenchSession) return;

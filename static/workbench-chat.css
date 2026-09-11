@@ -1,0 +1,387 @@
+/* Single-conversation entry for the WeChat article Skill. */
+#workbench.workbench-page {
+  max-width: 1120px;
+  padding: 32px 28px 24px;
+}
+
+#workbench .studio-heading {
+  max-width: 860px;
+  margin: 0 auto 20px;
+}
+
+#workbench .studio-heading h1 {
+  font-size: 28px;
+  font-weight: 650;
+  letter-spacing: 0;
+}
+
+#workbench .studio-heading p {
+  margin-top: 7px;
+  font-size: 14px;
+  color: #6e6e73;
+}
+
+#workbench .workflow-rail,
+#workbench .studio-switch,
+#workbench .studio-heading-actions,
+#workbench .outcome-panel {
+  display: none !important;
+}
+
+#workbench .conversation-workbench-layout {
+  display: block;
+  width: min(860px, 100%);
+  height: calc(100dvh - 190px);
+  min-height: 620px;
+  margin: 0 auto;
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, .1);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, .94);
+  box-shadow: 0 18px 60px rgba(20, 24, 32, .08);
+}
+
+#workbench .conversation-panel {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border: 0;
+  background: #fff;
+  scrollbar-gutter: stable;
+}
+
+#workbench .conversation-panel-head {
+  position: sticky;
+  z-index: 4;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 72px;
+  padding: 12px 18px;
+  border-bottom: 1px solid #ececf0;
+  background: rgba(255, 255, 255, .88);
+  backdrop-filter: blur(18px) saturate(130%);
+}
+
+#workbench .conversation-identity,
+#workbench .conversation-identity > div,
+#workbench .conversation-panel-tools {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+#workbench .conversation-identity { gap: 11px; }
+#workbench .conversation-identity > div { align-items: flex-start; flex-direction: column; gap: 2px; }
+#workbench .conversation-identity strong { font-size: 14px; font-weight: 620; color: #1d1d1f; }
+#workbench .conversation-identity small { font-size: 11px; color: #8a8a90; }
+
+#workbench .assistant-mark {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 9px;
+  color: #fff;
+  background: #1d1d1f;
+}
+
+#workbench .assistant-mark svg,
+#workbench .chat-welcome-mark svg { width: 17px; height: 17px; }
+#workbench .conversation-panel-tools { gap: 10px; }
+#workbench .work-status { color: #6e6e73; }
+
+#workbench .new-chat-button {
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid #dedee3;
+  border-radius: 8px;
+  background: #fff;
+  color: #35353a;
+}
+
+#workbench .chat-thread {
+  flex: none;
+  min-height: auto;
+  padding: 30px 42px 0;
+  overflow: visible;
+}
+
+#workbench .chat-message {
+  max-width: 78%;
+  margin: 0 0 22px;
+}
+
+#workbench .chat-message > span {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 11px;
+  color: #8a8a90;
+}
+
+#workbench .chat-message p {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #303034;
+  font-size: 15px;
+  line-height: 1.75;
+}
+
+#workbench .chat-message.from-user { margin-left: auto; }
+#workbench .chat-message.from-user > span { text-align: right; }
+#workbench .chat-message.from-user p {
+  padding: 11px 15px;
+  border-radius: 14px 14px 4px 14px;
+  background: #f1f1f3;
+  color: #1d1d1f;
+}
+
+#workbench .chat-message.is-pending p {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #6e6e73;
+}
+
+#workbench .chat-message.is-pending p i {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #d2d2d7;
+  border-top-color: #1d1d1f;
+  border-radius: 50%;
+  animation: workbench-chat-spin .8s linear infinite;
+}
+
+@keyframes workbench-chat-spin { to { transform: rotate(360deg); } }
+
+#workbench .article-canvas {
+  flex: none;
+  width: auto;
+  height: auto;
+  min-height: 0;
+  margin: 0 42px;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+}
+
+#workbench .article-canvas-head,
+#workbench .version-strip { display: none; }
+
+#workbench #workbench-decision {
+  padding: 0;
+  margin: 0 0 22px;
+}
+
+#workbench #workbench-decision > span {
+  display: inline-block;
+  margin-bottom: 8px;
+  color: #0878d1;
+  font-size: 11px;
+  font-weight: 620;
+}
+
+#workbench #workbench-decision > strong {
+  margin: 0 0 6px;
+  font-size: 17px;
+}
+
+#workbench #workbench-decision > p {
+  margin: 0;
+  font-size: 14px;
+  color: #6e6e73;
+}
+
+#workbench .chat-welcome {
+  padding: 34px 0 10px;
+  text-align: center;
+}
+
+#workbench .chat-welcome-mark {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  margin: 0 auto 16px;
+  place-items: center;
+  border: 1px solid #dfdfe4;
+  border-radius: 12px;
+  color: #1d1d1f;
+  background: #fafafa;
+}
+
+#workbench .chat-welcome h2 {
+  margin: 0;
+  font-size: 25px;
+  font-weight: 650;
+  letter-spacing: 0;
+}
+
+#workbench .chat-welcome p {
+  max-width: 560px;
+  margin: 10px auto 22px;
+  color: #6e6e73;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+#workbench .starter-prompts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+}
+
+#workbench .starter-prompts button {
+  min-height: 66px;
+  padding: 12px;
+  border: 1px solid #e2e2e7;
+  border-radius: 10px;
+  background: #fff;
+  color: #3a3a3f;
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: left;
+}
+
+#workbench .starter-prompts button:hover {
+  border-color: #bdbdc4;
+  background: #f8f8fa;
+}
+
+#workbench #studio-stage-output .chat-choice-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  padding: 0;
+}
+
+#workbench #studio-stage-output .chat-choice {
+  margin: 0;
+  padding: 16px;
+  border-color: #e3e3e8;
+  border-radius: 10px;
+  background: #fafafa;
+}
+
+#workbench .studio-framework,
+#workbench .skill-review-result {
+  padding: 20px;
+  border-radius: 10px;
+  background: #fafafa;
+}
+
+#workbench .editor-wrap {
+  margin: 18px 0 0;
+  padding: 20px;
+  border: 1px solid #e3e3e8;
+  border-radius: 10px;
+  background: #fff;
+}
+
+#workbench #article-editor {
+  min-height: 420px;
+  padding: 8px 0;
+  font-size: 16px;
+}
+
+#workbench .flow-actionbar {
+  position: static;
+  flex: none;
+  width: auto;
+  margin: 18px 42px 0;
+  padding: 14px 0;
+  border-top: 1px solid #ececf0;
+  background: transparent;
+}
+
+#workbench .flow-primary {
+  border-radius: 8px;
+  background: #1d1d1f;
+}
+
+#workbench .workbench-progress {
+  position: static;
+  flex: none;
+  margin: 18px 42px 0;
+  box-shadow: none;
+}
+
+#workbench .composer-shell {
+  position: sticky;
+  z-index: 5;
+  bottom: 0;
+  flex: none;
+  margin: auto 22px 18px;
+  padding: 13px 14px;
+  border: 1px solid #d7d7dc;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .94);
+  box-shadow: 0 10px 34px rgba(20, 24, 32, .11);
+  backdrop-filter: blur(18px) saturate(130%);
+}
+
+#workbench .composer-shell label {
+  margin-bottom: 5px;
+  color: #6e6e73;
+  font-size: 11px;
+}
+
+#workbench #workbench-topic {
+  height: 52px;
+  min-height: 52px;
+  max-height: 150px;
+  font-size: 15px;
+}
+
+#workbench .composer-hint {
+  margin-left: auto;
+  color: #a1a1a6;
+  font-size: 11px;
+}
+
+#workbench #start-workbench {
+  min-width: 38px;
+  width: 38px;
+  min-height: 38px;
+  height: 38px;
+  padding: 0;
+  border-radius: 10px;
+  background: #1d1d1f;
+}
+
+#workbench #start-workbench:disabled {
+  min-width: 86px;
+  width: auto;
+  padding: 0 11px;
+}
+
+@media (max-width: 760px) {
+  #workbench.workbench-page { padding: 18px 10px 10px; }
+  #workbench .studio-heading { padding: 0 6px; margin-bottom: 14px; }
+  #workbench .studio-heading h1 { font-size: 23px; }
+  #workbench .studio-heading p { font-size: 13px; }
+  #workbench .conversation-workbench-layout { height: calc(100dvh - 158px); min-height: 500px; border-radius: 13px; }
+  #workbench .conversation-panel { display: flex !important; }
+  #workbench .conversation-panel-head { min-height: 62px; padding: 10px 12px; }
+  #workbench .conversation-identity small,
+  #workbench .work-status { display: none; }
+  #workbench .chat-thread { padding: 22px 16px 0; }
+  #workbench .chat-message { max-width: 90%; }
+  #workbench .article-canvas { display: block !important; margin: 0 16px; padding: 0; }
+  #workbench .chat-welcome { padding-top: 24px; }
+  #workbench .chat-welcome h2 { font-size: 22px; }
+  #workbench .starter-prompts { grid-template-columns: 1fr; }
+  #workbench .starter-prompts button { min-height: 48px; text-align: center; }
+  #workbench .flow-actionbar,
+  #workbench .workbench-progress { margin-inline: 16px; }
+  #workbench .flow-actions { width: 100%; }
+  #workbench .composer-shell { margin: auto 10px 10px; }
+  #workbench .composer-hint { display: none; }
+}
