@@ -714,6 +714,23 @@ function appendWorkbenchPending(message, label = '正在调用公众号创作 Sk
   thread.scrollTop = thread.scrollHeight;
 }
 
+function syncWorkbenchModePicker() {
+  const locked = !!workbenchSession || workbench?.classList.contains('is-running');
+  if (workbench) workbench.dataset.sessionActive = workbenchSession ? 'true' : 'false';
+  modeButtons.forEach(button => {
+    button.classList.toggle('active', button.dataset.mode === workbenchMode);
+    button.disabled = locked;
+  });
+}
+
+function setWorkbenchBusy(active) {
+  workbench?.classList.toggle('is-running', active);
+  if (topicInput) topicInput.disabled = active;
+  const newChat = document.querySelector('#new-workbench-chat');
+  if (newChat) newChat.disabled = active;
+  syncWorkbenchModePicker();
+}
+
 function renderOutline(session) {
   const outline = document.querySelector('#workbench-outline');
   const items = session.framework?.outline || [];
@@ -730,7 +747,10 @@ function renderOutline(session) {
 
 function renderWorkbenchSession(session) {
   // Server invalidates images when the article changes. Never revive stale art.
+  const previousStep = workbenchSession?.current_step || 0;
   workbenchSession = session;
+  workbenchMode = session.mode === 'single' ? 'step' : (session.mode || workbenchMode);
+  syncWorkbenchModePicker();
   workbenchResult.hidden = false;
   workbenchVersionIndex = -1;
   paintWorkflow(session.current_step || 1);
@@ -770,7 +790,7 @@ function renderWorkbenchSession(session) {
     return `<li class="skill-evidence-${esc(item.status || 'running')}"><b>第${esc(item.step)}步 ${esc(item.name || '')}</b><span>${status}</span><small>${esc(item.operation || '')}${scripts ? ` · ${esc(scripts)}` : ''}</small></li>`;
   }).join('');
   const passedSteps = [...latestExecution.values()].filter(item => item.status === 'passed').length;
-  evidence.innerHTML = `<summary>Skill 执行记录 · ${passedSteps}/${Math.max(8, latestExecution.size)} 步已完成</summary><p class="skill-gate-note">${esc(session.skill_gate?.message || '每个节点必须完成 Skill 执行后才能继续')}</p><ol class="skill-evidence-list">${executionRows || '<li>尚未开始</li>'}</ol><p>${esc(research?.limitations || '尚未检索')}</p>${(research?.sources || []).map(source=>`<p><a href="${esc(source.url)}" target="_blank" rel="noopener noreferrer">${esc(source.title)}</a> · ${esc(source.verification)}</p>`).join('')}<p>${esc(session.history_check?.note || '')}</p><pre>${esc(JSON.stringify({layout:session.layout_plan, checks:session.layout_check, compliance:session.compliance_check},null,2))}</pre>`;
+  evidence.innerHTML = `<summary><span>查看本次 Skill 执行记录</span><small>${passedSteps} 项已验证</small></summary><p class="skill-gate-note">${esc(session.skill_gate?.message || '每个节点必须完成 Skill 执行后才能继续')}</p><ol class="skill-evidence-list">${executionRows || '<li>尚未开始</li>'}</ol><p>${esc(research?.limitations || '尚未检索')}</p>${(research?.sources || []).map(source=>`<p><a href="${esc(source.url)}" target="_blank" rel="noopener noreferrer">${esc(source.title)}</a> · ${esc(source.verification)}</p>`).join('')}<p>${esc(session.history_check?.note || '')}</p><pre>${esc(JSON.stringify({layout:session.layout_plan, checks:session.layout_check, compliance:session.compliance_check},null,2))}</pre>`;
   window.lucide?.createIcons();
   const images = session.images || [];
   generatedImages.hidden = !images.length;
@@ -780,11 +800,14 @@ function renderWorkbenchSession(session) {
     generatedImages.hidden = false;
     generatedImages.insertAdjacentHTML('afterbegin', `<details open><summary>配图方案 · ${esc(session.image_plan.status)}</summary><p>${esc(session.image_plan.reason || '')}</p>${(session.image_plan.images || []).map((item,index)=>`<p><strong>${index+1}. ${item.kind === 'cover' ? '封面' : esc(item.section || '正文图')}</strong><br>${esc(item.claim || '')}<br>图注：${esc(item.caption || '')}</p>`).join('')}</details>`);
   }
-  document.querySelector('#creation-assistant')?.scrollTo({ top: document.querySelector('#creation-assistant').scrollHeight, behavior: 'smooth' });
+  if (previousStep !== (session.current_step || 1)) {
+    requestAnimationFrame(() => decisionPanel?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  }
 }
 
 function setWorkbenchProgress(target, active = true, message = '') {
   if (!workbenchProgress) return;
+  setWorkbenchBusy(active);
   workbenchProgress.hidden = !active;
   workbenchProgress.style.display = active ? '' : 'none';
   if (!active) return;
@@ -816,9 +839,9 @@ function newIdempotencyKey() {
   return globalThis.crypto?.randomUUID?.() || `workbench-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-async function waitForWorkbenchJob(jobId) {
+async function waitForWorkbenchJob(jobId, signal) {
   for (;;) {
-    const data = await readApiResponse(await fetch(`/api/workbench/jobs/${encodeURIComponent(jobId)}`));
+    const data = await readApiResponse(await fetch(`/api/workbench/jobs/${encodeURIComponent(jobId)}`, { signal }));
     const job = data.job || {};
     document.querySelector('#workbench-status').textContent = job.status === 'queued' ? '任务排队中' : 'Skill 执行中';
     if (job.status === 'completed' && data.session) return data.session;
@@ -847,7 +870,11 @@ async function advance(selection = null, nextStep = null) {
   }
 }
 
-modeButtons.forEach(button => button.addEventListener('click', () => { modeButtons.forEach(item => item.classList.remove('active')); button.classList.add('active'); workbenchMode = button.dataset.mode; }));
+modeButtons.forEach(button => button.addEventListener('click', () => {
+  if (workbenchSession || button.disabled) return;
+  workbenchMode = button.dataset.mode;
+  syncWorkbenchModePicker();
+}));
 
 function resolveWorkbenchChatAction(message) {
   return 'auto';
@@ -857,31 +884,35 @@ startWorkbench?.addEventListener('click', async () => {
   const message = topicInput.value.trim();
   if (!message) { topicInput.focus(); return; }
   if (workbenchSession) { await sendWorkbenchChat(message, resolveWorkbenchChatAction(message)); return; }
+  workbenchController = new AbortController();
   startWorkbench.disabled = true;
   appendWorkbenchPending(message, '正在检索近期信号并生成选题…');
+  setWorkbenchProgress(1, true, '正在检索近期信号并生成选题');
   const originalLabel = startWorkbench.innerHTML;
   startWorkbench.innerHTML = '正在提交…';
   try {
-    const response = await fetch('/api/workbench/sessions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...sharedApiPayload(), topic: message, mode: workbenchMode, persona: document.querySelector('#workbench-persona').value, theme: document.querySelector('#workbench-theme').value, idempotency_key: newIdempotencyKey() }) });
+    const response = await fetch('/api/workbench/sessions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...sharedApiPayload(), topic: message, mode: workbenchMode, persona: document.querySelector('#workbench-persona').value, theme: document.querySelector('#workbench-theme').value, idempotency_key: newIdempotencyKey() }), signal: workbenchController.signal });
     const accepted = await readApiResponse(response);
+    workbenchTaskId = accepted.job.id;
     startWorkbench.innerHTML = '正在生成选题…';
-    const session = await waitForWorkbenchJob(accepted.job.id);
+    const session = await waitForWorkbenchJob(accepted.job.id, workbenchController.signal);
     renderWorkbenchSession(session);
     topicInput.value = '';
-  } catch (error) { showToast(error.message, 'error'); } finally { startWorkbench.disabled = false; startWorkbench.innerHTML = originalLabel; }
+  } catch (error) { document.querySelector('[data-workbench-pending]')?.remove(); if (error.name !== 'AbortError') showToast(error.message, 'error'); } finally { workbenchTaskId = null; workbenchController = null; setWorkbenchProgress(1, false); startWorkbench.disabled = false; startWorkbench.innerHTML = originalLabel; }
 });
 async function sendWorkbenchChat(message, action = 'rewrite_article', selectionText = '') {
   if (!workbenchSession) return;
   const send = startWorkbench;
   send.disabled = true;
   appendWorkbenchPending(message);
+  setWorkbenchProgress(workbenchSession.current_step || 1, true, '正在理解并执行你的要求');
   const original = send.innerHTML;
   send.textContent = '…';
   try {
     const session = await callWorkbench('/api/workbench/chat', { session_id: workbenchSession.id, message, action, selection_text: selectionText });
     renderWorkbenchSession(session);
     topicInput.value = '';
-  } catch (error) { showToast(error.message, 'error'); } finally { send.disabled = false; send.innerHTML = original || '↑'; }
+  } catch (error) { document.querySelector('[data-workbench-pending]')?.remove(); showToast(error.message, 'error'); } finally { setWorkbenchProgress(workbenchSession?.current_step || 1, false); send.disabled = false; send.innerHTML = original || '↑'; }
 }
 
 topicInput?.addEventListener('keydown', event => {
@@ -898,12 +929,12 @@ runNextButton?.addEventListener('click', async () => {
   try { await advance(null, current + 1); } catch (error) { if (error.name !== 'AbortError') showToast(error.message, 'error'); } finally { runNextButton.disabled = false; }
 });
 cancelWorkbenchButton?.addEventListener('click', async () => {
-  if (!workbenchSession || !workbenchController) return;
+  if (!workbenchController) return;
   cancelWorkbenchButton.disabled = true;
   try {
     if (workbenchTaskId) {
       await fetch(`/api/tasks/${encodeURIComponent(workbenchTaskId)}/cancel`, { method: 'POST' });
-    } else {
+    } else if (workbenchSession) {
       await fetch('/api/workbench/cancel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...sharedApiPayload(), session_id: workbenchSession.id, step: workbenchSession.current_step || 1 }) });
     }
   } finally {
@@ -915,7 +946,7 @@ cancelWorkbenchButton?.addEventListener('click', async () => {
   }
 });
 document.querySelector('#workbench-regenerate-topics')?.addEventListener('click', () => { if (workbenchSession) sendWorkbenchChat('请重新给我 10 个方向，角度更具体，不要泛泛而谈，并返回每条的热度和涨粉潜力分。', 'regenerate_topics'); else topicInput.focus(); });
-document.querySelector('#new-workbench-chat')?.addEventListener('click', () => { workbenchSession = null; workbenchVersionIndex = -1; topicInput.value = ''; articleEditor.value = ''; document.querySelector('#result-title').textContent = '还没有开始写'; document.querySelector('#article-save-state').textContent = '输入一个主题后，我会先和你确认写作方向'; document.querySelector('#article-version-label').textContent = '当前草稿 · 尚未生成'; document.querySelector('#article-change-label').textContent = '等待你的写作意图'; document.querySelector('#workbench-status').textContent = '等待你的想法'; topicList.innerHTML = ''; renderChatThread(null); renderOutline({}); });
+document.querySelector('#new-workbench-chat')?.addEventListener('click', () => { workbenchSession = null; workbenchVersionIndex = -1; setWorkbenchBusy(false); topicInput.value = ''; articleEditor.value = ''; document.querySelector('#result-title').textContent = '还没有开始写'; document.querySelector('#article-save-state').textContent = '输入一个主题后，我会先和你确认写作方向'; document.querySelector('#article-version-label').textContent = '当前草稿 · 尚未生成'; document.querySelector('#article-change-label').textContent = '等待你的写作意图'; document.querySelector('#workbench-status').textContent = '等待你的想法'; topicList.innerHTML = ''; renderChatThread(null); renderOutline({}); });
 document.querySelectorAll('[data-rewrite-selection]').forEach(button => button.addEventListener('click', () => { if (!workbenchSession) return; const selection = articleEditor.value.slice(articleEditor.selectionStart, articleEditor.selectionEnd); if (!selection) { alert('先在当前文章中选中一段，再告诉我如何改写。'); return; } sendWorkbenchChat(button.dataset.rewriteSelection, 'rewrite_article', selection); }));
 document.querySelector('#version-back')?.addEventListener('click', () => { const versions = workbenchSession?.versions || []; if (!versions.length) return; workbenchVersionIndex = workbenchVersionIndex < 0 ? versions.length - 1 : Math.max(0, workbenchVersionIndex - 1); articleEditor.value = versions[workbenchVersionIndex].article || ''; document.querySelector('#article-version-label').textContent = `${versions[workbenchVersionIndex].label} · 历史版本预览`; });
 document.querySelector('#version-forward')?.addEventListener('click', () => { const versions = workbenchSession?.versions || []; if (workbenchVersionIndex < 0) return; workbenchVersionIndex += 1; if (workbenchVersionIndex >= versions.length) { workbenchVersionIndex = -1; articleEditor.value = workbenchSession.article || ''; document.querySelector('#article-version-label').textContent = `当前版本 · V${versions.length + 1}`; return; } articleEditor.value = versions[workbenchVersionIndex].article || ''; document.querySelector('#article-version-label').textContent = `${versions[workbenchVersionIndex].label} · 历史版本预览`; });
@@ -932,6 +963,7 @@ editCurrentButton?.addEventListener('click', () => { articleEditor?.scrollIntoVi
 articleEditor?.addEventListener('input', () => { if (workbenchSession) workbenchSession.article = articleEditor.value; });
 renderChatThread(null);
 renderOutline({});
+syncWorkbenchModePicker();
 
 async function postCreator(path, payload, signal) {
   const taskTypes = {

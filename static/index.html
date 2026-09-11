@@ -17,7 +17,7 @@
     <link rel="stylesheet" href="/static/workbench-studio.css?v=20260904-review-3" />
     <link rel="stylesheet" href="/static/studio-tools.css?v=20260904-1" />
     <link rel="stylesheet" href="/static/notion-workspace.css?v=20260905-settings-menu-1" />
-    <link rel="stylesheet" href="/static/workbench-chat.css?v=20260911-chat-entry-1" />
+    <link rel="stylesheet" href="/static/workbench-chat.css?v=20260911-chat-review-2" />
   </head>
   <body>
     <div class="app-shell">
@@ -342,6 +342,11 @@
         <div class="conversation-workbench-layout">
           <aside id="creation-assistant" class="conversation-panel" aria-label="创作对话">
             <header class="conversation-panel-head"><div class="conversation-identity"><span class="assistant-mark"><i data-lucide="sparkles"></i></span><div><strong>公众号创作助手</strong><small>选题、检索、写作、审校、配图与排版</small></div></div><div class="conversation-panel-tools"><span id="workbench-status" class="work-status">等待你的想法</span><button id="new-workbench-chat" class="new-chat-button" type="button"><i data-lucide="square-pen"></i> 新对话</button></div></header>
+            <div id="workbench-mode-picker" class="chat-mode-picker" role="group" aria-label="创作模式">
+              <button class="mode-option active" data-mode="interactive" type="button"><strong>交互模式</strong><small>每个关键产物由你确认</small></button>
+              <button class="mode-option" data-mode="auto" type="button"><strong>自动模式</strong><small>从主题直接运行到交付</small></button>
+              <button class="mode-option" data-mode="step" type="button"><strong>单步模式</strong><small>只执行当前明确任务</small></button>
+            </div>
             <div id="workbench-chat-thread" class="chat-thread" aria-live="polite"></div>
             <div id="topic-list" class="chat-choice-list"></div>
             <div class="composer-shell"><label for="workbench-topic">发消息给创作助手</label><textarea id="workbench-topic" placeholder="例如：查询最近一周中老年情感热点，给我 10 个公众号选题" aria-label="对创作助手说"></textarea><div class="composer-actions"><button id="workbench-regenerate-topics" class="composer-text-action" type="button">换一批方向</button><span class="composer-hint">Enter 发送 · Shift + Enter 换行</span><button id="start-workbench" class="composer-send" type="button" aria-label="发送"><i data-lucide="arrow-up"></i></button></div></div>
@@ -760,12 +765,12 @@
     </div>
 
     <script src="/static/vendor/lucide.min.js"></script>
-    <script src="/static/app.js?v=20260911-chat-entry-1"></script>
+    <script src="/static/app.js?v=20260911-chat-review-2"></script>
     <script src="/static/flow.js?v=20260904-tools-1"></script>
     <script src="/static/studio-tools.js?v=20260904-1"></script>
     <link rel="stylesheet" href="/static/creator-chat.css?v=20260906-conversation-1">
     <script src="/static/creator-chat.js?v=20260906-conversation-1"></script>
-    <script src="/static/workbench-studio.js?v=20260911-chat-entry-1"></script>
+    <script src="/static/workbench-studio.js?v=20260911-chat-review-2"></script>
     <script src="/static/notion-workspace.js?v=20260904-1"></script>
     <script>
       // 同步 recent-item（首页样例：点击触发诊断）
