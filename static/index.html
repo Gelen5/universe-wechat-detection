@@ -17,6 +17,7 @@
     <link rel="stylesheet" href="/static/workbench-studio.css?v=20260904-review-3" />
     <link rel="stylesheet" href="/static/studio-tools.css?v=20260904-1" />
     <link rel="stylesheet" href="/static/notion-workspace.css?v=20260905-settings-menu-1" />
+    <link rel="stylesheet" href="/static/workbench-chat.css?v=20260911-chat-entry-1" />
   </head>
   <body>
     <div class="app-shell">
@@ -335,15 +336,15 @@
            TAB 2 · /workbench — 公众号创作（对话式共创）
            ============================================================ -->
       <section id="workbench" class="workbench-page article-workspace" hidden>
-        <header class="studio-heading"><div><h1>公众号创作</h1><p>从一个想法，到一篇准备好的文章。</p></div><div class="studio-heading-actions"><button id="studio-details-toggle" type="button" aria-expanded="false" aria-controls="studio-details">结构与版本</button><button id="assistant-toggle" type="button" aria-expanded="true" aria-controls="creation-assistant">收起助手</button></div></header>
+        <header class="studio-heading"><div><h1>公众号创作</h1><p>发来一个主题，创作助手会调用完整 Skill 带你做到可交付。</p></div><div class="studio-heading-actions" hidden><button id="studio-details-toggle" type="button" aria-expanded="false" aria-controls="studio-details">结构与版本</button><button id="assistant-toggle" type="button" aria-expanded="true" aria-controls="creation-assistant">收起助手</button></div></header>
         <div id="workflow-steps" class="workflow-rail"></div>
         <div class="studio-switch" role="group" aria-label="工作区视图"><button type="button" data-studio-view="chat" aria-pressed="true">对话与选题</button><button type="button" data-studio-view="article" aria-pressed="false">文章画布</button></div>
         <div class="conversation-workbench-layout">
           <aside id="creation-assistant" class="conversation-panel" aria-label="创作对话">
-            <header class="conversation-panel-head"><strong>AI 共创助手</strong><div class="conversation-panel-tools"><span id="workbench-status" class="work-status">等待你的想法</span><button id="new-workbench-chat" class="new-chat-button" type="button"><i data-lucide="plus"></i> 新对话</button></div></header>
+            <header class="conversation-panel-head"><div class="conversation-identity"><span class="assistant-mark"><i data-lucide="sparkles"></i></span><div><strong>公众号创作助手</strong><small>选题、检索、写作、审校、配图与排版</small></div></div><div class="conversation-panel-tools"><span id="workbench-status" class="work-status">等待你的想法</span><button id="new-workbench-chat" class="new-chat-button" type="button"><i data-lucide="square-pen"></i> 新对话</button></div></header>
             <div id="workbench-chat-thread" class="chat-thread" aria-live="polite"></div>
             <div id="topic-list" class="chat-choice-list"></div>
-            <div class="composer-shell"><label for="workbench-topic">你想写什么？</label><textarea id="workbench-topic" placeholder="输入主题、读者或想表达的观点，也可以粘贴素材…" aria-label="对 AI 说"></textarea><div class="composer-actions"><button id="workbench-regenerate-topics" class="composer-text-action" type="button">换一批方向</button><button id="start-workbench" class="composer-send" type="button" aria-label="发送"><i data-lucide="arrow-up"></i></button></div></div>
+            <div class="composer-shell"><label for="workbench-topic">发消息给创作助手</label><textarea id="workbench-topic" placeholder="例如：查询最近一周中老年情感热点，给我 10 个公众号选题" aria-label="对创作助手说"></textarea><div class="composer-actions"><button id="workbench-regenerate-topics" class="composer-text-action" type="button">换一批方向</button><span class="composer-hint">Enter 发送 · Shift + Enter 换行</span><button id="start-workbench" class="composer-send" type="button" aria-label="发送"><i data-lucide="arrow-up"></i></button></div></div>
             <div class="creator-options sr-only"><select id="workbench-persona"><option>深度观察者</option><option>亲切分享者</option><option>锐评手</option><option>故事大王</option><option>暖心治愈</option></select><select id="workbench-theme"><option value="default">极简白</option><option value="tech-card-green">科技卡片绿</option><option value="minimal-elegant">极简优雅</option></select></div>
           </aside>
           <section id="workbench-result" class="article-canvas">
@@ -759,12 +760,12 @@
     </div>
 
     <script src="/static/vendor/lucide.min.js"></script>
-    <script src="/static/app.js?v=20260910-skill-evidence-1"></script>
+    <script src="/static/app.js?v=20260911-chat-entry-1"></script>
     <script src="/static/flow.js?v=20260904-tools-1"></script>
     <script src="/static/studio-tools.js?v=20260904-1"></script>
     <link rel="stylesheet" href="/static/creator-chat.css?v=20260906-conversation-1">
     <script src="/static/creator-chat.js?v=20260906-conversation-1"></script>
-    <script src="/static/workbench-studio.js?v=20260904-studio-2"></script>
+    <script src="/static/workbench-studio.js?v=20260911-chat-entry-1"></script>
     <script src="/static/notion-workspace.js?v=20260904-1"></script>
     <script>
       // 同步 recent-item（首页样例：点击触发诊断）
