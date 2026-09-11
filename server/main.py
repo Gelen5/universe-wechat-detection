@@ -90,7 +90,7 @@ class DiagnoseRequest(BaseModel):
 
 class WorkbenchCreateRequest(BaseModel):
     topic: str = Field(default="", max_length=240)
-    mode: str = Field(default="interactive", pattern="^(auto|interactive|single)$")
+    mode: str = Field(default="interactive", pattern="^(auto|interactive|step|single)$")
     persona: str = Field(default="深度观察者", max_length=80)
     theme: str = Field(default="default", max_length=80)
     textApiKey: str | None = Field(default=None, max_length=300)

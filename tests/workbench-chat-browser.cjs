@@ -9,6 +9,7 @@ const path = require('path');
     const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
     const root = path.resolve(__dirname, '..');
     let createPayload;
+    let jobPolls = 0;
 
     await page.route('http://workbench.test/**', async route => {
       const url = new URL(route.request().url());
@@ -17,8 +18,10 @@ const path = require('path');
         return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ job: { id: 'job-1' } }) });
       }
       if (url.pathname === '/api/workbench/jobs/job-1') {
+        jobPolls += 1;
+        if (jobPolls === 1) return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ job: { status: 'running' } }) });
         return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ job: { status: 'completed' }, session: {
-          id: 'session-1', current_step: 1, status: 'awaiting_topic', topic: createPayload.topic,
+          id: 'session-1', mode: createPayload.mode, current_step: 1, status: 'awaiting_topic', topic: createPayload.topic,
           conversation: [{ role: 'user', content: createPayload.topic }, { role: 'assistant', content: '我查询了近期信号，整理出 10 个方向。' }],
           suggestions: Array.from({ length: 10 }, (_, i) => ({ id: i + 1, title: `选题 ${i + 1}`, reason: '近期信号与读者问题相交', type: '热点回应', competition: '中', heat: 8, fan_score: 82 })),
           skill_execution: [{ step: 1, name: '选题', status: 'passed', operation: 'topic-selection' }], versions: []
@@ -49,26 +52,42 @@ const path = require('path');
     assert.equal(await page.locator('#studio-details').isVisible(), false);
     assert.equal(await page.locator('.conversation-workbench-layout > .conversation-panel').count(), 1);
     assert.equal(await page.locator('#creation-assistant > #workbench-result').count(), 1);
+    assert.equal(await page.locator('#workbench-mode-picker .mode-option').count(), 3);
+    assert.equal(await page.locator('#workbench-mode-picker').isVisible(), true);
 
     await page.locator('[data-starter-prompt]').first().click();
     assert((await page.locator('#workbench-topic').inputValue()).includes('最近一周'));
     await page.locator('#start-workbench').click();
+    await page.waitForFunction(() => document.querySelector('#workbench')?.classList.contains('is-running'));
+    assert.equal(await page.locator('.composer-shell').isVisible(), false);
+    assert.equal(await page.locator('.flow-actionbar').isVisible(), false);
+    assert.equal(await page.locator('#workbench-progress').isVisible(), true);
     await page.waitForFunction(() => document.querySelectorAll('.adopt-topic').length === 10);
     assert(createPayload.topic.includes('最近一周'));
+    assert.equal(createPayload.mode, 'interactive');
     assert.equal(await page.locator('.chat-message.from-user').count(), 1);
     assert.equal(await page.locator('.adopt-topic').count(), 10);
+    assert.equal(await page.locator('#workbench-mode-picker').isVisible(), false);
+    assert.equal(await page.locator('.composer-shell').isVisible(), true);
+    assert((await page.locator('#workbench-execution-evidence summary').innerText()).includes('查看本次 Skill 执行记录'));
+    assert(!(await page.locator('#workbench-execution-evidence summary').innerText()).includes('/8'));
 
     await page.locator('.adopt-topic').first().click();
     await page.waitForFunction(() => document.querySelector('.studio-framework')?.textContent.includes('SCQA'));
     assert.equal(await page.locator('.studio-framework').isVisible(), true);
     assert.equal(await page.locator('#creation-assistant .studio-framework').count(), 1);
+    assert.equal(await page.locator('.studio-framework li').first().isVisible(), true);
+    const firstFrameworkItem = await page.locator('.studio-framework li').first().boundingBox();
+    const panelHeader = await page.locator('.conversation-panel-head').boundingBox();
+    assert(firstFrameworkItem.y >= panelHeader.y + panelHeader.height);
+    assert(firstFrameworkItem.y < 900);
 
     await page.screenshot({ path: path.join(root, 'qa-chatgpt', 'workbench-chat.png'), fullPage: true });
     await page.setViewportSize({ width: 390, height: 844 });
     assert.equal(await page.locator('#creation-assistant').isVisible(), true);
     assert.equal(await page.locator('#workbench-result').isVisible(), true);
     await page.screenshot({ path: path.join(root, 'qa-chatgpt', 'workbench-chat-mobile.png'), fullPage: true });
-    console.log('PASS: single conversation entry, guided prompt, API contract, topic selection, responsive artifact flow');
+    console.log('PASS: mode selection, exclusive running state, artifact-first scrolling, quiet Skill evidence, responsive chat flow');
   } finally {
     await browser.close();
   }
