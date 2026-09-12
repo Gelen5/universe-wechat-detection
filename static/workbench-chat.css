@@ -495,3 +495,91 @@
   #workbench .composer-shell { margin: auto 10px 10px; }
   #workbench .composer-hint { display: none; }
 }
+
+/* Release QA corrections: keep the workbench dense, readable, and tool-like. */
+#workbench .conversation-workbench-layout {
+  height: min(calc(100dvh - 40px), 820px);
+  min-height: 520px;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(20, 24, 32, .06);
+}
+
+#workbench .conversation-panel-head,
+#workbench .composer-shell {
+  background: #fff;
+  backdrop-filter: none;
+}
+
+#workbench .composer-shell {
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(20, 24, 32, .08);
+}
+
+#workbench .conversation-identity small,
+#workbench .chat-mode-picker .mode-option small,
+#workbench .work-status,
+#workbench .composer-shell label,
+#workbench .composer-hint,
+#workbench .chat-message > span,
+#workbench #workbench-execution-evidence summary {
+  font-size: 12px;
+}
+
+#workbench .conversation-identity small,
+#workbench .chat-mode-picker .mode-option small,
+#workbench .work-status,
+#workbench .composer-hint,
+#workbench .chat-message > span,
+#workbench #workbench-execution-evidence summary,
+#workbench #workbench-execution-evidence summary small {
+  color: #5f6368;
+}
+
+#workbench .chat-mode-picker,
+#workbench .chat-mode-picker .mode-option,
+#workbench .starter-prompts button,
+#workbench #studio-stage-output .chat-choice,
+#workbench .studio-framework,
+#workbench .skill-review-result,
+#workbench .editor-wrap,
+#workbench #workbench-execution-evidence[open] {
+  border-radius: 8px;
+}
+
+#workbench[data-stage="0"] #workbench-decision {
+  max-width: none;
+  padding-top: 24px;
+}
+
+#workbench[data-stage="0"] #workbench-decision::before {
+  display: none;
+  content: none;
+}
+
+#workbench .chat-welcome {
+  padding-top: 16px;
+}
+
+#workbench #start-workbench {
+  min-width: 44px;
+  width: 44px;
+  min-height: 44px;
+  height: 44px;
+}
+
+@media (max-width: 760px) {
+  #workbench .conversation-workbench-layout {
+    min-height: 480px;
+    border-radius: 8px;
+  }
+
+  #workbench[data-stage="0"] #workbench-decision {
+    padding-top: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #workbench .chat-message.is-pending p i {
+    animation: none;
+  }
+}
