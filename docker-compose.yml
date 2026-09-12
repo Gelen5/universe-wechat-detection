@@ -35,6 +35,8 @@ services:
       WECHAT_PUBLISHER_SKILL_DIR: /opt/universe-skills/weChat-autoCreate
     env_file: .env
     command: ["alembic", "upgrade", "head"]
+    volumes:
+      - ${LEGACY_DATA_HOST_PATH:-/opt/universe-data/legacy}:/legacy:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -44,11 +46,11 @@ services:
     restart: unless-stopped
     environment: *app-env
     env_file: .env
-    command: ["uvicorn", "server.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2", "--proxy-headers"]
+    command: ["uvicorn", "server.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "${WEB_WORKERS:-1}", "--proxy-headers"]
     ports:
       - "127.0.0.1:8000:8000"
     volumes:
-      - workbench_output:/app/output
+      - ${WORKBENCH_OUTPUT_HOST_PATH:-/opt/universe-data/output}:/app/output
       - ${WECHAT_SKILL_HOST_PATH:-/opt/universe-skills/weChat-autoCreate}:/opt/universe-skills/weChat-autoCreate:ro
     depends_on:
       migrate:
@@ -63,7 +65,7 @@ services:
     env_file: .env
     command: ["celery", "-A", "server.celery_app:celery_app", "worker", "-Q", "creator", "--loglevel=INFO", "--concurrency=${CELERY_WORKER_CONCURRENCY:-4}"]
     volumes:
-      - workbench_output:/app/output
+      - ${WORKBENCH_OUTPUT_HOST_PATH:-/opt/universe-data/output}:/app/output
       - ${WECHAT_SKILL_HOST_PATH:-/opt/universe-skills/weChat-autoCreate}:/opt/universe-skills/weChat-autoCreate:ro
     depends_on:
       migrate:
@@ -86,4 +88,3 @@ services:
 volumes:
   postgres_data:
   redis_data:
-  workbench_output:

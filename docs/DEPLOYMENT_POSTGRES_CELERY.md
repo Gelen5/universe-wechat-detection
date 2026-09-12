@@ -15,13 +15,10 @@ cp .env.example .env
 # Edit .env before continuing.
 docker compose up -d postgres redis
 docker compose run --rm migrate
-python scripts/migrate_sqlite_to_postgres.py \
-  --source data/creator_accounts.db \
-  --target "$DATABASE_URL" \
-  --dry-run
-python scripts/migrate_sqlite_to_postgres.py \
-  --source data/creator_accounts.db \
-  --target "$DATABASE_URL"
+docker compose run --rm migrate sh -lc \
+  'python scripts/migrate_sqlite_to_postgres.py --source /legacy/creator_accounts.db --target "$DATABASE_URL" --dry-run'
+docker compose run --rm migrate sh -lc \
+  'python scripts/migrate_sqlite_to_postgres.py --source /legacy/creator_accounts.db --target "$DATABASE_URL"'
 docker compose up -d web worker
 ```
 
