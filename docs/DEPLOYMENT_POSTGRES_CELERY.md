@@ -23,7 +23,9 @@ docker compose up -d web worker
 ```
 
 The copy command is idempotent and verifies row counts plus all wallet bucket
-totals. Do not switch traffic when `verified` is not `true`.
+totals. The migration script first copies the read-only legacy SQLite database
+to a private temporary directory, so it never writes journal files beside the
+backup. Do not switch traffic when `verified` is not `true`.
 
 ## Verification
 

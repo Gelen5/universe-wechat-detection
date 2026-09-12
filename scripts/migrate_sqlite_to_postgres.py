@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
+import tempfile
 from pathlib import Path
 
 from sqlalchemy import MetaData, Table, create_engine, func, inspect, select
@@ -69,6 +71,19 @@ def migrate(source_url: str, target_url: str, dry_run: bool, batch_size: int):
     return report
 
 
+def migrate_file(source: Path, target_url: str, dry_run: bool, batch_size: int):
+    """Migrate from a private copy so a read-only legacy mount stays untouched."""
+    with tempfile.TemporaryDirectory(prefix="universe-sqlite-migration-") as directory:
+        copied_source = Path(directory, source.name)
+        shutil.copy2(source, copied_source)
+        return migrate(
+            f"sqlite:///{copied_source.as_posix()}",
+            target_url,
+            dry_run,
+            batch_size,
+        )
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--source", required=True, help="SQLite file path")
@@ -79,7 +94,7 @@ def main():
     source = Path(args.source).resolve()
     if not source.is_file():
         raise SystemExit(f"SQLite source not found: {source}")
-    report = migrate(f"sqlite:///{source.as_posix()}", args.target, args.dry_run, max(1, args.batch_size))
+    report = migrate_file(source, args.target, args.dry_run, max(1, args.batch_size))
     print(json.dumps(report, ensure_ascii=False, indent=2))
 
 
