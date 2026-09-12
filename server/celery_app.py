@@ -16,7 +16,10 @@ celery_app.conf.update(
     task_track_started=True, result_expires=86400,
     task_always_eager=os.getenv("CELERY_TASK_ALWAYS_EAGER", "0") == "1",
     task_eager_propagates=True,
-    task_routes={"workflow.run_node": {"queue": "creator"}},
+    task_routes={
+        "workflow.run_node": {"queue": "creator"},
+        "workflow.recover_stale": {"queue": "creator"},
+    },
     worker_concurrency=max(1, int(os.getenv("CELERY_WORKER_CONCURRENCY", "4"))),
     beat_schedule={
         "recover-stale-workflow-nodes": {

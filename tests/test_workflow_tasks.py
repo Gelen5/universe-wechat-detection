@@ -80,6 +80,10 @@ class WorkflowTaskChainTests(unittest.TestCase):
         self.assertTrue(_is_transient_error(RuntimeError("provider HTTP 503")))
         self.assertFalse(_is_transient_error(ValueError("invalid user selection")))
 
+    def test_recovery_task_uses_the_worker_queue(self):
+        routes = celery_app.conf.task_routes
+        self.assertEqual("creator", routes["workflow.recover_stale"]["queue"])
+
 
 if __name__ == "__main__":
     unittest.main()
