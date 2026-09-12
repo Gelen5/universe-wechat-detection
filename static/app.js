@@ -160,6 +160,8 @@ function refreshConfigStatus() {
 function showToast(message, type = 'success') {
   const toast = document.createElement('div');
   toast.className = `app-toast ${type}`;
+  toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
+  toast.setAttribute('aria-live', type === 'error' ? 'assertive' : 'polite');
   toast.innerHTML = `<i data-lucide="${type === 'success' ? 'check-circle-2' : 'circle-alert'}"></i><span>${esc(message)}</span>`;
   document.body.appendChild(toast);
   window.lucide?.createIcons();
@@ -543,7 +545,7 @@ form?.addEventListener('submit', async (event) => {
     renderReport(data.report);
     reportRoot.scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (error) {
-    alert(error.message);
+    showToast(error.message, 'error');
   } finally { button.disabled = false; button.querySelector('span').textContent = '↗'; }
 });
 
@@ -947,17 +949,17 @@ cancelWorkbenchButton?.addEventListener('click', async () => {
 });
 document.querySelector('#workbench-regenerate-topics')?.addEventListener('click', () => { if (workbenchSession) sendWorkbenchChat('请重新给我 10 个方向，角度更具体，不要泛泛而谈，并返回每条的热度和涨粉潜力分。', 'regenerate_topics'); else topicInput.focus(); });
 document.querySelector('#new-workbench-chat')?.addEventListener('click', () => { workbenchSession = null; workbenchVersionIndex = -1; setWorkbenchBusy(false); topicInput.value = ''; articleEditor.value = ''; document.querySelector('#result-title').textContent = '还没有开始写'; document.querySelector('#article-save-state').textContent = '输入一个主题后，我会先和你确认写作方向'; document.querySelector('#article-version-label').textContent = '当前草稿 · 尚未生成'; document.querySelector('#article-change-label').textContent = '等待你的写作意图'; document.querySelector('#workbench-status').textContent = '等待你的想法'; topicList.innerHTML = ''; renderChatThread(null); renderOutline({}); });
-document.querySelectorAll('[data-rewrite-selection]').forEach(button => button.addEventListener('click', () => { if (!workbenchSession) return; const selection = articleEditor.value.slice(articleEditor.selectionStart, articleEditor.selectionEnd); if (!selection) { alert('先在当前文章中选中一段，再告诉我如何改写。'); return; } sendWorkbenchChat(button.dataset.rewriteSelection, 'rewrite_article', selection); }));
+document.querySelectorAll('[data-rewrite-selection]').forEach(button => button.addEventListener('click', () => { if (!workbenchSession) return; const selection = articleEditor.value.slice(articleEditor.selectionStart, articleEditor.selectionEnd); if (!selection) { showToast('先在当前文章中选中一段，再告诉我如何改写。', 'error'); return; } sendWorkbenchChat(button.dataset.rewriteSelection, 'rewrite_article', selection); }));
 document.querySelector('#version-back')?.addEventListener('click', () => { const versions = workbenchSession?.versions || []; if (!versions.length) return; workbenchVersionIndex = workbenchVersionIndex < 0 ? versions.length - 1 : Math.max(0, workbenchVersionIndex - 1); articleEditor.value = versions[workbenchVersionIndex].article || ''; document.querySelector('#article-version-label').textContent = `${versions[workbenchVersionIndex].label} · 历史版本预览`; });
 document.querySelector('#version-forward')?.addEventListener('click', () => { const versions = workbenchSession?.versions || []; if (workbenchVersionIndex < 0) return; workbenchVersionIndex += 1; if (workbenchVersionIndex >= versions.length) { workbenchVersionIndex = -1; articleEditor.value = workbenchSession.article || ''; document.querySelector('#article-version-label').textContent = `当前版本 · V${versions.length + 1}`; return; } articleEditor.value = versions[workbenchVersionIndex].article || ''; document.querySelector('#article-version-label').textContent = `${versions[workbenchVersionIndex].label} · 历史版本预览`; });
 document.querySelector('#open-preview')?.addEventListener('click', async () => {
   if (!workbenchSession) return;
-  try { const session = await callWorkbench('/api/workbench/preview', { session_id: workbenchSession.id, article: articleEditor.value }); renderWorkbenchSession(session); window.open(session.preview_url, '_blank', 'noopener'); } catch (error) { alert(error.message); }
+  try { const session = await callWorkbench('/api/workbench/preview', { session_id: workbenchSession.id, article: articleEditor.value }); renderWorkbenchSession(session); window.open(session.preview_url, '_blank', 'noopener'); } catch (error) { showToast(error.message, 'error'); }
 });
 document.querySelector('#publish-draft')?.addEventListener('click', async () => {
   if (!confirm('将当前预览写入公众号草稿箱？这不会发布文章。')) return;
   if (!workbenchSession) return;
-  try { const session = await callWorkbench('/api/workbench/publish', { session_id: workbenchSession.id, draft: true }); renderWorkbenchSession(session); alert(session.publish?.message || '已完成'); } catch (error) { alert(error.message); }
+  try { const session = await callWorkbench('/api/workbench/publish', { session_id: workbenchSession.id, draft: true }); renderWorkbenchSession(session); showToast(session.publish?.message || '已完成'); } catch (error) { showToast(error.message, 'error'); }
 });
 editCurrentButton?.addEventListener('click', () => { articleEditor?.scrollIntoView({ behavior: 'smooth', block: 'center' }); articleEditor?.focus(); });
 articleEditor?.addEventListener('input', () => { if (workbenchSession) workbenchSession.article = articleEditor.value; });

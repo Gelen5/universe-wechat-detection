@@ -4,6 +4,9 @@
 html { scroll-behavior: smooth; }
 body { margin: 0; min-width: 320px; color: var(--ink); background: #f5f4f1; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif; -webkit-font-smoothing: antialiased; }
 button, input, select, textarea { font: inherit; }
+:where(button, a, input, select, textarea):focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+button, a { touch-action: manipulation; }
+.api-settings-modal, .auth-modal, .wallet-modal, .admin-users-modal { overscroll-behavior: contain; }
 .app-shell { width: min(1440px, 100%); margin: 0 auto; min-height: 100vh; background: var(--paper); }
 .report-nav { min-height: 72px; padding: 0 38px; display: flex; align-items: center; gap: 38px; border-bottom: 1px solid var(--line); background: rgba(251,250,247,.94); position: sticky; top: 0; z-index: 20; backdrop-filter: blur(16px); }
 .account-brand { display: flex; align-items: center; gap: 12px; min-width: 235px; color: var(--ink); text-decoration: none; }
@@ -580,6 +583,20 @@ body { color: var(--text); background: var(--canvas); }
   footer { padding-bottom: 90px; }
 }
 
+/* RC accessibility and interaction guardrails. */
+:where(button, a, input, select, textarea):focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
+}
+
+:where(.account-modal, .api-settings-modal) {
+  overscroll-behavior: contain;
+}
+
+button, a {
+  touch-action: manipulation;
+}
+
 @media print {
   .report-nav.app-sidebar { display: none; }
   .app-shell > main { width: 100%; margin-left: 0; }
@@ -791,4 +808,18 @@ footer { color: #59636d; border-color: var(--glass-line); background: transparen
   .skill-page-head .skill-badge { display: none; }
   .workbench-intro h1, .skill-page-head h1 { width: 100%; max-width: 100%; font-size: 25px; white-space: normal !important; overflow-wrap: anywhere; word-break: break-all; }
   .workbench-intro p, .skill-page-head p { width: 100%; max-width: 100%; font-size: 12px; white-space: normal; overflow-wrap: anywhere; }
+}
+
+/* Final cascade guard: this file contains legacy theme layers above. */
+:where(button, a, input, select, textarea):focus-visible {
+  outline: 2px solid #e7bf7a !important;
+  outline-offset: 3px;
+}
+
+:where(.account-modal, .api-settings-modal) {
+  overscroll-behavior: contain;
+}
+
+button, a {
+  touch-action: manipulation;
 }
