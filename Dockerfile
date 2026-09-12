@@ -2,7 +2,8 @@ FROM python:3.12-slim
 
 WORKDIR /app
 COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+ARG PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/
+RUN pip install --no-cache-dir --timeout 120 --index-url "$PIP_INDEX_URL" -r requirements.txt
 RUN useradd --create-home --uid 10001 app
 COPY --chown=app:app . .
 RUN mkdir -p /app/output && chown -R app:app /app/output
