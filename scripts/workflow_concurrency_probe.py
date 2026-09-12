@@ -43,7 +43,7 @@ def refund_probe(engine):
             list(pool.map(lambda _: accounts.refund_usage(usage_id, 500, 0), range(10)))
         with engine.connect() as db:
             balance = db.execute(text("SELECT balance FROM wallets WHERE user_id=:id"), {"id": prefix}).scalar_one()
-            refunds = db.execute(text("SELECT COUNT(*) FROM wallet_transactions WHERE user_id=:id AND kind='refund'"), {"id": prefix}).scalar_one()
+            refunds = db.execute(text("SELECT COUNT(*) FROM point_transactions WHERE user_id=:id AND kind='refund'"), {"id": prefix}).scalar_one()
             status = db.execute(text("SELECT status FROM usage_records WHERE request_id=:id"), {"id": usage_id}).scalar_one()
         return {"refund_calls": 10, "refund_transactions": int(refunds), "balance": int(balance), "usage_status": status, "passed": int(refunds) == 1 and int(balance) == 30 and status == "refunded"}
     finally:
