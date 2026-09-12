@@ -190,6 +190,7 @@ def provider_overrides(
     image_base_url: str = "",
     text_model: str = "",
     image_model: str = "",
+    request_idempotency_key: str = "",
 ):
     if not any((text_api_key, image_api_key, text_base_url, image_base_url, text_model, image_model)):
         from . import accounts
@@ -200,7 +201,7 @@ def provider_overrides(
         image_base_url = stored.get("image_base_url", "")
         text_model = stored.get("text_model", "")
         image_model = stored.get("image_model", "")
-    values = {}
+    values = dict(REQUEST_SETTINGS.get())
     if text_api_key.strip():
         values["WECHAT_TEXT_API_KEY"] = text_api_key.strip()
     if image_api_key.strip():
@@ -213,6 +214,8 @@ def provider_overrides(
         values["WECHAT_TEXT_MODEL"] = text_model.strip()
     if image_model.strip():
         values["WECHAT_IMAGE_MODEL"] = image_model.strip()
+    if request_idempotency_key.strip():
+        values["WECHAT_REQUEST_IDEMPOTENCY_KEY"] = request_idempotency_key.strip()
     token = REQUEST_SETTINGS.set(values)
     try:
         yield
@@ -242,6 +245,9 @@ def _headers(channel: str) -> dict[str, str]:
     actor = _setting("WECHAT_API_ACTOR_AUTH")
     if actor:
         headers["x-openai-actor-authorization"] = actor
+    idempotency_key = _setting("WECHAT_REQUEST_IDEMPOTENCY_KEY")
+    if idempotency_key:
+        headers["Idempotency-Key"] = idempotency_key
     return headers
 
 

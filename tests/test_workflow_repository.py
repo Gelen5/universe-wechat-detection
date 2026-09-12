@@ -43,6 +43,10 @@ class WorkflowRepositoryTests(unittest.TestCase):
         self.assertFalse(replay1)
         self.assertTrue(replay2)
         self.assertEqual(first["id"], second["id"])
+        with database.session_scope() as db:
+            nodes = db.query(WorkflowNode).filter_by(workflow_id=first["id"]).all()
+            self.assertEqual(1, len(nodes))
+            self.assertEqual("queued", nodes[0].status)
 
     def test_owner_isolation(self):
         workflow = self.create()
@@ -59,6 +63,20 @@ class WorkflowRepositoryTests(unittest.TestCase):
         repo.queue_node(workflow["id"], "intent")
         self.assertIsNotNone(repo.claim_node(workflow["id"], "intent", "task-1"))
         self.assertIsNone(repo.claim_node(workflow["id"], "intent", "task-2"))
+        self.assertIsNone(repo.claim_node(workflow["id"], "intent", "task-1"))
+
+    def test_stale_worker_cannot_commit_after_recovery(self):
+        workflow = self.create()
+        claimed = repo.claim_node(workflow["id"], "intent", "old-task")
+        attempt = claimed[1]["attempt"]
+        with database.session_scope() as db:
+            node = db.query(WorkflowNode).filter_by(workflow_id=workflow["id"]).one()
+            node.heartbeat_at = datetime.now(timezone.utc) - timedelta(hours=3)
+        repo.recover_stale_nodes(7200)
+        repo.claim_node(workflow["id"], "intent", "new-task")
+        with self.assertRaises(repo.StaleNodeExecution):
+            repo.complete_node(workflow["id"], "intent", {"stale": True},
+                               task_id="old-task", attempt=attempt)
 
     def test_completed_node_is_not_claimed_again(self):
         workflow = self.create()
@@ -99,6 +117,15 @@ class WorkflowRepositoryTests(unittest.TestCase):
         cancelled = repo.request_cancel(workflow["id"], "user-a")
         self.assertEqual("cancelled", cancelled["status"])
         self.assertTrue(cancelled["cancel_requested"])
+
+    def test_cancel_running_workflow_is_immediately_terminal(self):
+        workflow = self.create()
+        repo.claim_node(workflow["id"], "intent", "task-1")
+        cancelled = repo.request_cancel(workflow["id"], "user-a")
+        self.assertEqual("cancelled", cancelled["status"])
+        with database.session_scope() as db:
+            node = db.query(WorkflowNode).filter_by(workflow_id=workflow["id"]).one()
+            self.assertEqual("cancelled", node.status)
 
     def test_cancel_does_not_cross_users(self):
         workflow = self.create()

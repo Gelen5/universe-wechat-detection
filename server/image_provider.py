@@ -42,8 +42,12 @@ def _image_api_url(base_url: str) -> str:
 
 
 def _request(url: str, api_key: str, body: dict[str, Any]) -> dict[str, Any]:
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+    idempotency_key = workbench._setting("WECHAT_REQUEST_IDEMPOTENCY_KEY")
+    if idempotency_key:
+        headers["Idempotency-Key"] = idempotency_key
     try:
-        response = requests.post(url, headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}, json=body, timeout=120)
+        response = requests.post(url, headers=headers, json=body, timeout=120)
     except requests.RequestException as exc:
         raise ImageProviderError(f"图片接口请求失败：{exc}") from exc
     data = _json(response)

@@ -13,7 +13,7 @@ from .accounts import utc_now
 from . import database
 from .database import session_scope
 from .models import WorkflowEvent, WorkflowSession
-from .workflow_repository import NODES, _session_view
+from .workflow_repository import NODES, _queue_node_locked, _session_view
 
 
 @dataclass
@@ -83,6 +83,7 @@ def _create_once(user_id: str, idempotency_key: str, mode: str,
         db.flush()
         db.add(WorkflowEvent(workflow_id=workflow.id, user_id=user_id, event_type="workflow.created",
                              node_name=NODES[0], payload_json={"mode": mode, "version": 1}))
+        _queue_node_locked(db, workflow, NODES[0])
         return _session_view(workflow), False
 
 

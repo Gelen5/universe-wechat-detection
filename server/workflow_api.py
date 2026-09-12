@@ -135,9 +135,10 @@ def switch_mode(workflow_id: str, payload: WorkflowModeBody, request: Request):
     try:
         workflow = change_mode(workflow_id, request.state.user["id"], payload.mode, payload.expected_version)
         if payload.mode == "auto" and workflow["status"] == "awaiting_input":
-            workflow = record_decision(workflow_id, request.state.user["id"], workflow["current_node"],
+            checkpoint = workflow["current_node"]
+            workflow = record_decision(workflow_id, request.state.user["id"], checkpoint,
                                        workflow["version"], {}, actor="auto")
-            following = next_node(workflow["current_node"])
+            following = next_node(checkpoint)
             if following:
                 dispatch_node(workflow_id, following)
         notify(workflow_id)

@@ -771,8 +771,10 @@ def refund_usage(request_id: str, http_status: int, duration_ms: int) -> None:
     now = utc_now()
     with DB_LOCK, _connect() as connection:
         connection.execute("BEGIN IMMEDIATE")
+        lock = " FOR UPDATE" if database.ENGINE.dialect.name == "postgresql" else ""
         usage = connection.execute(
-            "SELECT * FROM usage_records WHERE request_id=? AND status='reserved'", (request_id,)
+            "SELECT * FROM usage_records WHERE request_id=? AND status='reserved'" + lock,
+            (request_id,),
         ).fetchone()
         if not usage:
             connection.execute("ROLLBACK")

@@ -11,6 +11,10 @@ from redis.asyncio import Redis as AsyncRedis
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
 
+class NodeLockBusy(RuntimeError):
+    pass
+
+
 def channel(workflow_id: str) -> str:
     return f"workflow:{workflow_id}:events"
 
@@ -52,7 +56,7 @@ def node_lock(workflow_id: str, node_name: str, timeout: int = 1800):
             # Database claiming remains the correctness boundary.
             acquired = True
         if not acquired:
-            raise RuntimeError("workflow node is already executing")
+            raise NodeLockBusy("workflow node is already executing")
         yield
     finally:
         if acquired:

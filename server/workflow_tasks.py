@@ -9,12 +9,13 @@ from billiard.exceptions import SoftTimeLimitExceeded
 from . import accounts
 from .celery_app import celery_app
 from .workflow_engine import execute_node
-from .workflow_events import node_lock, notify
+from .workflow_events import NodeLockBusy, node_lock, notify
 from . import workbench
 from .workflow_repository import (
-    CHECKPOINTS, NODES, claim_node, complete_node, complete_workflow,
-    fail_workflow, finalize_cancel, get_workflow, next_node, pause_workflow,
-    queue_node, recover_stale_nodes,
+    CHECKPOINTS, NODES, StaleNodeExecution, WorkflowCancellationRequested,
+    claim_node, complete_node, fail_workflow, finalize_cancel, get_workflow,
+    next_node, queue_node, recover_stale_nodes, release_node_for_retry,
+    terminal_usage_actions,
 )
 
 
@@ -36,8 +37,14 @@ def _is_transient_error(exc: Exception) -> bool:
     return any(marker in message for marker in transient_markers)
 
 
-def _fail_and_refund(workflow_id: str, node_name: str, message: str, status_code: int) -> dict:
-    failed = fail_workflow(workflow_id, node_name, message)
+def _fail_and_refund(workflow_id: str, node_name: str, message: str, status_code: int,
+                     task_id: str | None = None, attempt: int | None = None) -> dict:
+    try:
+        failed = fail_workflow(
+            workflow_id, node_name, message, task_id=task_id, attempt=attempt,
+        )
+    except StaleNodeExecution:
+        return {"status": "ignored", "reason": "execution lease changed"}
     if failed.get("usage_id"):
         accounts.refund_usage(failed["usage_id"], status_code, 0)
     notify(workflow_id)
@@ -45,8 +52,13 @@ def _fail_and_refund(workflow_id: str, node_name: str, message: str, status_code
 
 
 def dispatch_node(workflow_id: str, node_name: str) -> str:
-    node = queue_node(workflow_id, node_name)
-    result = run_workflow_node.apply_async(args=[workflow_id, node_name], queue="creator")
+    queue_node(workflow_id, node_name)
+    try:
+        result = run_workflow_node.apply_async(args=[workflow_id, node_name], queue="creator")
+    except Exception:
+        # The queued PostgreSQL row is the durable outbox. Beat will redeliver it.
+        notify(workflow_id)
+        return ""
     notify(workflow_id)
     return result.id
 
@@ -55,14 +67,18 @@ def dispatch_node(workflow_id: str, node_name: str) -> str:
                  autoretry_for=(), acks_late=True, reject_on_worker_lost=True,
                  soft_time_limit=NODE_SOFT_TIME_LIMIT, time_limit=NODE_TIME_LIMIT)
 def run_workflow_node(self, workflow_id: str, node_name: str):
+    attempt = None
     try:
-        with node_lock(workflow_id, node_name):
+        with node_lock(workflow_id, node_name, timeout=NODE_TIME_LIMIT + 30):
             claimed = claim_node(workflow_id, node_name, self.request.id)
             if not claimed:
                 return {"status": "ignored", "reason": "already handled or terminal"}
             workflow, _node = claimed
+            attempt = _node["attempt"]
             notify(workflow_id)
-            with workbench.provider_overrides():
+            with workbench.provider_overrides(
+                request_idempotency_key=f"{workflow_id}:{node_name}:{attempt}",
+            ):
                 result = execute_node(workflow, node_name)
         current = get_workflow(workflow_id)
         if current and current["cancel_requested"]:
@@ -71,33 +87,66 @@ def run_workflow_node(self, workflow_id: str, node_name: str):
                 accounts.refund_usage(cancelled["usage_id"], 499, 0)
             notify(workflow_id)
             return {"status": "cancelled"}
-        updated = complete_node(workflow_id, node_name, result)
+        pause_after = node_name in CHECKPOINTS and workflow["mode"] == "interactive"
+        finish_workflow = node_name == NODES[-1]
+        updated = complete_node(
+            workflow_id, node_name, result, task_id=self.request.id, attempt=attempt,
+            pause_after=pause_after, finish_workflow=finish_workflow,
+        )
         notify(workflow_id)
-        if node_name == NODES[-1]:
-            completed = complete_workflow(workflow_id)
-            if completed.get("usage_id"):
-                accounts.settle_usage(completed["usage_id"], 200, 0)
+        if finish_workflow:
+            if updated.get("usage_id"):
+                accounts.settle_usage(updated["usage_id"], 200, 0)
             notify(workflow_id)
             return {"status": "completed"}
-        if node_name in CHECKPOINTS and updated["mode"] == "interactive":
-            pause_workflow(workflow_id, node_name)
-            notify(workflow_id)
+        if pause_after:
             return {"status": "awaiting_input", "node": node_name}
         following = next_node(node_name)
         dispatch_node(workflow_id, following)
         return {"status": "continued", "node": following}
+    except NodeLockBusy:
+        return {"status": "ignored", "reason": "another worker owns the Redis lease"}
+    except StaleNodeExecution:
+        return {"status": "ignored", "reason": "execution lease changed"}
+    except WorkflowCancellationRequested:
+        cancelled = finalize_cancel(workflow_id)
+        if cancelled.get("usage_id"):
+            accounts.refund_usage(cancelled["usage_id"], 499, 0)
+        notify(workflow_id)
+        return {"status": "cancelled"}
     except SoftTimeLimitExceeded:
-        return _fail_and_refund(workflow_id, node_name, "节点执行超过软超时限制", 504)
+        return _fail_and_refund(
+            workflow_id, node_name, "节点执行超过软超时限制", 504,
+            self.request.id, attempt,
+        )
     except Exception as exc:
-        if _is_transient_error(exc) and self.request.retries < self.max_retries:
+        if (attempt is not None and _is_transient_error(exc)
+                and self.request.retries < self.max_retries
+                and release_node_for_retry(workflow_id, node_name, self.request.id, attempt, str(exc))):
             raise self.retry(exc=exc, countdown=min(30, 2 ** (self.request.retries + 1)))
-        return _fail_and_refund(workflow_id, node_name, str(exc), 500)
+        current = get_workflow(workflow_id)
+        if current and current["cancel_requested"]:
+            cancelled = finalize_cancel(workflow_id)
+            if cancelled.get("usage_id"):
+                accounts.refund_usage(cancelled["usage_id"], 499, 0)
+            notify(workflow_id)
+            return {"status": "cancelled"}
+        return _fail_and_refund(
+            workflow_id, node_name, str(exc), 500, self.request.id, attempt,
+        )
 
 
 @celery_app.task(name="workflow.recover_stale")
 def recover_stale_workflow_nodes():
-    recovered = recover_stale_nodes()
+    recovered = recover_stale_nodes(stale_seconds=NODE_TIME_LIMIT + 60)
     for workflow_id, node_name in recovered:
         run_workflow_node.apply_async(args=[workflow_id, node_name], queue="creator")
         notify(workflow_id)
-    return {"recovered": len(recovered)}
+    reconciled = 0
+    for usage_id, status in terminal_usage_actions():
+        if status == "completed":
+            accounts.settle_usage(usage_id, 200, 0)
+        else:
+            accounts.refund_usage(usage_id, 500 if status == "failed" else 499, 0)
+        reconciled += 1
+    return {"recovered": len(recovered), "billing_reconciled": reconciled}
