@@ -78,7 +78,7 @@ services:
     restart: unless-stopped
     environment: *app-env
     env_file: .env
-    command: ["celery", "-A", "server.celery_app:celery_app", "beat", "--loglevel=INFO"]
+    command: ["celery", "-A", "server.celery_app:celery_app", "beat", "--loglevel=INFO", "--schedule=/tmp/celerybeat-schedule"]
     depends_on:
       migrate:
         condition: service_completed_successfully

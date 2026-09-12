@@ -5,9 +5,14 @@ import argparse
 import concurrent.futures
 import json
 import os
+import sys
 import uuid
+from pathlib import Path
 
 from sqlalchemy import create_engine, text
+
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 
 def probe(database_url: str, concurrency: int) -> dict:
