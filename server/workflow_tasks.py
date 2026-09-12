@@ -1,6 +1,11 @@
 """Celery tasks: one task per durable workflow node."""
 from __future__ import annotations
 
+import os
+
+import requests
+from billiard.exceptions import SoftTimeLimitExceeded
+
 from . import accounts
 from .celery_app import celery_app
 from .workflow_engine import execute_node
@@ -13,6 +18,32 @@ from .workflow_repository import (
 )
 
 
+NODE_SOFT_TIME_LIMIT = max(30, int(os.getenv("CELERY_NODE_SOFT_TIME_LIMIT", "600")))
+NODE_TIME_LIMIT = max(NODE_SOFT_TIME_LIMIT + 10, int(os.getenv("CELERY_NODE_TIME_LIMIT", "660")))
+
+
+def _is_transient_error(exc: Exception) -> bool:
+    if isinstance(exc, (requests.RequestException, TimeoutError, ConnectionError)):
+        return True
+    message = str(exc).lower()
+    transient_markers = (
+        "http 429", "status 429", "too many requests", "rate limit",
+        "http 500", "http 502", "http 503", "http 504",
+        "status 500", "status 502", "status 503", "status 504",
+        "temporarily unavailable", "connection reset", "connection aborted",
+        "connection refused", "read timed out", "connect timeout",
+    )
+    return any(marker in message for marker in transient_markers)
+
+
+def _fail_and_refund(workflow_id: str, node_name: str, message: str, status_code: int) -> dict:
+    failed = fail_workflow(workflow_id, node_name, message)
+    if failed.get("usage_id"):
+        accounts.refund_usage(failed["usage_id"], status_code, 0)
+    notify(workflow_id)
+    return {"status": "failed", "error": message[-500:]}
+
+
 def dispatch_node(workflow_id: str, node_name: str) -> str:
     node = queue_node(workflow_id, node_name)
     result = run_workflow_node.apply_async(args=[workflow_id, node_name], queue="creator")
@@ -21,7 +52,8 @@ def dispatch_node(workflow_id: str, node_name: str) -> str:
 
 
 @celery_app.task(bind=True, name="workflow.run_node", max_retries=2,
-                 autoretry_for=(), acks_late=True, reject_on_worker_lost=True)
+                 autoretry_for=(), acks_late=True, reject_on_worker_lost=True,
+                 soft_time_limit=NODE_SOFT_TIME_LIMIT, time_limit=NODE_TIME_LIMIT)
 def run_workflow_node(self, workflow_id: str, node_name: str):
     try:
         with node_lock(workflow_id, node_name):
@@ -54,14 +86,12 @@ def run_workflow_node(self, workflow_id: str, node_name: str):
         following = next_node(node_name)
         dispatch_node(workflow_id, following)
         return {"status": "continued", "node": following}
+    except SoftTimeLimitExceeded:
+        return _fail_and_refund(workflow_id, node_name, "节点执行超过软超时限制", 504)
     except Exception as exc:
-        if self.request.retries < self.max_retries:
+        if _is_transient_error(exc) and self.request.retries < self.max_retries:
             raise self.retry(exc=exc, countdown=min(30, 2 ** (self.request.retries + 1)))
-        failed = fail_workflow(workflow_id, node_name, str(exc))
-        if failed.get("usage_id"):
-            accounts.refund_usage(failed["usage_id"], 500, 0)
-        notify(workflow_id)
-        return {"status": "failed", "error": str(exc)[-500:]}
+        return _fail_and_refund(workflow_id, node_name, str(exc), 500)
 
 
 @celery_app.task(name="workflow.recover_stale")
