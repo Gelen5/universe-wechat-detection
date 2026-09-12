@@ -345,6 +345,7 @@ async function loadAccount() {
     renderWallet(data.wallet);
     document.querySelector('#wallet-user-line').textContent = `${currentAccount.display_name} · ${currentAccount.email}`;
     document.querySelector('.api-live-dot')?.classList.remove('offline');
+    restoreDurableWorkflow();
   } catch { showAuth(); }
 }
 
@@ -575,6 +576,8 @@ let workbenchController = null;
 let workbenchTaskId = null;
 const editCurrentButton = document.querySelector('#edit-current');
 let workbenchMode = 'interactive';
+let durableWorkflow = null;
+let workflowEventSource = null;
 let workbenchSession = null;
 let workbenchVersionIndex = -1;
 
@@ -852,13 +855,108 @@ async function waitForWorkbenchJob(jobId, signal) {
   }
 }
 
+async function fetchDurableWorkflow(workflowId) {
+  const response = await fetch(`/api/workflows/${encodeURIComponent(workflowId)}`);
+  return (await readApiResponse(response)).workflow;
+}
+
+async function fetchLegacyWorkbenchSession(sessionId) {
+  const response = await fetch(`/api/workbench/sessions/${encodeURIComponent(sessionId)}`);
+  return (await readApiResponse(response)).session;
+}
+
+function waitForDurableWorkflow(workflow, signal) {
+  durableWorkflow = workflow;
+  localStorage.setItem('universe.activeWorkflowId', workflow.id);
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    let pollTimer = null;
+    const finish = async () => {
+      if (settled) return;
+      try {
+        durableWorkflow = await fetchDurableWorkflow(workflow.id);
+        const status = durableWorkflow.status;
+        document.querySelector('#workbench-status').textContent = status === 'queued' ? '任务排队中' : status === 'awaiting_input' ? '等待确认' : 'Skill 执行中';
+        if (status === 'failed') { localStorage.removeItem('universe.activeWorkflowId'); throw new Error(durableWorkflow.error || '创作任务失败，积分已自动退还'); }
+        if (status === 'cancelled') { localStorage.removeItem('universe.activeWorkflowId'); throw new DOMException('任务已取消', 'AbortError'); }
+        if (!['awaiting_input', 'completed'].includes(status)) return;
+        settled = true;
+        clearInterval(pollTimer);
+        workflowEventSource?.close();
+        workflowEventSource = null;
+        resolve(await fetchLegacyWorkbenchSession(workflow.id));
+      } catch (error) {
+        if (!settled && error.name !== 'AbortError' && !String(error.message || '').includes('Failed to fetch')) {
+          settled = true;
+          clearInterval(pollTimer);
+          workflowEventSource?.close();
+          workflowEventSource = null;
+          reject(error);
+        }
+      }
+    };
+    workflowEventSource?.close();
+    workflowEventSource = new EventSource(`/api/workflows/${encodeURIComponent(workflow.id)}/events`);
+    ['workflow.created', 'node.queued', 'node.started', 'node.completed', 'workflow.awaiting_input', 'workflow.completed', 'workflow.failed', 'workflow.cancelled'].forEach(type => workflowEventSource.addEventListener(type, finish));
+    workflowEventSource.onerror = () => { /* Polling below covers proxy/network gaps. */ };
+    pollTimer = setInterval(finish, 1500);
+    signal?.addEventListener('abort', () => {
+      if (settled) return;
+      settled = true;
+      clearInterval(pollTimer);
+      workflowEventSource?.close();
+      workflowEventSource = null;
+      reject(new DOMException('等待已取消', 'AbortError'));
+    }, { once: true });
+    finish();
+  });
+}
+
+async function restoreDurableWorkflow() {
+  const workflowId = localStorage.getItem('universe.activeWorkflowId');
+  if (!workflowId || workbenchSession) return;
+  try {
+    durableWorkflow = await fetchDurableWorkflow(workflowId);
+    if (['failed', 'cancelled'].includes(durableWorkflow.status)) {
+      localStorage.removeItem('universe.activeWorkflowId');
+      return;
+    }
+    if (['awaiting_input', 'completed'].includes(durableWorkflow.status)) {
+      workbenchSession = await fetchLegacyWorkbenchSession(workflowId);
+      renderWorkbenchSession(workbenchSession);
+      return;
+    }
+    workbenchController = new AbortController();
+    setWorkbenchProgress(1, true, '正在恢复未完成任务');
+    workbenchSession = await waitForDurableWorkflow(durableWorkflow, workbenchController.signal);
+    renderWorkbenchSession(workbenchSession);
+  } catch (error) {
+    if (error.name !== 'AbortError') showToast(`恢复任务失败：${error.message}`, 'error');
+  } finally {
+    setWorkbenchProgress(workbenchSession?.current_step || 1, false);
+    workbenchController = null;
+  }
+}
+
 async function advance(selection = null, nextStep = null) {
   if (!workbenchSession) return;
   const target = nextStep || Math.min(8, (workbenchSession.current_step || 1) + 1);
   workbenchController = new AbortController();
   setWorkbenchProgress(target);
   try {
-    workbenchSession = await callWorkbench('/api/workbench/steps', { session_id: workbenchSession.id, step: target, selection, article: articleEditor.value }, workbenchController.signal);
+    if (durableWorkflow && durableWorkflow.status === 'awaiting_input') {
+      const decision = durableWorkflow.current_node === 'topic' ? { selection: selection || 1 } :
+        durableWorkflow.current_node === 'visual' ? { image_policy: workbenchSession.image_policy || 'auto' } : {};
+      const response = await fetch(`/api/workflows/${encodeURIComponent(durableWorkflow.id)}/decisions`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: workbenchController.signal,
+        body: JSON.stringify({ node: durableWorkflow.current_node, expected_version: durableWorkflow.version, decision }),
+      });
+      const accepted = await readApiResponse(response);
+      durableWorkflow = accepted.workflow;
+      workbenchSession = await waitForDurableWorkflow(durableWorkflow, workbenchController.signal);
+    } else {
+      workbenchSession = await callWorkbench('/api/workbench/steps', { session_id: workbenchSession.id, step: target, selection, article: articleEditor.value }, workbenchController.signal);
+    }
     renderWorkbenchSession(workbenchSession);
   } catch (error) {
     try {
@@ -893,6 +991,17 @@ startWorkbench?.addEventListener('click', async () => {
   const originalLabel = startWorkbench.innerHTML;
   startWorkbench.innerHTML = '正在提交…';
   try {
+    if (workbenchMode !== 'step') {
+      const response = await fetch('/api/workflows', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ topic: message, mode: workbenchMode, persona: document.querySelector('#workbench-persona').value, theme: document.querySelector('#workbench-theme').value, idempotency_key: newIdempotencyKey() }), signal: workbenchController.signal });
+      const accepted = await readApiResponse(response);
+      durableWorkflow = accepted.workflow;
+      workbenchTaskId = durableWorkflow.id;
+      startWorkbench.innerHTML = '正在生成选题…';
+      const session = await waitForDurableWorkflow(durableWorkflow, workbenchController.signal);
+      renderWorkbenchSession(session);
+      topicInput.value = '';
+      return;
+    }
     const response = await fetch('/api/workbench/sessions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...sharedApiPayload(), topic: message, mode: workbenchMode, persona: document.querySelector('#workbench-persona').value, theme: document.querySelector('#workbench-theme').value, idempotency_key: newIdempotencyKey() }), signal: workbenchController.signal });
     const accepted = await readApiResponse(response);
     workbenchTaskId = accepted.job.id;
@@ -934,7 +1043,9 @@ cancelWorkbenchButton?.addEventListener('click', async () => {
   if (!workbenchController) return;
   cancelWorkbenchButton.disabled = true;
   try {
-    if (workbenchTaskId) {
+    if (durableWorkflow && !['completed', 'failed', 'cancelled'].includes(durableWorkflow.status)) {
+      await fetch(`/api/workflows/${encodeURIComponent(durableWorkflow.id)}/cancel`, { method: 'POST' });
+    } else if (workbenchTaskId) {
       await fetch(`/api/tasks/${encodeURIComponent(workbenchTaskId)}/cancel`, { method: 'POST' });
     } else if (workbenchSession) {
       await fetch('/api/workbench/cancel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...sharedApiPayload(), session_id: workbenchSession.id, step: workbenchSession.current_step || 1 }) });
@@ -948,7 +1059,7 @@ cancelWorkbenchButton?.addEventListener('click', async () => {
   }
 });
 document.querySelector('#workbench-regenerate-topics')?.addEventListener('click', () => { if (workbenchSession) sendWorkbenchChat('请重新给我 10 个方向，角度更具体，不要泛泛而谈，并返回每条的热度和涨粉潜力分。', 'regenerate_topics'); else topicInput.focus(); });
-document.querySelector('#new-workbench-chat')?.addEventListener('click', () => { workbenchSession = null; workbenchVersionIndex = -1; setWorkbenchBusy(false); topicInput.value = ''; articleEditor.value = ''; document.querySelector('#result-title').textContent = '还没有开始写'; document.querySelector('#article-save-state').textContent = '输入一个主题后，我会先和你确认写作方向'; document.querySelector('#article-version-label').textContent = '当前草稿 · 尚未生成'; document.querySelector('#article-change-label').textContent = '等待你的写作意图'; document.querySelector('#workbench-status').textContent = '等待你的想法'; topicList.innerHTML = ''; renderChatThread(null); renderOutline({}); });
+document.querySelector('#new-workbench-chat')?.addEventListener('click', () => { workflowEventSource?.close(); durableWorkflow = null; localStorage.removeItem('universe.activeWorkflowId'); workbenchSession = null; workbenchVersionIndex = -1; setWorkbenchBusy(false); topicInput.value = ''; articleEditor.value = ''; document.querySelector('#result-title').textContent = '还没有开始写'; document.querySelector('#article-save-state').textContent = '输入一个主题后，我会先和你确认写作方向'; document.querySelector('#article-version-label').textContent = '当前草稿 · 尚未生成'; document.querySelector('#article-change-label').textContent = '等待你的写作意图'; document.querySelector('#workbench-status').textContent = '等待你的想法'; topicList.innerHTML = ''; renderChatThread(null); renderOutline({}); });
 document.querySelectorAll('[data-rewrite-selection]').forEach(button => button.addEventListener('click', () => { if (!workbenchSession) return; const selection = articleEditor.value.slice(articleEditor.selectionStart, articleEditor.selectionEnd); if (!selection) { showToast('先在当前文章中选中一段，再告诉我如何改写。', 'error'); return; } sendWorkbenchChat(button.dataset.rewriteSelection, 'rewrite_article', selection); }));
 document.querySelector('#version-back')?.addEventListener('click', () => { const versions = workbenchSession?.versions || []; if (!versions.length) return; workbenchVersionIndex = workbenchVersionIndex < 0 ? versions.length - 1 : Math.max(0, workbenchVersionIndex - 1); articleEditor.value = versions[workbenchVersionIndex].article || ''; document.querySelector('#article-version-label').textContent = `${versions[workbenchVersionIndex].label} · 历史版本预览`; });
 document.querySelector('#version-forward')?.addEventListener('click', () => { const versions = workbenchSession?.versions || []; if (workbenchVersionIndex < 0) return; workbenchVersionIndex += 1; if (workbenchVersionIndex >= versions.length) { workbenchVersionIndex = -1; articleEditor.value = workbenchSession.article || ''; document.querySelector('#article-version-label').textContent = `当前版本 · V${versions.length + 1}`; return; } articleEditor.value = versions[workbenchVersionIndex].article || ''; document.querySelector('#article-version-label').textContent = `${versions[workbenchVersionIndex].label} · 历史版本预览`; });

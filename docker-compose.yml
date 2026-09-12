@@ -1,0 +1,89 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-universe}
+      POSTGRES_USER: ${POSTGRES_USER:-universe}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-universe} -d ${POSTGRES_DB:-universe}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  migrate:
+    build: .
+    environment: &app-env
+      APP_ENV: production
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-universe}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-universe}
+      REDIS_URL: redis://redis:6379/0
+      WECHAT_PUBLISHER_SKILL_DIR: /opt/universe-skills/weChat-autoCreate
+    env_file: .env
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    build: .
+    restart: unless-stopped
+    environment: *app-env
+    env_file: .env
+    command: ["uvicorn", "server.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2", "--proxy-headers"]
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - workbench_output:/app/output
+      - ${WECHAT_SKILL_HOST_PATH:-/opt/universe-skills/weChat-autoCreate}:/opt/universe-skills/weChat-autoCreate:ro
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+  worker:
+    build: .
+    restart: unless-stopped
+    environment: *app-env
+    env_file: .env
+    command: ["celery", "-A", "server.celery_app:celery_app", "worker", "-Q", "creator", "--loglevel=INFO", "--concurrency=${CELERY_WORKER_CONCURRENCY:-4}"]
+    volumes:
+      - workbench_output:/app/output
+      - ${WECHAT_SKILL_HOST_PATH:-/opt/universe-skills/weChat-autoCreate}:/opt/universe-skills/weChat-autoCreate:ro
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+  beat:
+    build: .
+    restart: unless-stopped
+    environment: *app-env
+    env_file: .env
+    command: ["celery", "-A", "server.celery_app:celery_app", "beat", "--loglevel=INFO"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:
+  workbench_output:

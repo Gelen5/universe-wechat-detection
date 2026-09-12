@@ -17,6 +17,9 @@ from pydantic import BaseModel, Field
 from . import accounts, diagnosis_service, image_provider
 from . import creator_tools, creator_conversation
 from . import workbench
+from . import database
+from .workflow_api import router as workflow_router
+from .workflow_events import redis_ready
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -31,7 +34,10 @@ app = FastAPI(
 )
 
 accounts.init_db()
+database.ensure_local_workflow_schema()
 accounts.recover_interrupted_workbench_jobs()
+database.require_postgres_in_production()
+app.include_router(workflow_router)
 
 
 @app.middleware("http")
@@ -504,6 +510,19 @@ def _enrich_report(report):
 @app.get("/health")
 def health():
     return {"status": "ok", "service": "wechat-account-detection"}
+
+
+@app.get("/health/live")
+def health_live():
+    return {"status": "ok"}
+
+
+@app.get("/health/ready")
+def health_ready():
+    checks = {"database": database.database_ready(), "redis": redis_ready()}
+    if not all(checks.values()):
+        return JSONResponse(status_code=503, content={"status": "not_ready", "checks": checks})
+    return {"status": "ready", "checks": checks}
 
 
 @app.post("/api/auth/register")

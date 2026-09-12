@@ -23,6 +23,8 @@ from typing import Any
 
 from fastapi import HTTPException, Request, Response
 
+from . import database
+
 
 ROOT = Path(__file__).resolve().parent.parent
 DB_PATH = Path(os.getenv("CREATOR_ACCOUNTS_DB") or ROOT / "data" / "creator_accounts.db")
@@ -62,7 +64,9 @@ def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _connect() -> sqlite3.Connection:
+def _connect():
+    if database.ENGINE.dialect.name != "sqlite":
+        return database.compat_connect()
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     connection = sqlite3.connect(
         DB_PATH, timeout=20, isolation_level=None, factory=ClosingConnection
@@ -209,10 +213,11 @@ def init_db() -> None:
     CREATE INDEX IF NOT EXISTS idx_jobs_user_time ON jobs(user_id,created_at DESC);
     """
     with DB_LOCK, _connect() as connection:
-        connection.executescript(schema)
-        session_columns = {row[1] for row in connection.execute("PRAGMA table_info(sessions)")}
-        if "impersonator_id" not in session_columns:
-            connection.execute("ALTER TABLE sessions ADD COLUMN impersonator_id TEXT REFERENCES users(id)")
+        if database.ENGINE.dialect.name == "sqlite":
+            connection.executescript(schema)
+            session_columns = {row[1] for row in connection.execute("PRAGMA table_info(sessions)")}
+            if "impersonator_id" not in session_columns:
+                connection.execute("ALTER TABLE sessions ADD COLUMN impersonator_id TEXT REFERENCES users(id)")
         now = utc_now()
         for method, path, feature, points, cost in DEFAULT_PRICING:
             connection.execute(
@@ -296,7 +301,7 @@ def create_user(email: str, password: str, display_name: str, *, role: str = "us
                 )
             connection.execute("COMMIT")
             row = connection.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
-    except sqlite3.IntegrityError as exc:
+    except (sqlite3.IntegrityError, database.IntegrityError) as exc:
         raise HTTPException(status_code=409, detail="该邮箱已经注册") from exc
     return _public_user(row)
 
@@ -475,6 +480,11 @@ def pricing_rule(method: str, path: str) -> dict[str, Any] | None:
         return dict(row) if row else None
 
 
+def _locked_wallet(connection, user_id: str):
+    suffix = " FOR UPDATE" if database.ENGINE.dialect.name == "postgresql" else ""
+    return connection.execute("SELECT * FROM wallets WHERE user_id=?" + suffix, (user_id,)).fetchone()
+
+
 def list_pricing() -> list[dict[str, Any]]:
     with DB_LOCK, _connect() as connection:
         return [dict(row) for row in connection.execute(
@@ -488,7 +498,7 @@ def reserve_points(user_id: str, rule: dict[str, Any], method: str, path: str) -
     now = utc_now()
     with DB_LOCK, _connect() as connection:
         connection.execute("BEGIN IMMEDIATE")
-        wallet = connection.execute("SELECT * FROM wallets WHERE user_id=?", (user_id,)).fetchone()
+        wallet = _locked_wallet(connection, user_id)
         if not wallet or wallet["balance"] < points:
             connection.execute("ROLLBACK")
             balance = wallet["balance"] if wallet else 0
@@ -560,7 +570,7 @@ def conversation_lock(session_id: str, user_id: str):
             connection.execute('INSERT INTO conversation_locks VALUES (?,?,?)',
                 (key, token, (datetime.now(timezone.utc) + timedelta(hours=2)).isoformat()))
             connection.commit()
-        except sqlite3.IntegrityError as exc:
+        except (sqlite3.IntegrityError, database.IntegrityError) as exc:
             connection.rollback()
             raise ValueError('这个对话仍在执行上一条请求，请等待完成后再发送') from exc
     try:
@@ -768,7 +778,7 @@ def refund_usage(request_id: str, http_status: int, duration_ms: int) -> None:
             connection.execute("ROLLBACK")
             return
         allocation = json.loads(usage["allocation_json"] or "{}")
-        wallet = connection.execute("SELECT * FROM wallets WHERE user_id=?", (usage["user_id"],)).fetchone()
+        wallet = _locked_wallet(connection, usage["user_id"])
         before = wallet["balance"]
         points = int(usage["points"])
         after = before + points
@@ -805,7 +815,7 @@ def recharge(operator_id: str, user_id: str, points: int, bucket: str, note: str
     now = utc_now()
     with DB_LOCK, _connect() as connection:
         connection.execute("BEGIN IMMEDIATE")
-        wallet = connection.execute("SELECT * FROM wallets WHERE user_id=?", (user_id,)).fetchone()
+        wallet = _locked_wallet(connection, user_id)
         if not wallet:
             connection.execute("ROLLBACK")
             raise HTTPException(status_code=404, detail="用户不存在")
@@ -848,12 +858,16 @@ def list_users(query: str = "", limit: int = 50) -> list[dict[str, Any]]:
 
 
 def admin_overview() -> dict[str, Any]:
+    now = datetime.now(timezone.utc)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+    seven_days_ago = (now - timedelta(days=7)).isoformat()
+    thirty_days_ago = (now - timedelta(days=30)).isoformat()
     with DB_LOCK, _connect() as connection:
         users = connection.execute("SELECT COUNT(*) FROM users").fetchone()[0]
-        today = connection.execute("SELECT COUNT(*) FROM users WHERE julianday(created_at) >= julianday('now','start of day')").fetchone()[0]
-        seven_days = connection.execute("SELECT COUNT(*) FROM users WHERE julianday(created_at) >= julianday('now','-7 days')").fetchone()[0]
-        thirty_days = connection.execute("SELECT COUNT(*) FROM users WHERE julianday(created_at) >= julianday('now','-30 days')").fetchone()[0]
-        active_30d = connection.execute("SELECT COUNT(*) FROM users WHERE julianday(last_login_at) >= julianday('now','-30 days')").fetchone()[0]
+        today = connection.execute("SELECT COUNT(*) FROM users WHERE created_at >= ?", (today_start,)).fetchone()[0]
+        seven_days = connection.execute("SELECT COUNT(*) FROM users WHERE created_at >= ?", (seven_days_ago,)).fetchone()[0]
+        thirty_days = connection.execute("SELECT COUNT(*) FROM users WHERE created_at >= ?", (thirty_days_ago,)).fetchone()[0]
+        active_30d = connection.execute("SELECT COUNT(*) FROM users WHERE last_login_at >= ?", (thirty_days_ago,)).fetchone()[0]
         total_balance = connection.execute("SELECT COALESCE(SUM(balance),0) FROM wallets").fetchone()[0]
         paid_points = connection.execute(
             "SELECT COALESCE(SUM(amount),0) FROM point_transactions WHERE kind='recharge' AND bucket='paid'"

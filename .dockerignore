@@ -1,0 +1,17 @@
+.git
+.github
+.env
+.env.*
+!.env.example
+.venv*
+__pycache__
+*.py[cod]
+data
+output
+reports
+qa-chatgpt
+node_modules
+*.log
+*.db
+*.db-shm
+*.db-wal
