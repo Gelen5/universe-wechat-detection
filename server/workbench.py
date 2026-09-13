@@ -614,6 +614,19 @@ issues为空不表示通过；必须同时修复上述拦截原因。原话保�
         raise ProviderError(str(exc)) from exc
 
 
+def _markdown_prose_for_sentence_audit(text: str) -> str:
+    """Exclude Markdown display headings from the Skill's punctuation heuristic."""
+    prose_lines: list[str] = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if re.match(r"^#{1,6}\s+\S", stripped):
+            continue
+        if re.fullmatch(r"\*\*[^\n*]{6,}\*\*", stripped):
+            continue
+        prose_lines.append(line)
+    return "\n".join(prose_lines)
+
+
 def _anti_ai_audit(original: str, revision: str, session: dict[str, Any]) -> dict[str, Any]:
     """调用 universe-delete-ai-skill 的 audit_revision.py：改稿前后信号对比 + 保护片段核对。"""
     script = ANTI_AI_SKILL_DIR / "scripts" / "audit_revision.py"
@@ -638,13 +651,28 @@ def _anti_ai_audit(original: str, revision: str, session: dict[str, Any]) -> dic
         return {"status": "unavailable", "message": "审计结果不是合法 JSON"}
     revised = data.get("revision") or {}
     readability = revised.get("readability") or {}
+    raw_sentence_ratio = readability.get("complete_sentence_ratio")
+    prose_path = workdir / "revision-prose.txt"
+    prose_path.write_text(_markdown_prose_for_sentence_audit(revision), encoding="utf-8")
+    try:
+        prose_readability = skill_runtime.script(
+            ANTI_AI_SKILL_DIR, "check_natural_prose.py", prose_path,
+            "--mode", "standard",
+        )
+        sentence_ratio = prose_readability.get("complete_sentence_ratio", raw_sentence_ratio)
+    except Exception:
+        # The full audit remains authoritative when the focused Skill pass is
+        # unavailable; this keeps infrastructure failures fail-closed.
+        sentence_ratio = raw_sentence_ratio
     return {
         "status": "success",
         "mode": data.get("mode"),
         "original_signal_total": (data.get("original") or {}).get("signal_total"),
         "revision_signal_total": revised.get("signal_total"),
         "missing_protected_spans": data.get("missing_protected_spans") or {},
-        "complete_sentence_ratio": readability.get("complete_sentence_ratio"),
+        "complete_sentence_ratio": sentence_ratio,
+        "raw_complete_sentence_ratio": raw_sentence_ratio,
+        "markdown_structure_excluded": sentence_ratio != raw_sentence_ratio,
         "sentence_length_cv": (readability.get("sentence_length") or {}).get("cv"),
         "warnings": readability.get("warnings", []),
     }

@@ -6,6 +6,24 @@ from server import workbench as w, skill_runtime as r
 
 
 class SkillRuntimeTests(unittest.TestCase):
+    def test_sentence_audit_excludes_markdown_headings_but_keeps_prose(self):
+        article = "# 主标题没有句号\n\n**第一部分也没有句号**\n\n正文残句没有标点"
+        prose = w._markdown_prose_for_sentence_audit(article)
+        self.assertNotIn("主标题", prose)
+        self.assertNotIn("第一部分", prose)
+        self.assertIn("正文残句没有标点", prose)
+
+    def test_actual_skill_sentence_audit_does_not_count_markdown_headings(self):
+        if not w.ANTI_AI_SKILL_DIR.exists():
+            self.skipTest("Installed anti-AI Skill not present")
+        article = "# 主标题没有句号\n\n**第一部分没有句号**\n\n正文是完整句子。\n\n另一段也是完整句子。"
+        with tempfile.TemporaryDirectory() as directory, patch.object(w, "OUTPUT_DIR", Path(directory)):
+            audit = w._anti_ai_audit(article, article, {"id": "heading-audit"})
+        self.assertEqual(audit["status"], "success")
+        self.assertLess(audit["raw_complete_sentence_ratio"], .9)
+        self.assertEqual(audit["complete_sentence_ratio"], 1)
+        self.assertTrue(audit["markdown_structure_excluded"])
+
     def test_modified_article_invalidates_gate(self):
         session = {'article': '原稿', 'review': {'gate': 'passed', 'article_sha256': r.digest('原稿')}}
         self.assertTrue(w._review_is_current(session))
