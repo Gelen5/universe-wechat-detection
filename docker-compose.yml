@@ -33,6 +33,7 @@ services:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-universe}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-universe}
       REDIS_URL: redis://redis:6379/0
       WECHAT_PUBLISHER_SKILL_DIR: /opt/universe-skills/weChat-autoCreate
+      UNIVERSE_ANTI_AI_SKILL_DIR: /opt/universe-skills/universe-delete-ai-skill
     env_file: .env
     command: ["alembic", "upgrade", "head"]
     volumes:
@@ -52,6 +53,7 @@ services:
     volumes:
       - ${WORKBENCH_OUTPUT_HOST_PATH:-/opt/universe-data/output}:/app/output
       - ${WECHAT_SKILL_HOST_PATH:-/opt/universe-skills/weChat-autoCreate}:/opt/universe-skills/weChat-autoCreate:ro
+      - ${ANTI_AI_SKILL_HOST_PATH:-/opt/universe-skills/universe-delete-ai-skill}:/opt/universe-skills/universe-delete-ai-skill:ro
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -67,6 +69,7 @@ services:
     volumes:
       - ${WORKBENCH_OUTPUT_HOST_PATH:-/opt/universe-data/output}:/app/output
       - ${WECHAT_SKILL_HOST_PATH:-/opt/universe-skills/weChat-autoCreate}:/opt/universe-skills/weChat-autoCreate:ro
+      - ${ANTI_AI_SKILL_HOST_PATH:-/opt/universe-skills/universe-delete-ai-skill}:/opt/universe-skills/universe-delete-ai-skill:ro
     depends_on:
       migrate:
         condition: service_completed_successfully
