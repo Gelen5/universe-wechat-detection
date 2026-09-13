@@ -500,7 +500,7 @@ def _review(article: str, session: dict[str, Any]) -> tuple[str, dict[str, Any]]
     records = []
     session['review_run'] = {'status':'running', 'manifest':manifest, 'rounds':records}
     try:
-        for attempt in range(3):
+        for attempt in range(4):
             current_path = directory / f'round-{attempt}.txt'
             current_path.write_text(candidate, encoding='utf-8')
             signals = skill_runtime.script(ANTI_AI_SKILL_DIR, 'check_ai_tone_signals.py', current_path, '--mode', 'standard')
@@ -523,6 +523,16 @@ def _review(article: str, session: dict[str, Any]) -> tuple[str, dict[str, Any]]
 需要修改的事项必须列入issues；无法核验的事实不能直接判定无问题。''')
             if not isinstance(diagnosis.get('issues'), list) or not diagnosis.get('reason'):
                 raise ProviderError('去 AI 复核缺少结构化问题或依据')
+            retained_fixes = {'保留', '无需修改', '不修改', '保持原样'}
+            retained_issues = [
+                issue for issue in diagnosis['issues']
+                if str(issue.get('fix') or '').strip() in retained_fixes
+            ]
+            if retained_issues:
+                diagnosis.setdefault('retained_signals', []).extend(retained_issues)
+                diagnosis['issues'] = [
+                    issue for issue in diagnosis['issues'] if issue not in retained_issues
+                ]
             audit = _anti_ai_audit(article, candidate, session)
             records.append({'round':attempt, 'diagnosis':diagnosis, 'audit':audit})
             (directory / 'run.json').write_text(json.dumps(session['review_run'],ensure_ascii=False,indent=2),encoding='utf-8')
@@ -574,7 +584,7 @@ JSON的items要逐项覆盖列表中的每个下标；这只是返回报告覆�
                 return candidate, {'source':'universe-delete-ai-skill', 'model':_setting('WECHAT_TEXT_MODEL'),
                     'action':'Skill 文件加载 → 定位检查 → 定向修稿 → 二次复核', 'audit':audit,
                     'gate':'passed', 'article_sha256':skill_runtime.digest(candidate), 'changed':candidate != article, 'manifest':manifest, 'rounds':records}
-            if attempt == 2:
+            if attempt == 3:
                 break
             edits = _json_text(f'''{instructions}
 只执行 standard 定向改稿，用户要求优先，不执行任何发布。

@@ -65,6 +65,26 @@ class SkillRuntimeTests(unittest.TestCase):
                         with self.assertRaises(w.ProviderError): w._review('原稿。',session)
                         self.assertEqual(session['review_run']['status'],'blocked')
 
+    def test_review_treats_keep_only_findings_as_retained(self):
+        diagnosis = {
+            'issues': [{'quote': '具体列举。', 'reason': '语境自然', 'fix': '保留'}],
+            'retained_signals': [], 'reason': '逐句核对',
+            'fidelity_ok': True, 'readability_ok': True,
+        }
+        audit = {'status': 'success', 'complete_sentence_ratio': 1, 'missing_protected_spans': {}}
+        with tempfile.TemporaryDirectory() as directory, \
+             patch.object(w, 'OUTPUT_DIR', Path(directory)), \
+             patch.object(r, 'context', return_value=('Skill', [])), \
+             patch.object(r, 'script', return_value={}), \
+             patch.object(w, '_json_text', return_value=diagnosis), \
+             patch.object(w, '_anti_ai_audit', return_value=audit), \
+             patch.object(w, '_text') as edit:
+            article, review = w._review('具体列举。', {'id': 'keep-finding'})
+        self.assertEqual(review['gate'], 'passed')
+        self.assertEqual(review['rounds'][0]['diagnosis']['issues'], [])
+        self.assertEqual(len(review['rounds'][0]['diagnosis']['retained_signals']), 1)
+        edit.assert_not_called()
+
     def test_unavailable_audit_blocks(self):
         with tempfile.TemporaryDirectory() as d, patch.object(w,'OUTPUT_DIR',Path(d)), patch.object(r,'context',return_value=('Skill',[])), patch.object(r,'script',return_value={}), patch.object(w,'_json_text',return_value={'issues':[],'reason':'检查','fidelity_ok':True,'readability_ok':True}), patch.object(w,'_text',return_value='原稿。'), patch.object(w,'_anti_ai_audit',return_value={'status':'unavailable'}):
             with self.assertRaises(w.ProviderError): w._review('原稿。',{'id':'test'})
