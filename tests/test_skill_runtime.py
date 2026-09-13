@@ -100,6 +100,12 @@ class SkillRuntimeTests(unittest.TestCase):
         self.assertIn('最后一句更完整。', revised)
         self.assertEqual(generate.call_count, 2)
 
+    def test_local_edits_use_verified_issue_anchor_not_model_recopy(self):
+        payload = {'edits': [{'issue_index': 0, 'before': '模型抄错的片段', 'after': '替换后。'}]}
+        with patch.object(w, '_json_text', return_value=payload):
+            _, revised = w._validated_local_edits('准确的原始片段。', 'prompt', True, ['准确的原始片段。'])
+        self.assertEqual(revised, '替换后。')
+
     def test_unavailable_audit_blocks(self):
         with tempfile.TemporaryDirectory() as d, patch.object(w,'OUTPUT_DIR',Path(d)), patch.object(r,'context',return_value=('Skill',[])), patch.object(r,'script',return_value={}), patch.object(w,'_json_text',return_value={'issues':[],'reason':'检查','fidelity_ok':True,'readability_ok':True}), patch.object(w,'_text',return_value='原稿。'), patch.object(w,'_anti_ai_audit',return_value={'status':'unavailable'}):
             with self.assertRaises(w.ProviderError): w._review('原稿。',{'id':'test'})

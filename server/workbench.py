@@ -586,6 +586,10 @@ JSON的items要逐项覆盖列表中的每个下标；这只是返回报告覆�
                     'gate':'passed', 'article_sha256':skill_runtime.digest(candidate), 'changed':candidate != article, 'manifest':manifest, 'rounds':records}
             if attempt == 3:
                 break
+            issue_anchors = [
+                str(issue.get('quote') or '') for issue in diagnosis['issues']
+                if isinstance(issue, dict) and str(issue.get('quote') or '').strip()
+            ]
             edit_prompt = f'''{instructions}
 只执行 standard 定向改稿，用户要求优先，不执行任何发布。
 完整需求：{skill_runtime.brief(session)}
@@ -599,8 +603,12 @@ issues为空不表示通过；必须同时修复上述拦截原因。原话保�
 引用原话逐字保留；仅作为修辞的引号可以去掉，但其中的文字不要换成近义表达。
 只修改本轮有具体依据的问题，其余保留。禁止输出整篇文章。
 返回JSON：{{"edits":[{{"before":"当前稿中唯一存在的完整片段","after":"替换后的片段"}}]}}。
-每个before必须逐字来自当前稿且在当前稿中只出现一次；不要改变无关内容。'''
-            edits, revised = _validated_local_edits(candidate, edit_prompt, require_edits=bool(diagnosis['issues'] or blockers))
+优先返回JSON：{{"edits":[{{"issue_index":0,"after":"替换后的片段"}}]}}。
+issue_index 对应以下已由复核定位、逐字来自当前稿的片段列表：{json.dumps(issue_anchors, ensure_ascii=False)}。
+使用 issue_index 时不要自行复述 before；服务端会使用该下标对应的原文片段。每个片段在当前稿中必须唯一；不要改变无关内容。'''
+            edits, revised = _validated_local_edits(
+                candidate, edit_prompt, require_edits=bool(diagnosis['issues'] or blockers), anchors=issue_anchors,
+            )
             records[-1]['edits'] = edits.get('edits',[])
             if revised.strip() == candidate.strip() and diagnosis['issues']:
                 records[-1]['unchanged_with_issues'] = True
@@ -635,7 +643,9 @@ def _quoted_words(text: str) -> list[str]:
     return [value.strip() for value in re.findall(r'[“\"]([^”\"]+)[”\"]|‘([^’]+)’', text) for value in value if value.strip()]
 
 
-def _validated_local_edits(candidate: str, prompt: str, require_edits: bool) -> tuple[dict[str, Any], str]:
+def _validated_local_edits(
+    candidate: str, prompt: str, require_edits: bool, anchors: list[str] | None = None,
+) -> tuple[dict[str, Any], str]:
     errors: list[str] = []
     for _ in range(3):
         correction = '' if not errors else '\n上次返回无效：' + '；'.join(errors) + '。请重新给出可唯一定位且保留引号内原话的edits。'
@@ -647,8 +657,11 @@ def _validated_local_edits(candidate: str, prompt: str, require_edits: bool) -> 
         revised = candidate
         errors = []
         for edit in edit_list:
+            issue_index = edit.get('issue_index') if isinstance(edit, dict) else None
             before = edit.get('before') if isinstance(edit, dict) else None
             after = edit.get('after') if isinstance(edit, dict) else None
+            if isinstance(issue_index, int) and anchors and 0 <= issue_index < len(anchors):
+                before = anchors[issue_index]
             if not isinstance(before, str) or not before or not isinstance(after, str):
                 errors.append('before或after格式错误')
                 continue
