@@ -955,15 +955,40 @@ def _generate_image(prompt: str, output: Path) -> dict[str, Any]:
 
 def _image_plan(session):
     instructions, manifest = skill_runtime.context(SKILL_DIR, ('references/mobile-layout-quality.md',))
-    plan = _json_text(f'''{instructions}
+    base_prompt = f'''{instructions}
 只执行配图策划，不能声称已生成图片。根据完整正文和需求选择封面及3-6张正文图。
 用户有明确数量要求时优先服从。每张图必须说明附近哪句话需要它，插画不能充当真实照片证据。
 需求：{skill_runtime.brief(session)}
 正文：{session['article']}
-返回JSON：{{"reason":"整套视觉思路","images":[{{"kind":"cover或body","section":"正文小标题原文，封面留空","claim":"需要解释的正文原句","caption":"图注，注明AI示意图","prompt":"详细生图提示词，保持整套风格一致，不虚构数据或真实人物记录"}}]}}''')
-    images = plan.get('images') or []
-    if not images or images[0].get('kind') != 'cover' or any(not i.get('prompt') or not i.get('caption') for i in images):
-        raise ProviderError('配图方案缺少封面、提示词或图注')
+返回JSON：{{"reason":"整套视觉思路","images":[{{"kind":"cover或body","section":"正文小标题原文，封面留空","claim":"需要解释的正文原句","caption":"图注，注明AI示意图","prompt":"详细生图提示词，保持整套风格一致，不虚构数据或真实人物记录"}}]}}'''
+    plan: dict[str, Any] = {}
+    errors: list[str] = []
+    for attempt in range(3):
+        repair = ''
+        if attempt:
+            repair = (
+                '\n上次返回虽然是合法JSON，但不符合配图方案结构。'
+                f'具体缺失：{json.dumps(errors, ensure_ascii=False)}。'
+                f'上次JSON：{json.dumps(plan, ensure_ascii=False)}。'
+                '请保留可用内容，补齐缺失字段后重新返回完整JSON对象。'
+            )
+        plan = _json_text(base_prompt + repair)
+        images = plan.get('images') or []
+        errors = []
+        if not images:
+            errors.append('images不能为空')
+        elif images[0].get('kind') != 'cover':
+            errors.append('images第一项必须是kind=cover')
+        for index, image in enumerate(images, 1):
+            if not image.get('prompt'):
+                errors.append(f'images[{index}]缺少prompt')
+            if not image.get('caption'):
+                errors.append(f'images[{index}]缺少caption')
+        if not errors:
+            break
+    if errors:
+        raise ProviderError('配图方案结构连续三次不完整：' + '；'.join(errors))
+    images = plan['images']
     if len(images) > 12:
         raise ProviderError('配图方案超过单次12张，请拆分任务')
     plan.update(status='awaiting_confirmation', article_sha256=skill_runtime.digest(session['article']), manifest=manifest)

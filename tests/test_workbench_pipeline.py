@@ -12,6 +12,18 @@ from server import skill_runtime
 
 
 class PipelineTests(unittest.TestCase):
+    def test_image_plan_retries_schema_without_fabricating_fields(self):
+        invalid = {'reason': '方向', 'images': [{'kind': 'cover', 'prompt': '封面'}]}
+        valid = {'reason': '方向', 'images': [{'kind': 'cover', 'prompt': '封面', 'caption': 'AI示意图'}]}
+        session = {'id': 'test', 'article': '正文。', 'brief': '一张封面'}
+        with patch.object(skill_runtime, 'context', return_value=('Skill', ['SKILL.md'])), \
+             patch.object(w, '_json_text', side_effect=[invalid, valid]) as generate, \
+             patch.object(w, '_record_skill'):
+            plan = w._image_plan(session)
+        self.assertEqual(generate.call_count, 2)
+        self.assertIn('缺少caption', generate.call_args_list[1].args[0])
+        self.assertEqual(plan['images'], valid['images'])
+
     def test_topic_node_must_run_skill_hotspot_script(self):
         topics = [{'title': f'方向{i}', 'type': '观点', 'reason': '可展开', 'heat': 7, 'fan_score': 70, 'competition': '中'} for i in range(10)]
         session = {'skill_execution': []}
