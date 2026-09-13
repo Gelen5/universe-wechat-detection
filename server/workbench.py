@@ -526,7 +526,7 @@ def _review(article: str, session: dict[str, Any]) -> tuple[str, dict[str, Any]]
             retained_fixes = {'保留', '无需修改', '不修改', '保持原样'}
             retained_issues = [
                 issue for issue in diagnosis['issues']
-                if str(issue.get('fix') or '').strip() in retained_fixes
+                if _review_issue_is_retained(issue, retained_fixes)
             ]
             if retained_issues:
                 diagnosis.setdefault('retained_signals', []).extend(retained_issues)
@@ -586,7 +586,7 @@ JSON的items要逐项覆盖列表中的每个下标；这只是返回报告覆�
                     'gate':'passed', 'article_sha256':skill_runtime.digest(candidate), 'changed':candidate != article, 'manifest':manifest, 'rounds':records}
             if attempt == 3:
                 break
-            edits = _json_text(f'''{instructions}
+            edit_prompt = f'''{instructions}
 只执行 standard 定向改稿，用户要求优先，不执行任何发布。
 完整需求：{skill_runtime.brief(session)}
 保护原稿的事实、数字、关系和原话；无来源的事实保留待核验边界，不能补造证据。
@@ -599,13 +599,8 @@ issues为空不表示通过；必须同时修复上述拦截原因。原话保�
 引用原话逐字保留；仅作为修辞的引号可以去掉，但其中的文字不要换成近义表达。
 只修改本轮有具体依据的问题，其余保留。禁止输出整篇文章。
 返回JSON：{{"edits":[{{"before":"当前稿中唯一存在的完整片段","after":"替换后的片段"}}]}}。
-每个before必须逐字来自当前稿；不要改变无关内容。''')
-            revised = candidate
-            for edit in edits.get('edits',[]):
-                before, after = edit.get('before'), edit.get('after')
-                if not isinstance(before,str) or not before or not isinstance(after,str) or revised.count(before) != 1:
-                    raise ProviderError('去 AI 局部修改无法唯一定位，已保留原文')
-                revised = revised.replace(before,after,1)
+每个before必须逐字来自当前稿且在当前稿中只出现一次；不要改变无关内容。'''
+            edits, revised = _validated_local_edits(candidate, edit_prompt, require_edits=bool(diagnosis['issues'] or blockers))
             records[-1]['edits'] = edits.get('edits',[])
             if revised.strip() == candidate.strip() and diagnosis['issues']:
                 records[-1]['unchanged_with_issues'] = True
@@ -622,6 +617,52 @@ issues为空不表示通过；必须同时修复上述拦截原因。原话保�
                       ['check_ai_tone_signals.py', 'check_natural_prose.py', 'audit_revision.py'],
                       'blocked', str(exc))
         raise ProviderError(str(exc)) from exc
+
+
+def _review_issue_is_retained(issue: Any, retained_fixes: set[str]) -> bool:
+    if not isinstance(issue, dict):
+        return False
+    fix = str(issue.get('fix') or '').strip()
+    if fix in retained_fixes:
+        return True
+    if fix:
+        return False
+    reason = str(issue.get('reason') or '').strip()
+    return any(marker in reason for marker in ('无需修改', '无具体问题', '当前版本此处无误', '暂不修改', '保持原样'))
+
+
+def _quoted_words(text: str) -> list[str]:
+    return [value.strip() for value in re.findall(r'[“\"]([^”\"]+)[”\"]|‘([^’]+)’', text) for value in value if value.strip()]
+
+
+def _validated_local_edits(candidate: str, prompt: str, require_edits: bool) -> tuple[dict[str, Any], str]:
+    errors: list[str] = []
+    for _ in range(3):
+        correction = '' if not errors else '\n上次返回无效：' + '；'.join(errors) + '。请重新给出可唯一定位且保留引号内原话的edits。'
+        payload = _json_text(prompt + correction)
+        edit_list = payload.get('edits') if isinstance(payload, dict) else None
+        if not isinstance(edit_list, list) or (require_edits and not edit_list):
+            errors = ['edits为空或不是数组']
+            continue
+        revised = candidate
+        errors = []
+        for edit in edit_list:
+            before = edit.get('before') if isinstance(edit, dict) else None
+            after = edit.get('after') if isinstance(edit, dict) else None
+            if not isinstance(before, str) or not before or not isinstance(after, str):
+                errors.append('before或after格式错误')
+                continue
+            if revised.count(before) != 1:
+                errors.append('before在当前稿中不能唯一定位')
+                continue
+            lost_quotes = [words for words in _quoted_words(before) if words not in after]
+            if lost_quotes:
+                errors.append('after丢失引号内原话：' + '、'.join(lost_quotes))
+                continue
+            revised = revised.replace(before, after, 1)
+        if not errors:
+            return payload, revised
+    raise ProviderError('去 AI 局部修改连续三次无法安全定位，已保留原文：' + '；'.join(errors))
 
 
 def _markdown_prose_for_sentence_audit(text: str) -> str:

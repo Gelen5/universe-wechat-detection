@@ -56,21 +56,17 @@ class PipelineTests(unittest.TestCase):
         good = {'issues': [], 'reason': 'readable', 'fidelity_ok': True, 'readability_ok': True}
         diagnosis = {**good, 'issues': [{'quote': '原话', 'reason': 'style', 'fix': 'outside quote only'}]}
         prompts = []
-        replies = iter([diagnosis, {'edits': [{'before': '“原话”', 'after': '改写'}]}, good,
-                        {'items': [{'index': 0, 'safe': False, 'reason': 'quote changed'}]},
-                        {'edits': [{'before': '改写', 'after': '“原话”'}]}, good])
+        replies = iter([diagnosis, {'edits': [{'before': '“原话”', 'after': '改写'}]},
+                        {'edits': [{'before': '“原话”', 'after': '“原话”。'}]}, good])
         def generate(prompt):
             prompts.append(prompt)
             return next(replies)
-        audits = [{'status': 'success', 'complete_sentence_ratio': 1, 'missing_protected_spans': {}}]
-        audits += [{'status': 'success', 'complete_sentence_ratio': 1, 'missing_protected_spans': {'quoted_text': ['“原话”']}}]
-        audits += [audits[0]]
+        audits = [{'status': 'success', 'complete_sentence_ratio': 1, 'missing_protected_spans': {}}] * 2
         with tempfile.TemporaryDirectory() as directory, patch.object(w, 'OUTPUT_DIR', Path(directory)), patch.object(skill_runtime, 'context', return_value=('Skill', [])), patch.object(skill_runtime, 'script', return_value={}), patch.object(w, '_json_text', side_effect=generate), patch.object(w, '_anti_ai_audit', side_effect=audits):
             article, review = w._review('“原话”', {'id': 'test'})
-        self.assertEqual(article, '“原话”')
+        self.assertEqual(article, '“原话”。')
         self.assertEqual(review['gate'], 'passed')
-        self.assertIn('quote changed', prompts[4])
-        self.assertIn('protected_spans', prompts[4])
+        self.assertIn('丢失引号内原话', prompts[2])
 
     def test_preview_keeps_content_warning_without_blocking_conversion(self):
         from server import skill_preview

@@ -85,6 +85,21 @@ class SkillRuntimeTests(unittest.TestCase):
         self.assertEqual(len(review['rounds'][0]['diagnosis']['retained_signals']), 1)
         edit.assert_not_called()
 
+    def test_review_treats_explicit_no_change_reason_as_retained(self):
+        issue = {'quote': '原句。', 'reason': '当前版本此处无误，无需修改'}
+        self.assertTrue(w._review_issue_is_retained(issue, {'保留', '无需修改'}))
+
+    def test_local_edits_retry_ambiguous_and_preserve_quoted_words(self):
+        candidate = '他说“原话”。他说“原话”。最后一句。'
+        invalid = {'edits': [{'before': '他说“原话”。', 'after': '他说得很直接。'}]}
+        valid = {'edits': [{'before': '最后一句。', 'after': '最后一句更完整。'}]}
+        with patch.object(w, '_json_text', side_effect=[invalid, valid]) as generate:
+            payload, revised = w._validated_local_edits(candidate, 'prompt', require_edits=True)
+        self.assertEqual(payload, valid)
+        self.assertIn('“原话”', revised)
+        self.assertIn('最后一句更完整。', revised)
+        self.assertEqual(generate.call_count, 2)
+
     def test_unavailable_audit_blocks(self):
         with tempfile.TemporaryDirectory() as d, patch.object(w,'OUTPUT_DIR',Path(d)), patch.object(r,'context',return_value=('Skill',[])), patch.object(r,'script',return_value={}), patch.object(w,'_json_text',return_value={'issues':[],'reason':'检查','fidelity_ok':True,'readability_ok':True}), patch.object(w,'_text',return_value='原稿。'), patch.object(w,'_anti_ai_audit',return_value={'status':'unavailable'}):
             with self.assertRaises(w.ProviderError): w._review('原稿。',{'id':'test'})
