@@ -63,7 +63,10 @@ def dispatch_node(workflow_id: str, node_name: str) -> str:
     return result.id
 
 
-@celery_app.task(bind=True, name="workflow.run_node", max_retries=2,
+# External model providers occasionally reset a TLS connection after accepting a
+# request. Keep retries bounded, but give the durable node outbox enough time to
+# recover without treating a transient transport failure as a user failure.
+@celery_app.task(bind=True, name="workflow.run_node", max_retries=4,
                  autoretry_for=(), acks_late=True, reject_on_worker_lost=True,
                  soft_time_limit=NODE_SOFT_TIME_LIMIT, time_limit=NODE_TIME_LIMIT)
 def run_workflow_node(self, workflow_id: str, node_name: str):

@@ -13,7 +13,7 @@ from server import database
 from server.celery_app import celery_app
 from server.models import Base, users_table
 from server import workflow_repository as repo
-from server.workflow_tasks import _is_transient_error, dispatch_node
+from server.workflow_tasks import _is_transient_error, dispatch_node, run_workflow_node
 
 
 class WorkflowTaskChainTests(unittest.TestCase):
@@ -79,6 +79,9 @@ class WorkflowTaskChainTests(unittest.TestCase):
         self.assertTrue(_is_transient_error(TimeoutError("provider timeout")))
         self.assertTrue(_is_transient_error(RuntimeError("provider HTTP 503")))
         self.assertFalse(_is_transient_error(ValueError("invalid user selection")))
+
+    def test_transient_node_retry_budget_is_bounded_but_tolerant(self):
+        self.assertEqual(4, run_workflow_node.max_retries)
 
     def test_recovery_task_uses_the_worker_queue(self):
         routes = celery_app.conf.task_routes
