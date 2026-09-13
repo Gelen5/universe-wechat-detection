@@ -586,10 +586,11 @@ JSON的items要逐项覆盖列表中的每个下标；这只是返回报告覆�
                     'gate':'passed', 'article_sha256':skill_runtime.digest(candidate), 'changed':candidate != article, 'manifest':manifest, 'rounds':records}
             if attempt == 3:
                 break
-            issue_anchors = [
-                str(issue.get('quote') or '') for issue in diagnosis['issues']
+            anchored_issues = [
+                (index, issue) for index, issue in enumerate(diagnosis['issues'])
                 if isinstance(issue, dict) and str(issue.get('quote') or '').strip()
             ]
+            issue_anchors = [str(issue['quote']) for _, issue in anchored_issues]
             edit_prompt = f'''{instructions}
 只执行 standard 定向改稿，用户要求优先，不执行任何发布。
 完整需求：{skill_runtime.brief(session)}
@@ -602,13 +603,26 @@ JSON的items要逐项覆盖列表中的每个下标；这只是返回报告覆�
 issues为空不表示通过；必须同时修复上述拦截原因。原话保护未通过时，把原稿对应原话逐字恢复，不得仅返回空edits。
 引用原话逐字保留；仅作为修辞的引号可以去掉，但其中的文字不要换成近义表达。
 只修改本轮有具体依据的问题，其余保留。禁止输出整篇文章。
-返回JSON：{{"edits":[{{"before":"当前稿中唯一存在的完整片段","after":"替换后的片段"}}]}}。
-优先返回JSON：{{"edits":[{{"issue_index":0,"after":"替换后的片段"}}]}}。
+只返回JSON：{{"edits":[{{"issue_index":0,"after":"替换后的片段"}}],"retained_issue_indexes":[1]}}。
 issue_index 对应以下已由复核定位、逐字来自当前稿的片段列表：{json.dumps(issue_anchors, ensure_ascii=False)}。
-使用 issue_index 时不要自行复述 before；服务端会使用该下标对应的原文片段。每个片段在当前稿中必须唯一；不要改变无关内容。'''
+每个需要修改的问题必须用 issue_index 指向；不要返回 before 字段。服务端会使用该下标对应的原文片段。
+若问题只是修辞且会删改或替换引号内原话，必须把该问题的下标放入 retained_issue_indexes，不得编造替代文本；其余问题必须修改。每个片段在当前稿中必须唯一；不要改变无关内容。'''
             edits, revised = _validated_local_edits(
                 candidate, edit_prompt, require_edits=bool(diagnosis['issues'] or blockers), anchors=issue_anchors,
             )
+            retained_indexes = edits.get('retained_issue_indexes', [])
+            retained_original_indexes = {
+                anchored_issues[index][0] for index in retained_indexes
+                if isinstance(index, int) and 0 <= index < len(anchored_issues)
+            }
+            if retained_original_indexes:
+                retained = [diagnosis['issues'][index] for index in sorted(retained_original_indexes)]
+                diagnosis.setdefault('retained_signals', []).extend(retained)
+                diagnosis['issues'] = [
+                    issue for index, issue in enumerate(diagnosis['issues'])
+                    if index not in retained_original_indexes
+                ]
+                records[-1]['retained_by_protection'] = retained
             records[-1]['edits'] = edits.get('edits',[])
             if revised.strip() == candidate.strip() and diagnosis['issues']:
                 records[-1]['unchanged_with_issues'] = True
@@ -651,8 +665,18 @@ def _validated_local_edits(
         correction = '' if not errors else '\n上次返回无效：' + '；'.join(errors) + '。请重新给出可唯一定位且保留引号内原话的edits。'
         payload = _json_text(prompt + correction)
         edit_list = payload.get('edits') if isinstance(payload, dict) else None
-        if not isinstance(edit_list, list) or (require_edits and not edit_list):
-            errors = ['edits为空或不是数组']
+        retained = payload.get('retained_issue_indexes', []) if isinstance(payload, dict) else []
+        if not isinstance(edit_list, list) or not isinstance(retained, list):
+            errors = ['edits或retained_issue_indexes不是数组']
+            continue
+        if require_edits and not edit_list and not retained:
+            errors = ['edits与retained_issue_indexes均为空']
+            continue
+        if anchors and any(not isinstance(index, int) or not 0 <= index < len(anchors) for index in retained):
+            errors = ['retained_issue_indexes包含无效下标']
+            continue
+        if anchors and any(not _quoted_words(anchors[index]) for index in retained):
+            errors = ['仅含受保护引号原话的问题可以标记保留']
             continue
         revised = candidate
         errors = []
@@ -660,7 +684,10 @@ def _validated_local_edits(
             issue_index = edit.get('issue_index') if isinstance(edit, dict) else None
             before = edit.get('before') if isinstance(edit, dict) else None
             after = edit.get('after') if isinstance(edit, dict) else None
-            if isinstance(issue_index, int) and anchors and 0 <= issue_index < len(anchors):
+            if anchors:
+                if not isinstance(issue_index, int) or not 0 <= issue_index < len(anchors):
+                    errors.append('每条edit必须使用有效issue_index')
+                    continue
                 before = anchors[issue_index]
             if not isinstance(before, str) or not before or not isinstance(after, str):
                 errors.append('before或after格式错误')

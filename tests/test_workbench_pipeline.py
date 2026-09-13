@@ -54,19 +54,18 @@ class PipelineTests(unittest.TestCase):
 
     def test_review_passes_protection_failure_back_to_editor(self):
         good = {'issues': [], 'reason': 'readable', 'fidelity_ok': True, 'readability_ok': True}
-        diagnosis = {**good, 'issues': [{'quote': '原话', 'reason': 'style', 'fix': 'outside quote only'}]}
+        diagnosis = {**good, 'issues': [{'quote': '“原话”', 'reason': 'style', 'fix': 'outside quote only'}]}
         prompts = []
-        replies = iter([diagnosis, {'edits': [{'before': '“原话”', 'after': '改写'}]},
-                        {'edits': [{'before': '“原话”', 'after': '“原话”。'}]}, good])
+        replies = iter([diagnosis, {'edits': [], 'retained_issue_indexes': [0]}, good])
         def generate(prompt):
             prompts.append(prompt)
             return next(replies)
         audits = [{'status': 'success', 'complete_sentence_ratio': 1, 'missing_protected_spans': {}}] * 2
         with tempfile.TemporaryDirectory() as directory, patch.object(w, 'OUTPUT_DIR', Path(directory)), patch.object(skill_runtime, 'context', return_value=('Skill', [])), patch.object(skill_runtime, 'script', return_value={}), patch.object(w, '_json_text', side_effect=generate), patch.object(w, '_anti_ai_audit', side_effect=audits):
             article, review = w._review('“原话”', {'id': 'test'})
-        self.assertEqual(article, '“原话”。')
+        self.assertEqual(article, '“原话”')
         self.assertEqual(review['gate'], 'passed')
-        self.assertIn('丢失引号内原话', prompts[2])
+        self.assertEqual(review['rounds'][0]['retained_by_protection'][0]['quote'], '“原话”')
 
     def test_preview_keeps_content_warning_without_blocking_conversion(self):
         from server import skill_preview
