@@ -86,6 +86,36 @@ class WorkbenchTypesetTests(unittest.TestCase):
             finally:
                 workbench.OUTPUT_DIR = old_output
 
+    def test_article_markdown_places_images_after_their_claims_in_plan_order(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            old_output = workbench.OUTPUT_DIR
+            workbench.OUTPUT_DIR = Path(temp_dir)
+            try:
+                session_id = "image-claim-placement"
+                image_dir = workbench.OUTPUT_DIR / session_id / "images"
+                image_dir.mkdir(parents=True)
+                for name in ("cover.jpg", "body-2.jpg", "body-3.jpg"):
+                    (image_dir / name).write_bytes(name.encode())
+                article = "第一段，解释厨房里的冲突。\n\n第二段，家人坐在电视前。\n\n第三段，最后回到两个人的选择。"
+                markdown = workbench._build_article_markdown({
+                    "id": session_id, "topic": "标题", "theme": "default", "article": article,
+                    "image_plan": {"images": [
+                        {"kind": "cover", "caption": "封面"},
+                        {"kind": "body", "claim": "家人坐在电视前", "caption": "图二"},
+                        {"kind": "body", "claim": "最后回到两个人的选择", "caption": "图三"},
+                    ]},
+                    "images": [
+                        {"kind": "cover", "file": "cover.jpg", "plan_index": 1},
+                        {"kind": "body", "file": "body-3.jpg", "plan_index": 3},
+                        {"kind": "body", "file": "body-2.jpg", "plan_index": 2},
+                    ],
+                })
+                self.assertLess(markdown.find("家人坐在电视前"), markdown.find("图二"))
+                self.assertLess(markdown.find("图二"), markdown.find("最后回到两个人的选择"))
+                self.assertLess(markdown.find("最后回到两个人的选择"), markdown.find("图三"))
+            finally:
+                workbench.OUTPUT_DIR = old_output
+
 
 if __name__ == "__main__":
     unittest.main()

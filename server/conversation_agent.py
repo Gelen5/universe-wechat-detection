@@ -85,6 +85,15 @@ def deterministic_workbench_intent(session, message):
     has_layout = '排版' in text or '格式' in text
     no_image = any(token in text for token in ('不要图片', '不需要图片', '不使用图片', '无图'))
     direct = any(token in text for token in ('直接排版', '只排版', '仅排版'))
+    # Re-typesetting is a formatting-only operation. Keep it deterministic so
+    # short commands such as "重新排版" never fall through to rewrite intent.
+    rerender = any(token in text for token in (
+        '重新排版', '再次排版', '排版一下', '重新整理排版', '把排版重新做',
+    ))
+    if rerender and no_image:
+        return {'action': 'typeset', 'image_policy': 'none', 'reply': ''}
+    if rerender:
+        return {'action': 'typeset', 'image_policy': 'keep', 'reply': ''}
     if has_layout and no_image and direct:
         return {'action': 'typeset', 'image_policy': 'none', 'reply': ''}
     if has_layout and direct:

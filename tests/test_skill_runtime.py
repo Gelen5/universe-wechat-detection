@@ -44,6 +44,8 @@ class SkillRuntimeTests(unittest.TestCase):
         review.assert_not_called()
         self.assertEqual(result['article'], '修改稿')
         self.assertIsNone(result['review'])
+        self.assertRegex(result['preview_url'], r'^/api/workbench/preview/test\?v=[0-9a-f]{16}$')
+        self.assertRegex(result['html_download_url'], r'^/api/workbench/html/test\?v=[0-9a-f]{16}$')
 
     def test_brief_survives_topic_selection(self):
         self.assertIn('800—1000字', r.brief({'topic':'选中标题','conversation':[{'role':'user','content':'800—1000字'}]}))

@@ -49,6 +49,10 @@ class ConversationDecisionTests(unittest.TestCase):
         result = deterministic_workbench_intent({'current_step': 7}, '换个排版主题')
         self.assertEqual(result['action'], 'change_theme')
 
+    def test_rerender_command_is_deterministic_and_keeps_images(self):
+        result = deterministic_workbench_intent({'current_step': 7}, '重新排版，保留之前生成的图片')
+        self.assertEqual(result, {'action': 'typeset', 'image_policy': 'keep', 'reply': ''})
+
     def test_context_and_explicit_no_images_reach_decision(self):
         generate = Mock(return_value={'action': 'typeset', 'image_policy': 'none'})
         result = decide({'article': 'approved draft', 'current_step': 5,

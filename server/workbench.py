@@ -831,7 +831,18 @@ def _build_article_markdown(session: dict[str, Any]) -> str:
     """
     image_markdown = []
     image_dir = OUTPUT_DIR / session["id"] / "images"
-    for image in session.get("images", []):
+    plan_images = (session.get('image_plan') or {}).get('images') or []
+    plan_by_index = {
+        index: spec for index, spec in enumerate(plan_images, 1)
+        if isinstance(spec, dict)
+    }
+    # Worker completion order is not presentation order. Always rebuild the
+    # visual sequence from plan_index so a late image cannot move earlier art.
+    images = sorted(
+        session.get("images", []),
+        key=lambda item: (0 if item.get('kind') == 'cover' else 1, int(item.get('plan_index') or 9999)),
+    )
+    for image in images:
         label = "文章封面" if image["kind"] == "cover" else "正文配图"
         image_path = image_dir / str(image.get("file") or "")
         source = image.get("url") or image.get("remote_url") or ""
@@ -841,33 +852,64 @@ def _build_article_markdown(session: dict[str, Any]) -> str:
             source = f"data:{mime};base64,{encoded}"
         if not image_path.is_file():
             raise ProviderError('配图缺少本地文件，不能生成带裂图的预览')
-        caption = image.get('caption') or label
+        spec = plan_by_index.get(int(image.get('plan_index') or 0), {})
+        caption = image.get('caption') or spec.get('caption') or label
         caption = re.sub(r'^(?:图注[：:]\s*)+', '', caption)
-        image_markdown.append((f"![{label}]({source})\n\n图注：{caption}", image.get('section','')))
+        image_markdown.append((
+            f"![{label}]({source})\n\n图注：{caption}",
+            image.get('section') or spec.get('section', ''),
+            image.get('claim') or spec.get('claim', ''),
+            int(image.get('plan_index') or 0),
+        ))
     cover = image_markdown[0][0] if image_markdown else ""
-    body_images = image_markdown[1:]
+    body_images = [item for item in image_markdown if item[0] != cover]
     article = str(session.get("article") or "").strip()
     heading = f"# {session['topic']}"
     if article.startswith("#"):
         article = article.split("\n", 1)[1].lstrip() if "\n" in article else ""
-    # Keep the cover below the title and place body art inside the reading flow.
-    # The first section boundary is a stable, understandable insertion point.
-    for body_image, anchor in body_images:
-        section = re.search(r'(?m)^##\s+' + re.escape(anchor) + r'\s*$', article) if anchor else re.search(r"(?m)^##\s+", article)
-        if section:
-            insertion = section.start()
-            if anchor:
-                paragraph_start = section.end()
-                while paragraph_start < len(article) and article[paragraph_start].isspace():
-                    paragraph_start += 1
-                paragraph_end = article.find('\n\n', paragraph_start)
-                insertion = paragraph_end if paragraph_end >= 0 else len(article)
-            article = f"{article[:insertion].rstrip()}\n\n{body_image}\n\n{article[insertion:].lstrip()}"
-        else:
-            paragraphs = article.split("\n\n")
-            insertion = max(1, min(len(paragraphs), len(paragraphs) // 2))
-            paragraphs.insert(insertion, body_image)
-            article = "\n\n".join(paragraphs)
+    # Keep the cover below the title and place body art at the paragraph it
+    # explains. Positions are calculated against the original article, then
+    # applied backwards so earlier insertions cannot shift later anchors.
+    def anchor_text(value: Any) -> str:
+        return re.sub(r'\s+', '', re.sub(r'^[#>\-*\s]+', '', str(value or '')))
+
+    def paragraph_ranges(source: str) -> list[tuple[int, int, str]]:
+        ranges = []
+        offset = 0
+        for block in source.split('\n\n'):
+            text = block.strip()
+            if not text:
+                offset += len(block) + 2
+                continue
+            start = source.find(text, offset)
+            end = start + len(text)
+            ranges.append((start, end, text))
+            offset = end + 2
+        return ranges
+
+    def insertion_for(body: tuple[str, str, str, int], ordinal: int) -> int:
+        _, section, claim, _ = body
+        ranges = paragraph_ranges(article)
+        claim_key = anchor_text(claim)
+        if claim_key:
+            for start, end, text in ranges:
+                if claim_key in anchor_text(text):
+                    return end
+        section_key = anchor_text(section)
+        if section_key:
+            for index, (start, end, text) in enumerate(ranges):
+                heading_key = anchor_text(re.sub(r'^#+\s*', '', text))
+                if heading_key == section_key or section_key in heading_key:
+                    return ranges[index + 1][1] if index + 1 < len(ranges) else end
+        target = round((ordinal + 1) * len(ranges) / (len(body_images) + 1))
+        if ranges:
+            return ranges[max(0, min(len(ranges) - 1, target - 1))][1]
+        return len(article)
+
+    placements = [(insertion_for(body, ordinal), body[0])
+                  for ordinal, body in enumerate(body_images)]
+    for insertion, body_image in sorted(placements, key=lambda item: item[0], reverse=True):
+        article = f"{article[:insertion].rstrip()}\n\n{body_image}\n\n{article[insertion:].lstrip()}"
     article = _skill_dsl_article(article, session.get("layout_plan"))
     return (
         f"---\ntitle: '{session['topic'].replace(chr(39), '')}'\ntheme: {session['theme']}\n"
@@ -1106,7 +1148,9 @@ def _images(session: dict[str, Any]) -> list[dict[str, Any]]:
         image = _generate_image(prompt, output_dir / f"{kind}-{index}.jpg")
         if not image.get('file'):
             raise ProviderError('图片尚未下载成功，不能进入排版；请重试当前步骤')
-        image.update({"kind": kind, 'plan_index':index, 'section':spec.get('section',''), 'caption':spec['caption'], "url": f"/api/workbench/assets/{session['id']}/{image['file']}"})
+        image.update({"kind": kind, 'plan_index':index, 'section':spec.get('section',''),
+                     'claim': spec.get('claim',''), 'caption':spec['caption'],
+                     "url": f"/api/workbench/assets/{session['id']}/{image['file']}"})
         result.append(image)
         session['images'] = result
         _save_session(session)
@@ -1329,11 +1373,17 @@ def chat(session_id: str, message: str, action: str = "auto", selection_text: st
             # Formatting existing text must never draft, review-rewrite or generate images.
             if session.get('image_policy') == 'none' and not _skill_step_passed(session, 5):
                 _record_skill(session, 5, '配图节点按用户选择跳过', [], [], 'skipped', '当前任务选择仅输出正文，不生成图片')
+            previous_step = int(session.get('current_step', 1))
             _typeset(session)
-            session['current_step'] = 6
-            session['status'] = 'ready_for_review'
+            if previous_step >= 7:
+                _preview_session(session)
+                session['current_step'] = 7
+                session['status'] = 'ready_for_delivery'
+            else:
+                session['current_step'] = 6
+                session['status'] = 'ready_for_review'
             _require_skill_steps(session, 6)
-            reply = '已用现有正文排版，正文没有改写。' + ('本次不使用图片。' if session.get('image_policy') == 'none' else '保留已生成的图片。')
+            reply = '已用现有正文重新排版，正文没有改写。' + ('本次不使用图片。' if session.get('image_policy') == 'none' else '保留已生成的图片。')
         else:
             _advance(session, target)
             reply = '已完成当前操作。' + ('这篇文章不使用图片。' if session.get('image_policy') == 'none' else '')
@@ -1506,8 +1556,11 @@ def _preview_session(session, article=None):
     output_dir.mkdir(parents=True, exist_ok=True)
     html = output_dir / "preview.html"
     html.write_text(session["preview_document"], encoding="utf-8")
-    session["preview_url"] = f"/api/workbench/preview/{session_id}"
-    session["html_download_url"] = f"/api/workbench/html/{session_id}"
+    # The file is rewritten in place after re-typesetting. Add a content
+    # version so browser tabs cannot keep showing the previous HTML document.
+    preview_version = skill_runtime.digest(session["preview_document"])[:16]
+    session["preview_url"] = f"/api/workbench/preview/{session_id}?v={preview_version}"
+    session["html_download_url"] = f"/api/workbench/html/{session_id}?v={preview_version}"
     session["current_step"] = 7
     _record_skill(session, 7, '预览 Skill：复用正式排版产物生成手机端预览与下载文件',
                   (session.get('layout_plan') or {}).get('manifest') or [], ['preview.html'], 'passed', '预览文件已生成')

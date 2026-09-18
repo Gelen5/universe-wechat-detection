@@ -118,6 +118,26 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(session['images'], [{'url': '/old.jpg'}])
         save.assert_called_once()
 
+    def test_plain_rerender_chat_command_runs_typeset_and_keeps_assets(self):
+        article = '已确认正文。'
+        session = {'id': 'rerender', 'current_step': 7, 'article': article,
+                   'framework': {}, 'images': [{'url': '/saved.jpg'}],
+                   'review': {'gate': 'passed', 'article_sha256': skill_runtime.digest(article)},
+                   'typeset_html': 'old', 'preview_document': 'old', 'conversation': []}
+        def typeset(current):
+            current['typeset_html'] = 'rerendered'
+        with patch.object(w, '_get_session', return_value=session), \
+             patch.object(w, '_save_session') as save, \
+             patch.object(w, '_typeset', side_effect=typeset), \
+             patch.object(w, '_preview_session') as preview:
+            result = w.chat('rerender', '重新排版', user_id='user')
+        saved = save.call_args.args[0]
+        self.assertEqual(saved['typeset_html'], 'rerendered')
+        self.assertEqual(result['images'], [{'url': '/saved.jpg'}])
+        self.assertEqual(result['current_step'], 7)
+        preview.assert_called_once()
+        save.assert_called_once()
+
     def test_changing_theme_keeps_layout_node_and_article_assets(self):
         article = "已经确认的正文。"
         session = {
