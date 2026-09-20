@@ -28,6 +28,11 @@
   let source = null;
   let selectedMode = 'manual';
   let renderedEventIds = new Set();
+  let currentArtifact = null;
+  let editableArtifacts = [];
+  let artifactIndex = -1;
+  let saveTimer = null;
+  let editSequence = 0;
 
   const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, char => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;',
@@ -94,17 +99,29 @@
     return ({ article: '文章', outline: '框架', topic: '选题', image: '图片', report: '报告', html: 'HTML', markdown: 'Markdown' })[item.type] || item.type;
   }
 
+  function showArtifact(item) {
+    if (!item) return;
+    currentArtifact = item;
+    artifactIndex = editableArtifacts.findIndex(candidate => candidate.id === item.id);
+    title.textContent = item.title || artifactKind(item);
+    editor.value = item.content || '';
+    editor.readOnly = item.type === 'image';
+    versionLabel.textContent = `${artifactKind(item)} · V${item.version}`;
+  }
+
   function renderArtifacts(artifacts) {
     const ordered = [...artifacts].sort((a, b) =>
       String(a.updated_at || a.created_at || '').localeCompare(String(b.updated_at || b.created_at || '')));
-    const current = ordered.at(-1);
+    editableArtifacts = ordered.filter(item => ['article', 'markdown', 'html', 'report', 'topic'].includes(item.type));
+    const current = editableArtifacts.at(-1) || ordered.at(-1);
     if (!current) {
+      currentArtifact = null;
       title.textContent = '作品会在这里出现'; editor.value = '';
+      editor.readOnly = true;
       artifactList.innerHTML = '<p class="empty-artifact">当前对话还没有作品</p>';
       return;
     }
-    title.textContent = current.title || artifactKind(current);
-    editor.value = current.content || '';
+    showArtifact(current);
     saveState.textContent = '已保存到当前对话';
     versionLabel.textContent = `${artifactKind(current)} · V${current.version}`;
     changeLabel.textContent = '每次修改都会保留历史版本';
@@ -116,8 +133,7 @@
     artifactList.querySelectorAll('[data-artifact-id]').forEach(button => button.addEventListener('click', () => {
       const item = ordered.find(candidate => candidate.id === button.dataset.artifactId);
       if (!item) return;
-      editor.value = item.content || ''; title.textContent = item.title || artifactKind(item);
-      versionLabel.textContent = `${artifactKind(item)} · V${item.version}`;
+      showArtifact(item);
     }));
     const imageArtifacts = ordered.filter(item => item.type === 'image' && item.storage_url);
     images.hidden = !imageArtifacts.length;
@@ -132,6 +148,21 @@
       api(`/api/conversations/${encodeURIComponent(conversation.id)}/artifacts`),
     ]);
     renderMessages(messages.messages || []); renderArtifacts(artifacts.artifacts || []);
+  }
+
+  async function saveArtifactEdit(sequence, artifact, content) {
+    try {
+      const data = await api(`/api/artifacts/${encodeURIComponent(artifact.id)}/versions`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content }),
+      });
+      if (sequence !== editSequence) return;
+      currentArtifact = data.artifact;
+      saveState.textContent = '已保存新版本';
+      await refresh();
+    } catch (error) {
+      if (sequence === editSequence) saveState.textContent = `保存失败：${error.message}`;
+    }
   }
 
   async function ensureConversation() {
@@ -240,10 +271,50 @@
     input.value = selection ? `${button.dataset.rewriteSelection}：\n\n${selection}` : button.dataset.rewriteSelection;
     input.focus();
   });
+  captureClick('#version-back', () => {
+    if (!editableArtifacts.length) return;
+    showArtifact(editableArtifacts[Math.max(0, artifactIndex - 1)]);
+  });
+  captureClick('#version-forward', () => {
+    if (!editableArtifacts.length) return;
+    showArtifact(editableArtifacts[Math.min(editableArtifacts.length - 1, artifactIndex + 1)]);
+  });
+  captureClick('#edit-current', () => {
+    if (!currentArtifact || editor.readOnly) return;
+    editor.focus();
+  });
+  captureClick('#copy-current-artifact', async () => {
+    if (!currentArtifact) return;
+    try {
+      await navigator.clipboard.writeText(editor.value || currentArtifact.content || '');
+      saveState.textContent = '已复制当前作品';
+    } catch { saveState.textContent = '浏览器未允许复制'; }
+  });
+  captureClick('#download-current-artifact', () => {
+    if (!currentArtifact) return;
+    const extension = currentArtifact.type === 'html' ? 'html' : currentArtifact.type === 'markdown' ? 'md' : 'txt';
+    const blob = new Blob([editor.value || currentArtifact.content || ''], {
+      type: currentArtifact.type === 'html' ? 'text/html;charset=utf-8' : 'text/plain;charset=utf-8',
+    });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${currentArtifact.title || 'artifact'}.${extension}`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(link.href), 0);
+  });
   input.addEventListener('keydown', event => {
     if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
     event.preventDefault(); event.stopImmediatePropagation(); submit();
   }, true);
+  editor.addEventListener('input', () => {
+    if (!currentArtifact || editor.readOnly || editor.value === (currentArtifact.content || '')) return;
+    clearTimeout(saveTimer);
+    const sequence = ++editSequence;
+    const artifact = currentArtifact;
+    const content = editor.value;
+    saveState.textContent = '正在保存修改…';
+    saveTimer = setTimeout(() => saveArtifactEdit(sequence, artifact, content), 900);
+  });
 
   root.querySelector('#workflow-steps')?.setAttribute('hidden', '');
   root.querySelector('.studio-switch')?.setAttribute('hidden', '');

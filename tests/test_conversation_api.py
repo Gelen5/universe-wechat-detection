@@ -3,16 +3,22 @@ from __future__ import annotations
 import uuid
 import unittest
 import tempfile
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 
 from tests import support  # noqa: F401
 from server import conversation_repository, database
+from server.agent.orchestrator import AgentOrchestrator
+from server.agent.tool_loop import ExecutableTool
+from server.agent_tasks import execute_agent_run
+from server.celery_app import celery_app
 from server.main import app
-from server.models import Base, Wallet
+from server.models import Base, ToolCall, UsageRecord, Wallet
+from server.providers import ModelService, ProviderResponse, ToolInvocation
 from server.rate_limit import LimitResult
+from server.skills.registry import get_registry
 
 
 class ConversationApiTests(unittest.TestCase):
@@ -71,6 +77,54 @@ class ConversationApiTests(unittest.TestCase):
         dispatch.assert_called_once()
         history = self.client.get(f"/api/conversations/{conversation['id']}/messages").json()["messages"]
         self.assertEqual(1, len([item for item in history if item["role"] == "user"]))
+
+    def test_message_to_worker_tool_artifact_and_assistant_end_to_end(self):
+        conversation = self.create()
+        service = MagicMock(spec=ModelService)
+        service.create_response.side_effect = [
+            ProviderResponse(tool_calls=(ToolInvocation(
+                "e2e-write", "write_article", {"topic": "普通人如何使用 AI"},
+            ),)),
+            ProviderResponse(text="文章已完成并保存。"),
+        ]
+        orchestrator = AgentOrchestrator(
+            registry=get_registry(), model_service=service,
+            tool_resolver=lambda *_: {"write_article": ExecutableTool(
+                {"name": "write_article", "description": "write", "parameters": {"type": "object"}},
+                lambda args: {"title": args["topic"], "article": "完整文章正文"},
+            )},
+        )
+        previous_eager = celery_app.conf.task_always_eager
+        celery_app.conf.task_always_eager = True
+        celery_app.conf.task_eager_propagates = True
+
+        def execute_now(run_id):
+            return execute_agent_run.apply(args=[run_id]).get()["status"]
+
+        try:
+            with patch("server.agent_tasks._orchestrator_factory", return_value=orchestrator), \
+                 patch("server.conversation_api.dispatch_run", side_effect=execute_now):
+                response = self.client.post(
+                    f"/api/conversations/{conversation['id']}/messages",
+                    headers={"Idempotency-Key": uuid.uuid4().hex},
+                    json={"content": "帮我写一篇普通人如何使用 AI 的公众号文章"},
+                )
+        finally:
+            celery_app.conf.task_always_eager = previous_eager
+        self.assertEqual(202, response.status_code, response.text)
+        run_id = response.json()["run_id"]
+        self.assertEqual("completed", self.client.get(f"/api/runs/{run_id}").json()["run"]["status"])
+        messages = self.client.get(
+            f"/api/conversations/{conversation['id']}/messages"
+        ).json()["messages"]
+        self.assertEqual(["user", "assistant"], [item["role"] for item in messages])
+        artifacts = self.client.get(
+            f"/api/conversations/{conversation['id']}/artifacts"
+        ).json()["artifacts"]
+        self.assertEqual("完整文章正文", artifacts[0]["content"])
+        with database.session_scope() as db:
+            self.assertEqual("completed", db.query(ToolCall).filter_by(run_id=run_id).one().status)
+            self.assertEqual("completed", db.query(UsageRecord).filter_by(run_id=run_id).one().status)
 
     def test_send_enforces_distributed_rate_limit_before_charge(self):
         conversation = self.create()
