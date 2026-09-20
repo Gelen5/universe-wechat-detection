@@ -19,6 +19,7 @@ from . import creator_tools, creator_conversation
 from . import workbench
 from . import database
 from .workflow_api import router as workflow_router
+from .conversation_api import router as conversation_router
 from .workflow_events import redis_ready
 
 
@@ -38,6 +39,7 @@ database.ensure_local_workflow_schema()
 accounts.recover_interrupted_workbench_jobs()
 database.require_postgres_in_production()
 app.include_router(workflow_router)
+app.include_router(conversation_router)
 
 
 @app.middleware("http")

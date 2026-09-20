@@ -38,6 +38,14 @@ def get_conversation(conversation_id: str, user_id: str) -> dict[str, Any] | Non
         return _conversation_view(row) if row else None
 
 
+def list_conversations(user_id: str, *, limit: int = 50) -> list[dict[str, Any]]:
+    with session_scope() as db:
+        rows = db.scalars(select(Conversation).where(
+            Conversation.user_id == user_id,
+        ).order_by(Conversation.updated_at.desc()).limit(min(max(limit, 1), 100))).all()
+        return [_conversation_view(row) for row in rows]
+
+
 def add_message(conversation_id: str, user_id: str, role: str, content: str, *,
                 content_json: dict[str, Any] | None = None,
                 metadata: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -106,6 +114,45 @@ def create_run(conversation_id: str, user_id: str, trigger_message_id: str,
             if not row:
                 raise
             return _run_view(row), True
+
+
+def create_message_run(conversation_id: str, user_id: str, content: str,
+                       idempotency_key: str, *, content_json: dict[str, Any] | None = None,
+                       metadata: dict[str, Any] | None = None) -> tuple[dict[str, Any], dict[str, Any], bool]:
+    """Atomically persist one user message and its Run under one idempotency key."""
+    try:
+        with session_scope() as db:
+            existing = db.scalar(select(AgentRun).where(
+                AgentRun.user_id == user_id, AgentRun.idempotency_key == idempotency_key,
+            ))
+            if existing:
+                message = db.get(ConversationMessage, existing.trigger_message_id)
+                return _message_view(message), _run_view(existing), True
+            conversation = db.scalar(select(Conversation).where(
+                Conversation.id == conversation_id, Conversation.user_id == user_id,
+            ).with_for_update())
+            if not conversation:
+                raise KeyError("conversation not found")
+            now = _now()
+            message = ConversationMessage(id=uuid.uuid4().hex, conversation_id=conversation_id,
+                role="user", content=content, content_json=content_json or {},
+                metadata_json=metadata or {}, created_at=now)
+            run = AgentRun(id=uuid.uuid4().hex, conversation_id=conversation_id,
+                trigger_message_id=message.id, user_id=user_id, skill_id=conversation.skill_id,
+                idempotency_key=idempotency_key, status="queued", created_at=now, updated_at=now)
+            conversation.updated_at = now
+            db.add_all((message, run))
+            db.flush()
+            return _message_view(message), _run_view(run), False
+    except IntegrityError:
+        with session_scope() as db:
+            run = db.scalar(select(AgentRun).where(
+                AgentRun.user_id == user_id, AgentRun.idempotency_key == idempotency_key,
+            ))
+            if not run:
+                raise
+            message = db.get(ConversationMessage, run.trigger_message_id)
+            return _message_view(message), _run_view(run), True
 
 
 def get_run(run_id: str, user_id: str) -> dict[str, Any] | None:
@@ -182,6 +229,34 @@ def recover_stale_runs(stale_seconds: int = 720) -> list[str]:
             row.updated_at = _now()
             recovered.append(row.id)
     return recovered
+
+
+def cancel_run(run_id: str, user_id: str) -> dict[str, Any]:
+    with session_scope() as db:
+        row = db.scalar(select(AgentRun).where(
+            AgentRun.id == run_id, AgentRun.user_id == user_id,
+        ).with_for_update())
+        if not row:
+            raise KeyError("run not found")
+        if row.status in {"completed", "failed", "cancelled"}:
+            return _run_view(row)
+        now = _now()
+        row.status, row.finished_at, row.updated_at, row.heartbeat_at = "cancelled", now, now, now
+        row.celery_task_id = None
+        return _run_view(row)
+
+
+def list_artifacts(conversation_id: str, user_id: str) -> list[dict[str, Any]]:
+    with session_scope() as db:
+        owner = db.scalar(select(Conversation.id).where(
+            Conversation.id == conversation_id, Conversation.user_id == user_id,
+        ))
+        if not owner:
+            raise KeyError("conversation not found")
+        rows = db.scalars(select(Artifact).where(
+            Artifact.conversation_id == conversation_id, Artifact.user_id == user_id,
+        ).order_by(Artifact.type, Artifact.version)).all()
+        return [_artifact_view(row) for row in rows]
 
 
 def create_tool_call(run_id: str, user_id: str, *, call_id: str, skill_id: str | None,
