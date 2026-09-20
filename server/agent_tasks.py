@@ -31,12 +31,9 @@ def execute_agent_run(self, run_id: str):
     if not claimed:
         return {"status": "ignored", "reason": "already claimed or terminal"}
     notify(run_id)
-    if _orchestrator_factory is None:
-        conversation_repository.transition_run(run_id, claimed["user_id"], "failed",
-                                               error_code="orchestrator_unconfigured",
-                                               error_message="agent orchestrator is not configured")
-        return {"status": "failed", "error": "orchestrator_unconfigured"}
     try:
+        if _orchestrator_factory is None:
+            raise RuntimeError("agent orchestrator is not configured")
         return _orchestrator_factory().execute(run_id, claimed["user_id"], task_id=self.request.id)
     except ProviderRequestError as exc:
         if exc.transient and self.request.retries < self.max_retries:
@@ -44,6 +41,20 @@ def execute_agent_run(self, run_id: str):
             conversation_repository.transition_run(run_id, claimed["user_id"], "queued",
                                                    error_code=exc.code, error_message=str(exc), task_id=self.request.id)
             raise self.retry(exc=exc, countdown=min(30, 2 ** (self.request.retries + 1)))
+        current = conversation_repository.get_run(run_id, claimed["user_id"])
+        if current and current["status"] not in {"completed", "failed", "cancelled"}:
+            conversation_repository.transition_run(
+                run_id, claimed["user_id"], "failed", error_code=exc.code,
+                error_message=str(exc), task_id=self.request.id,
+            )
+        raise
+    except Exception as exc:
+        current = conversation_repository.get_run(run_id, claimed["user_id"])
+        if current and current["status"] not in {"completed", "failed", "cancelled"}:
+            conversation_repository.transition_run(
+                run_id, claimed["user_id"], "failed", error_code=type(exc).__name__,
+                error_message=str(exc), task_id=self.request.id,
+            )
         raise
 
 

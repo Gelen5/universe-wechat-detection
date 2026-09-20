@@ -1,21 +1,46 @@
 from __future__ import annotations
 
+import time
 from typing import Any
 
 from .base import ModelProvider, ProviderResponse
 
 
 class ModelService:
-    def __init__(self, text_provider: ModelProvider, image_provider: ModelProvider | None = None):
+    def __init__(self, text_provider: ModelProvider, image_provider: ModelProvider | None = None,
+                 usage_recorder=None):
         self.text_provider = text_provider
         self.image_provider = image_provider or text_provider
+        self.usage_recorder = usage_recorder
 
     def create_response(self, messages: list[dict[str, Any]], *, tools: list[dict[str, Any]] | None = None,
-                        timeout: int = 120, idempotency_key: str | None = None) -> ProviderResponse:
-        return self.text_provider.create_response(messages, tools=tools, timeout=timeout,
-                                                  idempotency_key=idempotency_key)
+                        timeout: int = 120, idempotency_key: str | None = None,
+                        run_id: str | None = None, user_id: str | None = None) -> ProviderResponse:
+        started = time.monotonic()
+        response = self.text_provider.create_response(
+            messages, tools=tools, timeout=timeout, idempotency_key=idempotency_key)
+        if self.usage_recorder and run_id and user_id:
+            self.usage_recorder({
+                "run_id": run_id, "user_id": user_id,
+                "provider": type(self.text_provider).__name__,
+                "model": getattr(self.text_provider, "text_model", "unknown"),
+                "input_tokens": response.input_tokens, "output_tokens": response.output_tokens,
+                "image_count": 0, "latency_ms": int((time.monotonic() - started) * 1000),
+            })
+        return response
 
     def generate_image(self, prompt: str, *, size: str, count: int = 1,
-                       timeout: int = 300, idempotency_key: str | None = None) -> dict[str, Any]:
-        return self.image_provider.generate_image(prompt, size=size, count=count, timeout=timeout,
-                                                  idempotency_key=idempotency_key)
+                       timeout: int = 300, idempotency_key: str | None = None,
+                       run_id: str | None = None, user_id: str | None = None) -> dict[str, Any]:
+        started = time.monotonic()
+        result = self.image_provider.generate_image(
+            prompt, size=size, count=count, timeout=timeout, idempotency_key=idempotency_key)
+        if self.usage_recorder and run_id and user_id:
+            self.usage_recorder({
+                "run_id": run_id, "user_id": user_id,
+                "provider": type(self.image_provider).__name__,
+                "model": getattr(self.image_provider, "image_model", "unknown"),
+                "input_tokens": 0, "output_tokens": 0, "image_count": count,
+                "latency_ms": int((time.monotonic() - started) * 1000),
+            })
+        return result

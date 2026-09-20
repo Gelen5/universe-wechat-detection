@@ -20,7 +20,8 @@ class SkillRouter:
         self.registry = registry
         self.model_service = model_service
 
-    def route(self, message: str, *, mode: str, bound_skill_id: str | None = None) -> RouteDecision:
+    def route(self, message: str, *, mode: str, bound_skill_id: str | None = None,
+              run_id: str | None = None, user_id: str | None = None) -> RouteDecision:
         if mode == "manual":
             if not bound_skill_id:
                 raise ValueError("manual conversation has no bound Skill")
@@ -35,7 +36,7 @@ class SkillRouter:
         response = self.model_service.create_response([
             {"role": "system", "content": "Choose exactly one Skill from the catalog. Return JSON with skill_id, confidence from 0 to 1, reason. If uncertain set skill_id null."},
             {"role": "user", "content": json.dumps({"message": message, "skills": catalog}, ensure_ascii=False)},
-        ], timeout=30)
+        ], timeout=30, run_id=run_id, user_id=user_id)
         try:
             data = json.loads(response.text)
         except json.JSONDecodeError:

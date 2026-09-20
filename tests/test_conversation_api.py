@@ -11,7 +11,7 @@ from sqlalchemy.orm import sessionmaker
 from tests import support  # noqa: F401
 from server import conversation_repository, database
 from server.main import app
-from server.models import Base
+from server.models import Base, Wallet
 
 
 class ConversationApiTests(unittest.TestCase):
@@ -25,6 +25,13 @@ class ConversationApiTests(unittest.TestCase):
             "email": "admin@example.com", "password": "testing-pass-123"})
         assert response.status_code == 200, response.text
         self.user_id = response.json()["user"]["id"]
+        with database.session_scope() as db:
+            wallet = db.get(Wallet, self.user_id)
+            if wallet is None:
+                wallet = Wallet(user_id=self.user_id, updated_at="now")
+                db.add(wallet)
+            wallet.balance = wallet.trial_balance = 1000
+            wallet.bonus_balance = wallet.paid_balance = 0
 
     def tearDown(self):
         self.client.close()
@@ -66,10 +73,13 @@ class ConversationApiTests(unittest.TestCase):
 
     def test_enqueue_failure_marks_run_failed(self):
         conversation = self.create()
+        before = self.client.get("/api/wallet").json()["wallet"]["balance"]
         with patch("server.conversation_api.dispatch_run", side_effect=RuntimeError("redis down")):
             response = self.client.post(f"/api/conversations/{conversation['id']}/messages",
                 headers={"Idempotency-Key": uuid.uuid4().hex}, json={"content": "写文章"})
         self.assertEqual(503, response.status_code)
+        after = self.client.get("/api/wallet").json()["wallet"]["balance"]
+        self.assertEqual(before, after)
 
     def test_cancel_and_owner_isolation(self):
         conversation = self.create()

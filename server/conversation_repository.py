@@ -1,6 +1,7 @@
 """Transactional persistence for the normalized chat and artifact core."""
 from __future__ import annotations
 
+import json
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -9,7 +10,17 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from .database import session_scope
-from .models import AgentRun, Artifact, Conversation, ConversationMessage, ProviderCall, RunEvent, ToolCall
+from .models import (
+    AgentRun, Artifact, Conversation, ConversationMessage, PointTransaction,
+    ProviderCall, RunEvent, ToolCall, UsageRecord, Wallet,
+)
+
+
+class InsufficientPoints(ValueError):
+    def __init__(self, required: int, balance: int):
+        super().__init__(f"insufficient points: required={required}, balance={balance}")
+        self.required = required
+        self.balance = balance
 
 
 def _event(db, run: AgentRun, event_type: str, payload: dict[str, Any] | None = None) -> None:
@@ -19,6 +30,92 @@ def _event(db, run: AgentRun, event_type: str, payload: dict[str, Any] | None = 
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _reserve_run_usage(db, run: AgentRun, points: int, feature: str) -> None:
+    now = _now().isoformat()
+    allocation: dict[str, int] = {}
+    if points:
+        wallet = db.scalar(select(Wallet).where(Wallet.user_id == run.user_id).with_for_update())
+        balance = wallet.balance if wallet else 0
+        if not wallet or balance < points:
+            raise InsufficientPoints(points, balance)
+        remaining = points
+        for label, attribute in (("trial", "trial_balance"), ("bonus", "bonus_balance"),
+                                 ("paid", "paid_balance")):
+            available = int(getattr(wallet, attribute))
+            used = min(available, remaining)
+            if used:
+                setattr(wallet, attribute, available - used)
+                allocation[label] = used
+                remaining -= used
+            if not remaining:
+                break
+        before = wallet.balance
+        wallet.balance -= points
+        wallet.updated_at = now
+        db.add(PointTransaction(
+            id=uuid.uuid4().hex, user_id=run.user_id, amount=-points,
+            balance_before=before, balance_after=wallet.balance, bucket="mixed",
+            kind="consume", source="usage", feature=feature, request_id=run.usage_id,
+            note=f"预扣 {feature}", allocation_json=json.dumps(allocation, ensure_ascii=False),
+            created_at=now,
+        ))
+    db.add(UsageRecord(
+        request_id=run.usage_id, user_id=run.user_id, method="POST",
+        path="/api/conversations/{id}/messages", feature=feature, points=points,
+        status="reserved", estimated_cost_micros=0,
+        allocation_json=json.dumps(allocation, ensure_ascii=False), created_at=now,
+        conversation_id=run.conversation_id, run_id=run.id, skill_id=run.skill_id,
+        actual_cost_micros=0,
+    ))
+
+
+def _settle_usage_locked(db, run: AgentRun) -> None:
+    if not run.usage_id:
+        return
+    usage = db.scalar(select(UsageRecord).where(
+        UsageRecord.request_id == run.usage_id,
+    ).with_for_update())
+    if usage and usage.status == "reserved":
+        usage.status = "completed"
+        usage.http_status = 200
+        usage.actual_cost_micros = run.provider_cost_micros
+        usage.finished_at = _now().isoformat()
+
+
+def _refund_usage_locked(db, run: AgentRun, http_status: int = 500) -> None:
+    if not run.usage_id:
+        return
+    usage = db.scalar(select(UsageRecord).where(
+        UsageRecord.request_id == run.usage_id,
+    ).with_for_update())
+    if not usage or usage.status != "reserved":
+        return
+    allocation = json.loads(usage.allocation_json or "{}")
+    points = int(usage.points or 0)
+    if points:
+        wallet = db.scalar(select(Wallet).where(Wallet.user_id == run.user_id).with_for_update())
+        if not wallet:
+            raise RuntimeError("wallet missing during refund")
+        before = wallet.balance
+        wallet.trial_balance += int(allocation.get("trial", 0))
+        wallet.bonus_balance += int(allocation.get("bonus", 0))
+        wallet.paid_balance += int(allocation.get("paid", 0))
+        wallet.balance += points
+        wallet.updated_at = _now().isoformat()
+        db.add(PointTransaction(
+            id=uuid.uuid4().hex, user_id=run.user_id, amount=points,
+            balance_before=before, balance_after=wallet.balance, bucket="mixed",
+            kind="refund", source="usage", feature=usage.feature,
+            request_id=usage.request_id, note=f"退还 {usage.feature}",
+            allocation_json=usage.allocation_json, created_at=wallet.updated_at,
+        ))
+    usage.status = "refunded"
+    usage.http_status = http_status
+    usage.actual_cost_micros = run.provider_cost_micros
+    usage.finished_at = _now().isoformat()
+    run.cost_points = 0
 
 
 def create_conversation(user_id: str, *, title: str = "新对话", skill_id: str | None = None,
@@ -123,7 +220,8 @@ def create_run(conversation_id: str, user_id: str, trigger_message_id: str,
 
 def create_message_run(conversation_id: str, user_id: str, content: str,
                        idempotency_key: str, *, content_json: dict[str, Any] | None = None,
-                       metadata: dict[str, Any] | None = None) -> tuple[dict[str, Any], dict[str, Any], bool]:
+                       metadata: dict[str, Any] | None = None, reserve_points: int = 0,
+                       feature: str = "AI 创作") -> tuple[dict[str, Any], dict[str, Any], bool]:
     """Atomically persist one user message and its Run under one idempotency key."""
     try:
         with session_scope() as db:
@@ -138,15 +236,23 @@ def create_message_run(conversation_id: str, user_id: str, content: str,
             ).with_for_update())
             if not conversation:
                 raise KeyError("conversation not found")
+            existing = db.scalar(select(AgentRun).where(
+                AgentRun.user_id == user_id, AgentRun.idempotency_key == idempotency_key,
+            ))
+            if existing:
+                message = db.get(ConversationMessage, existing.trigger_message_id)
+                return _message_view(message), _run_view(existing), True
             now = _now()
             message = ConversationMessage(id=uuid.uuid4().hex, conversation_id=conversation_id,
                 role="user", content=content, content_json=content_json or {},
                 metadata_json=metadata or {}, created_at=now)
             run = AgentRun(id=uuid.uuid4().hex, conversation_id=conversation_id,
                 trigger_message_id=message.id, user_id=user_id, skill_id=conversation.skill_id,
-                idempotency_key=idempotency_key, status="queued", created_at=now, updated_at=now)
+                idempotency_key=idempotency_key, status="queued", usage_id=uuid.uuid4().hex,
+                cost_points=max(0, reserve_points), created_at=now, updated_at=now)
             conversation.updated_at = now
             db.add_all((message, run))
+            _reserve_run_usage(db, run, max(0, reserve_points), feature)
             _event(db, run, "run.created", {"message_id": message.id})
             _event(db, run, "run.queued", {})
             db.flush()
@@ -191,6 +297,10 @@ def transition_run(run_id: str, user_id: str, status: str, *, error_code: str | 
         if status in {"completed", "failed", "cancelled"}:
             row.finished_at = row.finished_at or now
             row.heartbeat_at = now
+        if status == "completed":
+            _settle_usage_locked(db, row)
+        elif status in {"failed", "cancelled"}:
+            _refund_usage_locked(db, row, 499 if status == "cancelled" else 500)
         _event(db, row, f"run.{status}", {
             "error_code": error_code, "error_message": error_message,
         } if error_code or error_message else {})
@@ -256,6 +366,7 @@ def cancel_run(run_id: str, user_id: str) -> dict[str, Any]:
         now = _now()
         row.status, row.finished_at, row.updated_at, row.heartbeat_at = "cancelled", now, now, now
         row.celery_task_id = None
+        _refund_usage_locked(db, row, 499)
         _event(db, row, "run.cancelled", {})
         return _run_view(row)
 
@@ -431,6 +542,13 @@ def record_provider_call(run_id: str, user_id: str, *, provider: str, model: str
                            estimated_cost_micros=estimated_cost_micros,
                            run_id=run_id, tool_call_id=tool_call_id, user_id=user_id)
         run.provider_cost_micros += estimated_cost_micros
+        if run.usage_id:
+            usage = db.get(UsageRecord, run.usage_id)
+            if usage:
+                usage.actual_cost_micros = run.provider_cost_micros
+                usage.provider = provider
+                usage.model = model
+                usage.tool_call_id = tool_call_id
         db.add(row)
         db.flush()
         return {"id": row.id, "run_id": run_id, "provider": provider, "model": model,

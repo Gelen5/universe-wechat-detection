@@ -28,7 +28,8 @@ def run_tool_loop(*, model_service: ModelService, messages: list[dict[str, Any]]
         if time.monotonic() - started > timeout_seconds:
             raise TimeoutError("agent tool loop timed out")
         response = model_service.create_response(messages, tools=definitions,
-                                                 timeout=min(120, timeout_seconds), idempotency_key=run_id)
+                                                 timeout=min(120, timeout_seconds), idempotency_key=run_id,
+                                                 run_id=run_id, user_id=user_id)
         if not response.tool_calls:
             return response.text
         for call in response.tool_calls:

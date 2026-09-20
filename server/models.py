@@ -38,6 +38,58 @@ users_table = Table(
 )
 
 
+class Wallet(Base):
+    __tablename__ = "wallets"
+    user_id: Mapped[str] = mapped_column(String(64), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    balance: Mapped[int] = mapped_column(Integer, default=0)
+    trial_balance: Mapped[int] = mapped_column(Integer, default=0)
+    bonus_balance: Mapped[int] = mapped_column(Integer, default=0)
+    paid_balance: Mapped[int] = mapped_column(Integer, default=0)
+    updated_at: Mapped[str] = mapped_column(Text)
+
+
+class PointTransaction(Base):
+    __tablename__ = "point_transactions"
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(64), ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    amount: Mapped[int] = mapped_column(Integer)
+    balance_before: Mapped[int] = mapped_column(Integer)
+    balance_after: Mapped[int] = mapped_column(Integer)
+    bucket: Mapped[str] = mapped_column(String(20))
+    kind: Mapped[str] = mapped_column(String(32))
+    source: Mapped[str] = mapped_column(String(32))
+    feature: Mapped[str | None] = mapped_column(Text, nullable=True)
+    request_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    operator_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    allocation_json: Mapped[str] = mapped_column(Text, default="{}")
+    created_at: Mapped[str] = mapped_column(Text)
+
+
+class UsageRecord(Base):
+    __tablename__ = "usage_records"
+    request_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(64), ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    method: Mapped[str] = mapped_column(String(12))
+    path: Mapped[str] = mapped_column(Text)
+    feature: Mapped[str] = mapped_column(Text)
+    points: Mapped[int] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String(24))
+    http_status: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    estimated_cost_micros: Mapped[int] = mapped_column(Integer, default=0)
+    allocation_json: Mapped[str] = mapped_column(Text, default="{}")
+    created_at: Mapped[str] = mapped_column(Text)
+    finished_at: Mapped[str | None] = mapped_column(Text, nullable=True)
+    conversation_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    run_id: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True)
+    skill_id: Mapped[str | None] = mapped_column(String(120), nullable=True, index=True)
+    tool_call_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    provider: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    model: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    actual_cost_micros: Mapped[int] = mapped_column(BigInteger, default=0, server_default="0")
+
+
 class WorkflowSession(Base):
     __tablename__ = "workflow_sessions"
     id: Mapped[str] = mapped_column(String(64), primary_key=True)

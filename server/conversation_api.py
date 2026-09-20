@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import mimetypes
+import os
 import re
 import uuid
 from typing import Any
@@ -88,9 +89,16 @@ def send_message(conversation_id: str, payload: MessageCreate, request: Request,
         raise HTTPException(status_code=400, detail="需要 8 到 160 字符的 Idempotency-Key")
     user_id = request.state.user["id"]
     try:
+        conversation = conversation_repository.get_conversation(conversation_id, user_id)
+        if not conversation:
+            raise KeyError("conversation not found")
+        manifest = get_registry().get(conversation["skill_id"]) if conversation["skill_id"] else None
+        points = int((manifest.pricing if manifest else {}).get(
+            "base_points", os.getenv("AGENT_AUTO_RESERVE_POINTS", "10")))
+        feature = manifest.name if manifest else "自动 Skill 创作"
         message, run, replay = conversation_repository.create_message_run(
             conversation_id, user_id, payload.content.strip(), idempotency_key,
-            content_json=payload.content_json)
+            content_json=payload.content_json, reserve_points=points, feature=feature)
         if not replay:
             dispatch_run(run["id"])
         notify(run["id"])
@@ -98,6 +106,11 @@ def send_message(conversation_id: str, payload: MessageCreate, request: Request,
                 "status": run["status"], "idempotent_replay": replay}
     except KeyError as exc:
         _not_found(exc)
+    except conversation_repository.InsufficientPoints as exc:
+        raise HTTPException(
+            status_code=402,
+            detail=f"积分不足：需要 {exc.required} 积分，当前剩余 {exc.balance} 积分",
+        ) from exc
     except Exception as exc:
         if "run" in locals() and not replay:
             conversation_repository.transition_run(run["id"], user_id, "failed",

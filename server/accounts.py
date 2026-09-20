@@ -138,7 +138,14 @@ def init_db() -> None:
       estimated_cost_micros INTEGER NOT NULL DEFAULT 0,
       allocation_json TEXT NOT NULL DEFAULT '{}',
       created_at TEXT NOT NULL,
-      finished_at TEXT
+      finished_at TEXT,
+      conversation_id TEXT,
+      run_id TEXT UNIQUE,
+      skill_id TEXT,
+      tool_call_id TEXT,
+      provider TEXT,
+      model TEXT,
+      actual_cost_micros INTEGER NOT NULL DEFAULT 0
     );
     CREATE INDEX IF NOT EXISTS idx_usage_records_user_time
       ON usage_records(user_id, created_at DESC);
@@ -218,6 +225,17 @@ def init_db() -> None:
             session_columns = {row[1] for row in connection.execute("PRAGMA table_info(sessions)")}
             if "impersonator_id" not in session_columns:
                 connection.execute("ALTER TABLE sessions ADD COLUMN impersonator_id TEXT REFERENCES users(id)")
+            usage_columns = {row[1] for row in connection.execute("PRAGMA table_info(usage_records)")}
+            for name, definition in (
+                ("conversation_id", "TEXT"), ("run_id", "TEXT"), ("skill_id", "TEXT"),
+                ("tool_call_id", "TEXT"), ("provider", "TEXT"), ("model", "TEXT"),
+                ("actual_cost_micros", "INTEGER NOT NULL DEFAULT 0"),
+            ):
+                if name not in usage_columns:
+                    connection.execute(f"ALTER TABLE usage_records ADD COLUMN {name} {definition}")
+            connection.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS uq_usage_records_run_id ON usage_records(run_id)"
+            )
         now = utc_now()
         for method, path, feature, points, cost in DEFAULT_PRICING:
             connection.execute(

@@ -22,11 +22,10 @@ class WorkflowBillingTests(unittest.TestCase):
         with engine.begin() as connection:
             connection.execute(users_table.insert(), {"id": "payer", "email": "payer@example.com", "display_name": "P",
                 "password_hash": "x", "role": "user", "status": "active", "created_at": "2026-01-01"})
-            connection.execute(text("CREATE TABLE wallets (user_id TEXT PRIMARY KEY, balance INTEGER, trial_balance INTEGER, bonus_balance INTEGER, paid_balance INTEGER, updated_at TEXT)"))
             connection.execute(text("CREATE TABLE pricing_rules (method TEXT, path TEXT, feature TEXT, points INTEGER, estimated_cost_micros INTEGER, active INTEGER, updated_at TEXT, PRIMARY KEY(method,path))"))
-            connection.execute(text("CREATE TABLE point_transactions (id TEXT PRIMARY KEY,user_id TEXT,amount INTEGER,balance_before INTEGER,balance_after INTEGER,bucket TEXT,kind TEXT,source TEXT,feature TEXT,request_id TEXT,operator_id TEXT,note TEXT,allocation_json TEXT,created_at TEXT)"))
-            connection.execute(text("CREATE TABLE usage_records (request_id TEXT PRIMARY KEY,user_id TEXT,method TEXT,path TEXT,feature TEXT,points INTEGER,status TEXT,http_status INTEGER,duration_ms INTEGER,estimated_cost_micros INTEGER,allocation_json TEXT,created_at TEXT,finished_at TEXT)"))
-            connection.execute(text("INSERT INTO wallets VALUES ('payer',100,60,20,20,'now')"))
+            connection.execute(text("""INSERT INTO wallets
+                (user_id,balance,trial_balance,bonus_balance,paid_balance,updated_at)
+                VALUES ('payer',100,60,20,20,'now')"""))
             connection.execute(text("INSERT INTO pricing_rules VALUES ('POST','/api/workbench/sessions','完整工作流',30,0,1,'now')"))
         self.engine = engine
 

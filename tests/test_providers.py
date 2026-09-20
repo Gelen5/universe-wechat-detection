@@ -38,6 +38,18 @@ class ProviderTests(unittest.TestCase):
         self.assertEqual("完成", result.text)
         self.assertEqual((10, 5), (result.input_tokens, result.output_tokens))
 
+    def test_model_service_reports_run_usage(self):
+        provider = self.provider([FakeResponse({
+            "choices": [{"message": {"content": "ok"}}],
+            "usage": {"prompt_tokens": 3, "completion_tokens": 4},
+        })])
+        recorded = []
+        ModelService(provider, usage_recorder=recorded.append).create_response(
+            [{"role": "user", "content": "hello"}], run_id="run-1", user_id="user-1")
+        self.assertEqual("run-1", recorded[0]["run_id"])
+        self.assertEqual("text", recorded[0]["model"])
+        self.assertEqual((3, 4), (recorded[0]["input_tokens"], recorded[0]["output_tokens"]))
+
     def test_native_tool_call_is_structured(self):
         provider = self.provider([FakeResponse({"choices": [{"message": {"tool_calls": [{
             "id": "call-1", "function": {"name": "search_topics", "arguments": "{\"query\":\"AI\"}"}}]}}]})])

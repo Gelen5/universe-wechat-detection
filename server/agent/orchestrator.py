@@ -4,7 +4,7 @@ from typing import Callable
 
 from .. import conversation_repository
 from ..agent_events import notify
-from ..providers import ModelService
+from ..providers import ModelService, ProviderRequestError
 from ..skills.registry import SkillRegistry
 from ..skills.runtime import load_instructions
 from .context import conversation_messages
@@ -29,7 +29,8 @@ class AgentOrchestrator:
         history = conversation_messages(conversation["id"], user_id)
         trigger = next(item["content"] for item in reversed(history) if item["role"] == "user")
         decision = SkillRouter(self.registry, self.model_service).route(
-            trigger, mode=conversation["mode"], bound_skill_id=conversation["skill_id"])
+            trigger, mode=conversation["mode"], bound_skill_id=conversation["skill_id"],
+            run_id=run_id, user_id=user_id)
         if decision.needs_confirmation or not decision.skill_id:
             conversation_repository.transition_run(run_id, user_id, "waiting_input", task_id=task_id)
             message = conversation_repository.add_message(conversation["id"], user_id, "assistant",
@@ -69,6 +70,15 @@ class AgentOrchestrator:
             conversation_repository.transition_run(run_id, user_id, "completed", task_id=task_id)
             notify(run_id)
             return {"status": "completed", "message": message, "artifact": artifact, "route": decision}
+        except ProviderRequestError as exc:
+            if exc.transient:
+                raise
+            conversation_repository.transition_run(
+                run_id, user_id, "failed", error_code=exc.code,
+                error_message=str(exc), task_id=task_id,
+            )
+            notify(run_id)
+            raise
         except Exception as exc:
             conversation_repository.transition_run(run_id, user_id, "failed",
                                                    error_code=type(exc).__name__, error_message=str(exc), task_id=task_id)

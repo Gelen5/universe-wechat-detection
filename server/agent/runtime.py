@@ -9,7 +9,7 @@ import os
 import uuid
 from typing import Any, Callable
 
-from .. import accounts, creator_tools, diagnosis_service, image_provider, workbench
+from .. import accounts, conversation_repository, creator_tools, diagnosis_service, image_provider, workbench
 from ..providers import ModelService, OpenAICompatibleProvider, ProviderRequestError
 from ..skills.registry import SkillRegistry, get_registry
 from .orchestrator import AgentOrchestrator
@@ -37,7 +37,12 @@ def build_model_service() -> ModelService:
         image_model=_configured("WECHAT_IMAGE_MODEL", stored, "image_model", "gpt-image-2"),
         verify_ssl=os.getenv("WECHAT_API_VERIFY_SSL", "true").lower() not in {"0", "false", "no", "off"},
     )
-    return ModelService(provider)
+    def record_usage(values):
+        payload = dict(values)
+        conversation_repository.record_provider_call(
+            payload.pop("run_id"), payload.pop("user_id"), **payload)
+
+    return ModelService(provider, usage_recorder=record_usage)
 
 
 def _required_text(args: dict[str, Any], key: str) -> str:
