@@ -137,6 +137,17 @@ def transition_run(run_id: str, user_id: str, status: str, *, error_code: str | 
         return _run_view(row)
 
 
+def claim_run(run_id: str) -> dict[str, Any] | None:
+    """Atomically claim a queued Run; duplicate Celery deliveries return None."""
+    with session_scope() as db:
+        row = db.scalar(select(AgentRun).where(AgentRun.id == run_id).with_for_update())
+        if not row or row.status != "queued":
+            return None
+        now = _now()
+        row.status, row.started_at, row.updated_at = "running", row.started_at or now, now
+        return _run_view(row)
+
+
 def create_tool_call(run_id: str, user_id: str, *, call_id: str, skill_id: str | None,
                      tool_name: str, arguments: dict[str, Any]) -> tuple[dict[str, Any], bool]:
     key = f"{run_id}:{call_id}"

@@ -65,7 +65,7 @@ services:
     restart: unless-stopped
     environment: *app-env
     env_file: .env
-    command: ["celery", "-A", "server.celery_app:celery_app", "worker", "-Q", "creator", "--loglevel=INFO", "--concurrency=${CELERY_WORKER_CONCURRENCY:-4}"]
+    command: ["celery", "-A", "server.celery_app:celery_app", "worker", "-Q", "creator,chat", "--loglevel=INFO", "--concurrency=${CELERY_WORKER_CONCURRENCY:-4}"]
     volumes:
       - ${WORKBENCH_OUTPUT_HOST_PATH:-/opt/universe-data/output}:/app/output
       - ${WECHAT_SKILL_HOST_PATH:-/opt/universe-skills/weChat-autoCreate}:/opt/universe-skills/weChat-autoCreate:ro

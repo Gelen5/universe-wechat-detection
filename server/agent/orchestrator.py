@@ -36,7 +36,8 @@ class AgentOrchestrator:
             return {"status": "waiting_input", "message": message, "route": decision}
         manifest = self.registry.get(decision.skill_id)
         instructions, _ = load_instructions(decision.skill_id, registry=self.registry)
-        conversation_repository.transition_run(run_id, user_id, "running")
+        if run["status"] == "queued":
+            conversation_repository.transition_run(run_id, user_id, "running")
         try:
             answer = run_tool_loop(
                 model_service=self.model_service,
