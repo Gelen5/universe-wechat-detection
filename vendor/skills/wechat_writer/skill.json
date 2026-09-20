@@ -50,6 +50,20 @@
       }
     },
     {
+      "name": "revise_article",
+      "description": "根据用户要求修改当前文章，并保留未要求修改的内容",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "title": {"type": "string"},
+          "article": {"type": "string", "description": "当前最新文章全文"},
+          "requirements": {"type": "string", "description": "用户本轮明确提出的修改要求"}
+        },
+        "required": ["article", "requirements"],
+        "additionalProperties": false
+      }
+    },
+    {
       "name": "typeset_article",
       "description": "把当前文章排版为公众号 HTML",
       "parameters": {

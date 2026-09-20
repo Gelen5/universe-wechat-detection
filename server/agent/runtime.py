@@ -77,6 +77,18 @@ def _wechat_tools(*, model_service: ModelService | None = None,
         return _with_provider(lambda: {"title": title, "article": workbench._draft(
             title, frame, persona, requirements)})
 
+    def revise_article(args):
+        article = _required_text(args, "article")
+        requirements = _required_text(args, "requirements")
+        if model_service is None:
+            raise RuntimeError("revise_article requires the normalized ModelService")
+        response = model_service.create_response([
+            {"role": "system", "content": "你是公众号编辑。严格基于原文执行用户修改要求，保留未要求修改的事实、结构和内容，只输出修改后的完整正文。"},
+            {"role": "user", "content": f"修改要求：\n{requirements}\n\n原文：\n{article}"},
+        ], timeout=180, idempotency_key=f"{run_id}:revise_article",
+           run_id=run_id, user_id=user_id)
+        return {"title": str(args.get("title") or "修订稿"), "article": response.text}
+
     def generate_image(args):
         prompt = _required_text(args, "prompt")
         size = str(args.get("size") or "1024x1024")
@@ -105,6 +117,7 @@ def _wechat_tools(*, model_service: ModelService | None = None,
         return {"html": html, "preview_document": session.get("preview_document", "")}
 
     return {"search_topics": search_topics, "write_article": write_article,
+            "revise_article": revise_article,
             "generate_image": generate_image, "typeset_article": typeset_article}
 
 

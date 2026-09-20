@@ -148,6 +148,18 @@ def list_conversations(user_id: str, *, limit: int = 50) -> list[dict[str, Any]]
         return [_conversation_view(row) for row in rows]
 
 
+def bind_conversation_skill(conversation_id: str, user_id: str, skill_id: str) -> dict[str, Any]:
+    with session_scope() as db:
+        row = db.scalar(select(Conversation).where(
+            Conversation.id == conversation_id, Conversation.user_id == user_id,
+        ).with_for_update())
+        if not row:
+            raise KeyError("conversation not found")
+        row.skill_id = skill_id
+        row.updated_at = _now()
+        return _conversation_view(row)
+
+
 def add_message(conversation_id: str, user_id: str, role: str, content: str, *,
                 content_json: dict[str, Any] | None = None,
                 metadata: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -262,7 +274,8 @@ def create_message_run(conversation_id: str, user_id: str, content: str,
                 role="user", content=content, content_json=content_json or {},
                 metadata_json=metadata or {}, created_at=now)
             run = AgentRun(id=uuid.uuid4().hex, conversation_id=conversation_id,
-                trigger_message_id=message.id, user_id=user_id, skill_id=conversation.skill_id,
+                trigger_message_id=message.id, user_id=user_id,
+                skill_id=conversation.skill_id if conversation.mode == "manual" else None,
                 idempotency_key=idempotency_key, status="queued", usage_id=uuid.uuid4().hex,
                 cost_points=max(0, reserve_points), created_at=now, updated_at=now)
             conversation.updated_at = now

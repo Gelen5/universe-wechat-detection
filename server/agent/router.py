@@ -30,6 +30,9 @@ class SkillRouter:
         keyword = self._keyword_route(message)
         if keyword:
             return keyword
+        if bound_skill_id:
+            self.registry.executable(bound_skill_id)
+            return RouteDecision(bound_skill_id, 0.85, "continue the conversation's active Skill")
         if not self.model_service:
             return RouteDecision(None, 0.0, "request is ambiguous", True)
         catalog = self.registry.router_catalog()

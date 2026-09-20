@@ -73,6 +73,14 @@ class ConversationRepositoryTests(unittest.TestCase):
         self.assertEqual("refunded", usage[first_run["id"]])
         self.assertEqual("reserved", usage[second_run["id"]])
 
+    def test_auto_conversation_does_not_prebind_new_run_to_previous_skill(self):
+        conversation = repo.create_conversation("user-a", mode="auto")
+        repo.bind_conversation_skill(conversation["id"], "user-a", "wechat_writer")
+        _, run, _ = repo.create_message_run(
+            conversation["id"], "user-a", "改做小红书", "auto-switch-skill",
+        )
+        self.assertIsNone(run["skill_id"])
+
     def test_artifact_versions_increment_without_overwrite(self):
         conversation = repo.create_conversation("user-a")
         message = repo.add_message(conversation["id"], "user-a", "user", "写文章")

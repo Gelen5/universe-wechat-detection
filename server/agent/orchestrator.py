@@ -52,7 +52,7 @@ class AgentOrchestrator:
             else:
                 content = topics
             save("topic", title="选题建议", content=content)
-        elif tool_name in {"write_article", "generate_draft"}:
+        elif tool_name in {"write_article", "revise_article", "generate_draft"}:
             content = result.get("article") or result.get("body") or result.get("content") or result
             title = str(result.get("title") or "创作稿件")
             save("article", title=title, content=content)
@@ -111,6 +111,10 @@ class AgentOrchestrator:
         conversation_repository.bind_run_skill(
             run_id, user_id, decision.skill_id, task_id=task_id,
         )
+        if conversation["mode"] == "auto" and conversation.get("skill_id") != decision.skill_id:
+            conversation = conversation_repository.bind_conversation_skill(
+                conversation["id"], user_id, decision.skill_id,
+            )
         conversation_repository.record_run_event(run_id, user_id, "skill.selected", {
             "skill_id": decision.skill_id, "confidence": decision.confidence,
             "reason": decision.reason,

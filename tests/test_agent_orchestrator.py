@@ -169,7 +169,7 @@ class AgentOrchestratorTests(unittest.TestCase):
             self.assertNotIn("b64_json", artifact["content_json"])
 
     def test_auto_route_is_persisted_on_run(self):
-        _, run = self.make_run(mode="auto", content="写一篇公众号文章")
+        conversation, run = self.make_run(mode="auto", content="写一篇公众号文章")
         provider = SequenceProvider([ProviderResponse(text="文章完成")])
         AgentOrchestrator(
             registry=self.registry, model_service=ModelService(provider), tool_resolver=lambda *_: {},
@@ -177,10 +177,17 @@ class AgentOrchestratorTests(unittest.TestCase):
         self.assertEqual(
             "wechat_writer", conversation_repository.get_run(run["id"], "user-a")["skill_id"],
         )
+        self.assertEqual(
+            "wechat_writer",
+            conversation_repository.get_conversation(conversation["id"], "user-a")["skill_id"],
+        )
 
     def test_context_preserves_reference_to_previous_turn(self):
-        conversation, _ = self.make_run(content="给我三个选题：甲、乙、丙")
+        conversation, first_run = self.make_run(content="给我三个选题：甲、乙、丙")
         conversation_repository.add_message(conversation["id"], "user-a", "assistant", "1甲 2乙 3丙")
+        conversation_repository.create_artifact(
+            first_run["id"], "user-a", "article", content="第一版完整正文",
+        )
         message = conversation_repository.add_message(conversation["id"], "user-a", "user", "第三个")
         run, _ = conversation_repository.create_run(conversation["id"], "user-a", message["id"], "follow-up")
         provider = SequenceProvider([ProviderResponse(text="我将围绕丙继续")])
@@ -189,6 +196,7 @@ class AgentOrchestratorTests(unittest.TestCase):
         sent = provider.messages[0]
         self.assertTrue(any(item.get("content") == "1甲 2乙 3丙" for item in sent))
         self.assertTrue(any(item.get("content") == "第三个" for item in sent))
+        self.assertTrue(any("第一版完整正文" in item.get("content", "") for item in sent))
 
 
 if __name__ == "__main__":

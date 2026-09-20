@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 from tests import support  # noqa: F401
 from server.agent import runtime
 from server.providers import ProviderRequestError
+from server.providers import ProviderResponse
 from server.skills.registry import get_registry
 
 
@@ -53,6 +54,21 @@ class AgentRuntimeTests(unittest.TestCase):
             idempotency_key=f"run-1:generate_image:{request_hash}",
             run_id="run-1", user_id="user-1",
         )
+
+    def test_revise_article_uses_normalized_model_service(self):
+        service = MagicMock()
+        service.create_response.return_value = ProviderResponse(text="修改后的完整正文")
+        tools = runtime.resolve_tools(
+            "wechat_writer", registry=get_registry(), model_service=service,
+            run_id="run-2", user_id="user-2",
+        )
+        result = tools["revise_article"].execute({
+            "title": "标题", "article": "原始完整正文", "requirements": "把第二段缩短一半",
+        })
+        self.assertEqual("修改后的完整正文", result["article"])
+        _, kwargs = service.create_response.call_args
+        self.assertEqual("run-2", kwargs["run_id"])
+        self.assertEqual("user-2", kwargs["user_id"])
 
 
 if __name__ == "__main__":
