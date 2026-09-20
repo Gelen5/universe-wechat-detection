@@ -196,6 +196,7 @@ class CreatorApiIntegrationTests(unittest.TestCase):
     def test_frontend_has_account_wallet_and_six_tabs(self):
         root = Path(__file__).resolve().parent.parent
         script = (root / "static" / "app.js").read_text(encoding="utf-8")
+        conversation_script = (root / "static" / "conversation-workbench.js").read_text(encoding="utf-8")
         html = (root / "static" / "index.html").read_text(encoding="utf-8")
         self.assertIn("const sharedApiPayload = () => ({})", script)
         self.assertIn('id="auth-modal"', html)
@@ -213,6 +214,9 @@ class CreatorApiIntegrationTests(unittest.TestCase):
         self.assertIn('id="download-workbench-html"', html)
         self.assertIn('id="workbench-decision"', html)
         self.assertIn('id="edit-current"', html)
+        self.assertIn('id="recent-workbench-chats"', html)
+        self.assertIn("/api/conversations?limit=20", conversation_script)
+        self.assertIn("/versions", conversation_script)
         self.assertIn("html_download_url", script)
         self.assertIn("const stepGuidance", script)
         self.assertIn("确认框架，生成初稿", script)

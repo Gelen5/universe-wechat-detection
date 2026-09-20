@@ -21,6 +21,7 @@
   const cancel = root.querySelector('#cancel-workbench');
   const images = root.querySelector('#generated-images');
   const modeButtons = [...root.querySelectorAll('.mode-option')];
+  const historyPopover = root.querySelector('#workbench-chat-history');
   const keyConversation = 'universe.conversation.workbench';
   const keyRun = 'universe.conversation.activeRun';
   let conversation = null;
@@ -178,6 +179,33 @@
     return conversation;
   }
 
+  async function openConversation(conversationId) {
+    closeEvents(); activeRun = null; localStorage.removeItem(keyRun);
+    conversation = (await api(`/api/conversations/${encodeURIComponent(conversationId)}`)).conversation;
+    selectedMode = conversation.mode;
+    modeButtons.forEach(button => button.classList.toggle(
+      'active', (button.dataset.mode === 'auto') === (selectedMode === 'auto'),
+    ));
+    localStorage.setItem(keyConversation, conversation.id);
+    historyPopover.hidden = true;
+    await refresh();
+    status.textContent = '已恢复历史对话';
+  }
+
+  async function toggleConversationHistory() {
+    if (!historyPopover.hidden) { historyPopover.hidden = true; return; }
+    historyPopover.hidden = false;
+    historyPopover.innerHTML = '<p class="empty-artifact">正在读取最近对话…</p>';
+    try {
+      const rows = (await api('/api/conversations?limit=20')).conversations || [];
+      historyPopover.innerHTML = rows.length ? rows.map(item => `
+        <button type="button" data-conversation-id="${escapeHtml(item.id)}" class="${item.id === conversation?.id ? 'current' : ''}">
+          <strong>${escapeHtml(item.title || '新对话')}</strong>
+          <small>${escapeHtml(item.mode === 'auto' ? '自动选择' : '公众号创作')} · ${escapeHtml(new Date(item.updated_at).toLocaleString())}</small>
+        </button>`).join('') : '<p class="empty-artifact">还没有历史对话</p>';
+    } catch (error) { historyPopover.innerHTML = `<p class="empty-artifact">${escapeHtml(error.message)}</p>`; }
+  }
+
   function closeEvents() { source?.close(); source = null; }
 
   function watchRun(runId) {
@@ -253,6 +281,8 @@
     localStorage.removeItem(keyConversation); localStorage.removeItem(keyRun);
     setBusy(false); input.value = ''; renderMessages([]); renderArtifacts([]); status.textContent = '等待你的想法';
   });
+  captureClick('#recent-workbench-chats', () => toggleConversationHistory());
+  captureClick('[data-conversation-id]', button => openConversation(button.dataset.conversationId));
   captureClick('#cancel-workbench', async () => {
     if (!activeRun) return;
     try { await api(`/api/runs/${encodeURIComponent(activeRun)}/cancel`, { method: 'POST' }); }

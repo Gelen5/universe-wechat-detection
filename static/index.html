@@ -342,7 +342,8 @@
         <div class="studio-switch" role="group" aria-label="工作区视图"><button type="button" data-studio-view="chat" aria-pressed="true">对话与选题</button><button type="button" data-studio-view="article" aria-pressed="false">文章画布</button></div>
         <div class="conversation-workbench-layout">
           <aside id="creation-assistant" class="conversation-panel" aria-label="创作对话">
-            <header class="conversation-panel-head"><div class="conversation-identity"><span class="assistant-mark"><i data-lucide="sparkles"></i></span><div><strong>公众号创作助手</strong><small>选题、检索、写作、审校、配图与排版</small></div></div><div class="conversation-panel-tools"><span id="workbench-status" class="work-status">等待你的想法</span><button id="new-workbench-chat" class="new-chat-button" type="button"><i data-lucide="square-pen"></i> 新对话</button></div></header>
+            <header class="conversation-panel-head"><div class="conversation-identity"><span class="assistant-mark"><i data-lucide="sparkles"></i></span><div><strong>公众号创作助手</strong><small>选题、检索、写作、审校、配图与排版</small></div></div><div class="conversation-panel-tools"><span id="workbench-status" class="work-status">等待你的想法</span><button id="recent-workbench-chats" class="new-chat-button" type="button" title="最近对话"><i data-lucide="history"></i> 最近对话</button><button id="new-workbench-chat" class="new-chat-button" type="button"><i data-lucide="square-pen"></i> 新对话</button></div></header>
+            <div id="workbench-chat-history" class="conversation-history-popover" hidden></div>
             <div id="workbench-mode-picker" class="chat-mode-picker" role="group" aria-label="创作模式">
               <button class="mode-option active" data-mode="interactive" type="button"><strong>公众号创作</strong><small>固定使用公众号 Skill</small></button>
               <button class="mode-option" data-mode="auto" type="button"><strong>自动选择</strong><small>由 AI 选择合适 Skill</small></button>
@@ -900,6 +901,6 @@
         });
       })();
     </script>
-    <script src="/static/conversation-workbench.js?v=20260921-conversation-2"></script>
+    <script src="/static/conversation-workbench.js?v=20260921-conversation-3"></script>
   </body>
 </html>
