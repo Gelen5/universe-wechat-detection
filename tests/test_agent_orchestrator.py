@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import base64
+import io
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
+from PIL import Image
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -14,6 +18,7 @@ from server.agent.tool_loop import ExecutableTool, run_tool_loop
 from server.models import Base, ToolCall, users_table
 from server.providers import ModelProvider, ModelService, ProviderResponse, ToolInvocation
 from server.skills.registry import DEFAULT_ROOT, SkillRegistry
+from server.storage import get_storage
 
 
 class SequenceProvider(ModelProvider):
@@ -131,6 +136,37 @@ class AgentOrchestratorTests(unittest.TestCase):
         self.assertEqual("这是工具生成的正文", artifacts[0]["content"])
         self.assertTrue(artifacts[0]["source_key"].endswith(":article:0"))
         self.assertEqual(artifacts[0]["id"], result["artifact"]["id"])
+
+    def test_generated_image_is_copied_into_owner_scoped_storage(self):
+        conversation, run = self.make_run()
+        stream = io.BytesIO()
+        Image.new("RGB", (8, 8), "blue").save(stream, format="PNG")
+        encoded = base64.b64encode(stream.getvalue()).decode("ascii")
+        provider = SequenceProvider([
+            ProviderResponse(tool_calls=(ToolInvocation(
+                "image-1", "generate_image", {"prompt": "蓝色方块"},
+            ),)),
+            ProviderResponse(text="图片已经生成。"),
+        ])
+        orchestrator = AgentOrchestrator(
+            registry=self.registry,
+            model_service=ModelService(provider),
+            tool_resolver=lambda *_: {"generate_image": ExecutableTool(
+                {"name": "generate_image", "description": "image", "parameters": {"type": "object"}},
+                lambda args: {"data": [{"b64_json": encoded}]},
+            )},
+        )
+        storage_root = str(Path(self.temp.name, "storage"))
+        with patch.dict("os.environ", {
+            "STORAGE_PROVIDER": "local", "LOCAL_STORAGE_ROOT": storage_root,
+        }):
+            get_storage(refresh=True)
+            orchestrator.execute(run["id"], "user-a")
+            artifact = conversation_repository.list_artifacts(conversation["id"], "user-a")[0]
+            self.assertEqual("image", artifact["type"])
+            self.assertTrue(artifact["storage_url"].startswith("/api/storage/user-a/"))
+            self.assertTrue(get_storage().local_path(artifact["storage_key"]).is_file())
+            self.assertNotIn("b64_json", artifact["content_json"])
 
     def test_auto_route_is_persisted_on_run(self):
         _, run = self.make_run(mode="auto", content="写一篇公众号文章")

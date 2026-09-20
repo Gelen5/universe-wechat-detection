@@ -8,6 +8,7 @@ from ..agent_events import notify
 from ..providers import ModelService, ProviderRequestError
 from ..skills.registry import SkillRegistry
 from ..skills.runtime import load_instructions
+from ..storage.image_ingest import ingest_generated_image
 from .context import conversation_messages
 from .router import SkillRouter
 from .tool_loop import ExecutableTool, run_tool_loop
@@ -67,9 +68,26 @@ class AgentOrchestrator:
                 values = [values]
             for index, item in enumerate(values if isinstance(values, list) else []):
                 payload = item if isinstance(item, dict) else {"url": str(item)}
-                url = payload.get("url") or payload.get("local_url") or payload.get("path")
-                save("image", title=f"生成图片 {index + 1}", content=payload,
-                     content_json=payload, storage_url=str(url) if url else None, index=index)
+                if payload.get("b64_json") or payload.get("image_url") or (
+                    isinstance(payload.get("url"), str) and payload["url"].startswith("https://")
+                ):
+                    stored = ingest_generated_image(
+                        payload, f"{user_id}/{run_id}/{tool_call_id}-{index + 1}",
+                    )
+                    metadata = {key: value for key, value in payload.items() if key != "b64_json"}
+                    metadata["file"] = {
+                        "content_type": stored.content_type, "size": stored.size,
+                    }
+                    artifacts.append(conversation_repository.create_artifact(
+                        run_id, user_id, "image", title=f"生成图片 {index + 1}",
+                        content="", content_json=metadata, storage_key=stored.key,
+                        storage_url=stored.url,
+                        source_key=f"{tool_call_id}:image:{index}",
+                    ))
+                else:
+                    url = payload.get("local_url") or payload.get("path") or payload.get("url")
+                    save("image", title=f"生成图片 {index + 1}", content=payload,
+                         content_json=payload, storage_url=str(url) if url else None, index=index)
         return artifacts
 
     def execute(self, run_id: str, user_id: str, *, task_id: str | None = None) -> dict:
