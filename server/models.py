@@ -228,3 +228,15 @@ class ProviderCall(Base):
     __table_args__ = (
         CheckConstraint("input_tokens >= 0 AND output_tokens >= 0 AND image_count >= 0 AND estimated_cost_micros >= 0", name="ck_provider_calls_nonnegative"),
     )
+
+
+class RunEvent(Base):
+    __tablename__ = "run_events"
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
+    run_id: Mapped[str] = mapped_column(String(64), ForeignKey("runs.id", ondelete="CASCADE"), index=True)
+    conversation_id: Mapped[str] = mapped_column(String(64), ForeignKey("conversations.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[str] = mapped_column(String(64), ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    event_type: Mapped[str] = mapped_column(String(64), index=True)
+    payload_json: Mapped[dict] = mapped_column(JSON_TYPE, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
+    __table_args__ = (Index("idx_run_events_replay", "run_id", "id"),)

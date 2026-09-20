@@ -5,6 +5,7 @@ from typing import Callable
 
 from . import conversation_repository
 from .agent.orchestrator import AgentOrchestrator
+from .agent_events import notify
 from .celery_app import celery_app
 from .providers import ProviderRequestError
 
@@ -28,6 +29,7 @@ def execute_agent_run(self, run_id: str):
     claimed = conversation_repository.claim_run(run_id, self.request.id)
     if not claimed:
         return {"status": "ignored", "reason": "already claimed or terminal"}
+    notify(run_id)
     if _orchestrator_factory is None:
         conversation_repository.transition_run(run_id, claimed["user_id"], "failed",
                                                error_code="orchestrator_unconfigured",

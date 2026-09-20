@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 
 from tests import support  # noqa: F401
-from server import database
+from server import conversation_repository, database
 from server.main import app
 from server.models import Base
 
@@ -23,6 +23,7 @@ class ConversationApiTests(unittest.TestCase):
         response = self.client.post("/api/auth/login", json={
             "email": "admin@example.com", "password": "testing-pass-123"})
         assert response.status_code == 200, response.text
+        self.user_id = response.json()["user"]["id"]
 
     def tearDown(self):
         self.client.close()
@@ -84,7 +85,31 @@ class ConversationApiTests(unittest.TestCase):
         self.assertEqual(200, registered.status_code, registered.text)
         self.assertEqual(404, other.get(f"/api/conversations/{conversation['id']}").status_code)
         self.assertEqual(404, other.get(f"/api/runs/{created['run_id']}").status_code)
+        self.assertEqual(404, other.get(f"/api/runs/{created['run_id']}/events").status_code)
         other.close()
+
+    def test_sse_replays_from_last_event_id_and_finishes_for_terminal_run(self):
+        conversation = self.create()
+        with patch("server.conversation_api.dispatch_run", return_value="task"):
+            created = self.client.post(
+                f"/api/conversations/{conversation['id']}/messages",
+                headers={"Idempotency-Key": uuid.uuid4().hex},
+                json={"content": "写文章"},
+            ).json()
+        events = conversation_repository.events_after(
+            created["run_id"], self.user_id)
+        conversation_repository.transition_run(
+            created["run_id"], self.user_id, "completed")
+
+        response = self.client.get(
+            f"/api/runs/{created['run_id']}/events",
+            headers={"Last-Event-ID": str(events[0]["id"])},
+        )
+        self.assertEqual(200, response.status_code, response.text)
+        self.assertNotIn("event: run.created", response.text)
+        self.assertIn("event: run.queued", response.text)
+        self.assertIn("event: run.completed", response.text)
+        self.assertEqual("no-cache, no-transform", response.headers["cache-control"])
 
 
 if __name__ == "__main__":

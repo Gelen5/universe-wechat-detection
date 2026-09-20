@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any, Callable
 
 from .. import conversation_repository
+from ..agent_events import notify
 from ..providers import ModelService
 
 
@@ -41,14 +42,17 @@ def run_tool_loop(*, model_service: ModelService, messages: list[dict[str, Any]]
                 run_id, user_id, call_id=call.id, skill_id=skill_id,
                 tool_name=call.name, arguments=call.arguments,
             )
+            notify(run_id)
             if replay and record["status"] == "completed":
                 result = record["result"]
             else:
                 try:
                     result = tool.execute(call.arguments)
                     conversation_repository.finish_tool_call(record["id"], run_id, user_id, result=result)
+                    notify(run_id)
                 except Exception as exc:
                     conversation_repository.finish_tool_call(record["id"], run_id, user_id, error=str(exc))
+                    notify(run_id)
                     raise
             messages.append({"role": "assistant", "content": "", "tool_calls": [{
                 "id": call.id, "type": "function", "function": {"name": call.name,

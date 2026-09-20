@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+import asyncio
+import json
 from typing import Any
 
 from fastapi import APIRouter, Header, HTTPException, Query, Request
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from . import conversation_repository
 from .agent_tasks import dispatch_run
+from .agent_events import async_client, channel, notify
 from .skills.registry import get_registry
 
 
@@ -79,6 +83,7 @@ def send_message(conversation_id: str, payload: MessageCreate, request: Request,
             content_json=payload.content_json)
         if not replay:
             dispatch_run(run["id"])
+        notify(run["id"])
         return {"message_id": message["id"], "run_id": run["id"],
                 "status": run["status"], "idempotent_replay": replay}
     except KeyError as exc:
@@ -101,7 +106,9 @@ def run_snapshot(run_id: str, request: Request):
 @router.post("/api/runs/{run_id}/cancel", status_code=202)
 def cancel(run_id: str, request: Request):
     try:
-        return {"run": conversation_repository.cancel_run(run_id, request.state.user["id"])}
+        row = conversation_repository.cancel_run(run_id, request.state.user["id"])
+        notify(run_id)
+        return {"run": row}
     except KeyError as exc:
         _not_found(exc)
 
@@ -112,3 +119,61 @@ def artifacts(conversation_id: str, request: Request):
         return {"artifacts": conversation_repository.list_artifacts(conversation_id, request.state.user["id"])}
     except KeyError as exc:
         _not_found(exc)
+
+
+@router.get("/api/runs/{run_id}/events")
+async def run_events(run_id: str, request: Request,
+                     last_event_id: str | None = Header(default=None, alias="Last-Event-ID"),
+                     after: int = Query(default=0, ge=0)):
+    user_id = request.state.user["id"]
+    if not conversation_repository.get_run(run_id, user_id):
+        raise HTTPException(status_code=404, detail="任务不存在或不属于当前用户")
+    try:
+        cursor = max(after, int(last_event_id or 0))
+    except ValueError:
+        cursor = after
+
+    async def generate():
+        nonlocal cursor
+        redis = async_client()
+        pubsub = redis.pubsub()
+        subscribed = False
+        try:
+            yield "retry: 2000\n\n"
+            while not await request.is_disconnected():
+                rows = await asyncio.to_thread(conversation_repository.events_after,
+                                               run_id, user_id, cursor, 200)
+                for event in rows:
+                    cursor = event["id"]
+                    payload = json.dumps(event, ensure_ascii=False, separators=(",", ":"))
+                    yield f"id: {cursor}\nevent: {event['type']}\ndata: {payload}\n\n"
+                run = await asyncio.to_thread(conversation_repository.get_run, run_id, user_id)
+                if run and run["status"] in {"completed", "failed", "cancelled"} and len(rows) < 200:
+                    break
+                if not subscribed:
+                    try:
+                        await asyncio.wait_for(pubsub.subscribe(channel(run_id)), timeout=1)
+                        subscribed = True
+                    except Exception:
+                        subscribed = False
+                if subscribed:
+                    try:
+                        await pubsub.get_message(ignore_subscribe_messages=True, timeout=10)
+                    except Exception:
+                        subscribed = False
+                else:
+                    await asyncio.sleep(1)
+                yield ": heartbeat\n\n"
+        finally:
+            try:
+                if subscribed:
+                    await pubsub.unsubscribe(channel(run_id))
+                await pubsub.aclose()
+                await redis.aclose()
+            except Exception:
+                pass
+
+    return StreamingResponse(generate(), media_type="text/event-stream", headers={
+        "Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no",
+        "Connection": "keep-alive",
+    })

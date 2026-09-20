@@ -9,7 +9,12 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from .database import session_scope
-from .models import AgentRun, Artifact, Conversation, ConversationMessage, ProviderCall, ToolCall
+from .models import AgentRun, Artifact, Conversation, ConversationMessage, ProviderCall, RunEvent, ToolCall
+
+
+def _event(db, run: AgentRun, event_type: str, payload: dict[str, Any] | None = None) -> None:
+    db.add(RunEvent(run_id=run.id, conversation_id=run.conversation_id, user_id=run.user_id,
+                    event_type=event_type, payload_json=payload or {}))
 
 
 def _now() -> datetime:
@@ -142,6 +147,8 @@ def create_message_run(conversation_id: str, user_id: str, content: str,
                 idempotency_key=idempotency_key, status="queued", created_at=now, updated_at=now)
             conversation.updated_at = now
             db.add_all((message, run))
+            _event(db, run, "run.created", {"message_id": message.id})
+            _event(db, run, "run.queued", {})
             db.flush()
             return _message_view(message), _run_view(run), False
     except IntegrityError:
@@ -184,6 +191,9 @@ def transition_run(run_id: str, user_id: str, status: str, *, error_code: str | 
         if status in {"completed", "failed", "cancelled"}:
             row.finished_at = row.finished_at or now
             row.heartbeat_at = now
+        _event(db, row, f"run.{status}", {
+            "error_code": error_code, "error_message": error_message,
+        } if error_code or error_message else {})
         return _run_view(row)
 
 
@@ -197,6 +207,7 @@ def claim_run(run_id: str, task_id: str) -> dict[str, Any] | None:
         row.status, row.started_at, row.updated_at = "running", row.started_at or now, now
         row.celery_task_id, row.heartbeat_at = task_id, now
         row.attempt += 1
+        _event(db, row, "run.started", {"attempt": row.attempt})
         return _run_view(row)
 
 
@@ -227,6 +238,8 @@ def recover_stale_runs(stale_seconds: int = 720) -> list[str]:
             row.status, row.celery_task_id = "queued", None
             row.error_code, row.error_message = "worker_lost", "stale worker execution recovered"
             row.updated_at = _now()
+            _event(db, row, "run.recovered", {"reason": "worker_lost"})
+            _event(db, row, "run.queued", {"recovered": True})
             recovered.append(row.id)
     return recovered
 
@@ -243,6 +256,7 @@ def cancel_run(run_id: str, user_id: str) -> dict[str, Any]:
         now = _now()
         row.status, row.finished_at, row.updated_at, row.heartbeat_at = "cancelled", now, now, now
         row.celery_task_id = None
+        _event(db, row, "run.cancelled", {})
         return _run_view(row)
 
 
@@ -274,6 +288,7 @@ def create_tool_call(run_id: str, user_id: str, *, call_id: str, skill_id: str |
                            tool_name=tool_name, idempotency_key=key,
                            arguments_json=arguments, result_json={}, status="running", started_at=_now())
             db.add(row)
+            _event(db, run, "tool.started", {"tool_call_id": row.id, "tool_name": tool_name})
             db.flush()
             return _tool_call_view(row), False
     except IntegrityError:
@@ -298,6 +313,11 @@ def finish_tool_call(tool_call_id: str, run_id: str, user_id: str, *,
         row.result_json = result or {}
         row.error_message = error
         row.finished_at = _now()
+        run = db.get(AgentRun, run_id)
+        _event(db, run, "tool.failed" if error else "tool.completed", {
+            "tool_call_id": row.id, "tool_name": row.tool_name,
+            **({"error": error} if error else {}),
+        })
         return _tool_call_view(row)
 
 
@@ -316,6 +336,7 @@ def create_artifact(run_id: str, user_id: str, artifact_type: str, *, title: str
                        content_json=content_json or {}, storage_key=storage_key,
                        storage_url=storage_url, version=version)
         db.add(row)
+        _event(db, run, "artifact.created", {"artifact_id": row.id, "type": artifact_type, "version": version})
         db.flush()
         return _artifact_view(row)
 
@@ -341,6 +362,30 @@ def record_provider_call(run_id: str, user_id: str, *, provider: str, model: str
         db.flush()
         return {"id": row.id, "run_id": run_id, "provider": provider, "model": model,
                 "estimated_cost_micros": estimated_cost_micros}
+
+
+def record_run_event(run_id: str, user_id: str, event_type: str,
+                     payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    with session_scope() as db:
+        run = db.scalar(select(AgentRun).where(AgentRun.id == run_id, AgentRun.user_id == user_id))
+        if not run:
+            raise KeyError("run not found")
+        row = RunEvent(run_id=run.id, conversation_id=run.conversation_id, user_id=user_id,
+                       event_type=event_type, payload_json=payload or {})
+        db.add(row)
+        db.flush()
+        return _event_view(row)
+
+
+def events_after(run_id: str, user_id: str, after_id: int = 0, limit: int = 200) -> list[dict[str, Any]]:
+    with session_scope() as db:
+        owned = db.scalar(select(AgentRun.id).where(AgentRun.id == run_id, AgentRun.user_id == user_id))
+        if not owned:
+            raise KeyError("run not found")
+        rows = db.scalars(select(RunEvent).where(
+            RunEvent.run_id == run_id, RunEvent.id > max(0, after_id),
+        ).order_by(RunEvent.id).limit(min(max(limit, 1), 500))).all()
+        return [_event_view(row) for row in rows]
 
 
 def _conversation_view(row: Conversation) -> dict[str, Any]:
@@ -375,3 +420,9 @@ def _tool_call_view(row: ToolCall) -> dict[str, Any]:
     return {"id": row.id, "run_id": row.run_id, "skill_id": row.skill_id,
             "tool_name": row.tool_name, "arguments": row.arguments_json,
             "result": row.result_json, "status": row.status, "error": row.error_message}
+
+
+def _event_view(row: RunEvent) -> dict[str, Any]:
+    return {"id": row.id, "run_id": row.run_id, "conversation_id": row.conversation_id,
+            "type": row.event_type, "payload": row.payload_json,
+            "created_at": row.created_at.isoformat()}

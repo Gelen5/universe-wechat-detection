@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Callable
 
 from .. import conversation_repository
+from ..agent_events import notify
 from ..providers import ModelService
 from ..skills.registry import SkillRegistry
 from ..skills.runtime import load_instructions
@@ -35,6 +36,11 @@ class AgentOrchestrator:
                 "我还不能确定该使用哪项能力，请补充你要完成的作品类型。")
             return {"status": "waiting_input", "message": message, "route": decision}
         manifest = self.registry.get(decision.skill_id)
+        conversation_repository.record_run_event(run_id, user_id, "skill.selected", {
+            "skill_id": decision.skill_id, "confidence": decision.confidence,
+            "reason": decision.reason,
+        })
+        notify(run_id)
         instructions, _ = load_instructions(decision.skill_id, registry=self.registry)
         if run["status"] == "queued":
             conversation_repository.transition_run(run_id, user_id, "running", task_id=task_id)
@@ -51,9 +57,14 @@ class AgentOrchestrator:
             if task_id and not conversation_repository.heartbeat_run(run_id, task_id):
                 raise RuntimeError("run execution lease changed")
             message = conversation_repository.add_message(conversation["id"], user_id, "assistant", answer)
+            conversation_repository.record_run_event(run_id, user_id, "assistant.completed", {
+                "message_id": message["id"],
+            })
             conversation_repository.transition_run(run_id, user_id, "completed", task_id=task_id)
+            notify(run_id)
             return {"status": "completed", "message": message, "route": decision}
         except Exception as exc:
             conversation_repository.transition_run(run_id, user_id, "failed",
                                                    error_code=type(exc).__name__, error_message=str(exc), task_id=task_id)
+            notify(run_id)
             raise
