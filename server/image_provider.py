@@ -33,7 +33,21 @@ def generate(payload: dict[str, Any]) -> dict[str, Any]:
         }
         if not body["prompt"].strip():
             raise ImageProviderError("图片提示词不能为空")
-        return _request(_image_api_url(base_url), api_key, body)
+        from .providers import ModelService, OpenAICompatibleProvider, ProviderRequestError
+        provider = OpenAICompatibleProvider(
+            api_key=workbench._setting("WECHAT_TEXT_API_KEY") or api_key,
+            base_url=workbench._setting("WECHAT_TEXT_API_BASE_URL") or base_url,
+            text_model=workbench._setting("WECHAT_TEXT_MODEL", "gpt-4.1-mini"),
+            image_api_key=api_key, image_base_url=base_url, image_model=body["model"],
+            verify_ssl=workbench._verify_ssl(),
+        )
+        try:
+            return ModelService(provider).generate_image(
+                body["prompt"], size=body["size"], count=body["n"], timeout=300,
+                idempotency_key=workbench._setting("WECHAT_REQUEST_IDEMPOTENCY_KEY") or None,
+            )
+        except ProviderRequestError as exc:
+            raise ImageProviderError(f"图片接口请求失败：{exc}") from exc
 
 
 def _image_api_url(base_url: str) -> str:
