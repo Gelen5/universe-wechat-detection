@@ -25,7 +25,7 @@ class SkillRouter:
         if mode == "manual":
             if not bound_skill_id:
                 raise ValueError("manual conversation has no bound Skill")
-            self.registry.get(bound_skill_id)
+            self.registry.executable(bound_skill_id)
             return RouteDecision(bound_skill_id, 1.0, "conversation is bound to this Skill")
         keyword = self._keyword_route(message)
         if keyword:
@@ -57,7 +57,7 @@ class SkillRouter:
             ("wechat_tie_tu", ("贴图号", "微信卡片")),
             ("wechat_writer", ("公众号文章", "公众号选题", "写一篇文章", "配图", "重新排版")),
         )
-        available = {item.id for item in self.registry.list()}
+        available = {item.id for item in self.registry.list() if item.trusted}
         for skill_id, keywords in rules:
             if skill_id in available and any(word in text for word in keywords):
                 return RouteDecision(skill_id, 0.9, f"matched product intent: {skill_id}")

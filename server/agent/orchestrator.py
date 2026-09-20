@@ -36,7 +36,10 @@ class AgentOrchestrator:
             message = conversation_repository.add_message(conversation["id"], user_id, "assistant",
                 "我还不能确定该使用哪项能力，请补充你要完成的作品类型。")
             return {"status": "waiting_input", "message": message, "route": decision}
-        manifest = self.registry.get(decision.skill_id)
+        manifest = self.registry.executable(decision.skill_id)
+        conversation_repository.bind_run_skill(
+            run_id, user_id, decision.skill_id, task_id=task_id,
+        )
         conversation_repository.record_run_event(run_id, user_id, "skill.selected", {
             "skill_id": decision.skill_id, "confidence": decision.confidence,
             "reason": decision.reason,

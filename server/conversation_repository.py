@@ -330,6 +330,27 @@ def heartbeat_run(run_id: str, task_id: str) -> bool:
         return True
 
 
+def bind_run_skill(run_id: str, user_id: str, skill_id: str, *, task_id: str | None = None) -> dict[str, Any]:
+    """Persist an auto-routed Skill on both Run and Usage attribution."""
+    with session_scope() as db:
+        row = db.scalar(select(AgentRun).where(
+            AgentRun.id == run_id, AgentRun.user_id == user_id,
+        ).with_for_update())
+        if not row:
+            raise KeyError("run not found")
+        if task_id is not None and row.celery_task_id != task_id:
+            raise RuntimeError("run execution lease changed")
+        if row.skill_id and row.skill_id != skill_id:
+            raise RuntimeError("run Skill is already bound")
+        row.skill_id = skill_id
+        row.updated_at = _now()
+        if row.usage_id:
+            usage = db.get(UsageRecord, row.usage_id)
+            if usage:
+                usage.skill_id = skill_id
+        return _run_view(row)
+
+
 def run_lease_owned(run_id: str, task_id: str) -> bool:
     with session_scope() as db:
         return bool(db.scalar(select(AgentRun.id).where(
@@ -566,6 +587,61 @@ def record_run_event(run_id: str, user_id: str, event_type: str,
         db.add(row)
         db.flush()
         return _event_view(row)
+
+
+def agent_metrics(*, since_hours: int = 24) -> dict[str, Any]:
+    """Return bounded operational and cost metrics for the admin surface."""
+    cutoff = _now() - timedelta(hours=max(1, min(since_hours, 24 * 90)))
+    with session_scope() as db:
+        runs = db.scalars(select(AgentRun).where(AgentRun.created_at >= cutoff)).all()
+        provider_calls = db.scalars(select(ProviderCall).where(ProviderCall.created_at >= cutoff)).all()
+        usage = db.scalars(select(UsageRecord).where(UsageRecord.created_at >= cutoff.isoformat())).all()
+        conversations = db.scalars(select(Conversation).where(Conversation.updated_at >= cutoff)).all()
+    terminal = [row for row in runs if row.status in {"completed", "failed", "cancelled"}]
+    durations = sorted(
+        max(0, int((row.finished_at - row.started_at).total_seconds() * 1000))
+        for row in terminal if row.started_at and row.finished_at
+    )
+
+    def percentile(values: list[int], fraction: float) -> int | None:
+        if not values:
+            return None
+        return values[min(len(values) - 1, max(0, int((len(values) - 1) * fraction)))]
+
+    by_skill: dict[str, dict[str, int]] = {}
+    for row in runs:
+        key = row.skill_id or "unresolved"
+        item = by_skill.setdefault(key, {"runs": 0, "completed": 0, "failed": 0})
+        item["runs"] += 1
+        if row.status in {"completed", "failed"}:
+            item[row.status] += 1
+    completed = sum(row.status == "completed" for row in runs)
+    failed = sum(row.status == "failed" for row in runs)
+    refunded = sum(row.status == "refunded" for row in usage)
+    return {
+        "window_hours": max(1, min(since_hours, 24 * 90)),
+        "dau": len({row.user_id for row in conversations}),
+        "conversations": len(conversations), "runs": len(runs),
+        "completed_runs": completed, "failed_runs": failed,
+        "success_rate": round(completed / max(1, completed + failed), 4),
+        "latency_ms": {
+            "average": round(sum(durations) / len(durations)) if durations else None,
+            "p50": percentile(durations, 0.50), "p95": percentile(durations, 0.95),
+        },
+        "skills": by_skill,
+        "provider": {
+            "calls": len(provider_calls),
+            "input_tokens": sum(row.input_tokens for row in provider_calls),
+            "output_tokens": sum(row.output_tokens for row in provider_calls),
+            "images": sum(row.image_count for row in provider_calls),
+            "estimated_cost_micros": sum(row.estimated_cost_micros for row in provider_calls),
+        },
+        "billing": {
+            "points_reserved_or_spent": sum(row.points for row in usage),
+            "refunds": refunded,
+            "refund_rate": round(refunded / max(1, len(usage)), 4),
+        },
+    }
 
 
 def events_after(run_id: str, user_id: str, after_id: int = 0, limit: int = 200) -> list[dict[str, Any]]:

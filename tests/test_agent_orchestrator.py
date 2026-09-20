@@ -108,6 +108,16 @@ class AgentOrchestratorTests(unittest.TestCase):
         artifacts = conversation_repository.list_artifacts(conversation["id"], "user-a")
         self.assertEqual(["这是完成的文章"], [item["content"] for item in artifacts])
 
+    def test_auto_route_is_persisted_on_run(self):
+        _, run = self.make_run(mode="auto", content="写一篇公众号文章")
+        provider = SequenceProvider([ProviderResponse(text="文章完成")])
+        AgentOrchestrator(
+            registry=self.registry, model_service=ModelService(provider), tool_resolver=lambda _: {},
+        ).execute(run["id"], "user-a")
+        self.assertEqual(
+            "wechat_writer", conversation_repository.get_run(run["id"], "user-a")["skill_id"],
+        )
+
     def test_context_preserves_reference_to_previous_turn(self):
         conversation, _ = self.make_run(content="给我三个选题：甲、乙、丙")
         conversation_repository.add_message(conversation["id"], "user-a", "assistant", "1甲 2乙 3丙")

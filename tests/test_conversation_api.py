@@ -12,6 +12,7 @@ from tests import support  # noqa: F401
 from server import conversation_repository, database
 from server.main import app
 from server.models import Base, Wallet
+from server.rate_limit import LimitResult
 
 
 class ConversationApiTests(unittest.TestCase):
@@ -70,6 +71,20 @@ class ConversationApiTests(unittest.TestCase):
         dispatch.assert_called_once()
         history = self.client.get(f"/api/conversations/{conversation['id']}/messages").json()["messages"]
         self.assertEqual(1, len([item for item in history if item["role"] == "user"]))
+
+    def test_send_enforces_distributed_rate_limit_before_charge(self):
+        conversation = self.create()
+        with patch("server.conversation_api.check_agent_submission",
+                   return_value=LimitResult(False, "skill", 19)), \
+             patch("server.conversation_api.dispatch_run") as dispatch:
+            response = self.client.post(
+                f"/api/conversations/{conversation['id']}/messages",
+                headers={"Idempotency-Key": uuid.uuid4().hex}, json={"content": "写文章"},
+            )
+        self.assertEqual(429, response.status_code, response.text)
+        self.assertEqual("19", response.headers["Retry-After"])
+        self.assertEqual("skill", response.headers["X-RateLimit-Dimension"])
+        dispatch.assert_not_called()
 
     def test_enqueue_failure_marks_run_failed(self):
         conversation = self.create()

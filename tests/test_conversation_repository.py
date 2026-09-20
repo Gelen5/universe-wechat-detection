@@ -86,6 +86,18 @@ class ConversationRepositoryTests(unittest.TestCase):
         with self.assertRaises(KeyError):
             repo.record_provider_call(run["id"], "user-b", provider="x", model="y")
 
+    def test_agent_metrics_report_runs_skills_and_latency_shape(self):
+        conversation = repo.create_conversation("user-a", skill_id="wechat_writer", mode="manual")
+        message = repo.add_message(conversation["id"], "user-a", "user", "写文章")
+        run, _ = repo.create_run(conversation["id"], "user-a", message["id"], "metrics-run")
+        repo.transition_run(run["id"], "user-a", "running")
+        repo.transition_run(run["id"], "user-a", "completed")
+        metrics = repo.agent_metrics()
+        self.assertEqual(1, metrics["runs"])
+        self.assertEqual(1, metrics["completed_runs"])
+        self.assertEqual(1, metrics["skills"]["wechat_writer"]["completed"])
+        self.assertIn("p95", metrics["latency_ms"])
+
 
 if __name__ == "__main__":
     unittest.main()

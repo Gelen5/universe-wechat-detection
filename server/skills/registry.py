@@ -36,7 +36,13 @@ class SkillRegistry:
         return sorted(self._skills.values(), key=lambda item: item.id)
 
     def router_catalog(self) -> list[dict]:
-        return [item.router_summary() for item in self.list()]
+        return [item.router_summary() for item in self.list() if item.trusted]
+
+    def executable(self, skill_id: str) -> SkillManifest:
+        manifest = self.get(skill_id)
+        if not manifest.trusted:
+            raise PermissionError(f"Skill is not trusted for in-process execution: {skill_id}")
+        return manifest
 
 
 _lock = threading.Lock()

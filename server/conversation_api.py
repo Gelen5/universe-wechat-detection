@@ -17,6 +17,7 @@ from .agent_tasks import dispatch_run
 from .agent_events import async_client, channel, notify
 from .skills.registry import get_registry
 from .storage import get_storage
+from .rate_limit import check_agent_submission
 
 
 router = APIRouter(tags=["conversations"])
@@ -48,9 +49,11 @@ def _not_found(exc: Exception):
 def create_conversation(payload: ConversationCreate, request: Request):
     if payload.skill_id:
         try:
-            get_registry().get(payload.skill_id)
+            get_registry().executable(payload.skill_id)
         except KeyError as exc:
             raise HTTPException(status_code=422, detail="未知 Skill") from exc
+        except PermissionError as exc:
+            raise HTTPException(status_code=422, detail="该 Skill 未获准在服务内执行") from exc
     if payload.mode == "manual" and not payload.skill_id:
         raise HTTPException(status_code=422, detail="手动模式必须选择 Skill")
     row = conversation_repository.create_conversation(
@@ -92,7 +95,17 @@ def send_message(conversation_id: str, payload: MessageCreate, request: Request,
         conversation = conversation_repository.get_conversation(conversation_id, user_id)
         if not conversation:
             raise KeyError("conversation not found")
-        manifest = get_registry().get(conversation["skill_id"]) if conversation["skill_id"] else None
+        manifest = get_registry().executable(conversation["skill_id"]) if conversation["skill_id"] else None
+        limit = check_agent_submission(
+            user_id=user_id, ip=request.client.host if request.client else "unknown",
+            skill_id=conversation["skill_id"] or "auto",
+        )
+        if not limit.allowed:
+            raise HTTPException(
+                status_code=429,
+                detail=f"请求过于频繁，请在 {limit.retry_after} 秒后重试",
+                headers={"Retry-After": str(limit.retry_after), "X-RateLimit-Dimension": limit.dimension},
+            )
         points = int((manifest.pricing if manifest else {}).get(
             "base_points", os.getenv("AGENT_AUTO_RESERVE_POINTS", "10")))
         feature = manifest.name if manifest else "自动 Skill 创作"
@@ -104,6 +117,8 @@ def send_message(conversation_id: str, payload: MessageCreate, request: Request,
         notify(run["id"])
         return {"message_id": message["id"], "run_id": run["id"],
                 "status": run["status"], "idempotent_replay": replay}
+    except HTTPException:
+        raise
     except KeyError as exc:
         _not_found(exc)
     except conversation_repository.InsufficientPoints as exc:

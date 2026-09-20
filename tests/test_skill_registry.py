@@ -50,6 +50,22 @@ class SkillRegistryTests(unittest.TestCase):
             with self.assertRaises(SkillManifestError):
                 load_manifest(path)
 
+    def test_untrusted_skill_is_not_routable_or_executable(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            directory = root / "third_party"
+            directory.mkdir()
+            (directory / "SKILL.md").write_text("# external", encoding="utf-8")
+            (directory / "skill.json").write_text(json.dumps({
+                "id": "third_party", "name": "External", "version": "1",
+                "description": "not approved for in-process execution",
+            }), encoding="utf-8")
+            registry = SkillRegistry((root,)).reload()
+            self.assertFalse(registry.get("third_party").trusted)
+            self.assertEqual([], registry.router_catalog())
+            with self.assertRaises(PermissionError):
+                registry.executable("third_party")
+
 
 if __name__ == "__main__":
     unittest.main()

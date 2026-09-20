@@ -45,7 +45,7 @@ def load_manifest(path: Path) -> SkillManifest:
         description=data["description"].strip(), capabilities=tuple(data.get("capabilities", [])),
         tools=tools, root=effective_root.resolve(), manifest_path=path.resolve(),
         pricing=data.get("pricing") or {}, model_policy=data.get("model_policy") or {},
-        limits=data.get("limits") or {}, trusted=bool(data.get("trusted", True)),
+        limits=data.get("limits") or {}, trusted=data.get("trusted") is True,
     )
 
 

@@ -17,10 +17,11 @@ from pydantic import BaseModel, Field
 from . import accounts, diagnosis_service, image_provider
 from . import creator_tools, creator_conversation
 from . import workbench
-from . import database
+from . import conversation_repository, database
 from .workflow_api import router as workflow_router
 from .conversation_api import router as conversation_router
 from .workflow_events import redis_ready
+from .observability import event as log_event
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -40,6 +41,26 @@ accounts.recover_interrupted_workbench_jobs()
 database.require_postgres_in_production()
 app.include_router(workflow_router)
 app.include_router(conversation_router)
+
+
+@app.middleware("http")
+async def request_observability(request: Request, call_next):
+    request_id = request.headers.get("X-Request-ID", "").strip()[:128] or uuid.uuid4().hex
+    request.state.request_id = request_id
+    started = time.perf_counter()
+    response = None
+    try:
+        response = await call_next(request)
+        return response
+    finally:
+        latency_ms = int((time.perf_counter() - started) * 1000)
+        user = getattr(request.state, "user", None)
+        status_code = response.status_code if response is not None else 500
+        log_event("http.request", request_id=request_id, user_id=user.get("id") if user else None,
+                  method=request.method, path=request.url.path, status=status_code,
+                  latency_ms=latency_ms)
+        if response is not None:
+            response.headers["X-Request-ID"] = request_id
 
 
 @app.middleware("http")
@@ -579,6 +600,14 @@ def admin_users(request: Request, query: str = ""):
 def admin_overview(request: Request):
     accounts.require_admin(request)
     return {"status": "success", "overview": accounts.admin_overview()}
+
+
+@app.get("/api/admin/agent-metrics")
+def admin_agent_metrics(request: Request, hours: int = 24):
+    accounts.require_admin(request)
+    if not 1 <= hours <= 24 * 90:
+        raise HTTPException(status_code=422, detail="hours 必须在 1 到 2160 之间")
+    return {"status": "success", "metrics": conversation_repository.agent_metrics(since_hours=hours)}
 
 
 @app.get("/api/admin/users/{user_id}")
