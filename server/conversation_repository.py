@@ -243,6 +243,21 @@ def create_message_run(conversation_id: str, user_id: str, content: str,
                 message = db.get(ConversationMessage, existing.trigger_message_id)
                 return _message_view(message), _run_view(existing), True
             now = _now()
+            waiting_runs = db.scalars(select(AgentRun).where(
+                AgentRun.conversation_id == conversation_id,
+                AgentRun.user_id == user_id,
+                AgentRun.status == "waiting_input",
+            ).with_for_update()).all()
+            for waiting in waiting_runs:
+                waiting.status = "cancelled"
+                waiting.finished_at = waiting.updated_at = waiting.heartbeat_at = now
+                waiting.celery_task_id = None
+                waiting.error_code = "superseded_by_input"
+                waiting.error_message = "continued by a newer user message"
+                _refund_usage_locked(db, waiting, 499)
+                _event(db, waiting, "run.cancelled", {
+                    "reason": "superseded_by_input",
+                })
             message = ConversationMessage(id=uuid.uuid4().hex, conversation_id=conversation_id,
                 role="user", content=content, content_json=content_json or {},
                 metadata_json=metadata or {}, created_at=now)

@@ -9,7 +9,7 @@ from sqlalchemy.orm import sessionmaker
 
 from server import conversation_repository as repo
 from server import database
-from server.models import AgentRun, Base, ProviderCall, users_table
+from server.models import AgentRun, Base, ProviderCall, UsageRecord, users_table
 
 
 class ConversationRepositoryTests(unittest.TestCase):
@@ -54,6 +54,24 @@ class ConversationRepositoryTests(unittest.TestCase):
         self.assertFalse(replay1)
         self.assertTrue(replay2)
         self.assertEqual(first["id"], second["id"])
+
+    def test_new_input_replaces_waiting_run_and_refunds_its_reservation(self):
+        conversation = repo.create_conversation("user-a")
+        first_message, first_run, _ = repo.create_message_run(
+            conversation["id"], "user-a", "帮我处理一下", "waiting-first",
+        )
+        self.assertEqual("user", first_message["role"])
+        repo.transition_run(first_run["id"], "user-a", "waiting_input")
+        _, second_run, replay = repo.create_message_run(
+            conversation["id"], "user-a", "我要写公众号文章", "waiting-follow-up",
+        )
+        self.assertFalse(replay)
+        self.assertEqual("cancelled", repo.get_run(first_run["id"], "user-a")["status"])
+        self.assertEqual("queued", second_run["status"])
+        with database.session_scope() as db:
+            usage = {row.run_id: row.status for row in db.query(UsageRecord).all()}
+        self.assertEqual("refunded", usage[first_run["id"]])
+        self.assertEqual("reserved", usage[second_run["id"]])
 
     def test_artifact_versions_increment_without_overwrite(self):
         conversation = repo.create_conversation("user-a")
