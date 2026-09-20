@@ -57,12 +57,18 @@ class AgentOrchestrator:
             if task_id and not conversation_repository.heartbeat_run(run_id, task_id):
                 raise RuntimeError("run execution lease changed")
             message = conversation_repository.add_message(conversation["id"], user_id, "assistant", answer)
+            artifact_type = "report" if ({"report", "account_analysis", "review", "risk_check"}
+                                         & set(manifest.capabilities)) else "article"
+            artifact = conversation_repository.create_artifact(
+                run_id, user_id, artifact_type, title=conversation["title"], content=answer,
+                content_json={"skill_id": decision.skill_id},
+            )
             conversation_repository.record_run_event(run_id, user_id, "assistant.completed", {
-                "message_id": message["id"],
+                "message_id": message["id"], "artifact_id": artifact["id"],
             })
             conversation_repository.transition_run(run_id, user_id, "completed", task_id=task_id)
             notify(run_id)
-            return {"status": "completed", "message": message, "route": decision}
+            return {"status": "completed", "message": message, "artifact": artifact, "route": decision}
         except Exception as exc:
             conversation_repository.transition_run(run_id, user_id, "failed",
                                                    error_code=type(exc).__name__, error_message=str(exc), task_id=task_id)

@@ -273,6 +273,27 @@ def list_artifacts(conversation_id: str, user_id: str) -> list[dict[str, Any]]:
         return [_artifact_view(row) for row in rows]
 
 
+def get_artifact(artifact_id: str, user_id: str) -> dict[str, Any] | None:
+    with session_scope() as db:
+        row = db.scalar(select(Artifact).where(Artifact.id == artifact_id, Artifact.user_id == user_id))
+        return _artifact_view(row) if row else None
+
+
+def list_artifact_versions(artifact_id: str, user_id: str) -> list[dict[str, Any]]:
+    with session_scope() as db:
+        source = db.scalar(select(Artifact).where(
+            Artifact.id == artifact_id, Artifact.user_id == user_id,
+        ))
+        if not source:
+            raise KeyError("artifact not found")
+        rows = db.scalars(select(Artifact).where(
+            Artifact.conversation_id == source.conversation_id,
+            Artifact.type == source.type,
+            Artifact.user_id == user_id,
+        ).order_by(Artifact.version)).all()
+        return [_artifact_view(row) for row in rows]
+
+
 def create_tool_call(run_id: str, user_id: str, *, call_id: str, skill_id: str | None,
                      tool_name: str, arguments: dict[str, Any]) -> tuple[dict[str, Any], bool]:
     key = f"{run_id}:{call_id}"
@@ -325,9 +346,14 @@ def create_artifact(run_id: str, user_id: str, artifact_type: str, *, title: str
                     content: str = "", content_json: dict[str, Any] | None = None,
                     storage_key: str | None = None, storage_url: str | None = None) -> dict[str, Any]:
     with session_scope() as db:
-        run = db.scalar(select(AgentRun).where(AgentRun.id == run_id, AgentRun.user_id == user_id).with_for_update())
+        run = db.scalar(select(AgentRun).where(AgentRun.id == run_id, AgentRun.user_id == user_id))
         if not run:
             raise KeyError("run not found")
+        conversation = db.scalar(select(Conversation).where(
+            Conversation.id == run.conversation_id, Conversation.user_id == user_id,
+        ).with_for_update())
+        if not conversation:
+            raise KeyError("conversation not found")
         version = (db.scalar(select(func.max(Artifact.version)).where(
             Artifact.conversation_id == run.conversation_id, Artifact.type == artifact_type,
         )) or 0) + 1
@@ -337,6 +363,41 @@ def create_artifact(run_id: str, user_id: str, artifact_type: str, *, title: str
                        storage_url=storage_url, version=version)
         db.add(row)
         _event(db, run, "artifact.created", {"artifact_id": row.id, "type": artifact_type, "version": version})
+        db.flush()
+        return _artifact_view(row)
+
+
+def create_artifact_version(artifact_id: str, user_id: str, *, title: str | None = None,
+                            content: str | None = None,
+                            content_json: dict[str, Any] | None = None) -> dict[str, Any]:
+    with session_scope() as db:
+        source = db.scalar(select(Artifact).where(
+            Artifact.id == artifact_id, Artifact.user_id == user_id,
+        ))
+        if not source:
+            raise KeyError("artifact not found")
+        conversation = db.scalar(select(Conversation).where(
+            Conversation.id == source.conversation_id, Conversation.user_id == user_id,
+        ).with_for_update())
+        if not conversation:
+            raise KeyError("conversation not found")
+        version = (db.scalar(select(func.max(Artifact.version)).where(
+            Artifact.conversation_id == source.conversation_id, Artifact.type == source.type,
+        )) or 0) + 1
+        row = Artifact(
+            id=uuid.uuid4().hex, user_id=user_id, conversation_id=source.conversation_id,
+            run_id=source.run_id, type=source.type,
+            title=source.title if title is None else title,
+            content=source.content if content is None else content,
+            content_json=source.content_json if content_json is None else content_json,
+            storage_key=source.storage_key, storage_url=source.storage_url, version=version,
+        )
+        db.add(row)
+        run = db.get(AgentRun, source.run_id)
+        _event(db, run, "artifact.updated", {
+            "artifact_id": row.id, "previous_artifact_id": source.id,
+            "type": row.type, "version": version,
+        })
         db.flush()
         return _artifact_view(row)
 

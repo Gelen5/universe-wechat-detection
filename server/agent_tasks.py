@@ -5,12 +5,13 @@ from typing import Callable
 
 from . import conversation_repository
 from .agent.orchestrator import AgentOrchestrator
+from .agent.runtime import build_orchestrator
 from .agent_events import notify
 from .celery_app import celery_app
 from .providers import ProviderRequestError
 
 
-_orchestrator_factory: Callable[[], AgentOrchestrator] | None = None
+_orchestrator_factory: Callable[[], AgentOrchestrator] | None = build_orchestrator
 
 
 def configure_orchestrator(factory: Callable[[], AgentOrchestrator]) -> None:

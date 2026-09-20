@@ -63,6 +63,14 @@ class ConversationRepositoryTests(unittest.TestCase):
         v2 = repo.create_artifact(run["id"], "user-a", "article", content="第二版")
         self.assertEqual((1, 2), (v1["version"], v2["version"]))
         self.assertEqual("第一版", v1["content"])
+        v3 = repo.create_artifact_version(v2["id"], "user-a", content="第三版")
+        self.assertEqual(3, v3["version"])
+        self.assertEqual(
+            ["第一版", "第二版", "第三版"],
+            [item["content"] for item in repo.list_artifact_versions(v1["id"], "user-a")],
+        )
+        with self.assertRaises(KeyError):
+            repo.create_artifact_version(v1["id"], "user-b", content="越权")
 
     def test_provider_cost_is_attributed_to_run_and_user(self):
         conversation = repo.create_conversation("user-a")

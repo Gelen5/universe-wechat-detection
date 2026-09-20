@@ -29,6 +29,12 @@ class MessageCreate(BaseModel):
     content_json: dict[str, Any] = Field(default_factory=dict)
 
 
+class ArtifactRevisionCreate(BaseModel):
+    title: str | None = Field(default=None, max_length=240)
+    content: str | None = Field(default=None, max_length=500000)
+    content_json: dict[str, Any] | None = None
+
+
 def _not_found(exc: Exception):
     raise HTTPException(status_code=404, detail="资源不存在或不属于当前用户") from exc
 
@@ -117,6 +123,38 @@ def cancel(run_id: str, request: Request):
 def artifacts(conversation_id: str, request: Request):
     try:
         return {"artifacts": conversation_repository.list_artifacts(conversation_id, request.state.user["id"])}
+    except KeyError as exc:
+        _not_found(exc)
+
+
+@router.get("/api/artifacts/{artifact_id}")
+def artifact(artifact_id: str, request: Request):
+    row = conversation_repository.get_artifact(artifact_id, request.state.user["id"])
+    if not row:
+        raise HTTPException(status_code=404, detail="作品不存在或不属于当前用户")
+    return {"artifact": row}
+
+
+@router.get("/api/artifacts/{artifact_id}/versions")
+def artifact_versions(artifact_id: str, request: Request):
+    try:
+        return {"artifacts": conversation_repository.list_artifact_versions(
+            artifact_id, request.state.user["id"])}
+    except KeyError as exc:
+        _not_found(exc)
+
+
+@router.post("/api/artifacts/{artifact_id}/versions", status_code=201)
+def create_artifact_version(artifact_id: str, payload: ArtifactRevisionCreate, request: Request):
+    if payload.title is None and payload.content is None and payload.content_json is None:
+        raise HTTPException(status_code=422, detail="至少提供一项修改内容")
+    try:
+        row = conversation_repository.create_artifact_version(
+            artifact_id, request.state.user["id"], title=payload.title,
+            content=payload.content, content_json=payload.content_json,
+        )
+        notify(row["run_id"])
+        return {"artifact": row}
     except KeyError as exc:
         _not_found(exc)
 

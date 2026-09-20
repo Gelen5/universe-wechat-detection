@@ -111,6 +111,32 @@ class ConversationApiTests(unittest.TestCase):
         self.assertIn("event: run.completed", response.text)
         self.assertEqual("no-cache, no-transform", response.headers["cache-control"])
 
+    def test_artifact_revision_is_append_only_and_owner_isolated(self):
+        conversation = self.create()
+        with patch("server.conversation_api.dispatch_run", return_value="task"):
+            created = self.client.post(
+                f"/api/conversations/{conversation['id']}/messages",
+                headers={"Idempotency-Key": uuid.uuid4().hex}, json={"content": "写文章"},
+            ).json()
+        first = conversation_repository.create_artifact(
+            created["run_id"], self.user_id, "article", title="文章", content="第一版")
+        revised = self.client.post(
+            f"/api/artifacts/{first['id']}/versions", json={"content": "第二版"})
+        self.assertEqual(201, revised.status_code, revised.text)
+        self.assertEqual(2, revised.json()["artifact"]["version"])
+        versions = self.client.get(f"/api/artifacts/{first['id']}/versions").json()["artifacts"]
+        self.assertEqual(["第一版", "第二版"], [item["content"] for item in versions])
+
+        other = TestClient(app)
+        registered = other.post("/api/auth/register", json={
+            "email": f"artifact-{uuid.uuid4().hex[:8]}@example.com",
+            "password": "testing-pass-123", "display_name": "Other"})
+        self.assertEqual(200, registered.status_code, registered.text)
+        self.assertEqual(404, other.get(f"/api/artifacts/{first['id']}").status_code)
+        self.assertEqual(404, other.post(
+            f"/api/artifacts/{first['id']}/versions", json={"content": "越权"}).status_code)
+        other.close()
+
 
 if __name__ == "__main__":
     unittest.main()

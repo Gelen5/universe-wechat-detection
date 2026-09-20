@@ -105,6 +105,8 @@ class AgentOrchestratorTests(unittest.TestCase):
         self.assertEqual("completed", conversation_repository.get_run(run["id"], "user-a")["status"])
         history = conversation_repository.list_messages(conversation["id"], "user-a")
         self.assertEqual(["写一篇公众号文章", "这是完成的文章"], [item["content"] for item in history])
+        artifacts = conversation_repository.list_artifacts(conversation["id"], "user-a")
+        self.assertEqual(["这是完成的文章"], [item["content"] for item in artifacts])
 
     def test_context_preserves_reference_to_previous_turn(self):
         conversation, _ = self.make_run(content="给我三个选题：甲、乙、丙")
