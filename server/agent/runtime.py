@@ -11,7 +11,7 @@ import uuid
 from typing import Any, Callable
 
 from .. import accounts, conversation_repository, creator_tools, diagnosis_service, image_provider, workbench
-from ..providers import ModelService, OpenAICompatibleProvider, ProviderRequestError
+from ..providers import ModelService, OpenAICompatibleProvider, ProviderCostPolicy, ProviderRequestError
 from ..skills.registry import SkillRegistry, get_registry
 from .orchestrator import AgentOrchestrator
 from .tool_loop import ExecutableTool
@@ -43,7 +43,14 @@ def build_model_service() -> ModelService:
         conversation_repository.record_provider_call(
             payload.pop("run_id"), payload.pop("user_id"), **payload)
 
-    return ModelService(provider, usage_recorder=record_usage)
+    cost_policy = ProviderCostPolicy(
+        input_micros_per_million_tokens=max(0, int(os.getenv(
+            "WECHAT_TEXT_INPUT_MICROS_PER_MILLION_TOKENS", "0"))),
+        output_micros_per_million_tokens=max(0, int(os.getenv(
+            "WECHAT_TEXT_OUTPUT_MICROS_PER_MILLION_TOKENS", "0"))),
+        image_micros_each=max(0, int(os.getenv("WECHAT_IMAGE_MICROS_EACH", "0"))),
+    )
+    return ModelService(provider, usage_recorder=record_usage, cost_policy=cost_policy)
 
 
 def _required_text(args: dict[str, Any], key: str) -> str:

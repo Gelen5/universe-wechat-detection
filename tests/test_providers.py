@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from server.providers import ModelService, OpenAICompatibleProvider, ProviderRequestError
+from server.providers import ModelService, OpenAICompatibleProvider, ProviderCostPolicy, ProviderRequestError
 
 
 class FakeResponse:
@@ -49,6 +49,24 @@ class ProviderTests(unittest.TestCase):
         self.assertEqual("run-1", recorded[0]["run_id"])
         self.assertEqual("text", recorded[0]["model"])
         self.assertEqual((3, 4), (recorded[0]["input_tokens"], recorded[0]["output_tokens"]))
+
+    def test_model_service_calculates_configured_text_and_image_cost(self):
+        provider = self.provider([
+            FakeResponse({"choices": [{"message": {"content": "ok"}}],
+                          "usage": {"prompt_tokens": 3, "completion_tokens": 4}}),
+            FakeResponse({"data": [{"url": "https://image.test/a.png"}]}),
+        ])
+        recorded = []
+        service = ModelService(provider, usage_recorder=recorded.append, cost_policy=ProviderCostPolicy(
+            input_micros_per_million_tokens=1_000_000,
+            output_micros_per_million_tokens=2_000_000,
+            image_micros_each=250,
+        ))
+        service.create_response([], run_id="run-1", user_id="user-1")
+        service.generate_image("prompt", size="768x1024", count=2,
+                               run_id="run-1", user_id="user-1")
+        self.assertEqual(11, recorded[0]["estimated_cost_micros"])
+        self.assertEqual(500, recorded[1]["estimated_cost_micros"])
 
     def test_native_tool_call_is_structured(self):
         provider = self.provider([FakeResponse({"choices": [{"message": {"tool_calls": [{
