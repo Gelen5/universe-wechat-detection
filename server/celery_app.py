@@ -20,11 +20,15 @@ celery_app.conf.update(
         "workflow.run_node": {"queue": "creator"},
         "workflow.recover_stale": {"queue": "creator"},
         "agent.run": {"queue": "chat"},
+        "agent.recover_stale": {"queue": "chat"},
     },
     worker_concurrency=max(1, int(os.getenv("CELERY_WORKER_CONCURRENCY", "4"))),
     beat_schedule={
         "recover-stale-workflow-nodes": {
             "task": "workflow.recover_stale", "schedule": 60.0,
+        },
+        "recover-stale-agent-runs": {
+            "task": "agent.recover_stale", "schedule": 60.0,
         },
     },
 )

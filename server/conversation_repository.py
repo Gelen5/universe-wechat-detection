@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from sqlalchemy import func, select
@@ -115,7 +115,7 @@ def get_run(run_id: str, user_id: str) -> dict[str, Any] | None:
 
 
 def transition_run(run_id: str, user_id: str, status: str, *, error_code: str | None = None,
-                   error_message: str | None = None) -> dict[str, Any]:
+                   error_message: str | None = None, task_id: str | None = None) -> dict[str, Any]:
     allowed = {"queued", "running", "waiting_input", "completed", "failed", "cancelled"}
     if status not in allowed:
         raise ValueError("invalid run status")
@@ -125,6 +125,8 @@ def transition_run(run_id: str, user_id: str, status: str, *, error_code: str | 
         ).with_for_update())
         if not row:
             raise KeyError("run not found")
+        if task_id is not None and row.celery_task_id != task_id:
+            raise RuntimeError("run execution lease changed")
         now = _now()
         if row.status in {"completed", "failed", "cancelled"} and row.status != status:
             raise ValueError("terminal run cannot transition")
@@ -134,10 +136,11 @@ def transition_run(run_id: str, user_id: str, status: str, *, error_code: str | 
             row.started_at = row.started_at or now
         if status in {"completed", "failed", "cancelled"}:
             row.finished_at = row.finished_at or now
+            row.heartbeat_at = now
         return _run_view(row)
 
 
-def claim_run(run_id: str) -> dict[str, Any] | None:
+def claim_run(run_id: str, task_id: str) -> dict[str, Any] | None:
     """Atomically claim a queued Run; duplicate Celery deliveries return None."""
     with session_scope() as db:
         row = db.scalar(select(AgentRun).where(AgentRun.id == run_id).with_for_update())
@@ -145,7 +148,40 @@ def claim_run(run_id: str) -> dict[str, Any] | None:
             return None
         now = _now()
         row.status, row.started_at, row.updated_at = "running", row.started_at or now, now
+        row.celery_task_id, row.heartbeat_at = task_id, now
+        row.attempt += 1
         return _run_view(row)
+
+
+def heartbeat_run(run_id: str, task_id: str) -> bool:
+    with session_scope() as db:
+        row = db.scalar(select(AgentRun).where(AgentRun.id == run_id).with_for_update())
+        if not row or row.status != "running" or row.celery_task_id != task_id:
+            return False
+        row.heartbeat_at = row.updated_at = _now()
+        return True
+
+
+def run_lease_owned(run_id: str, task_id: str) -> bool:
+    with session_scope() as db:
+        return bool(db.scalar(select(AgentRun.id).where(
+            AgentRun.id == run_id, AgentRun.status == "running", AgentRun.celery_task_id == task_id,
+        )))
+
+
+def recover_stale_runs(stale_seconds: int = 720) -> list[str]:
+    cutoff = _now() - timedelta(seconds=max(60, stale_seconds))
+    recovered: list[str] = []
+    with session_scope() as db:
+        rows = db.scalars(select(AgentRun).where(
+            AgentRun.status == "running", AgentRun.heartbeat_at < cutoff,
+        ).with_for_update(skip_locked=True)).all()
+        for row in rows:
+            row.status, row.celery_task_id = "queued", None
+            row.error_code, row.error_message = "worker_lost", "stale worker execution recovered"
+            row.updated_at = _now()
+            recovered.append(row.id)
+    return recovered
 
 
 def create_tool_call(run_id: str, user_id: str, *, call_id: str, skill_id: str | None,
@@ -248,7 +284,9 @@ def _run_view(row: AgentRun) -> dict[str, Any]:
     return {"id": row.id, "conversation_id": row.conversation_id,
             "trigger_message_id": row.trigger_message_id, "user_id": row.user_id,
             "skill_id": row.skill_id, "status": row.status, "usage_id": row.usage_id,
-            "cost_points": row.cost_points, "provider_cost_micros": row.provider_cost_micros}
+            "cost_points": row.cost_points, "provider_cost_micros": row.provider_cost_micros,
+            "celery_task_id": row.celery_task_id, "attempt": row.attempt,
+            "heartbeat_at": row.heartbeat_at.isoformat() if row.heartbeat_at else None}
 
 
 def _artifact_view(row: Artifact) -> dict[str, Any]:

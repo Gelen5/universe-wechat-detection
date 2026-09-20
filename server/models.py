@@ -154,6 +154,9 @@ class AgentRun(Base):
     cost_points: Mapped[int] = mapped_column(Integer, default=0)
     provider_cost_micros: Mapped[int] = mapped_column(BigInteger, default=0)
     usage_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    celery_task_id: Mapped[str | None] = mapped_column(String(80), nullable=True, index=True)
+    attempt: Mapped[int] = mapped_column(Integer, default=0)
+    heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
@@ -162,6 +165,7 @@ class AgentRun(Base):
         UniqueConstraint("user_id", "idempotency_key", name="uq_runs_user_idempotency"),
         CheckConstraint("status IN ('queued','running','waiting_input','completed','failed','cancelled')", name="ck_runs_status"),
         CheckConstraint("cost_points >= 0 AND provider_cost_micros >= 0", name="ck_runs_cost_nonnegative"),
+        CheckConstraint("attempt >= 0", name="ck_runs_attempt_nonnegative"),
         Index("idx_runs_conversation_created", "conversation_id", "created_at"),
     )
 

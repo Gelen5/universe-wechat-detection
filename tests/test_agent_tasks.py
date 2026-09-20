@@ -37,7 +37,10 @@ class AgentTaskTests(unittest.TestCase):
 
     def test_duplicate_delivery_executes_once(self):
         orchestrator = Mock()
-        orchestrator.execute.return_value = {"status": "completed"}
+        orchestrator.execute.side_effect = lambda run_id, user_id, task_id=None: (
+            conversation_repository.transition_run(run_id, user_id, "completed", task_id=task_id)
+            and {"status": "completed"}
+        )
         with patch("server.agent_tasks._orchestrator_factory", return_value=orchestrator):
             first = execute_agent_run.apply(args=[self.run["id"]]).get()
             second = execute_agent_run.apply(args=[self.run["id"]]).get()
@@ -47,6 +50,18 @@ class AgentTaskTests(unittest.TestCase):
 
     def test_chat_task_has_dedicated_queue(self):
         self.assertEqual("chat", celery_app.conf.task_routes["agent.run"]["queue"])
+
+    def test_stale_run_recovery_revokes_old_lease(self):
+        from datetime import datetime, timedelta, timezone
+        from server.models import AgentRun
+        claimed = conversation_repository.claim_run(self.run["id"], "old-task")
+        with database.session_scope() as db:
+            row = db.get(AgentRun, self.run["id"])
+            row.heartbeat_at = datetime.now(timezone.utc) - timedelta(hours=1)
+        self.assertEqual([self.run["id"]], conversation_repository.recover_stale_runs(60))
+        self.assertFalse(conversation_repository.run_lease_owned(self.run["id"], "old-task"))
+        with self.assertRaisesRegex(RuntimeError, "lease changed"):
+            conversation_repository.transition_run(self.run["id"], "user-a", "completed", task_id="old-task")
 
 
 if __name__ == "__main__":

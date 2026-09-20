@@ -25,7 +25,7 @@ def dispatch_run(run_id: str) -> str:
 @celery_app.task(bind=True, name="agent.run", max_retries=4, acks_late=True,
                  reject_on_worker_lost=True, soft_time_limit=600, time_limit=660)
 def execute_agent_run(self, run_id: str):
-    claimed = conversation_repository.claim_run(run_id)
+    claimed = conversation_repository.claim_run(run_id, self.request.id)
     if not claimed:
         return {"status": "ignored", "reason": "already claimed or terminal"}
     if _orchestrator_factory is None:
@@ -34,11 +34,19 @@ def execute_agent_run(self, run_id: str):
                                                error_message="agent orchestrator is not configured")
         return {"status": "failed", "error": "orchestrator_unconfigured"}
     try:
-        return _orchestrator_factory().execute(run_id, claimed["user_id"])
+        return _orchestrator_factory().execute(run_id, claimed["user_id"], task_id=self.request.id)
     except ProviderRequestError as exc:
         if exc.transient and self.request.retries < self.max_retries:
             # Return the persistent Run to queued before Celery redelivery.
             conversation_repository.transition_run(run_id, claimed["user_id"], "queued",
-                                                   error_code=exc.code, error_message=str(exc))
+                                                   error_code=exc.code, error_message=str(exc), task_id=self.request.id)
             raise self.retry(exc=exc, countdown=min(30, 2 ** (self.request.retries + 1)))
         raise
+
+
+@celery_app.task(name="agent.recover_stale")
+def recover_stale_agent_runs():
+    recovered = conversation_repository.recover_stale_runs()
+    for run_id in recovered:
+        execute_agent_run.apply_async(args=[run_id], queue="chat")
+    return {"recovered": len(recovered)}
