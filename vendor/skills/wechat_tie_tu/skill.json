@@ -1,1 +1,21 @@
-{"id":"wechat_tie_tu","name":"微信贴图号","version":"1.0.0","description":"生成与公众号长文分离的微信贴图号卡片和配套文案。","capabilities":["writing","card_plan","image"],"tools":[{"name":"generate_draft","description":"生成贴图号卡片计划与文案","parameters":{"type":"object"}},{"name":"generate_images","description":"生成已确认的卡片图片","parameters":{"type":"object"}}],"pricing":{"base_points":10},"model_policy":{"text":"default_text","image":"default_image"},"limits":{"timeout_seconds":600,"max_tool_calls":12},"trusted":true}
+{
+  "id": "wechat_tie_tu", "name": "微信贴图号", "version": "1.0.0",
+  "description": "生成与公众号长文分离的微信贴图号卡片和配套文案。",
+  "capabilities": ["writing", "card_plan", "image"],
+  "tools": [
+    {"name": "generate_draft", "description": "生成贴图号卡片计划与文案", "parameters": {
+      "type": "object", "properties": {
+        "industry": {"type": "string"}, "topic": {"type": "string"}, "title": {"type": "string"},
+        "content_type": {"type": "string"}, "image_count": {"type": "integer", "minimum": 1, "maximum": 12},
+        "style": {"type": "string"}, "audience": {"type": "string"}, "portrait_mode": {"type": "string"},
+        "requirements": {"type": "string"}
+      }, "required": ["topic"], "additionalProperties": false
+    }},
+    {"name": "generate_images", "description": "生成已确认的卡片图片", "parameters": {
+      "type": "object", "properties": {"draft": {"type": "object"}, "style": {"type": "string"}, "size": {"type": "string"}},
+      "required": ["draft"], "additionalProperties": false
+    }}
+  ],
+  "pricing": {"base_points": 10}, "model_policy": {"text": "default_text", "image": "default_image"},
+  "limits": {"timeout_seconds": 600, "max_tool_calls": 12}, "trusted": true
+}

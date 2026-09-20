@@ -99,7 +99,7 @@ class AgentOrchestratorTests(unittest.TestCase):
         conversation, run = self.make_run()
         provider = SequenceProvider([ProviderResponse(text="这是完成的文章")])
         orchestrator = AgentOrchestrator(registry=self.registry, model_service=ModelService(provider),
-                                         tool_resolver=lambda _: {})
+                                         tool_resolver=lambda *_: {})
         result = orchestrator.execute(run["id"], "user-a")
         self.assertEqual("completed", result["status"])
         self.assertEqual("completed", conversation_repository.get_run(run["id"], "user-a")["status"])
@@ -119,7 +119,7 @@ class AgentOrchestratorTests(unittest.TestCase):
         orchestrator = AgentOrchestrator(
             registry=self.registry,
             model_service=ModelService(provider),
-            tool_resolver=lambda _: {"write_article": ExecutableTool(
+            tool_resolver=lambda *_: {"write_article": ExecutableTool(
                 {"name": "write_article", "description": "write", "parameters": {"type": "object"}},
                 lambda args: {"title": args["topic"], "article": "这是工具生成的正文"},
             )},
@@ -136,7 +136,7 @@ class AgentOrchestratorTests(unittest.TestCase):
         _, run = self.make_run(mode="auto", content="写一篇公众号文章")
         provider = SequenceProvider([ProviderResponse(text="文章完成")])
         AgentOrchestrator(
-            registry=self.registry, model_service=ModelService(provider), tool_resolver=lambda _: {},
+            registry=self.registry, model_service=ModelService(provider), tool_resolver=lambda *_: {},
         ).execute(run["id"], "user-a")
         self.assertEqual(
             "wechat_writer", conversation_repository.get_run(run["id"], "user-a")["skill_id"],
@@ -149,7 +149,7 @@ class AgentOrchestratorTests(unittest.TestCase):
         run, _ = conversation_repository.create_run(conversation["id"], "user-a", message["id"], "follow-up")
         provider = SequenceProvider([ProviderResponse(text="我将围绕丙继续")])
         AgentOrchestrator(registry=self.registry, model_service=ModelService(provider),
-                          tool_resolver=lambda _: {}).execute(run["id"], "user-a")
+                          tool_resolver=lambda *_: {}).execute(run["id"], "user-a")
         sent = provider.messages[0]
         self.assertTrue(any(item.get("content") == "1甲 2乙 3丙" for item in sent))
         self.assertTrue(any(item.get("content") == "第三个" for item in sent))

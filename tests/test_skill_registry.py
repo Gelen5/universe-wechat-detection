@@ -29,6 +29,13 @@ class SkillRegistryTests(unittest.TestCase):
         self.assertIn("早安", content)
         self.assertEqual("SKILL.md", path.name)
 
+    def test_every_tool_exposes_actionable_json_schema(self):
+        registry = SkillRegistry((DEFAULT_ROOT,)).reload()
+        for skill in registry.list():
+            for tool in skill.tools:
+                self.assertEqual("object", tool.parameters.get("type"))
+                self.assertTrue(tool.parameters.get("properties"), f"{skill.id}.{tool.name}")
+
     def test_rejects_duplicate_skill_ids(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)

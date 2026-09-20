@@ -15,7 +15,7 @@ from .tool_loop import ExecutableTool, run_tool_loop
 
 class AgentOrchestrator:
     def __init__(self, *, registry: SkillRegistry, model_service: ModelService,
-                 tool_resolver: Callable[[str], dict[str, ExecutableTool]]):
+                 tool_resolver: Callable[[str, str, str], dict[str, ExecutableTool]]):
         self.registry = registry
         self.model_service = model_service
         self.tool_resolver = tool_resolver
@@ -112,7 +112,8 @@ class AgentOrchestrator:
             answer = run_tool_loop(
                 model_service=self.model_service,
                 messages=[{"role": "system", "content": instructions}, *history],
-                tools=self.tool_resolver(decision.skill_id), run_id=run_id, user_id=user_id,
+                tools=self.tool_resolver(decision.skill_id, run_id, user_id),
+                run_id=run_id, user_id=user_id,
                 skill_id=decision.skill_id,
                 max_tool_calls=int(manifest.limits.get("max_tool_calls", 12)),
                 timeout_seconds=int(manifest.limits.get("timeout_seconds", 600)),

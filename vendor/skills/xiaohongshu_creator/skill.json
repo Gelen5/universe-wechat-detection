@@ -1,1 +1,20 @@
-{"id":"xiaohongshu_creator","name":"小红书创作","version":"1.0.0","description":"生成小红书选题、图文笔记、卡片计划并执行发布前检查。","capabilities":["topic","writing","image_plan","precheck"],"tools":[{"name":"generate_draft","description":"生成或修改小红书图文草稿","parameters":{"type":"object"}},{"name":"generate_images","description":"按已确认计划生成卡片图片","parameters":{"type":"object"}}],"pricing":{"base_points":10},"model_policy":{"text":"default_text","image":"default_image"},"limits":{"timeout_seconds":600,"max_tool_calls":12},"trusted":true}
+{
+  "id": "xiaohongshu_creator", "name": "小红书创作", "version": "1.0.0",
+  "description": "生成小红书选题、图文笔记、卡片计划并执行发布前检查。",
+  "capabilities": ["topic", "writing", "image_plan", "precheck"],
+  "tools": [
+    {"name": "generate_draft", "description": "生成或修改小红书图文草稿", "parameters": {
+      "type": "object", "properties": {
+        "topic": {"type": "string"}, "account": {"type": "string"}, "audience": {"type": "string"},
+        "goal": {"type": "string"}, "evidence": {"type": "string"}, "content_type": {"type": "string"},
+        "image_count": {"type": "integer", "minimum": 1, "maximum": 12}, "requirements": {"type": "string"}
+      }, "required": ["topic"], "additionalProperties": false
+    }},
+    {"name": "generate_images", "description": "按已确认计划生成卡片图片", "parameters": {
+      "type": "object", "properties": {"draft": {"type": "object"}, "style": {"type": "string"}, "size": {"type": "string"}},
+      "required": ["draft"], "additionalProperties": false
+    }}
+  ],
+  "pricing": {"base_points": 10}, "model_policy": {"text": "default_text", "image": "default_image"},
+  "limits": {"timeout_seconds": 600, "max_tool_calls": 12}, "trusted": true
+}

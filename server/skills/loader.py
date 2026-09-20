@@ -71,3 +71,13 @@ def _validate(data: dict[str, Any], path: Path) -> None:
             raise SkillManifestError(f"tool {tool['name']} needs description")
         if not isinstance(tool.get("parameters", {}), dict):
             raise SkillManifestError(f"tool {tool['name']} parameters must be JSON Schema")
+        parameters = tool.get("parameters") or {}
+        if parameters.get("type") != "object" or not isinstance(parameters.get("properties"), dict):
+            raise SkillManifestError(
+                f"tool {tool['name']} parameters must define an object schema with properties"
+            )
+        required = parameters.get("required", [])
+        if not isinstance(required, list) or not all(
+            isinstance(value, str) and value in parameters["properties"] for value in required
+        ):
+            raise SkillManifestError(f"tool {tool['name']} has invalid required parameters")

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import hashlib
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from tests import support  # noqa: F401
 from server.agent import runtime
@@ -32,6 +33,26 @@ class AgentRuntimeTests(unittest.TestCase):
             with patch.dict("os.environ", {}, clear=True):
                 with self.assertRaisesRegex(ProviderRequestError, "尚未配置"):
                     runtime.build_model_service()
+
+    def test_wechat_image_tool_uses_model_service_with_run_attribution(self):
+        service = MagicMock()
+        service.generate_image.return_value = {"data": [{"url": "https://example.test/image.png"}]}
+        tools = runtime.resolve_tools(
+            "wechat_writer", registry=get_registry(), model_service=service,
+            run_id="run-1", user_id="user-1",
+        )
+        result = tools["generate_image"].execute({
+            "prompt": "清晨窗边", "size": "768x1024", "count": 2,
+        })
+        self.assertEqual("https://example.test/image.png", result["data"][0]["url"])
+        request_hash = hashlib.sha256(
+            f"{'清晨窗边'}\0{'768x1024'}\0{2}".encode("utf-8")
+        ).hexdigest()[:24]
+        service.generate_image.assert_called_once_with(
+            "清晨窗边", size="768x1024", count=2,
+            idempotency_key=f"run-1:generate_image:{request_hash}",
+            run_id="run-1", user_id="user-1",
+        )
 
 
 if __name__ == "__main__":

@@ -5,6 +5,7 @@ assembles existing services; durable state continues to live in PostgreSQL.
 """
 from __future__ import annotations
 
+import hashlib
 import os
 import uuid
 from typing import Any, Callable
@@ -57,7 +58,8 @@ def _with_provider(call: Callable[[], dict[str, Any] | list | str]):
         return call()
 
 
-def _wechat_tools() -> dict[str, Callable[[dict[str, Any]], Any]]:
+def _wechat_tools(*, model_service: ModelService | None = None,
+                  run_id: str | None = None, user_id: str | None = None) -> dict[str, Callable[[dict[str, Any]], Any]]:
     def search_topics(args):
         topic = _required_text(args, "topic")
         persona = str(args.get("persona") or "深度观察者")
@@ -77,8 +79,18 @@ def _wechat_tools() -> dict[str, Callable[[dict[str, Any]], Any]]:
 
     def generate_image(args):
         prompt = _required_text(args, "prompt")
-        payload = {"prompt": prompt, "size": str(args.get("size") or "1024x1024"),
-                   "n": int(args.get("count") or 1)}
+        size = str(args.get("size") or "1024x1024")
+        count = int(args.get("count") or 1)
+        if model_service is not None:
+            request_hash = hashlib.sha256(
+                f"{prompt}\0{size}\0{count}".encode("utf-8")
+            ).hexdigest()[:24]
+            return model_service.generate_image(
+                prompt, size=size, count=count,
+                idempotency_key=f"{run_id}:generate_image:{request_hash}",
+                run_id=run_id, user_id=user_id,
+            )
+        payload = {"prompt": prompt, "size": size, "n": count}
         return _with_provider(lambda: image_provider.generate(payload))
 
     def typeset_article(args):
@@ -118,9 +130,11 @@ def _creator_draft(skill_id: str, args: dict[str, Any]) -> dict[str, Any]:
     return _with_provider(lambda: creator_tools.tie_tu_plan(**values))
 
 
-def _skill_executors(skill_id: str) -> dict[str, Callable[[dict[str, Any]], Any]]:
+def _skill_executors(skill_id: str, *, model_service: ModelService | None = None,
+                     run_id: str | None = None,
+                     user_id: str | None = None) -> dict[str, Callable[[dict[str, Any]], Any]]:
     if skill_id == "wechat_writer":
-        return _wechat_tools()
+        return _wechat_tools(model_service=model_service, run_id=run_id, user_id=user_id)
     if skill_id == "wechat_account_analyzer":
         return {"diagnose_account": lambda args: diagnosis_service.run(
             _required_text(args, "account_name"), lambda report: report)}
@@ -156,9 +170,14 @@ def _skill_executors(skill_id: str) -> dict[str, Callable[[dict[str, Any]], Any]
     return {}
 
 
-def resolve_tools(skill_id: str, *, registry: SkillRegistry | None = None) -> dict[str, ExecutableTool]:
-    manifest = (registry or get_registry()).get(skill_id)
-    executors = _skill_executors(skill_id)
+def resolve_tools(skill_id: str, *, registry: SkillRegistry | None = None,
+                  model_service: ModelService | None = None,
+                  run_id: str | None = None,
+                  user_id: str | None = None) -> dict[str, ExecutableTool]:
+    manifest = (registry or get_registry()).executable(skill_id)
+    executors = _skill_executors(
+        skill_id, model_service=model_service, run_id=run_id, user_id=user_id,
+    )
     resolved: dict[str, ExecutableTool] = {}
     for tool in manifest.tools:
         execute = executors.get(tool.name)
@@ -171,5 +190,12 @@ def resolve_tools(skill_id: str, *, registry: SkillRegistry | None = None) -> di
 
 def build_orchestrator() -> AgentOrchestrator:
     registry = get_registry()
-    return AgentOrchestrator(registry=registry, model_service=build_model_service(),
-                             tool_resolver=lambda skill_id: resolve_tools(skill_id, registry=registry))
+    model_service = build_model_service()
+    return AgentOrchestrator(
+        registry=registry,
+        model_service=model_service,
+        tool_resolver=lambda skill_id, run_id, user_id: resolve_tools(
+            skill_id, registry=registry, model_service=model_service,
+            run_id=run_id, user_id=user_id,
+        ),
+    )

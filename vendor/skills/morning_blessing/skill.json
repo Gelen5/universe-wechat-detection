@@ -1,1 +1,26 @@
-{"id":"morning_blessing","name":"早安祝福","version":"1.0.0","description":"生成早安祝福文案、图片计划、配图和公众号排版。","capabilities":["writing","image_plan","image","typeset"],"tools":[{"name":"generate_draft","description":"生成早安祝福文案和图片计划","parameters":{"type":"object"}},{"name":"generate_images","description":"生成早安祝福图片","parameters":{"type":"object"}},{"name":"change_layout","description":"调整现有内容排版但不改文案和图片","parameters":{"type":"object"}}],"pricing":{"base_points":8},"model_policy":{"text":"default_text","image":"default_image"},"limits":{"timeout_seconds":600,"max_tool_calls":12},"trusted":true}
+{
+  "id": "morning_blessing", "name": "早安祝福", "version": "1.0.0",
+  "description": "生成早安祝福文案、图片计划、配图和公众号排版。",
+  "capabilities": ["writing", "image_plan", "image", "typeset"],
+  "tools": [
+    {"name": "generate_draft", "description": "生成早安祝福文案和图片计划", "parameters": {
+      "type": "object", "properties": {
+        "topic": {"type": "string"}, "image_count": {"type": "integer", "minimum": 1, "maximum": 12},
+        "copy_count": {"type": "integer", "minimum": 1, "maximum": 20}, "style": {"type": "string"},
+        "mode": {"type": "string", "enum": ["article", "poster"]}, "columns": {"type": "integer", "minimum": 1},
+        "image_at": {"type": "integer", "minimum": 1}, "image_position": {"type": "string", "enum": ["before", "after"]},
+        "size": {"type": "string"}, "requirements": {"type": "string"}
+      }, "additionalProperties": false
+    }},
+    {"name": "generate_images", "description": "生成早安祝福图片", "parameters": {
+      "type": "object", "properties": {"draft": {"type": "object"}, "style": {"type": "string"}, "size": {"type": "string"}},
+      "required": ["draft"], "additionalProperties": false
+    }},
+    {"name": "change_layout", "description": "调整现有内容排版但不改文案和图片", "parameters": {
+      "type": "object", "properties": {"theme": {"type": "string"}, "content": {"type": "string"}, "images": {"type": "array"}},
+      "required": ["theme"], "additionalProperties": false
+    }}
+  ],
+  "pricing": {"base_points": 8}, "model_policy": {"text": "default_text", "image": "default_image"},
+  "limits": {"timeout_seconds": 600, "max_tool_calls": 12}, "trusted": true
+}

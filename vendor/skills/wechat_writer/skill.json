@@ -1,1 +1,71 @@
-{"id":"wechat_writer","name":"公众号创作","version":"1.0.0","description":"完成公众号选题、研究、框架、正文、复核、配图与排版。","source_env":"WECHAT_PUBLISHER_SKILL_DIR","capabilities":["topic","research","outline","writing","review","image","typeset"],"tools":[{"name":"search_topics","description":"检索并分析近期值得写的公众号选题","parameters":{"type":"object"}},{"name":"write_article","description":"基于已确认的选题和框架生成公众号文章","parameters":{"type":"object"}},{"name":"generate_image","description":"为当前文章生成配图","parameters":{"type":"object"}},{"name":"typeset_article","description":"把当前文章排版为公众号 HTML","parameters":{"type":"object"}}],"pricing":{"base_points":10},"model_policy":{"text":"default_text","image":"default_image"},"limits":{"timeout_seconds":600,"max_tool_calls":20},"trusted":true}
+{
+  "id": "wechat_writer",
+  "name": "公众号创作",
+  "version": "1.0.0",
+  "description": "完成公众号选题、研究、框架、正文、复核、配图与排版。",
+  "source_env": "WECHAT_PUBLISHER_SKILL_DIR",
+  "capabilities": ["topic", "research", "outline", "writing", "review", "image", "typeset"],
+  "tools": [
+    {
+      "name": "search_topics",
+      "description": "检索并分析近期值得写的公众号选题",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "topic": {"type": "string", "description": "用户关心的主题或赛道"},
+          "persona": {"type": "string", "description": "作者人设或表达风格"}
+        },
+        "required": ["topic"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "write_article",
+      "description": "基于已确认的选题和框架生成公众号文章",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "title": {"type": "string"},
+          "topic": {"type": "string"},
+          "persona": {"type": "string"},
+          "requirements": {"type": "string"},
+          "framework": {"type": "object"}
+        },
+        "anyOf": [{"required": ["title"]}, {"required": ["topic"]}],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_image",
+      "description": "为当前文章生成配图",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "prompt": {"type": "string"},
+          "size": {"type": "string", "default": "1024x1024"},
+          "count": {"type": "integer", "minimum": 1, "maximum": 8, "default": 1}
+        },
+        "required": ["prompt"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "typeset_article",
+      "description": "把当前文章排版为公众号 HTML",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "article": {"type": "string"},
+          "theme": {"type": "string"},
+          "requirements": {"type": "string"}
+        },
+        "required": ["article"],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "pricing": {"base_points": 10},
+  "model_policy": {"text": "default_text", "image": "default_image"},
+  "limits": {"timeout_seconds": 600, "max_tool_calls": 20},
+  "trusted": true
+}
