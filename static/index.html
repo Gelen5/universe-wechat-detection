@@ -18,6 +18,7 @@
     <link rel="stylesheet" href="/static/studio-tools.css?v=20260904-1" />
     <link rel="stylesheet" href="/static/notion-workspace.css?v=20260905-settings-menu-1" />
     <link rel="stylesheet" href="/static/workbench-chat.css?v=20260911-chat-review-2" />
+    <link rel="stylesheet" href="/static/conversation-workbench.css?v=20260921-conversation-1" />
   </head>
   <body>
     <div class="app-shell">
@@ -335,7 +336,7 @@
       <!-- ============================================================
            TAB 2 · /workbench — 公众号创作（对话式共创）
            ============================================================ -->
-      <section id="workbench" class="workbench-page article-workspace" hidden>
+      <section id="workbench" class="workbench-page article-workspace normalized-conversation" hidden>
         <header class="studio-heading"><div><h1>公众号创作</h1><p>发来一个主题，创作助手会调用完整 Skill 带你做到可交付。</p></div><div class="studio-heading-actions" hidden><button id="studio-details-toggle" type="button" aria-expanded="false" aria-controls="studio-details">结构与版本</button><button id="assistant-toggle" type="button" aria-expanded="true" aria-controls="creation-assistant">收起助手</button></div></header>
         <div id="workflow-steps" class="workflow-rail"></div>
         <div class="studio-switch" role="group" aria-label="工作区视图"><button type="button" data-studio-view="chat" aria-pressed="true">对话与选题</button><button type="button" data-studio-view="article" aria-pressed="false">文章画布</button></div>
@@ -343,9 +344,8 @@
           <aside id="creation-assistant" class="conversation-panel" aria-label="创作对话">
             <header class="conversation-panel-head"><div class="conversation-identity"><span class="assistant-mark"><i data-lucide="sparkles"></i></span><div><strong>公众号创作助手</strong><small>选题、检索、写作、审校、配图与排版</small></div></div><div class="conversation-panel-tools"><span id="workbench-status" class="work-status">等待你的想法</span><button id="new-workbench-chat" class="new-chat-button" type="button"><i data-lucide="square-pen"></i> 新对话</button></div></header>
             <div id="workbench-mode-picker" class="chat-mode-picker" role="group" aria-label="创作模式">
-              <button class="mode-option active" data-mode="interactive" type="button"><strong>交互模式</strong><small>每个关键产物由你确认</small></button>
-              <button class="mode-option" data-mode="auto" type="button"><strong>自动模式</strong><small>从主题直接运行到交付</small></button>
-              <button class="mode-option" data-mode="step" type="button"><strong>单步模式</strong><small>只执行当前明确任务</small></button>
+              <button class="mode-option active" data-mode="interactive" type="button"><strong>公众号创作</strong><small>固定使用公众号 Skill</small></button>
+              <button class="mode-option" data-mode="auto" type="button"><strong>自动选择</strong><small>由 AI 选择合适 Skill</small></button>
             </div>
             <div id="workbench-chat-thread" class="chat-thread" aria-live="polite"></div>
             <div id="topic-list" class="chat-choice-list"></div>
@@ -900,5 +900,6 @@
         });
       })();
     </script>
+    <script src="/static/conversation-workbench.js?v=20260921-conversation-1"></script>
   </body>
 </html>

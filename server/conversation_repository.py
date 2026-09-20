@@ -604,7 +604,8 @@ def _artifact_view(row: Artifact) -> dict[str, Any]:
     return {"id": row.id, "conversation_id": row.conversation_id, "run_id": row.run_id,
             "type": row.type, "title": row.title, "content": row.content,
             "content_json": row.content_json, "storage_key": row.storage_key,
-            "storage_url": row.storage_url, "version": row.version}
+            "storage_url": row.storage_url, "version": row.version,
+            "created_at": row.created_at.isoformat(), "updated_at": row.updated_at.isoformat()}
 
 
 def _tool_call_view(row: ToolCall) -> dict[str, Any]:

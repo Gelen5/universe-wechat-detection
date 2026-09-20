@@ -1,0 +1,21 @@
+.normalized-conversation .conversation-workbench-layout {
+  grid-template-columns: minmax(360px, 0.82fr) minmax(520px, 1.18fr);
+  max-width: 1440px;
+  margin-inline: auto;
+}
+
+.normalized-conversation .conversation-panel,
+.normalized-conversation .article-canvas { min-height: calc(100vh - 190px); }
+.normalized-conversation .chat-thread { min-height: 340px; }
+.normalized-conversation .tool-progress p { color: var(--text-secondary, #667085); font-size: 13px; }
+.normalized-conversation .tool-progress p::before {
+  content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 8px;
+  border-radius: 50%; background: #10a37f; vertical-align: 2px;
+}
+.normalized-conversation .empty-artifact { color: var(--text-secondary, #667085); font-size: 13px; }
+
+@media (max-width: 980px) {
+  .normalized-conversation .conversation-workbench-layout { grid-template-columns: 1fr; }
+  .normalized-conversation .conversation-panel,
+  .normalized-conversation .article-canvas { min-height: auto; }
+}
