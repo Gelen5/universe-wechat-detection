@@ -1,0 +1,83 @@
+from __future__ import annotations
+
+import tempfile
+import unittest
+from pathlib import Path
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from server import conversation_repository as repo
+from server import database
+from server.models import AgentRun, Base, ProviderCall, users_table
+
+
+class ConversationRepositoryTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        engine = create_engine(f"sqlite:///{Path(self.temp.name, 'conversation.db').as_posix()}",
+                               connect_args={"check_same_thread": False})
+        Base.metadata.create_all(engine)
+        database.ENGINE = engine
+        database.SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
+        with engine.begin() as connection:
+            connection.execute(users_table.insert(), [
+                {"id": "user-a", "email": "a@example.com", "display_name": "A", "password_hash": "x",
+                 "role": "user", "status": "active", "created_at": "2026-01-01"},
+                {"id": "user-b", "email": "b@example.com", "display_name": "B", "password_hash": "x",
+                 "role": "user", "status": "active", "created_at": "2026-01-01"},
+            ])
+
+    def tearDown(self):
+        database.ENGINE.dispose()
+        self.temp.cleanup()
+
+    def test_manual_conversation_requires_skill(self):
+        with self.assertRaises(ValueError):
+            repo.create_conversation("user-a", mode="manual")
+
+    def test_history_is_persistent_and_owner_isolated(self):
+        conversation = repo.create_conversation("user-a", skill_id="wechat_writer", mode="manual")
+        first = repo.add_message(conversation["id"], "user-a", "user", "第三个")
+        repo.add_message(conversation["id"], "user-a", "assistant", "收到")
+        self.assertEqual(["第三个", "收到"], [m["content"] for m in repo.list_messages(conversation["id"], "user-a")])
+        self.assertEqual("user", first["role"])
+        self.assertIsNone(repo.get_conversation(conversation["id"], "user-b"))
+        with self.assertRaises(KeyError):
+            repo.list_messages(conversation["id"], "user-b")
+
+    def test_run_creation_is_idempotent_per_user(self):
+        conversation = repo.create_conversation("user-a", skill_id="wechat_writer", mode="manual")
+        message = repo.add_message(conversation["id"], "user-a", "user", "写文章")
+        first, replay1 = repo.create_run(conversation["id"], "user-a", message["id"], "same-key")
+        second, replay2 = repo.create_run(conversation["id"], "user-a", message["id"], "same-key")
+        self.assertFalse(replay1)
+        self.assertTrue(replay2)
+        self.assertEqual(first["id"], second["id"])
+
+    def test_artifact_versions_increment_without_overwrite(self):
+        conversation = repo.create_conversation("user-a")
+        message = repo.add_message(conversation["id"], "user-a", "user", "写文章")
+        run, _ = repo.create_run(conversation["id"], "user-a", message["id"], "run-1")
+        v1 = repo.create_artifact(run["id"], "user-a", "article", content="第一版")
+        v2 = repo.create_artifact(run["id"], "user-a", "article", content="第二版")
+        self.assertEqual((1, 2), (v1["version"], v2["version"]))
+        self.assertEqual("第一版", v1["content"])
+
+    def test_provider_cost_is_attributed_to_run_and_user(self):
+        conversation = repo.create_conversation("user-a")
+        message = repo.add_message(conversation["id"], "user-a", "user", "写文章")
+        run, _ = repo.create_run(conversation["id"], "user-a", message["id"], "run-cost")
+        repo.record_provider_call(run["id"], "user-a", provider="compatible", model="text-model",
+                                  input_tokens=100, output_tokens=50, estimated_cost_micros=1234)
+        with database.session_scope() as db:
+            saved_run = db.get(AgentRun, run["id"])
+            call = db.query(ProviderCall).one()
+            self.assertEqual(1234, saved_run.provider_cost_micros)
+            self.assertEqual("user-a", call.user_id)
+        with self.assertRaises(KeyError):
+            repo.record_provider_call(run["id"], "user-b", provider="x", model="y")
+
+
+if __name__ == "__main__":
+    unittest.main()

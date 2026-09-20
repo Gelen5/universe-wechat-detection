@@ -1,5 +1,99 @@
 # Architecture Audit
 
+## Executive Summary (2026-09-20)
+
+The repository is a modular monolith in transition, not a greenfield system. It
+already has working authentication, account administration, wallet billing,
+provider settings, a creator workbench, a durable PostgreSQL/Celery workflow,
+SSE replay, and several vendored Skills. The safest path is to preserve these
+contracts and put a normalized conversation/run/artifact core beside them.
+
+The previous workflow migration solved execution durability, but it did not yet
+provide the product-level objects required by a ChatGPT-style Skill workspace.
+Phase 1 therefore adds `conversations`, `messages`, `runs`, `tool_calls`,
+`artifacts`, and `provider_calls` without replacing `workflow_sessions`.
+
+## Repository Map
+
+| Concern | Current source of truth | Assessment |
+| --- | --- | --- |
+| HTTP composition | `server/main.py` | Working but oversized; compatibility facade should remain |
+| Auth/account/admin/wallet | `server/accounts.py` | Working and reused; direct SQL is migration debt |
+| Existing conversational behavior | `server/creator_conversation.py`, `server/conversation_agent.py` | Reusable product rules, not yet normalized storage |
+| Skill invocation | `server/skill_runtime.py`, `server/creator_tools.py`, `vendor/skills/` | Reusable adapters; discovery is still hard-coded |
+| Durable orchestration | `workflow_api.py`, `workflow_repository.py`, `workflow_tasks.py` | Strong reusable base for Run execution |
+| Queue | `celery_app.py`, Redis, Celery Worker/Beat | Production-capable baseline |
+| Data | SQLAlchemy + Alembic + PostgreSQL | Correct base; legacy compatibility SQL remains |
+| Realtime | `workflow_events.py`, workflow SSE endpoint | Reusable replay mechanism with `Last-Event-ID` |
+| UI | static workbench pages and creator routes | Preserve until backend conversation path is complete |
+| Deployment | Docker Compose, Nginx host, release directories | Working single-host production shape |
+
+## Existing Capabilities To Reuse
+
+1. Cookie authentication and cross-user authorization helpers.
+2. Wallet reserve, settle, refund, and immutable point transactions.
+3. PostgreSQL row locking and idempotent durable workflows.
+4. Celery retry/recovery and persistent cancellation state.
+5. Workflow event log and resumable SSE replay.
+6. Existing creator conversation decisions and content business rules.
+7. Skill-derived article, review, image, and typesetting adapters.
+8. Provider configuration kept server-side.
+9. Existing administrator and Usage views.
+10. Docker Compose release and migration process.
+
+## Legacy And Duplicate Paths
+
+- `workbench_sessions` stores a whole conversation-like state as JSON while the
+  normalized conversation core now stores messages and artifacts independently.
+- `jobs` and `workbench_jobs` coexist with durable `workflow_sessions`.
+- `ThreadPoolExecutor` remains in `main.py`, `task_worker.py`, and research
+  helpers. Core long-running production work must move to Celery before removal.
+- Model/provider HTTP calls exist in more than one workbench module and need to
+  converge behind a Provider interface.
+- Skill selection and registration are partly encoded in Python branches rather
+  than manifests discovered by a registry.
+
+## Ten Largest Current Risks
+
+1. New chat requests do not yet use one normalized Conversation/Run API.
+2. Skill discovery remains hard-coded, limiting safe growth beyond a few Skills.
+3. Provider calls are scattered and cannot be uniformly measured or swapped.
+4. Some long tasks can still execute in process-local thread pools.
+5. Workflow events are domain-specific rather than a unified Run event schema.
+6. Artifact versioning was absent, causing generated work to be overwritten.
+7. Provider cost was not attributable to Run, ToolCall, and user together.
+8. Legacy JSON session state remains a concurrency and auditability boundary.
+9. Rate limiting is not consistently enforced by user, IP, and Skill.
+10. Trusted Skill execution has no explicit policy boundary for future third-party Skills.
+
+## Incremental Migration Plan
+
+1. Add normalized product models and repositories beside existing workflow tables.
+2. Add manifest-driven Skill Registry and adapt existing Skills without rewriting them.
+3. Introduce provider interfaces and move calls incrementally.
+4. Add router, context builder, orchestrator, and bounded native tool loop.
+5. Bind each Run to the durable Celery workflow and event log.
+6. Expose Conversation, Message, Run, Cancel, History, and SSE APIs.
+7. Persist versioned Artifacts and storage references.
+8. Connect wallet reservation/settlement and ProviderCall costs to Run.
+9. Move remaining core thread-pool work to queues; retain compatibility routes.
+10. Replace the creator UI only after the backend E2E path is proven.
+
+## Phase 1 Change Boundary
+
+Modified now: `server/models.py`, a new additive Alembic revision,
+`server/conversation_repository.py`, and focused tests. Temporarily unchanged:
+existing UI, auth routes, wallet behavior, provider settings, legacy workbench
+routes, Skill implementations, and production workflow execution.
+
+## Database Migration Risk
+
+The migration is additive and does not mutate existing user or workbench rows.
+Foreign keys point to the existing `users` table. The principal rollout risks
+are migration duration (small because no backfill occurs), schema drift between
+SQLite tests and PostgreSQL, and future dual-writing during API cutover. Alembic
+upgrade/downgrade checks and clean-schema model parity are release gates.
+
 ## Scope
 
 This migration preserves the existing login, account, administrator, wallet,

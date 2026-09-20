@@ -105,3 +105,122 @@ class WorkflowEvent(Base):
     payload_json: Mapped[dict] = mapped_column(JSON_TYPE, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
     __table_args__ = (Index("idx_workflow_events_replay", "workflow_id", "id"),)
+
+
+class Conversation(Base):
+    __tablename__ = "conversations"
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(64), ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    title: Mapped[str] = mapped_column(String(240), default="新对话")
+    skill_id: Mapped[str | None] = mapped_column(String(120), nullable=True, index=True)
+    mode: Mapped[str] = mapped_column(String(16), default="auto")
+    status: Mapped[str] = mapped_column(String(24), default="active", index=True)
+    metadata_json: Mapped[dict] = mapped_column(JSON_TYPE, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc, onupdate=now_utc)
+    __table_args__ = (
+        CheckConstraint("mode IN ('auto','manual')", name="ck_conversations_mode"),
+        CheckConstraint("status IN ('active','archived')", name="ck_conversations_status"),
+        Index("idx_conversations_user_updated", "user_id", "updated_at"),
+    )
+
+
+class ConversationMessage(Base):
+    __tablename__ = "messages"
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    conversation_id: Mapped[str] = mapped_column(String(64), ForeignKey("conversations.id", ondelete="CASCADE"), index=True)
+    role: Mapped[str] = mapped_column(String(16))
+    content: Mapped[str] = mapped_column(Text, default="")
+    content_json: Mapped[dict] = mapped_column(JSON_TYPE, default=dict)
+    metadata_json: Mapped[dict] = mapped_column(JSON_TYPE, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
+    __table_args__ = (
+        CheckConstraint("role IN ('user','assistant','tool','system')", name="ck_messages_role"),
+        Index("idx_messages_conversation_created", "conversation_id", "created_at", "id"),
+    )
+
+
+class AgentRun(Base):
+    __tablename__ = "runs"
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    conversation_id: Mapped[str] = mapped_column(String(64), ForeignKey("conversations.id", ondelete="CASCADE"), index=True)
+    trigger_message_id: Mapped[str] = mapped_column(String(64), ForeignKey("messages.id", ondelete="RESTRICT"), index=True)
+    user_id: Mapped[str] = mapped_column(String(64), ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    skill_id: Mapped[str | None] = mapped_column(String(120), nullable=True, index=True)
+    idempotency_key: Mapped[str] = mapped_column(String(160))
+    status: Mapped[str] = mapped_column(String(24), default="queued", index=True)
+    error_code: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    cost_points: Mapped[int] = mapped_column(Integer, default=0)
+    provider_cost_micros: Mapped[int] = mapped_column(BigInteger, default=0)
+    usage_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc, onupdate=now_utc)
+    __table_args__ = (
+        UniqueConstraint("user_id", "idempotency_key", name="uq_runs_user_idempotency"),
+        CheckConstraint("status IN ('queued','running','waiting_input','completed','failed','cancelled')", name="ck_runs_status"),
+        CheckConstraint("cost_points >= 0 AND provider_cost_micros >= 0", name="ck_runs_cost_nonnegative"),
+        Index("idx_runs_conversation_created", "conversation_id", "created_at"),
+    )
+
+
+class ToolCall(Base):
+    __tablename__ = "tool_calls"
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    run_id: Mapped[str] = mapped_column(String(64), ForeignKey("runs.id", ondelete="CASCADE"), index=True)
+    skill_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    tool_name: Mapped[str] = mapped_column(String(160), index=True)
+    idempotency_key: Mapped[str] = mapped_column(String(200), unique=True)
+    arguments_json: Mapped[dict] = mapped_column(JSON_TYPE, default=dict)
+    result_json: Mapped[dict] = mapped_column(JSON_TYPE, default=dict)
+    status: Mapped[str] = mapped_column(String(24), default="queued", index=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    __table_args__ = (
+        CheckConstraint("status IN ('queued','running','completed','failed','cancelled')", name="ck_tool_calls_status"),
+    )
+
+
+class Artifact(Base):
+    __tablename__ = "artifacts"
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(64), ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    conversation_id: Mapped[str] = mapped_column(String(64), ForeignKey("conversations.id", ondelete="CASCADE"), index=True)
+    run_id: Mapped[str] = mapped_column(String(64), ForeignKey("runs.id", ondelete="CASCADE"), index=True)
+    type: Mapped[str] = mapped_column(String(32), index=True)
+    title: Mapped[str] = mapped_column(String(240), default="")
+    content: Mapped[str] = mapped_column(Text, default="")
+    content_json: Mapped[dict] = mapped_column(JSON_TYPE, default=dict)
+    storage_key: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    storage_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc, onupdate=now_utc)
+    __table_args__ = (
+        CheckConstraint("type IN ('article','outline','topic','image','report','html','markdown')", name="ck_artifacts_type"),
+        CheckConstraint("version > 0", name="ck_artifacts_version"),
+        UniqueConstraint("conversation_id", "type", "version", name="uq_artifact_conversation_type_version"),
+        Index("idx_artifacts_conversation_updated", "conversation_id", "updated_at"),
+    )
+
+
+class ProviderCall(Base):
+    __tablename__ = "provider_calls"
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    provider: Mapped[str] = mapped_column(String(80), index=True)
+    model: Mapped[str] = mapped_column(String(160), index=True)
+    input_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    output_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    image_count: Mapped[int] = mapped_column(Integer, default=0)
+    latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    estimated_cost_micros: Mapped[int] = mapped_column(BigInteger, default=0)
+    run_id: Mapped[str] = mapped_column(String(64), ForeignKey("runs.id", ondelete="CASCADE"), index=True)
+    tool_call_id: Mapped[str | None] = mapped_column(String(64), ForeignKey("tool_calls.id", ondelete="SET NULL"), nullable=True, index=True)
+    user_id: Mapped[str] = mapped_column(String(64), ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
+    __table_args__ = (
+        CheckConstraint("input_tokens >= 0 AND output_tokens >= 0 AND image_count >= 0 AND estimated_cost_micros >= 0", name="ck_provider_calls_nonnegative"),
+    )
