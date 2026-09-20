@@ -108,6 +108,77 @@ def create_run(conversation_id: str, user_id: str, trigger_message_id: str,
             return _run_view(row), True
 
 
+def get_run(run_id: str, user_id: str) -> dict[str, Any] | None:
+    with session_scope() as db:
+        row = db.scalar(select(AgentRun).where(AgentRun.id == run_id, AgentRun.user_id == user_id))
+        return _run_view(row) if row else None
+
+
+def transition_run(run_id: str, user_id: str, status: str, *, error_code: str | None = None,
+                   error_message: str | None = None) -> dict[str, Any]:
+    allowed = {"queued", "running", "waiting_input", "completed", "failed", "cancelled"}
+    if status not in allowed:
+        raise ValueError("invalid run status")
+    with session_scope() as db:
+        row = db.scalar(select(AgentRun).where(
+            AgentRun.id == run_id, AgentRun.user_id == user_id,
+        ).with_for_update())
+        if not row:
+            raise KeyError("run not found")
+        now = _now()
+        if row.status in {"completed", "failed", "cancelled"} and row.status != status:
+            raise ValueError("terminal run cannot transition")
+        row.status, row.updated_at = status, now
+        row.error_code, row.error_message = error_code, error_message
+        if status == "running":
+            row.started_at = row.started_at or now
+        if status in {"completed", "failed", "cancelled"}:
+            row.finished_at = row.finished_at or now
+        return _run_view(row)
+
+
+def create_tool_call(run_id: str, user_id: str, *, call_id: str, skill_id: str | None,
+                     tool_name: str, arguments: dict[str, Any]) -> tuple[dict[str, Any], bool]:
+    key = f"{run_id}:{call_id}"
+    try:
+        with session_scope() as db:
+            run = db.scalar(select(AgentRun).where(AgentRun.id == run_id, AgentRun.user_id == user_id))
+            if not run:
+                raise KeyError("run not found")
+            existing = db.scalar(select(ToolCall).where(ToolCall.idempotency_key == key))
+            if existing:
+                return _tool_call_view(existing), True
+            row = ToolCall(id=uuid.uuid4().hex, run_id=run_id, skill_id=skill_id,
+                           tool_name=tool_name, idempotency_key=key,
+                           arguments_json=arguments, result_json={}, status="running", started_at=_now())
+            db.add(row)
+            db.flush()
+            return _tool_call_view(row), False
+    except IntegrityError:
+        with session_scope() as db:
+            row = db.scalar(select(ToolCall).where(ToolCall.idempotency_key == key))
+            if not row:
+                raise
+            return _tool_call_view(row), True
+
+
+def finish_tool_call(tool_call_id: str, run_id: str, user_id: str, *,
+                     result: dict[str, Any] | None = None, error: str | None = None) -> dict[str, Any]:
+    with session_scope() as db:
+        row = db.scalar(select(ToolCall).join(AgentRun, AgentRun.id == ToolCall.run_id).where(
+            ToolCall.id == tool_call_id, ToolCall.run_id == run_id, AgentRun.user_id == user_id,
+        ).with_for_update())
+        if not row:
+            raise KeyError("tool call not found")
+        if row.status in {"completed", "failed", "cancelled"}:
+            return _tool_call_view(row)
+        row.status = "failed" if error else "completed"
+        row.result_json = result or {}
+        row.error_message = error
+        row.finished_at = _now()
+        return _tool_call_view(row)
+
+
 def create_artifact(run_id: str, user_id: str, artifact_type: str, *, title: str = "",
                     content: str = "", content_json: dict[str, Any] | None = None,
                     storage_key: str | None = None, storage_url: str | None = None) -> dict[str, Any]:
@@ -174,3 +245,9 @@ def _artifact_view(row: Artifact) -> dict[str, Any]:
             "type": row.type, "title": row.title, "content": row.content,
             "content_json": row.content_json, "storage_key": row.storage_key,
             "storage_url": row.storage_url, "version": row.version}
+
+
+def _tool_call_view(row: ToolCall) -> dict[str, Any]:
+    return {"id": row.id, "run_id": row.run_id, "skill_id": row.skill_id,
+            "tool_name": row.tool_name, "arguments": row.arguments_json,
+            "result": row.result_json, "status": row.status, "error": row.error_message}
