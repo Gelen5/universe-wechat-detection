@@ -2,16 +2,20 @@ from __future__ import annotations
 
 import asyncio
 import json
+import mimetypes
+import re
+import uuid
 from typing import Any
 
 from fastapi import APIRouter, Header, HTTPException, Query, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from . import conversation_repository
 from .agent_tasks import dispatch_run
 from .agent_events import async_client, channel, notify
 from .skills.registry import get_registry
+from .storage import get_storage
 
 
 router = APIRouter(tags=["conversations"])
@@ -157,6 +161,57 @@ def create_artifact_version(artifact_id: str, payload: ArtifactRevisionCreate, r
         return {"artifact": row}
     except KeyError as exc:
         _not_found(exc)
+
+
+@router.put("/api/artifacts/{artifact_id}/file", status_code=201)
+async def upload_artifact_file(artifact_id: str, request: Request,
+                               x_filename: str = Header(default="artifact.bin", alias="X-Filename")):
+    user_id = request.state.user["id"]
+    source = conversation_repository.get_artifact(artifact_id, user_id)
+    if not source:
+        raise HTTPException(status_code=404, detail="作品不存在或不属于当前用户")
+    declared = request.headers.get("content-length")
+    if declared:
+        try:
+            if int(declared) > 20 * 1024 * 1024:
+                raise HTTPException(status_code=413, detail="文件不能超过 20MB")
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="Content-Length 无效") from exc
+    data = await request.body()
+    if not data or len(data) > 20 * 1024 * 1024:
+        raise HTTPException(status_code=413 if data else 422, detail="文件为空或超过 20MB")
+    safe_name = re.sub(r"[^A-Za-z0-9._-]", "_", x_filename.strip())[:120] or "artifact.bin"
+    key = f"{user_id}/{source['conversation_id']}/{uuid.uuid4().hex}-{safe_name}"
+    content_type = request.headers.get("content-type") or mimetypes.guess_type(safe_name)[0] or "application/octet-stream"
+    stored = get_storage().upload(key, data, content_type=content_type)
+    try:
+        row = conversation_repository.create_artifact_version(
+            artifact_id, user_id,
+            content_json={**source["content_json"], "file": {
+                "filename": safe_name, "content_type": stored.content_type, "size": stored.size,
+            }},
+            storage_key=stored.key, storage_url=stored.url,
+        )
+    except Exception:
+        get_storage().delete(stored.key)
+        raise
+    notify(row["run_id"])
+    return {"artifact": row}
+
+
+@router.get("/api/storage/{storage_key:path}")
+def download_artifact_file(storage_key: str, request: Request):
+    artifact_row = conversation_repository.get_artifact_by_storage_key(
+        storage_key, request.state.user["id"])
+    if not artifact_row:
+        raise HTTPException(status_code=404, detail="文件不存在或不属于当前用户")
+    try:
+        path = get_storage().local_path(storage_key)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="文件不存在") from exc
+    metadata = artifact_row.get("content_json", {}).get("file", {})
+    return FileResponse(path, media_type=metadata.get("content_type"),
+                        filename=metadata.get("filename") or path.name)
 
 
 @router.get("/api/runs/{run_id}/events")

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 import unittest
+import tempfile
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
@@ -136,6 +137,36 @@ class ConversationApiTests(unittest.TestCase):
         self.assertEqual(404, other.post(
             f"/api/artifacts/{first['id']}/versions", json={"content": "越权"}).status_code)
         other.close()
+
+    def test_artifact_file_uses_owner_scoped_object_storage(self):
+        conversation = self.create()
+        with patch("server.conversation_api.dispatch_run", return_value="task"):
+            created = self.client.post(
+                f"/api/conversations/{conversation['id']}/messages",
+                headers={"Idempotency-Key": uuid.uuid4().hex}, json={"content": "生成报告"},
+            ).json()
+        artifact = conversation_repository.create_artifact(
+            created["run_id"], self.user_id, "report", title="报告")
+        with tempfile.TemporaryDirectory() as directory, patch.dict(
+                "os.environ", {"STORAGE_PROVIDER": "local", "LOCAL_STORAGE_ROOT": directory}):
+            uploaded = self.client.put(
+                f"/api/artifacts/{artifact['id']}/file",
+                headers={"X-Filename": "report.html", "Content-Type": "text/html"},
+                content=b"<h1>report</h1>",
+            )
+            self.assertEqual(201, uploaded.status_code, uploaded.text)
+            stored = uploaded.json()["artifact"]
+            self.assertTrue(stored["storage_key"].endswith("-report.html"))
+            downloaded = self.client.get(stored["storage_url"])
+            self.assertEqual(b"<h1>report</h1>", downloaded.content)
+
+            other = TestClient(app)
+            registered = other.post("/api/auth/register", json={
+                "email": f"storage-{uuid.uuid4().hex[:8]}@example.com",
+                "password": "testing-pass-123", "display_name": "Other"})
+            self.assertEqual(200, registered.status_code, registered.text)
+            self.assertEqual(404, other.get(stored["storage_url"]).status_code)
+            other.close()
 
 
 if __name__ == "__main__":

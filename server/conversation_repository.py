@@ -279,6 +279,14 @@ def get_artifact(artifact_id: str, user_id: str) -> dict[str, Any] | None:
         return _artifact_view(row) if row else None
 
 
+def get_artifact_by_storage_key(storage_key: str, user_id: str) -> dict[str, Any] | None:
+    with session_scope() as db:
+        row = db.scalar(select(Artifact).where(
+            Artifact.storage_key == storage_key, Artifact.user_id == user_id,
+        ).order_by(Artifact.version.desc()))
+        return _artifact_view(row) if row else None
+
+
 def list_artifact_versions(artifact_id: str, user_id: str) -> list[dict[str, Any]]:
     with session_scope() as db:
         source = db.scalar(select(Artifact).where(
@@ -369,7 +377,9 @@ def create_artifact(run_id: str, user_id: str, artifact_type: str, *, title: str
 
 def create_artifact_version(artifact_id: str, user_id: str, *, title: str | None = None,
                             content: str | None = None,
-                            content_json: dict[str, Any] | None = None) -> dict[str, Any]:
+                            content_json: dict[str, Any] | None = None,
+                            storage_key: str | None = None,
+                            storage_url: str | None = None) -> dict[str, Any]:
     with session_scope() as db:
         source = db.scalar(select(Artifact).where(
             Artifact.id == artifact_id, Artifact.user_id == user_id,
@@ -390,7 +400,9 @@ def create_artifact_version(artifact_id: str, user_id: str, *, title: str | None
             title=source.title if title is None else title,
             content=source.content if content is None else content,
             content_json=source.content_json if content_json is None else content_json,
-            storage_key=source.storage_key, storage_url=source.storage_url, version=version,
+            storage_key=storage_key if storage_key is not None else source.storage_key,
+            storage_url=storage_url if storage_url is not None else source.storage_url,
+            version=version,
         )
         db.add(row)
         run = db.get(AgentRun, source.run_id)
