@@ -9,7 +9,7 @@ import uuid
 from typing import Any
 
 from fastapi import APIRouter, Header, HTTPException, Query, Request
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from . import conversation_repository
@@ -222,6 +222,8 @@ def download_artifact_file(storage_key: str, request: Request):
         path = get_storage().local_path(storage_key)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail="文件不存在") from exc
+    if path is None:
+        return RedirectResponse(get_storage().get_url(storage_key), status_code=307)
     metadata = artifact_row.get("content_json", {}).get("file", {})
     return FileResponse(path, media_type=metadata.get("content_type"),
                         filename=metadata.get("filename") or path.name)
