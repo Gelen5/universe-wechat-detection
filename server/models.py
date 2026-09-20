@@ -252,6 +252,7 @@ class Artifact(Base):
     content_json: Mapped[dict] = mapped_column(JSON_TYPE, default=dict)
     storage_key: Mapped[str | None] = mapped_column(String(500), nullable=True, index=True)
     storage_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source_key: Mapped[str | None] = mapped_column(String(220), nullable=True, unique=True)
     version: Mapped[int] = mapped_column(Integer, default=1)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc, onupdate=now_utc)

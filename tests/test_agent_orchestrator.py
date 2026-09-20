@@ -108,6 +108,30 @@ class AgentOrchestratorTests(unittest.TestCase):
         artifacts = conversation_repository.list_artifacts(conversation["id"], "user-a")
         self.assertEqual(["这是完成的文章"], [item["content"] for item in artifacts])
 
+    def test_orchestrator_persists_tool_output_as_idempotent_artifact(self):
+        conversation, run = self.make_run()
+        provider = SequenceProvider([
+            ProviderResponse(tool_calls=(ToolInvocation(
+                "write-1", "write_article", {"topic": "普通人使用 AI"},
+            ),)),
+            ProviderResponse(text="文章已经写好。"),
+        ])
+        orchestrator = AgentOrchestrator(
+            registry=self.registry,
+            model_service=ModelService(provider),
+            tool_resolver=lambda _: {"write_article": ExecutableTool(
+                {"name": "write_article", "description": "write", "parameters": {"type": "object"}},
+                lambda args: {"title": args["topic"], "article": "这是工具生成的正文"},
+            )},
+        )
+        result = orchestrator.execute(run["id"], "user-a")
+        artifacts = conversation_repository.list_artifacts(conversation["id"], "user-a")
+        self.assertEqual(1, len(artifacts))
+        self.assertEqual("article", artifacts[0]["type"])
+        self.assertEqual("这是工具生成的正文", artifacts[0]["content"])
+        self.assertTrue(artifacts[0]["source_key"].endswith(":article:0"))
+        self.assertEqual(artifacts[0]["id"], result["artifact"]["id"])
+
     def test_auto_route_is_persisted_on_run(self):
         _, run = self.make_run(mode="auto", content="写一篇公众号文章")
         provider = SequenceProvider([ProviderResponse(text="文章完成")])

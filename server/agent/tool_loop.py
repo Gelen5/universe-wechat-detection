@@ -18,7 +18,8 @@ class ExecutableTool:
 
 def run_tool_loop(*, model_service: ModelService, messages: list[dict[str, Any]], tools: dict[str, ExecutableTool],
                   run_id: str, user_id: str, skill_id: str, max_tool_calls: int,
-                  timeout_seconds: int, is_cancelled: Callable[[], bool] = lambda: False) -> str:
+                  timeout_seconds: int, is_cancelled: Callable[[], bool] = lambda: False,
+                  on_tool_result: Callable[[str, dict[str, Any], str], None] | None = None) -> str:
     started = time.monotonic()
     definitions = [tool.definition for tool in tools.values()]
     calls = 0
@@ -55,6 +56,8 @@ def run_tool_loop(*, model_service: ModelService, messages: list[dict[str, Any]]
                     conversation_repository.finish_tool_call(record["id"], run_id, user_id, error=str(exc))
                     notify(run_id)
                     raise
+            if on_tool_result:
+                on_tool_result(call.name, result, record["id"])
             messages.append({"role": "assistant", "content": "", "tool_calls": [{
                 "id": call.id, "type": "function", "function": {"name": call.name,
                 "arguments": json.dumps(call.arguments, ensure_ascii=False)}}]})

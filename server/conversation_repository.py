@@ -484,7 +484,8 @@ def finish_tool_call(tool_call_id: str, run_id: str, user_id: str, *,
 
 def create_artifact(run_id: str, user_id: str, artifact_type: str, *, title: str = "",
                     content: str = "", content_json: dict[str, Any] | None = None,
-                    storage_key: str | None = None, storage_url: str | None = None) -> dict[str, Any]:
+                    storage_key: str | None = None, storage_url: str | None = None,
+                    source_key: str | None = None) -> dict[str, Any]:
     with session_scope() as db:
         run = db.scalar(select(AgentRun).where(AgentRun.id == run_id, AgentRun.user_id == user_id))
         if not run:
@@ -494,13 +495,19 @@ def create_artifact(run_id: str, user_id: str, artifact_type: str, *, title: str
         ).with_for_update())
         if not conversation:
             raise KeyError("conversation not found")
+        if source_key:
+            existing = db.scalar(select(Artifact).where(
+                Artifact.source_key == source_key, Artifact.user_id == user_id,
+            ))
+            if existing:
+                return _artifact_view(existing)
         version = (db.scalar(select(func.max(Artifact.version)).where(
             Artifact.conversation_id == run.conversation_id, Artifact.type == artifact_type,
         )) or 0) + 1
         row = Artifact(id=uuid.uuid4().hex, user_id=user_id, conversation_id=run.conversation_id,
                        run_id=run_id, type=artifact_type, title=title, content=content,
                        content_json=content_json or {}, storage_key=storage_key,
-                       storage_url=storage_url, version=version)
+                       storage_url=storage_url, source_key=source_key, version=version)
         db.add(row)
         _event(db, run, "artifact.created", {"artifact_id": row.id, "type": artifact_type, "version": version})
         db.flush()
@@ -680,7 +687,7 @@ def _artifact_view(row: Artifact) -> dict[str, Any]:
     return {"id": row.id, "conversation_id": row.conversation_id, "run_id": row.run_id,
             "type": row.type, "title": row.title, "content": row.content,
             "content_json": row.content_json, "storage_key": row.storage_key,
-            "storage_url": row.storage_url, "version": row.version,
+            "storage_url": row.storage_url, "source_key": row.source_key, "version": row.version,
             "created_at": row.created_at.isoformat(), "updated_at": row.updated_at.isoformat()}
 
 

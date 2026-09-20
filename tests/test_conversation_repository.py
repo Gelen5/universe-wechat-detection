@@ -72,6 +72,20 @@ class ConversationRepositoryTests(unittest.TestCase):
         with self.assertRaises(KeyError):
             repo.create_artifact_version(v1["id"], "user-b", content="越权")
 
+    def test_artifact_source_key_makes_tool_replay_idempotent(self):
+        conversation = repo.create_conversation("user-a")
+        message = repo.add_message(conversation["id"], "user-a", "user", "写文章")
+        run, _ = repo.create_run(conversation["id"], "user-a", message["id"], "artifact-replay")
+        first = repo.create_artifact(
+            run["id"], "user-a", "article", content="第一份结果", source_key="tool-1:article:0",
+        )
+        replay = repo.create_artifact(
+            run["id"], "user-a", "article", content="重复投递结果", source_key="tool-1:article:0",
+        )
+        self.assertEqual(first["id"], replay["id"])
+        self.assertEqual("第一份结果", replay["content"])
+        self.assertEqual(1, len(repo.list_artifacts(conversation["id"], "user-a")))
+
     def test_provider_cost_is_attributed_to_run_and_user(self):
         conversation = repo.create_conversation("user-a")
         message = repo.add_message(conversation["id"], "user-a", "user", "写文章")
