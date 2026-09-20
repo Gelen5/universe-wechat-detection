@@ -45,12 +45,18 @@ user journeys.
 - APIs: asynchronous message submission, run status/cancel, history, artifact
   versions/files and replayable SSE with `Last-Event-ID`.
 - Billing: atomic reservation, settlement/refund and per-run provider usage.
+- Browser: the公众号 creation surface now uses Conversation/Run/SSE/Artifact
+  APIs directly, restores persisted runs after refresh, and creates immutable
+  Artifact revisions when users edit the current work.
+- Tool outputs create typed, idempotent Artifacts. Generated image payloads are
+  validated and copied into owner-scoped object storage instead of persisting
+  provider base64 or relying only on temporary provider URLs.
 
 ## Legacy paths still in service
 
 - `/api/creator/chat` and per-feature creator endpoints.
 - `/api/workflows/*` and the current browser workflow client.
-- `ThreadPoolExecutor` in legacy job handling.
+- `ThreadPoolExecutor` in legacy job handling only; normalized Agent Runs use Celery.
 - Legacy conversation snapshots embedded in workflow/session JSON.
 
 These paths must not be deleted until their UI and API consumers use the
@@ -67,22 +73,28 @@ normalized Conversation service and regression tests prove parity.
   `ModelService`.
 - `server/main.py` remains large because compatibility routes have not yet been
   split into routers.
-- The browser still exposes workflow semantics rather than a single chat and
-  artifact workspace.
+- Legacy feature tabs still use their compatibility clients; the公众号 surface
+  is the first migrated Chat + Artifact workspace.
 
 ## Ten principal production risks
 
-1. The old browser path does not yet consume normalized Conversation APIs.
-2. Legacy thread-pool jobs are process-local and cannot recover across restart.
-3. Queue taxonomy is only partially separated (`creator` and `chat`).
-4. User/IP/Skill distributed rate limiting is not yet enforced.
-5. Structured logs and aggregate metrics are incomplete.
-6. Third-party Skills need an explicit trust policy and execution boundary.
-7. Auto routing quality needs production provider and ambiguity E2E coverage.
-8. Image calls on legacy tools are not fully attributed through ModelService.
-9. PostgreSQL concurrency and worker-loss tests need to run in release CI.
+1. The current commit still needs a fresh Docker release-candidate run against
+   PostgreSQL, Redis and a real Celery worker; Docker is unavailable on this host.
+2. Legacy thread-pool jobs remain process-local compatibility paths.
+3. Queue taxonomy is only partially separated (`creator` and `chat`); Tool
+   execution is not yet split into text/image/external worker pools.
+4. Some legacy card-image tools still call compatibility provider adapters
+   before their results enter normalized Artifact storage.
+5. Provider-side idempotency depends on the configured vendor honoring the
+   stable `Idempotency-Key` header.
+6. Auto routing still needs live-provider ambiguity and quality evaluation.
+7. The normalized browser does not yet expose a recent-conversation list.
+8. Normalized publishing is not implemented; publishing remains on the legacy
+   confirmed workflow path.
+9. `render.yaml` describes only the historical single Web service and is not a
+   production replacement for the Compose Web/Worker/Redis/PostgreSQL stack.
 10. Production object storage credentials and bucket lifecycle policy require
-   deployment configuration and operational verification.
+    deployment configuration and operational verification.
 
 ## Migration plan
 
@@ -107,6 +119,9 @@ normalized Conversation service and regression tests prove parity.
 - The test suite contains unit/integration coverage for registry, providers,
   Agent orchestration, Celery run handling, SSE replay, artifacts, storage,
   billing, workflow recovery and authorization.
-- At this audit update, the last complete run before S3 work passed 147 tests.
+- At this audit update, the complete local suite passes 165 tests, including an
+  API -> Celery task -> native ToolCall -> Artifact -> Assistant Message chain.
+- Fresh SQLite migration reaches `20260921_0007`; Web startup and the normalized
+  workbench/static asset checks pass locally.
 - Completion is not claimed until the new browser E2E and production release
   checks pass against PostgreSQL, Redis and Celery.
