@@ -125,6 +125,7 @@ class AgentOrchestrator:
                 max_tool_calls=int(manifest.limits.get("max_tool_calls", 12)),
                 timeout_seconds=int(manifest.limits.get("timeout_seconds", 600)),
                 is_cancelled=(lambda: not conversation_repository.run_lease_owned(run_id, task_id)) if task_id else (lambda: False),
+                heartbeat=(lambda: conversation_repository.heartbeat_run(run_id, task_id)) if task_id else (lambda: True),
                 on_tool_result=persist_result,
             )
             if task_id and not conversation_repository.heartbeat_run(run_id, task_id):

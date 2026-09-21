@@ -19,7 +19,8 @@ class AgentRuntimeTests(unittest.TestCase):
                            skill_id="wechat_writer", tool_call_id="tool-1",
                            idempotency_key=f"{run_id}:tool:1", storage=get_storage(),
                            model_service=service, emit=lambda *_: None,
-                           is_cancelled=lambda: False)
+                           is_cancelled=lambda: False, heartbeat=lambda: True,
+                           remaining_seconds=lambda: 60)
 
     def test_every_manifest_tool_has_a_registered_executor(self):
         registry = get_registry(refresh=True)

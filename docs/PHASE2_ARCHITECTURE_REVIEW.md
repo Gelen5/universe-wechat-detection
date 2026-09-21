@@ -68,8 +68,21 @@ requires all hashes to remain identical.
 - Existing Skill manifests and their local adapters.
 - Tests for the new contract and plugin acceptance.
 
-No database migration or public API change is required for Phase 2.1. Legacy
+No database migration is required for Phase 2.1. The additive `GET /api/skills`
+catalog is the only public API addition. Legacy
 APIs remain available. The next backend phase is Tool Loop hardening: JSON
 Schema validation with bounded recovery, continuous heartbeat/cancellation,
 remaining-time propagation and high-risk side-effect confirmation. The
 three-column UI begins only after those correctness gates pass.
+
+## Phase 2.3 P0 Progress
+
+- Tool arguments are validated against the manifest JSON Schema before any
+  executor is called.
+- Validation errors are returned to the model as structured tool results, with
+  at most two correction attempts.
+- Model calls receive a stable logical-step and request-hash idempotency key.
+- Tool calls use Run, logical step, tool name and canonical argument hash, so a
+  provider changing its ToolCall ID after worker retry cannot repeat effects.
+- Cancellation and lease heartbeat checks run around model and tool operations.
+- Model timeout and `ToolContext.remaining_seconds()` share one Run deadline.

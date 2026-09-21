@@ -29,7 +29,10 @@ class SequenceProvider(ModelProvider):
 
     def create_response(self, messages, **kwargs):
         self.messages.append(list(messages))
-        return self.responses.pop(0)
+        response = self.responses.pop(0)
+        if isinstance(response, Exception):
+            raise response
+        return response
 
     def generate_image(self, prompt, **kwargs):
         return {"data": []}
@@ -100,6 +103,69 @@ class AgentOrchestratorTests(unittest.TestCase):
                     {"name": "again", "description": "again", "parameters": {"type": "object"}},
                     lambda args: {"ok": True})}, run_id=run["id"], user_id="user-a",
                 skill_id="wechat_writer", max_tool_calls=1, timeout_seconds=30)
+
+    def test_tool_validation_error_is_returned_to_model_and_recovers_once(self):
+        _, run = self.make_run()
+        provider = SequenceProvider([
+            ProviderResponse(tool_calls=(ToolInvocation("bad", "write", {}),)),
+            ProviderResponse(tool_calls=(ToolInvocation("good", "write", {"topic": "AI"}),)),
+            ProviderResponse(text="完成"),
+        ])
+        executions = []
+        result = run_tool_loop(
+            model_service=ModelService(provider), messages=[],
+            tools={"write": ExecutableTool({
+                "name": "write", "description": "write", "parameters": {
+                    "type": "object", "properties": {"topic": {"type": "string"}},
+                    "required": ["topic"], "additionalProperties": False,
+                }}, lambda args: executions.append(args) or {"ok": True})},
+            run_id=run["id"], user_id="user-a", skill_id="wechat_writer",
+            max_tool_calls=4, timeout_seconds=30,
+        )
+        self.assertEqual("完成", result)
+        self.assertEqual([{"topic": "AI"}], executions)
+        self.assertTrue(any("validation_error" in item.get("content", "")
+                            for item in provider.messages[1]))
+
+    def test_tool_loop_checks_heartbeat_around_external_operations(self):
+        _, run = self.make_run()
+        provider = SequenceProvider([ProviderResponse(text="完成")])
+        beats = []
+        result = run_tool_loop(
+            model_service=ModelService(provider), messages=[], tools={},
+            run_id=run["id"], user_id="user-a", skill_id="wechat_writer",
+            max_tool_calls=1, timeout_seconds=30,
+            heartbeat=lambda: beats.append(True) or True,
+        )
+        self.assertEqual("完成", result)
+        self.assertGreaterEqual(len(beats), 2)
+
+    def test_retry_replays_logical_tool_call_when_provider_changes_call_id(self):
+        _, run = self.make_run()
+        executions = []
+        tool = ExecutableTool(
+            {"name": "write", "description": "write", "parameters": {"type": "object"}},
+            lambda args: executions.append(args) or {"ok": True},
+        )
+        first = SequenceProvider([
+            ProviderResponse(tool_calls=(ToolInvocation("provider-a", "write", {"topic": "AI"}),)),
+            RuntimeError("worker crashed after tool"),
+        ])
+        with self.assertRaisesRegex(RuntimeError, "worker crashed"):
+            run_tool_loop(model_service=ModelService(first), messages=[], tools={"write": tool},
+                run_id=run["id"], user_id="user-a", skill_id="wechat_writer",
+                max_tool_calls=3, timeout_seconds=30)
+        second = SequenceProvider([
+            ProviderResponse(tool_calls=(ToolInvocation("provider-b", "write", {"topic": "AI"}),)),
+            ProviderResponse(text="完成"),
+        ])
+        result = run_tool_loop(model_service=ModelService(second), messages=[], tools={"write": tool},
+            run_id=run["id"], user_id="user-a", skill_id="wechat_writer",
+            max_tool_calls=3, timeout_seconds=30)
+        self.assertEqual("完成", result)
+        self.assertEqual([{"topic": "AI"}], executions)
+        with database.session_scope() as db:
+            self.assertEqual(1, db.query(ToolCall).filter_by(run_id=run["id"]).count())
 
     def test_orchestrator_persists_assistant_message_and_completes_run(self):
         conversation, run = self.make_run()

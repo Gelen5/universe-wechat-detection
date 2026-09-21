@@ -20,7 +20,8 @@ class ToolContext:
     model_service: ModelService
     emit: Callable[[str, dict[str, Any]], None]
     is_cancelled: Callable[[], bool]
+    heartbeat: Callable[[], bool]
+    remaining_seconds: Callable[[], int]
 
 
 ToolExecutor = Callable[[dict[str, Any], ToolContext], ToolResult]
-
