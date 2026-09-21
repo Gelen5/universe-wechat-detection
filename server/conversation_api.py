@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import mimetypes
 import os
 import re
@@ -21,6 +22,7 @@ from .rate_limit import check_agent_submission
 
 
 router = APIRouter(tags=["conversations"])
+logger = logging.getLogger(__name__)
 
 
 class ConversationCreate(BaseModel):
@@ -139,10 +141,19 @@ def send_message(conversation_id: str, payload: MessageCreate, request: Request,
             detail=f"积分不足：需要 {exc.required} 积分，当前剩余 {exc.balance} 积分",
         ) from exc
     except Exception as exc:
+        logger.exception(
+            "conversation message submission failed",
+            extra={
+                "conversation_id": conversation_id,
+                "user_id": user_id,
+                "request_id": getattr(request.state, "request_id", None),
+                "phase": "enqueue" if "run" in locals() else "persist",
+            },
+        )
         if "run" in locals() and not replay:
             conversation_repository.transition_run(run["id"], user_id, "failed",
                                                    error_code="enqueue_failed", error_message=str(exc))
-        raise HTTPException(status_code=503, detail="任务暂时无法进入队列") from exc
+        raise HTTPException(status_code=503, detail="任务暂时无法提交，请稍后重试") from exc
 
 
 @router.get("/api/runs/{run_id}")

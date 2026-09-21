@@ -273,13 +273,18 @@ def create_message_run(conversation_id: str, user_id: str, content: str,
             message = ConversationMessage(id=uuid.uuid4().hex, conversation_id=conversation_id,
                 role="user", content=content, content_json=content_json or {},
                 metadata_json=metadata or {}, created_at=now)
+            db.add(message)
+            # PostgreSQL checks this FK when each statement executes. Flush the
+            # referenced message before adding a Run that points at it.
+            db.flush()
             run = AgentRun(id=uuid.uuid4().hex, conversation_id=conversation_id,
                 trigger_message_id=message.id, user_id=user_id,
                 skill_id=conversation.skill_id if conversation.mode == "manual" else None,
                 idempotency_key=idempotency_key, status="queued", usage_id=uuid.uuid4().hex,
                 cost_points=max(0, reserve_points), created_at=now, updated_at=now)
             conversation.updated_at = now
-            db.add_all((message, run))
+            db.add(run)
+            db.flush()
             _reserve_run_usage(db, run, max(0, reserve_points), feature)
             _event(db, run, "run.created", {"message_id": message.id})
             _event(db, run, "run.queued", {})

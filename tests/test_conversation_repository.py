@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
 from server import conversation_repository as repo
@@ -17,6 +17,10 @@ class ConversationRepositoryTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         engine = create_engine(f"sqlite:///{Path(self.temp.name, 'conversation.db').as_posix()}",
                                connect_args={"check_same_thread": False})
+        @event.listens_for(engine, "connect")
+        def _enable_foreign_keys(connection, _record):
+            connection.execute("PRAGMA foreign_keys=ON")
+
         Base.metadata.create_all(engine)
         database.ENGINE = engine
         database.SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
