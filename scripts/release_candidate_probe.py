@@ -107,7 +107,7 @@ def main() -> None:
     for probe in sse.values():
         probe.start()
     subprocess.run(
-        ["docker", "compose", "-p", args.compose_project, "start", "--no-deps", "worker"],
+        ["docker", "compose", "-p", args.compose_project, "up", "-d", "--no-deps", "worker"],
         check=True,
     )
     time.sleep(3)
