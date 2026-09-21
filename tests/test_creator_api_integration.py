@@ -41,6 +41,19 @@ def current_settings():
 
 
 class CreatorApiIntegrationTests(unittest.TestCase):
+    def test_readiness_requires_database_and_redis(self):
+        with patch('server.main.database.database_ready', return_value=True), \
+                patch('server.main.redis_ready', return_value=True):
+            ready = self.client.get('/health/ready')
+        self.assertEqual(ready.status_code, 200)
+        self.assertEqual(ready.json()['status'], 'ready')
+
+        with patch('server.main.database.database_ready', return_value=True), \
+                patch('server.main.redis_ready', return_value=False):
+            unavailable = self.client.get('/health/ready')
+        self.assertEqual(unavailable.status_code, 503)
+        self.assertEqual(unavailable.json()['checks'], {'database': True, 'redis': False})
+
     def test_creator_chat_queue_worker_and_session_retrieval(self):
         import uuid
         response = self.client.post('/api/tasks', json={'type': 'creator_chat',

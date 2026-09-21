@@ -20,7 +20,8 @@ user journeys.
 - Redis is the Celery broker/result backend and an SSE wake-up channel. It is
   not the source of truth for runs or artifacts.
 - Celery executes normalized Agent Runs and the legacy durable workflow. Beat
-  recovers stale leases after worker loss.
+  recovers stale leases after worker loss. Workflow nodes route to independent
+  `chat`, `text`, `image`, `external` and `workflow` queues.
 - Skill manifests are discovered under `vendor/skills`; the selected Skill's
   instructions and allowlisted tools are loaded only after routing.
 - Model calls go through `ModelService` and provider interfaces. Artifact files
@@ -81,14 +82,15 @@ normalized Conversation service and regression tests prove parity.
 1. The current commit still needs a fresh Docker release-candidate run against
    PostgreSQL, Redis and a real Celery worker; Docker is unavailable on this host.
 2. Legacy thread-pool jobs remain process-local compatibility paths.
-3. Queue taxonomy is only partially separated (`creator` and `chat`); Tool
-   execution is not yet split into text/image/external worker pools.
+3. Queue taxonomy is separated, but the default Compose profile still runs one
+   worker process listening to all queues; production can split these workers.
 4. Some legacy card-image tools still call compatibility provider adapters
    before their results enter normalized Artifact storage.
 5. Provider-side idempotency depends on the configured vendor honoring the
    stable `Idempotency-Key` header.
 6. Auto routing still needs live-provider ambiguity and quality evaluation.
-7. The normalized browser does not yet expose a recent-conversation list.
+7. Recent-conversation recovery is implemented, but a full real-browser E2E
+   with live model providers remains a release-candidate check.
 8. Normalized publishing is not implemented; publishing remains on the legacy
    confirmed workflow path.
 9. `render.yaml` describes only the historical single Web service and is not a
@@ -119,7 +121,7 @@ normalized Conversation service and regression tests prove parity.
 - The test suite contains unit/integration coverage for registry, providers,
   Agent orchestration, Celery run handling, SSE replay, artifacts, storage,
   billing, workflow recovery and authorization.
-- At this audit update, the complete local suite passes 167 tests, including an
+- At this audit update, the complete local suite passes 168 tests, including an
   API -> Celery task -> native ToolCall -> Artifact -> Assistant Message chain.
 - Fresh SQLite migration reaches `20260921_0007`; Web startup and the normalized
   workbench/static asset checks pass locally.
