@@ -41,6 +41,16 @@ class ArtifactRevisionCreate(BaseModel):
     content_json: dict[str, Any] | None = None
 
 
+@router.get("/api/skills")
+def skills_catalog(request: Request):
+    return {"skills": [{
+        "id": manifest.id, "name": manifest.name, "version": manifest.version,
+        "description": manifest.description, "capabilities": list(manifest.capabilities),
+        "routing_examples": list(manifest.routing.get("examples", [])),
+        "base_points": int(manifest.pricing.get("base_points", 0)),
+    } for manifest in get_registry().list() if manifest.trusted]}
+
+
 def _not_found(exc: Exception):
     raise HTTPException(status_code=404, detail="资源不存在或不属于当前用户") from exc
 

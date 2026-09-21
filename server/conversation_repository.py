@@ -463,8 +463,9 @@ def list_artifact_versions(artifact_id: str, user_id: str) -> list[dict[str, Any
 
 
 def create_tool_call(run_id: str, user_id: str, *, call_id: str, skill_id: str | None,
-                     tool_name: str, arguments: dict[str, Any]) -> tuple[dict[str, Any], bool]:
-    key = f"{run_id}:{call_id}"
+                     tool_name: str, arguments: dict[str, Any],
+                     idempotency_key: str | None = None) -> tuple[dict[str, Any], bool]:
+    key = idempotency_key or f"{run_id}:{call_id}"
     try:
         with session_scope() as db:
             run = db.scalar(select(AgentRun).where(AgentRun.id == run_id, AgentRun.user_id == user_id))

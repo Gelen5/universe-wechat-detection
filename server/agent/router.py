@@ -30,15 +30,16 @@ class SkillRouter:
         keyword = self._keyword_route(message)
         if keyword:
             return keyword
-        if bound_skill_id:
-            self.registry.executable(bound_skill_id)
-            return RouteDecision(bound_skill_id, 0.85, "continue the conversation's active Skill")
         if not self.model_service:
+            if bound_skill_id:
+                self.registry.executable(bound_skill_id)
+                return RouteDecision(bound_skill_id, 0.6, "use previous Skill as a soft prior")
             return RouteDecision(None, 0.0, "request is ambiguous", True)
         catalog = self.registry.router_catalog()
         response = self.model_service.create_response([
             {"role": "system", "content": "Choose exactly one Skill from the catalog. Return JSON with skill_id, confidence from 0 to 1, reason. If uncertain set skill_id null."},
-            {"role": "user", "content": json.dumps({"message": message, "skills": catalog}, ensure_ascii=False)},
+            {"role": "user", "content": json.dumps({"message": message, "skills": catalog,
+                                                       "last_skill_id": bound_skill_id}, ensure_ascii=False)},
         ], timeout=30, run_id=run_id, user_id=user_id)
         try:
             data = json.loads(response.text)
@@ -52,16 +53,12 @@ class SkillRouter:
 
     def _keyword_route(self, message: str) -> RouteDecision | None:
         text = message.lower()
-        rules = (
-            ("morning_blessing", ("早安", "祝福图")),
-            ("wechat_account_analyzer", ("公众号诊断", "账号为什么没流量", "账号分析")),
-            ("wechat_hit_detector", ("爆文检测", "发布前复核", "检查这篇文章")),
-            ("xiaohongshu_creator", ("小红书", "红薯笔记")),
-            ("wechat_tie_tu", ("贴图号", "微信卡片")),
-            ("wechat_writer", ("公众号文章", "公众号选题", "写一篇文章", "配图", "重新排版")),
+        skills = sorted(
+            (item for item in self.registry.list() if item.trusted),
+            key=lambda item: int(item.routing.get("priority") or 0), reverse=True,
         )
-        available = {item.id for item in self.registry.list() if item.trusted}
-        for skill_id, keywords in rules:
-            if skill_id in available and any(word in text for word in keywords):
-                return RouteDecision(skill_id, 0.9, f"matched product intent: {skill_id}")
+        for skill in skills:
+            keywords = tuple(str(value).lower() for value in skill.routing.get("keywords", []))
+            if any(word in text for word in keywords):
+                return RouteDecision(skill.id, 0.9, f"matched manifest routing: {skill.id}")
         return None

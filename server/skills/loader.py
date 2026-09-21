@@ -38,14 +38,20 @@ def load_manifest(path: Path) -> SkillManifest:
             effective_root = fallback
         else:
             raise SkillManifestError(f"Skill {data['id']} has no SKILL.md at {effective_root}")
-    tools = tuple(ToolManifest(name=item["name"], description=item["description"],
-                               parameters=item.get("parameters") or {}) for item in data.get("tools", []))
+    tools = tuple(ToolManifest(
+        name=item["name"], description=item["description"],
+        parameters=item.get("parameters") or {}, executor=item.get("executor") or item["name"],
+        artifact=item.get("artifact") or {}, pricing=item.get("pricing") or {},
+        requires_confirmation=item.get("requires_confirmation") is True,
+        side_effect=str(item.get("side_effect") or "none"),
+    ) for item in data.get("tools", []))
     return SkillManifest(
         id=data["id"], name=data["name"], version=data["version"],
         description=data["description"].strip(), capabilities=tuple(data.get("capabilities", [])),
         tools=tools, root=effective_root.resolve(), manifest_path=path.resolve(),
         pricing=data.get("pricing") or {}, model_policy=data.get("model_policy") or {},
-        limits=data.get("limits") or {}, trusted=data.get("trusted") is True,
+        limits=data.get("limits") or {}, routing=data.get("routing") or {},
+        runtime=data.get("runtime") or {}, trusted=data.get("trusted") is True,
     )
 
 
@@ -60,6 +66,17 @@ def _validate(data: dict[str, Any], path: Path) -> None:
         isinstance(value, str) and value.strip() for value in data.get("capabilities", [])
     ):
         raise SkillManifestError(f"Skill {data['id']} capabilities must be text list")
+    routing = data.get("routing") or {}
+    if not isinstance(routing, dict):
+        raise SkillManifestError(f"Skill {data['id']} routing must be an object")
+    for key in ("keywords", "examples"):
+        if not isinstance(routing.get(key, []), list) or not all(
+            isinstance(value, str) and value.strip() for value in routing.get(key, [])
+        ):
+            raise SkillManifestError(f"Skill {data['id']} routing.{key} must be a text list")
+    runtime = data.get("runtime") or {}
+    if not isinstance(runtime, dict):
+        raise SkillManifestError(f"Skill {data['id']} runtime must be an object")
     names: set[str] = set()
     for tool in data.get("tools", []):
         if not isinstance(tool, dict) or not isinstance(tool.get("name"), str) or not tool["name"].strip():

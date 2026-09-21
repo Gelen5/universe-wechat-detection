@@ -18,6 +18,7 @@ from server.agent.tool_loop import ExecutableTool, run_tool_loop
 from server.models import Base, ToolCall, users_table
 from server.providers import ModelProvider, ModelService, ProviderResponse, ToolInvocation
 from server.skills.registry import DEFAULT_ROOT, SkillRegistry
+from server.skills.tool_result import ArtifactOutput, ToolResult
 from server.storage import get_storage
 
 
@@ -126,7 +127,10 @@ class AgentOrchestratorTests(unittest.TestCase):
             model_service=ModelService(provider),
             tool_resolver=lambda *_: {"write_article": ExecutableTool(
                 {"name": "write_article", "description": "write", "parameters": {"type": "object"}},
-                lambda args: {"title": args["topic"], "article": "这是工具生成的正文"},
+                lambda args: ToolResult(
+                    {"title": args["topic"], "article": "这是工具生成的正文"},
+                    (ArtifactOutput(type="article", title=args["topic"], content="这是工具生成的正文"),),
+                ),
             )},
         )
         result = orchestrator.execute(run["id"], "user-a")
@@ -153,7 +157,11 @@ class AgentOrchestratorTests(unittest.TestCase):
             model_service=ModelService(provider),
             tool_resolver=lambda *_: {"generate_image": ExecutableTool(
                 {"name": "generate_image", "description": "image", "parameters": {"type": "object"}},
-                lambda args: {"data": [{"b64_json": encoded}]},
+                lambda args: ToolResult(
+                    {"data": [{"b64_json": encoded}]},
+                    (ArtifactOutput(type="image", title="生成图片 1",
+                                    content_json={"b64_json": encoded}),),
+                ),
             )},
         )
         storage_root = str(Path(self.temp.name, "storage"))
@@ -172,7 +180,7 @@ class AgentOrchestratorTests(unittest.TestCase):
             self.assertNotIn("b64_json", str(result))
             self.assertEqual(artifact["storage_url"], result["images"][0]["storage_url"])
 
-    def test_auto_route_is_persisted_on_run(self):
+    def test_auto_route_is_run_scoped_without_pinning_conversation(self):
         conversation, run = self.make_run(mode="auto", content="写一篇公众号文章")
         provider = SequenceProvider([ProviderResponse(text="文章完成")])
         AgentOrchestrator(
@@ -181,8 +189,7 @@ class AgentOrchestratorTests(unittest.TestCase):
         self.assertEqual(
             "wechat_writer", conversation_repository.get_run(run["id"], "user-a")["skill_id"],
         )
-        self.assertEqual(
-            "wechat_writer",
+        self.assertIsNone(
             conversation_repository.get_conversation(conversation["id"], "user-a")["skill_id"],
         )
 

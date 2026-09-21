@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -8,10 +7,20 @@ from tests import support  # noqa: F401
 from server.agent import runtime
 from server.providers import ProviderRequestError
 from server.providers import ProviderResponse
+from server.skills.executor import ToolContext
 from server.skills.registry import get_registry
+from server.storage import get_storage
 
 
 class AgentRuntimeTests(unittest.TestCase):
+    @staticmethod
+    def context(service, run_id="run-1", user_id="user-1"):
+        return ToolContext(user_id=user_id, conversation_id="conversation-1", run_id=run_id,
+                           skill_id="wechat_writer", tool_call_id="tool-1",
+                           idempotency_key=f"{run_id}:tool:1", storage=get_storage(),
+                           model_service=service, emit=lambda *_: None,
+                           is_cancelled=lambda: False)
+
     def test_every_manifest_tool_has_a_registered_executor(self):
         registry = get_registry(refresh=True)
         for manifest in registry.list():
@@ -42,16 +51,13 @@ class AgentRuntimeTests(unittest.TestCase):
             "wechat_writer", registry=get_registry(), model_service=service,
             run_id="run-1", user_id="user-1",
         )
-        result = tools["generate_image"].execute({
+        result = tools["generate_image"].invoke({
             "prompt": "清晨窗边", "size": "768x1024", "count": 2,
-        })
+        }, self.context(service)).data
         self.assertEqual("https://example.test/image.png", result["data"][0]["url"])
-        request_hash = hashlib.sha256(
-            f"{'清晨窗边'}\0{'768x1024'}\0{2}".encode("utf-8")
-        ).hexdigest()[:24]
         service.generate_image.assert_called_once_with(
             "清晨窗边", size="768x1024", count=2,
-            idempotency_key=f"run-1:generate_image:{request_hash}",
+            idempotency_key="run-1:tool:1",
             run_id="run-1", user_id="user-1",
         )
 
@@ -62,9 +68,9 @@ class AgentRuntimeTests(unittest.TestCase):
             "wechat_writer", registry=get_registry(), model_service=service,
             run_id="run-2", user_id="user-2",
         )
-        result = tools["revise_article"].execute({
+        result = tools["revise_article"].invoke({
             "title": "标题", "article": "原始完整正文", "requirements": "把第二段缩短一半",
-        })
+        }, self.context(service, run_id="run-2", user_id="user-2")).data
         self.assertEqual("修改后的完整正文", result["article"])
         _, kwargs = service.create_response.call_args
         self.assertEqual("run-2", kwargs["run_id"])

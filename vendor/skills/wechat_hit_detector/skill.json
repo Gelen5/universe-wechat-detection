@@ -3,6 +3,8 @@
   "name": "发布前复核",
   "version": "1.0.0",
   "description": "检查公众号文章标题承诺、正文价值、事实边界和发布风险。",
+  "routing": {"keywords": ["爆文检测", "发布前复核", "检查这篇文章"], "examples": ["帮我检测一下这篇文章"], "priority": 60},
+  "runtime": {"type": "adapter", "adapter": "adapter.py"},
   "capabilities": ["review", "risk_check", "rewrite"],
   "tools": [
     {

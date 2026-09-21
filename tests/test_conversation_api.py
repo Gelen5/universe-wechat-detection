@@ -19,6 +19,7 @@ from server.models import Base, ToolCall, UsageRecord, Wallet
 from server.providers import ModelService, ProviderResponse, ToolInvocation
 from server.rate_limit import LimitResult
 from server.skills.registry import get_registry
+from server.skills.tool_result import ArtifactOutput, ToolResult
 
 
 class ConversationApiTests(unittest.TestCase):
@@ -49,6 +50,14 @@ class ConversationApiTests(unittest.TestCase):
         response = self.client.post("/api/conversations", json=payload)
         self.assertEqual(201, response.status_code, response.text)
         return response.json()["conversation"]
+
+    def test_skill_catalog_is_manifest_driven_and_hides_runtime_details(self):
+        response = self.client.get("/api/skills")
+        self.assertEqual(200, response.status_code, response.text)
+        skills = response.json()["skills"]
+        self.assertIn("wechat_writer", {item["id"] for item in skills})
+        self.assertNotIn("runtime", skills[0])
+        self.assertNotIn("model_policy", skills[0])
 
     def test_create_and_restore_conversation(self):
         conversation = self.create()
@@ -91,7 +100,10 @@ class ConversationApiTests(unittest.TestCase):
             registry=get_registry(), model_service=service,
             tool_resolver=lambda *_: {"write_article": ExecutableTool(
                 {"name": "write_article", "description": "write", "parameters": {"type": "object"}},
-                lambda args: {"title": args["topic"], "article": "完整文章正文"},
+                lambda args: ToolResult(
+                    {"title": args["topic"], "article": "完整文章正文"},
+                    (ArtifactOutput(type="article", title=args["topic"], content="完整文章正文"),),
+                ),
             )},
         )
         previous_eager = celery_app.conf.task_always_eager

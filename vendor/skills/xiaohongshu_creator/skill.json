@@ -1,6 +1,8 @@
 {
   "id": "xiaohongshu_creator", "name": "小红书创作", "version": "1.0.0",
   "description": "生成小红书选题、图文笔记、卡片计划并执行发布前检查。",
+  "routing": {"keywords": ["小红书", "红薯笔记"], "examples": ["写一篇小红书笔记"], "priority": 50},
+  "runtime": {"type": "adapter", "adapter": "adapter.py"},
   "capabilities": ["topic", "writing", "image_plan", "precheck"],
   "tools": [
     {"name": "generate_draft", "description": "生成或修改小红书图文草稿", "parameters": {

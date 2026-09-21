@@ -1,6 +1,8 @@
 {
   "id": "wechat_tie_tu", "name": "微信贴图号", "version": "1.0.0",
   "description": "生成与公众号长文分离的微信贴图号卡片和配套文案。",
+  "routing": {"keywords": ["贴图号", "微信卡片"], "examples": ["生成一组贴图号卡片"], "priority": 50},
+  "runtime": {"type": "adapter", "adapter": "adapter.py"},
   "capabilities": ["writing", "card_plan", "image"],
   "tools": [
     {"name": "generate_draft", "description": "生成贴图号卡片计划与文案", "parameters": {

@@ -8,6 +8,7 @@ from ..agent_events import notify
 from ..providers import ModelService, ProviderRequestError
 from ..skills.registry import SkillRegistry
 from ..skills.runtime import load_instructions
+from ..skills.tool_result import ArtifactOutput, ToolResult
 from ..storage.image_ingest import ingest_generated_image
 from .context import conversation_messages
 from .router import SkillRouter
@@ -27,47 +28,12 @@ class AgentOrchestrator:
             return value
         return json.dumps(value, ensure_ascii=False, indent=2)
 
-    def _persist_tool_artifacts(self, run_id: str, user_id: str, tool_name: str,
-                                result: dict, tool_call_id: str) -> list[dict]:
+    def _persist_tool_artifacts(self, run_id: str, user_id: str,
+                                outputs: tuple[ArtifactOutput, ...], tool_call_id: str) -> list[dict]:
         artifacts: list[dict] = []
-
-        def save(artifact_type: str, *, title: str = "", content="",
-                 content_json: dict | None = None, storage_url: str | None = None,
-                 index: int = 0) -> None:
-            artifacts.append(conversation_repository.create_artifact(
-                run_id, user_id, artifact_type, title=title,
-                content=self._text(content), content_json=content_json or result,
-                storage_url=storage_url,
-                source_key=f"{tool_call_id}:{artifact_type}:{index}",
-            ))
-
-        if tool_name == "search_topics":
-            topics = result.get("topics", result)
-            if isinstance(topics, list):
-                lines = []
-                for index, topic in enumerate(topics, 1):
-                    title = topic.get("title") if isinstance(topic, dict) else str(topic)
-                    lines.append(f"{index}. {title or ''}")
-                content = "\n".join(lines)
-            else:
-                content = topics
-            save("topic", title="选题建议", content=content)
-        elif tool_name in {"write_article", "revise_article", "generate_draft"}:
-            content = result.get("article") or result.get("body") or result.get("content") or result
-            title = str(result.get("title") or "创作稿件")
-            save("article", title=title, content=content)
-        elif tool_name in {"typeset_article", "change_layout"}:
-            content = result.get("preview_document") or result.get("html") or result
-            save("html", title="排版结果", content=content)
-        elif tool_name in {"review_article", "rewrite_article", "diagnose_account"}:
-            content = result.get("article") or result.get("report") or result.get("content") or result
-            save("report", title="分析报告", content=content)
-        elif tool_name in {"generate_image", "generate_images"}:
-            values = result.get("images") or result.get("data") or []
-            if isinstance(values, dict):
-                values = [values]
-            for index, item in enumerate(values if isinstance(values, list) else []):
-                payload = item if isinstance(item, dict) else {"url": str(item)}
+        for index, output in enumerate(outputs):
+            if output.type == "image":
+                payload = output.content_json
                 if payload.get("b64_json") or payload.get("image_url") or (
                     isinstance(payload.get("url"), str) and payload["url"].startswith("https://")
                 ):
@@ -79,26 +45,36 @@ class AgentOrchestrator:
                         "content_type": stored.content_type, "size": stored.size,
                     }
                     artifacts.append(conversation_repository.create_artifact(
-                        run_id, user_id, "image", title=f"生成图片 {index + 1}",
-                        content="", content_json=metadata, storage_key=stored.key,
+                        run_id, user_id, output.type, title=output.title,
+                        content=output.content, content_json=metadata, storage_key=stored.key,
                         storage_url=stored.url,
-                        source_key=f"{tool_call_id}:image:{index}",
+                        source_key=f"{tool_call_id}:{output.type}:{index}",
                     ))
-                else:
-                    url = payload.get("local_url") or payload.get("path") or payload.get("url")
-                    save("image", title=f"生成图片 {index + 1}", content=payload,
-                         content_json=payload, storage_url=str(url) if url else None, index=index)
+                    continue
+            storage_url = output.storage_url
+            if output.type == "image" and not storage_url:
+                storage_url = str(output.content_json.get("local_url") or
+                                  output.content_json.get("path") or
+                                  output.content_json.get("url") or "") or None
+            artifacts.append(conversation_repository.create_artifact(
+                run_id, user_id, output.type, title=output.title,
+                content=output.content, content_json=output.content_json,
+                storage_url=storage_url,
+                source_key=f"{tool_call_id}:{output.type}:{index}",
+            ))
         return artifacts
 
     @staticmethod
-    def _compact_tool_result(tool_name: str, result: dict, artifacts: list[dict]) -> dict:
-        if tool_name not in {"generate_image", "generate_images"}:
-            return result
-        compact = {key: value for key, value in result.items() if key not in {"data", "images"}}
+    def _compact_tool_result(result: ToolResult, artifacts: list[dict]) -> dict:
+        compact = dict(result.data)
+        images = [item for item in artifacts if item.get("type") == "image"]
+        if not images:
+            return compact
+        compact.pop("data", None)
         compact["images"] = [{
             "artifact_id": item["id"], "storage_url": item.get("storage_url"),
             "storage_key": item.get("storage_key"), "title": item.get("title"),
-        } for item in artifacts if item.get("type") == "image"]
+        } for item in images]
         return compact
 
     def execute(self, run_id: str, user_id: str, *, task_id: str | None = None) -> dict:
@@ -122,10 +98,6 @@ class AgentOrchestrator:
         conversation_repository.bind_run_skill(
             run_id, user_id, decision.skill_id, task_id=task_id,
         )
-        if conversation["mode"] == "auto" and conversation.get("skill_id") != decision.skill_id:
-            conversation = conversation_repository.bind_conversation_skill(
-                conversation["id"], user_id, decision.skill_id,
-            )
         conversation_repository.record_run_event(run_id, user_id, "skill.selected", {
             "skill_id": decision.skill_id, "confidence": decision.confidence,
             "reason": decision.reason,
@@ -137,12 +109,12 @@ class AgentOrchestrator:
         try:
             tool_artifacts: list[dict] = []
 
-            def persist_result(tool_name: str, result: dict, tool_call_id: str) -> dict:
+            def persist_result(result: ToolResult, tool_call_id: str) -> dict:
                 created = self._persist_tool_artifacts(
-                    run_id, user_id, tool_name, result, tool_call_id,
+                    run_id, user_id, result.artifacts, tool_call_id,
                 )
                 tool_artifacts.extend(created)
-                return self._compact_tool_result(tool_name, result, created)
+                return self._compact_tool_result(result, created)
 
             answer = run_tool_loop(
                 model_service=self.model_service,
@@ -161,8 +133,7 @@ class AgentOrchestrator:
             if tool_artifacts:
                 artifact = tool_artifacts[-1]
             else:
-                artifact_type = "report" if ({"report", "account_analysis", "review", "risk_check"}
-                                             & set(manifest.capabilities)) else "article"
+                artifact_type = str(manifest.runtime.get("default_artifact") or "article")
                 artifact = conversation_repository.create_artifact(
                     run_id, user_id, artifact_type, title=conversation["title"], content=answer,
                     content_json={"skill_id": decision.skill_id},

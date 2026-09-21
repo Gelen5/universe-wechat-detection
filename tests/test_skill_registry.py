@@ -20,7 +20,7 @@ class SkillRegistryTests(unittest.TestCase):
     def test_router_catalog_is_lightweight(self):
         catalog = SkillRegistry((DEFAULT_ROOT,)).reload().router_catalog()
         self.assertTrue(catalog)
-        self.assertEqual({"id", "name", "description", "capabilities"}, set(catalog[0]))
+        self.assertEqual({"id", "name", "description", "capabilities", "routing"}, set(catalog[0]))
         self.assertNotIn("tools", catalog[0])
 
     def test_full_instructions_load_only_for_selected_skill(self):
