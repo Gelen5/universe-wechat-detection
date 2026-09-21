@@ -106,7 +106,10 @@ def main() -> None:
     sse = {label: SSEProbe(base, workflow_ids[label], sessions[label].cookies.get_dict()) for label in ("A", "B")}
     for probe in sse.values():
         probe.start()
-    subprocess.run(["docker", "compose", "-p", args.compose_project, "start", "worker"], check=True)
+    subprocess.run(
+        ["docker", "compose", "-p", args.compose_project, "start", "--no-deps", "worker"],
+        check=True,
+    )
     time.sleep(3)
     subprocess.run(["docker", "compose", "-p", args.compose_project, "restart", "web"], check=True)
 
