@@ -80,7 +80,7 @@ normalized Conversation service and regression tests prove parity.
 ## Ten principal production risks
 
 1. Production Docker infrastructure is healthy, but the final real-provider RC
-   is blocked by exhausted provider credit and must be rerun after funding.
+   is blocked by exhausted provider credit; public HTTPS also fails TLS setup.
 2. Legacy thread-pool jobs remain process-local compatibility paths.
 3. Queue taxonomy is separated, but the default Compose profile still runs one
    worker process listening to all queues; production can split these workers.
