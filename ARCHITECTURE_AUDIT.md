@@ -79,8 +79,8 @@ normalized Conversation service and regression tests prove parity.
 
 ## Ten principal production risks
 
-1. The current commit still needs a fresh Docker release-candidate run against
-   PostgreSQL, Redis and a real Celery worker; Docker is unavailable on this host.
+1. Production Docker infrastructure is healthy, but the final real-provider RC
+   is blocked by exhausted provider credit and must be rerun after funding.
 2. Legacy thread-pool jobs remain process-local compatibility paths.
 3. Queue taxonomy is separated, but the default Compose profile still runs one
    worker process listening to all queues; production can split these workers.
@@ -125,5 +125,8 @@ normalized Conversation service and regression tests prove parity.
   API -> Celery task -> native ToolCall -> Artifact -> Assistant Message chain.
 - Fresh SQLite migration reaches `20260921_0007`; Web startup and the normalized
   workbench/static asset checks pass locally.
-- Completion is not claimed until the new browser E2E and production release
-  checks pass against PostgreSQL, Redis and Celery.
+- Production release `b9f57a4` runs PostgreSQL, Redis, Web, Worker and Beat with
+  Alembic at `20260921_0007`; restart, SSE replay and owner isolation checks ran
+  against the live stack.
+- Completion is not claimed because the final automatic and interactive article
+  runs were rejected by the external provider for insufficient account credit.

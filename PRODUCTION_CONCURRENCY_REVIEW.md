@@ -77,6 +77,13 @@ registered users and 20-30 simultaneous creation requests.
 - PostgreSQL probe: 100 registered users, 30 concurrent creators; passed.
 - Ten-click idempotency probe: one workflow, one usage row, one debit; passed.
 - Ten-way refund race: one refund ledger entry and restored balance; passed.
+- Production Compose release `b9f57a4`: PostgreSQL, Redis, Web, Worker, Beat and
+  Alembic `20260921_0007` are healthy.
+- Production RC verified queued work while the Worker was stopped, Worker/Web
+  restart recovery, SSE reconnect, one interactive checkpoint decision,
+  cross-user `404` isolation and zero charge on failed workflows.
+- The final content-completion gate is blocked by the configured provider
+  account returning `用户额度不足`; see `RELEASE_CANDIDATE_REPORT.md`.
 
 ## Capacity And Residual Risk
 
@@ -96,6 +103,7 @@ PostgreSQL and Redis are currently single service instances. This review protect
 correctness and restart recovery, but it does not add high availability for a host
 or availability-zone failure.
 
-The latest queue and readiness changes still require a fresh Docker release-
-candidate run against PostgreSQL, Redis, Web, Worker and Beat before declaring
-the current commit ready for production; Docker is unavailable on this host.
+Workflow attempts are capped at a 300-second soft timeout, 330-second hard
+timeout and two transient retries. The remaining release blocker is external
+provider credit: a fresh content-completion RC must pass after that account is
+funded before production readiness can be declared.
