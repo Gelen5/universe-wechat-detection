@@ -22,6 +22,23 @@ from .workflow_repository import (
 NODE_SOFT_TIME_LIMIT = max(30, int(os.getenv("CELERY_NODE_SOFT_TIME_LIMIT", "600")))
 NODE_TIME_LIMIT = max(NODE_SOFT_TIME_LIMIT + 10, int(os.getenv("CELERY_NODE_TIME_LIMIT", "660")))
 
+NODE_QUEUES = {
+    "intent": "chat",
+    "topic": "text",
+    "research": "external",
+    "strategy": "text",
+    "draft": "text",
+    "review": "text",
+    "visual": "image",
+    "delivery": "workflow",
+}
+
+
+def queue_for_node(node_name: str) -> str:
+    if node_name not in NODES:
+        raise ValueError(f"unknown workflow node: {node_name}")
+    return NODE_QUEUES[node_name]
+
 
 def _is_transient_error(exc: Exception) -> bool:
     if isinstance(exc, (requests.RequestException, TimeoutError, ConnectionError)):
@@ -54,7 +71,9 @@ def _fail_and_refund(workflow_id: str, node_name: str, message: str, status_code
 def dispatch_node(workflow_id: str, node_name: str) -> str:
     queue_node(workflow_id, node_name)
     try:
-        result = run_workflow_node.apply_async(args=[workflow_id, node_name], queue="creator")
+        result = run_workflow_node.apply_async(
+            args=[workflow_id, node_name], queue=queue_for_node(node_name),
+        )
     except Exception:
         # The queued PostgreSQL row is the durable outbox. Beat will redeliver it.
         notify(workflow_id)
@@ -143,7 +162,9 @@ def run_workflow_node(self, workflow_id: str, node_name: str):
 def recover_stale_workflow_nodes():
     recovered = recover_stale_nodes(stale_seconds=NODE_TIME_LIMIT + 60)
     for workflow_id, node_name in recovered:
-        run_workflow_node.apply_async(args=[workflow_id, node_name], queue="creator")
+        run_workflow_node.apply_async(
+            args=[workflow_id, node_name], queue=queue_for_node(node_name),
+        )
         notify(workflow_id)
     reconciled = 0
     for usage_id, status in terminal_usage_actions():

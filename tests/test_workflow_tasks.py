@@ -13,7 +13,9 @@ from server import database
 from server.celery_app import celery_app
 from server.models import Base, users_table
 from server import workflow_repository as repo
-from server.workflow_tasks import _is_transient_error, dispatch_node, run_workflow_node
+from server.workflow_tasks import (
+    _is_transient_error, dispatch_node, queue_for_node, run_workflow_node,
+)
 
 
 class WorkflowTaskChainTests(unittest.TestCase):
@@ -85,7 +87,16 @@ class WorkflowTaskChainTests(unittest.TestCase):
 
     def test_recovery_task_uses_the_worker_queue(self):
         routes = celery_app.conf.task_routes
-        self.assertEqual("creator", routes["workflow.recover_stale"]["queue"])
+        self.assertEqual("workflow", routes["workflow.recover_stale"]["queue"])
+
+    def test_workflow_nodes_use_scalable_queue_classes(self):
+        self.assertEqual("chat", queue_for_node("intent"))
+        self.assertEqual("text", queue_for_node("draft"))
+        self.assertEqual("external", queue_for_node("research"))
+        self.assertEqual("image", queue_for_node("visual"))
+        self.assertEqual("workflow", queue_for_node("delivery"))
+        with self.assertRaisesRegex(ValueError, "unknown workflow node"):
+            queue_for_node("missing")
 
 
 if __name__ == "__main__":

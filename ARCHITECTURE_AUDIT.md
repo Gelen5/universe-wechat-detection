@@ -119,7 +119,7 @@ normalized Conversation service and regression tests prove parity.
 - The test suite contains unit/integration coverage for registry, providers,
   Agent orchestration, Celery run handling, SSE replay, artifacts, storage,
   billing, workflow recovery and authorization.
-- At this audit update, the complete local suite passes 166 tests, including an
+- At this audit update, the complete local suite passes 167 tests, including an
   API -> Celery task -> native ToolCall -> Artifact -> Assistant Message chain.
 - Fresh SQLite migration reaches `20260921_0007`; Web startup and the normalized
   workbench/static asset checks pass locally.
