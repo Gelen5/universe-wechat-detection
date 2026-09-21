@@ -117,13 +117,23 @@ def main() -> None:
     deadline = time.time() + args.timeout
     snapshots = {}
     last_progress = {"A": None, "B": None}
+    poll_failures = {"A": 0, "B": 0}
+    poll_errors = {"A": "", "B": ""}
     while time.time() < deadline:
         for label in ("A", "B"):
             try:
                 workflow = require(sessions[label].get(
                     f"{base}/api/workflows/{workflow_ids[label]}", timeout=15))["workflow"]
-            except Exception:
+            except Exception as exc:
+                poll_failures[label] += 1
+                poll_errors[label] = str(exc)
+                if poll_failures[label] >= 20:
+                    raise RuntimeError(
+                        f"workflow polling failed repeatedly for {label}: {poll_errors[label]}"
+                    ) from exc
                 continue
+            poll_failures[label] = 0
+            poll_errors[label] = ""
             snapshots[label] = workflow
             progress = (workflow["status"], workflow["current_node"], workflow["version"])
             last_progress[label] = progress
