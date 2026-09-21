@@ -10,7 +10,8 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from . import accounts
-from .workflow_events import allow_user_request, async_client, channel, notify
+from .rate_limit import check_agent_submission
+from .workflow_events import async_client, channel, notify
 from .workflow_repository import (
     change_mode, events_after, fail_workflow, get_workflow, invalidate_from, next_node,
     record_decision, request_cancel, retry_failed,
@@ -54,8 +55,18 @@ def _not_found(exc: Exception):
 @router.post("", status_code=202)
 def start_workflow(payload: WorkflowCreate, request: Request):
     user_id = request.state.user["id"]
-    if not allow_user_request(user_id):
-        raise HTTPException(status_code=429, detail="请求过于频繁，请稍后再试")
+    forwarded = request.headers.get("x-forwarded-for", "").split(",", 1)[0].strip()
+    client_ip = forwarded or (request.client.host if request.client else "unknown")
+    limit = check_agent_submission(
+        user_id=user_id, ip=client_ip, skill_id="wechat_writer",
+    )
+    if not limit.allowed:
+        raise HTTPException(
+            status_code=429,
+            detail=f"请求过于频繁，请在 {limit.retry_after} 秒后重试",
+            headers={"Retry-After": str(limit.retry_after),
+                     "X-RateLimit-Dimension": limit.dimension},
+        )
     try:
         existing, replay = create_billed_workflow(
             user_id, payload.idempotency_key, payload.mode,

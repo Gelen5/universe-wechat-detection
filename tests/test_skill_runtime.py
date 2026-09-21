@@ -6,6 +6,20 @@ from server import workbench as w, skill_runtime as r
 
 
 class SkillRuntimeTests(unittest.TestCase):
+    def test_script_rejects_path_traversal_before_execution(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'scripts').mkdir()
+            with self.assertRaisesRegex(ValueError, '非法 Skill 脚本名'):
+                r.script(root, '../outside.py')
+
+    def test_script_requires_existing_file_in_controlled_directory(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'scripts').mkdir()
+            with self.assertRaisesRegex(ValueError, '不存在或不在受控目录'):
+                r.script(root, 'missing.py')
+
     def test_sentence_audit_excludes_markdown_headings_but_keeps_prose(self):
         article = "# 主标题没有句号\n\n**第一部分也没有句号**\n\n正文残句没有标点"
         prose = w._markdown_prose_for_sentence_audit(article)

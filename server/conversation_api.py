@@ -96,8 +96,10 @@ def send_message(conversation_id: str, payload: MessageCreate, request: Request,
         if not conversation:
             raise KeyError("conversation not found")
         manifest = get_registry().executable(conversation["skill_id"]) if conversation["skill_id"] else None
+        forwarded = request.headers.get("x-forwarded-for", "").split(",", 1)[0].strip()
+        client_ip = forwarded or (request.client.host if request.client else "unknown")
         limit = check_agent_submission(
-            user_id=user_id, ip=request.client.host if request.client else "unknown",
+            user_id=user_id, ip=client_ip,
             skill_id=conversation["skill_id"] or "auto",
         )
         if not limit.allowed:

@@ -7,6 +7,9 @@ import sys
 from pathlib import Path
 
 
+SCRIPT_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*\.py$")
+
+
 def digest(text):
     return hashlib.sha256(text.encode('utf-8')).hexdigest()
 
@@ -33,7 +36,14 @@ def python_for(root: Path) -> str:
 
 
 def script(root: Path, name: str, *args):
-    result = subprocess.run([python_for(root), '-X', 'utf8', str(root / 'scripts' / name),
+    root = root.resolve()
+    if not SCRIPT_NAME.fullmatch(name) or Path(name).name != name:
+        raise ValueError(f'非法 Skill 脚本名：{name}')
+    scripts_root = (root / 'scripts').resolve()
+    target = (scripts_root / name).resolve()
+    if target.parent != scripts_root or not target.is_file():
+        raise ValueError(f'Skill 脚本不存在或不在受控目录中：{name}')
+    result = subprocess.run([python_for(root), '-X', 'utf8', str(target),
                              *map(str, args), '--json'], capture_output=True,
                             encoding='utf-8', errors='strict', timeout=60)
     if result.returncode:

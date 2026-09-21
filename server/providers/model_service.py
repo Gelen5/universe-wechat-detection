@@ -4,6 +4,7 @@ import time
 from dataclasses import dataclass
 from typing import Any
 
+from ..observability import event as log_event
 from .base import ModelProvider, ProviderResponse
 
 
@@ -32,34 +33,54 @@ class ModelService:
                         timeout: int = 120, idempotency_key: str | None = None,
                         run_id: str | None = None, user_id: str | None = None) -> ProviderResponse:
         started = time.monotonic()
-        response = self.text_provider.create_response(
-            messages, tools=tools, timeout=timeout, idempotency_key=idempotency_key)
+        provider = type(self.text_provider).__name__
+        model = getattr(self.text_provider, "text_model", "unknown")
+        try:
+            response = self.text_provider.create_response(
+                messages, tools=tools, timeout=timeout, idempotency_key=idempotency_key)
+        except Exception as exc:
+            log_event("provider.call", run_id=run_id, user_id=user_id, provider=provider,
+                      model=model, latency_ms=int((time.monotonic() - started) * 1000),
+                      status="failed", error_code=getattr(exc, "code", type(exc).__name__))
+            raise
+        latency_ms = int((time.monotonic() - started) * 1000)
         if self.usage_recorder and run_id and user_id:
             self.usage_recorder({
                 "run_id": run_id, "user_id": user_id,
-                "provider": type(self.text_provider).__name__,
-                "model": getattr(self.text_provider, "text_model", "unknown"),
+                "provider": provider, "model": model,
                 "input_tokens": response.input_tokens, "output_tokens": response.output_tokens,
-                "image_count": 0, "latency_ms": int((time.monotonic() - started) * 1000),
+                "image_count": 0, "latency_ms": latency_ms,
                 "estimated_cost_micros": self.cost_policy.text_cost(
                     response.input_tokens, response.output_tokens,
                 ),
             })
+        log_event("provider.call", run_id=run_id, user_id=user_id, provider=provider,
+                  model=model, latency_ms=latency_ms, status="completed")
         return response
 
     def generate_image(self, prompt: str, *, size: str, count: int = 1,
                        timeout: int = 300, idempotency_key: str | None = None,
                        run_id: str | None = None, user_id: str | None = None) -> dict[str, Any]:
         started = time.monotonic()
-        result = self.image_provider.generate_image(
-            prompt, size=size, count=count, timeout=timeout, idempotency_key=idempotency_key)
+        provider = type(self.image_provider).__name__
+        model = getattr(self.image_provider, "image_model", "unknown")
+        try:
+            result = self.image_provider.generate_image(
+                prompt, size=size, count=count, timeout=timeout, idempotency_key=idempotency_key)
+        except Exception as exc:
+            log_event("provider.image_call", run_id=run_id, user_id=user_id, provider=provider,
+                      model=model, latency_ms=int((time.monotonic() - started) * 1000),
+                      status="failed", error_code=getattr(exc, "code", type(exc).__name__))
+            raise
+        latency_ms = int((time.monotonic() - started) * 1000)
         if self.usage_recorder and run_id and user_id:
             self.usage_recorder({
                 "run_id": run_id, "user_id": user_id,
-                "provider": type(self.image_provider).__name__,
-                "model": getattr(self.image_provider, "image_model", "unknown"),
+                "provider": provider, "model": model,
                 "input_tokens": 0, "output_tokens": 0, "image_count": count,
-                "latency_ms": int((time.monotonic() - started) * 1000),
+                "latency_ms": latency_ms,
                 "estimated_cost_micros": max(0, count * self.cost_policy.image_micros_each),
             })
+        log_event("provider.image_call", run_id=run_id, user_id=user_id, provider=provider,
+                  model=model, latency_ms=latency_ms, status="completed", image_count=count)
         return result

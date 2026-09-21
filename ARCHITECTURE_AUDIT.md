@@ -103,7 +103,8 @@ normalized Conversation service and regression tests prove parity.
 1. Keep old routes stable while all new work uses normalized core services.
 2. Finish the ChatGPT-style client against Conversation/Run/SSE/Artifact APIs.
 3. Route old creator endpoints into the same services, one Skill at a time.
-4. Add distributed rate limiting, structured logs, metrics and security gates.
+4. Keep distributed rate limiting, structured logs, metrics and security gates
+   aligned as each legacy entry point migrates to the normalized runtime.
 5. Run PostgreSQL/Redis/Celery restart and multi-user release-candidate tests.
 6. Mark legacy executors deprecated, observe production, then remove them in a
    later compatibility release.
@@ -121,8 +122,18 @@ normalized Conversation service and regression tests prove parity.
 - The test suite contains unit/integration coverage for registry, providers,
   Agent orchestration, Celery run handling, SSE replay, artifacts, storage,
   billing, workflow recovery and authorization.
-- At this audit update, the complete local suite passes 168 tests, including an
+- At this audit update, the complete local suite passes 171 tests, including an
   API -> Celery task -> native ToolCall -> Artifact -> Assistant Message chain.
+- Both normalized chat and legacy workflow submissions now share atomic Redis
+  limits across user, client IP and Skill before billing. Redis failure remains
+  fail-open because durable idempotency and wallet locking are the correctness
+  boundaries.
+- Trusted Skill script execution rejects path traversal and only starts an
+  existing Python file directly inside the Skill's controlled `scripts`
+  directory. Untrusted manifests remain non-executable in the main service.
+- Web requests, Agent workers and provider calls emit JSON logs with the
+  available request/user/conversation/run/skill/provider/model, latency, status
+  and error-code fields.
 - Fresh SQLite migration reaches `20260921_0007`; Web startup and the normalized
   workbench/static asset checks pass locally.
 - Production release `b9f57a4` runs PostgreSQL, Redis, Web, Worker and Beat with
