@@ -167,6 +167,10 @@ class AgentOrchestratorTests(unittest.TestCase):
             self.assertTrue(artifact["storage_url"].startswith("/api/storage/user-a/"))
             self.assertTrue(get_storage().local_path(artifact["storage_key"]).is_file())
             self.assertNotIn("b64_json", artifact["content_json"])
+            with database.session_scope() as db:
+                result = db.query(ToolCall).filter_by(run_id=run["id"]).one().result_json
+            self.assertNotIn("b64_json", str(result))
+            self.assertEqual(artifact["storage_url"], result["images"][0]["storage_url"])
 
     def test_auto_route_is_persisted_on_run(self):
         conversation, run = self.make_run(mode="auto", content="写一篇公众号文章")

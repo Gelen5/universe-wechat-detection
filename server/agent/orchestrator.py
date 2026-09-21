@@ -90,6 +90,17 @@ class AgentOrchestrator:
                          content_json=payload, storage_url=str(url) if url else None, index=index)
         return artifacts
 
+    @staticmethod
+    def _compact_tool_result(tool_name: str, result: dict, artifacts: list[dict]) -> dict:
+        if tool_name not in {"generate_image", "generate_images"}:
+            return result
+        compact = {key: value for key, value in result.items() if key not in {"data", "images"}}
+        compact["images"] = [{
+            "artifact_id": item["id"], "storage_url": item.get("storage_url"),
+            "storage_key": item.get("storage_key"), "title": item.get("title"),
+        } for item in artifacts if item.get("type") == "image"]
+        return compact
+
     def execute(self, run_id: str, user_id: str, *, task_id: str | None = None) -> dict:
         run = conversation_repository.get_run(run_id, user_id)
         if not run:
@@ -126,10 +137,12 @@ class AgentOrchestrator:
         try:
             tool_artifacts: list[dict] = []
 
-            def persist_result(tool_name: str, result: dict, tool_call_id: str) -> None:
-                tool_artifacts.extend(self._persist_tool_artifacts(
+            def persist_result(tool_name: str, result: dict, tool_call_id: str) -> dict:
+                created = self._persist_tool_artifacts(
                     run_id, user_id, tool_name, result, tool_call_id,
-                ))
+                )
+                tool_artifacts.extend(created)
+                return self._compact_tool_result(tool_name, result, created)
 
             answer = run_tool_loop(
                 model_service=self.model_service,

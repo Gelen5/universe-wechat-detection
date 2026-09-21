@@ -510,6 +510,21 @@ def finish_tool_call(tool_call_id: str, run_id: str, user_id: str, *,
         return _tool_call_view(row)
 
 
+def replace_tool_call_result(tool_call_id: str, run_id: str, user_id: str,
+                             result: dict[str, Any]) -> dict[str, Any]:
+    with session_scope() as db:
+        row = db.scalar(select(ToolCall).join(AgentRun, AgentRun.id == ToolCall.run_id).where(
+            ToolCall.id == tool_call_id, ToolCall.run_id == run_id,
+            AgentRun.user_id == user_id,
+        ).with_for_update())
+        if not row:
+            raise KeyError("tool call not found")
+        if row.status != "completed":
+            raise ValueError("only completed tool results can be replaced")
+        row.result_json = result
+        return _tool_call_view(row)
+
+
 def create_artifact(run_id: str, user_id: str, artifact_type: str, *, title: str = "",
                     content: str = "", content_json: dict[str, Any] | None = None,
                     storage_key: str | None = None, storage_url: str | None = None,
