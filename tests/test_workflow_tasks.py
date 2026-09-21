@@ -14,7 +14,8 @@ from server.celery_app import celery_app
 from server.models import Base, users_table
 from server import workflow_repository as repo
 from server.workflow_tasks import (
-    _is_transient_error, dispatch_node, queue_for_node, run_workflow_node,
+    NODE_SOFT_TIME_LIMIT, NODE_TIME_LIMIT, _is_transient_error, dispatch_node,
+    queue_for_node, run_workflow_node,
 )
 
 
@@ -83,7 +84,9 @@ class WorkflowTaskChainTests(unittest.TestCase):
         self.assertFalse(_is_transient_error(ValueError("invalid user selection")))
 
     def test_transient_node_retry_budget_is_bounded_but_tolerant(self):
-        self.assertEqual(4, run_workflow_node.max_retries)
+        self.assertEqual(2, run_workflow_node.max_retries)
+        self.assertEqual(300, NODE_SOFT_TIME_LIMIT)
+        self.assertEqual(330, NODE_TIME_LIMIT)
 
     def test_recovery_task_uses_the_worker_queue(self):
         routes = celery_app.conf.task_routes

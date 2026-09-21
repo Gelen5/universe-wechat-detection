@@ -19,8 +19,8 @@ from .workflow_repository import (
 )
 
 
-NODE_SOFT_TIME_LIMIT = max(30, int(os.getenv("CELERY_NODE_SOFT_TIME_LIMIT", "600")))
-NODE_TIME_LIMIT = max(NODE_SOFT_TIME_LIMIT + 10, int(os.getenv("CELERY_NODE_TIME_LIMIT", "660")))
+NODE_SOFT_TIME_LIMIT = max(30, int(os.getenv("CELERY_NODE_SOFT_TIME_LIMIT", "300")))
+NODE_TIME_LIMIT = max(NODE_SOFT_TIME_LIMIT + 10, int(os.getenv("CELERY_NODE_TIME_LIMIT", "330")))
 
 NODE_QUEUES = {
     "intent": "chat",
@@ -85,7 +85,7 @@ def dispatch_node(workflow_id: str, node_name: str) -> str:
 # External model providers occasionally reset a TLS connection after accepting a
 # request. Keep retries bounded, but give the durable node outbox enough time to
 # recover without treating a transient transport failure as a user failure.
-@celery_app.task(bind=True, name="workflow.run_node", max_retries=4,
+@celery_app.task(bind=True, name="workflow.run_node", max_retries=2,
                  autoretry_for=(), acks_late=True, reject_on_worker_lost=True,
                  soft_time_limit=NODE_SOFT_TIME_LIMIT, time_limit=NODE_TIME_LIMIT)
 def run_workflow_node(self, workflow_id: str, node_name: str):
