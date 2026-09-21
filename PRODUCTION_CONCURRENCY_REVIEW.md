@@ -104,6 +104,6 @@ correctness and restart recovery, but it does not add high availability for a ho
 or availability-zone failure.
 
 Workflow attempts are capped at a 300-second soft timeout, 330-second hard
-timeout and two transient retries. Remaining release blockers are external
-provider credit and public HTTPS termination. A fresh content-completion RC and
-TLS probe must pass before production readiness can be declared.
+timeout and two transient retries. Public HTTPS and renewal are verified. The
+remaining release blocker is external provider credit; a fresh content-
+completion RC must pass before production readiness can be declared.

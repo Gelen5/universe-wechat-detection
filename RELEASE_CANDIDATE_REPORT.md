@@ -7,8 +7,7 @@ Updated: 2026-09-21
 **NOT READY FOR PRODUCTION**
 
 The application stack is healthy, but the configured text-provider account is
-out of credit and the public domain does not complete an HTTPS handshake. The
-final production gate therefore cannot pass.
+out of credit. The final two-user content-completion gate therefore cannot pass.
 
 ## Candidate
 
@@ -37,9 +36,9 @@ The final automatic and interactive workflows failed when the provider returned
 `用户额度不足`. Both stopped at the strategy stage before article delivery.
 This is an external account-credit failure, not an application wallet failure.
 
-The public HTTP health and `/workbench` routes return `200`, but both equivalent
-HTTPS requests fail during TLS setup. A valid certificate and HTTPS reverse-
-proxy listener remain mandatory before production release.
+Public TLS is now configured for the root and `www` domains. HTTP redirects to
+HTTPS, both HTTPS workbench routes return `200`, the HTTPS readiness endpoint
+returns `200`, and the Certbot renewal dry-run succeeds.
 
 Earlier RC attempts also showed that the previous configured model alias was no
 longer available and that long requests on another model had unstable upstream
@@ -50,9 +49,8 @@ server-side and are not exposed to ordinary users.
 
 1. Fund the configured provider account or replace it with a funded compatible
    text provider.
-2. Install and verify a valid TLS certificate for the public domain.
-3. Run `scripts/release_candidate_probe.py` against the production Compose stack.
-4. Require both automatic and interactive workflows to complete with articles,
+2. Run `scripts/release_candidate_probe.py` against the production Compose stack.
+3. Require both automatic and interactive workflows to complete with articles,
    all three interactive decisions to resume, SSE completion events to replay,
    both wallets to debit exactly once, and cross-user access to remain denied.
-5. Only then change the verdict to `READY FOR PRODUCTION`.
+4. Only then change the verdict to `READY FOR PRODUCTION`.
