@@ -1,32 +1,27 @@
-# Universe Creator Studio
+# 宇宙第一工作台
 
-面向中文内容创作者的 FastAPI 工作台。当前页面把公众号账号诊断、公众号创作、小红书创作、微信贴图号、爆文检测和早安祝福放在同一个操作入口中。
+面向中文内容创作者的 ChatGPT 式 AI Skill 工作台。用户通过持续对话调用公众号创作、账号诊断、小红书、贴图号、爆文检测和早安祝福等能力；服务端负责 Skill 路由、原生 Tool Calling、长任务执行、实时进度、Artifact 版本与积分结算。
 
-当前版本先实现免费测试闭环，并提供一份面向客户的可视化报告：
-
-```text
-输入公众号名称 → 服务端调用红狐 API → 提取证据与洞察 → 网页可视化展示
-```
-
-支付、用户账号、历史报告和订阅功能暂未接入，但 `db/schema.sql` 已预留订单与报告字段。
+当前架构是模块化单体加 Worker：FastAPI、PostgreSQL、Redis、Celery、SSE 和可替换对象存储。登录、账号、管理员、钱包、用量、失败退款、自动/交互工作流以及旧 API 兼容路径均保留。
 
 ## 项目结构
 
 ```text
 server/
-  main.py                 FastAPI 入口
-  wechat_analyzer.py      内置公众号诊断核心代码
+  main.py                 FastAPI 与兼容 API 入口
+  conversation_api.py     Conversation / Run / Artifact / SSE API
+  agent/                  Router、Context、Tool Loop、Orchestrator
+  skills/                 Skill Manifest 自动发现与注册
+  providers/              文字与图片 Provider 抽象及用量归因
+  storage/                Local / S3-compatible Artifact 存储
+  workflow_*              持久化自动/交互工作流
+  agent_tasks.py           标准对话 Celery 任务
 static/
-  index.html              页面结构
-  style.css               Apple 式浅色信息产品视觉
-  app.js                  报告渲染、指标解释与建议卡片
-  morning-blessing.html   早安祝福生成器
-server/
-  creator_tools.py        小红书、贴图号和爆文检测 Web 适配层
-vendor/skills/            固定版本的三个开源 Skill 运行时
-db/schema.sql             后续订单/报告数据库结构
-references/               Skill 工作流文档
-assets/                   原 Skill 报告资源
+  index.html              工作台页面
+  conversation-workbench.js  标准对话与 Artifact 客户端
+vendor/skills/            固定版本的 Skill 与 Manifest
+db/alembic/               增量数据库迁移
+docker-compose.yml        PostgreSQL、Redis、迁移、Web、Worker、Beat
 ```
 
 ## 本地启动
@@ -79,15 +74,18 @@ CREATOR_NEW_USER_TRIAL_POINTS=30
 - 基础锚点为 `1 积分 = 0.1 元`，积分只用于平台功能，不可提现或转账。
 - 运行数据库默认位于 `data/creator_accounts.db`，可用 `CREATOR_ACCOUNTS_DB` 指定持久化路径。
 
-## 部署
+## 正式部署
 
-可部署到任何支持 Python Web 服务的平台，启动命令：
+生产环境不能只启动 Uvicorn。复制 `.env.example` 为 `.env` 并配置密钥、PostgreSQL 密码及对象存储后，使用：
 
 ```bash
-uvicorn server.main:app --host 0.0.0.0 --port ${PORT:-8000}
+docker compose down
+docker compose up -d --build
+docker compose ps
+curl -fsS http://127.0.0.1:8000/health/ready
 ```
 
-账号诊断使用 `REDFOX_API_KEY`。创作工具统一使用服务器环境变量中的文字与图片模型配置。
+Compose 会先运行 Alembic，再启动 Web、监听 `chat,text,image,external,workflow` 的 Celery Worker，以及负责恢复任务的 Beat。完整首次迁移、验证、回滚和备份流程见 [`docs/DEPLOYMENT_POSTGRES_CELERY.md`](docs/DEPLOYMENT_POSTGRES_CELERY.md)。单独运行 Uvicorn 只适用于本地开发。
 
 ## API
 

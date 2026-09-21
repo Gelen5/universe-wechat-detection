@@ -1,6 +1,6 @@
 # Production Concurrency Review
 
-Date: 2026-09-13
+Updated: 2026-09-21
 
 ## Scope
 
@@ -54,6 +54,8 @@ registered users and 20-30 simultaneous creation requests.
 - Added bounded retry lease release and terminal timeout handling.
 - Made cancellation terminal immediately and protected all later writes.
 - Made node result plus next-node/checkpoint/terminal transition atomic.
+- Routed coordination, text, image, external calls and workflow delivery to
+  separate Celery queues so worker pools can scale independently.
 
 ### Redis, restart, and SSE
 
@@ -70,7 +72,7 @@ registered users and 20-30 simultaneous creation requests.
 
 ## Verification
 
-- Full local suite: `92 passed`.
+- Full local suite: `168 passed`.
 - Python compile and diff checks: passed.
 - PostgreSQL probe: 100 registered users, 30 concurrent creators; passed.
 - Ten-click idempotency probe: one workflow, one usage row, one debit; passed.
@@ -93,3 +95,7 @@ Production should prefer providers that document idempotency support.
 PostgreSQL and Redis are currently single service instances. This review protects
 correctness and restart recovery, but it does not add high availability for a host
 or availability-zone failure.
+
+The latest queue and readiness changes still require a fresh Docker release-
+candidate run against PostgreSQL, Redis, Web, Worker and Beat before declaring
+the current commit ready for production; Docker is unavailable on this host.

@@ -19,7 +19,7 @@ docker compose run --rm migrate sh -lc \
   'python scripts/migrate_sqlite_to_postgres.py --source /legacy/creator_accounts.db --target "$DATABASE_URL" --dry-run'
 docker compose run --rm migrate sh -lc \
   'python scripts/migrate_sqlite_to_postgres.py --source /legacy/creator_accounts.db --target "$DATABASE_URL"'
-docker compose up -d web worker
+docker compose up -d web worker beat
 ```
 
 The copy command is idempotent and verifies row counts plus all wallet bucket
@@ -33,7 +33,7 @@ backup. Do not switch traffic when `verified` is not `true`.
 curl -fsS http://127.0.0.1:8000/health/live
 curl -fsS http://127.0.0.1:8000/health/ready
 docker compose ps
-docker compose logs --tail=100 web worker
+docker compose logs --tail=100 web worker beat
 ```
 
 Verify login, wallet balance, admin authorization, one interactive workflow,
