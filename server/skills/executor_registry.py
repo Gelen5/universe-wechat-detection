@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import sys
 from pathlib import Path
 from types import ModuleType
 
@@ -42,6 +43,12 @@ class ExecutorRegistry:
 
     @staticmethod
     def _load(skill_id: str, path: Path) -> ModuleType:
+        # Celery starts from its console-script directory. Keep the project
+        # root importable for trusted adapters that use the vendored Skill
+        # namespace (for example ``vendor.skills...``).
+        project_root = str(Path(__file__).resolve().parents[2])
+        if project_root not in sys.path:
+            sys.path.insert(0, project_root)
         name = f"universe_skill_adapter_{skill_id}_{abs(hash(path))}"
         spec = importlib.util.spec_from_file_location(name, path)
         if not spec or not spec.loader:
@@ -56,4 +63,3 @@ _registry = ExecutorRegistry()
 
 def get_executor_registry() -> ExecutorRegistry:
     return _registry
-
