@@ -44,7 +44,10 @@ def execute_agent_run(self, run_id: str):
         log_event("agent.run.finished", run_id=run_id, user_id=claimed["user_id"],
                   conversation_id=claimed["conversation_id"], skill_id=claimed.get("skill_id"),
                   task_id=self.request.id, status=result.get("status", "completed"))
-        return result
+        # The orchestrator result contains internal objects such as
+        # RouteDecision and database-backed views. Celery uses JSON result
+        # serialization, so expose only the durable task status here.
+        return {"status": str(result.get("status", "completed")), "run_id": run_id}
     except ProviderRequestError as exc:
         log_event("agent.run.provider_error", run_id=run_id, user_id=claimed["user_id"],
                   conversation_id=claimed["conversation_id"], skill_id=claimed.get("skill_id"),
