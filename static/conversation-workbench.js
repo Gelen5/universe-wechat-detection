@@ -34,6 +34,9 @@
   let artifactIndex = -1;
   let saveTimer = null;
   let editSequence = 0;
+  // Lock before the async conversation creation/request starts. Waiting for
+  // the API response here would allow rapid clicks to create duplicate runs.
+  let submitting = false;
 
   const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, char => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;',
@@ -236,15 +239,25 @@
 
   async function submit() {
     const content = input.value.trim();
-    if (!content || send.disabled) return;
+    if (!content || send.disabled || submitting) return;
+    submitting = true;
+    setBusy(true, '正在提交你的消息');
+    const idempotencyKey = uuid();
     try {
-      await ensureConversation(); input.value = ''; appendProgress('正在提交你的消息');
+      await ensureConversation();
+      input.value = '';
+      appendProgress('正在提交你的消息');
       const data = await api(`/api/conversations/${encodeURIComponent(conversation.id)}/messages`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': uuid() },
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey },
         body: JSON.stringify({ content }),
       });
       await refresh(); watchRun(data.run_id);
-    } catch (error) { setBusy(false); appendProgress(error.message); }
+    } catch (error) {
+      setBusy(false);
+      appendProgress(error.message);
+    } finally {
+      submitting = false;
+    }
   }
 
   async function restore() {
@@ -279,7 +292,7 @@
   captureClick('#new-workbench-chat', () => {
     closeEvents(); conversation = null; activeRun = null; renderedEventIds = new Set();
     localStorage.removeItem(keyConversation); localStorage.removeItem(keyRun);
-    setBusy(false); input.value = ''; renderMessages([]); renderArtifacts([]); status.textContent = '等待你的想法';
+    submitting = false; setBusy(false); input.value = ''; renderMessages([]); renderArtifacts([]); status.textContent = '等待你的想法';
   });
   captureClick('#recent-workbench-chats', () => toggleConversationHistory());
   captureClick('[data-conversation-id]', button => openConversation(button.dataset.conversationId));
