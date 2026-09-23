@@ -28,9 +28,30 @@ def create_tools():
         response = context.model_service.create_response([
             {"role": "system", "content": "你是公众号编辑。严格基于原文执行用户修改要求，保留未要求修改的事实、结构和内容，只输出修改后的完整正文。"},
             {"role": "user", "content": f"修改要求：\n{requirements}\n\n原文：\n{article}"},
-        ], timeout=180, idempotency_key=context.idempotency_key,
+        ], timeout=max(60, int(workbench._setting("WECHAT_TEXT_REQUEST_TIMEOUT", "300") or 300)),
+           idempotency_key=context.idempotency_key,
            run_id=context.run_id, user_id=context.user_id)
         return article_result(str(args.get("title") or "修订稿"), response.text)
+
+    def review_article(args, context):
+        article = required_text(args, "article")
+        requirements = str(args.get("requirements") or "").strip()
+        session = {
+            "id": f"{context.run_id}-review-{uuid.uuid4().hex[:12]}",
+            "topic": str(args.get("title") or "公众号文章"),
+            "article": article,
+            "brief": requirements,
+            "conversation": [{"role": "user", "content": requirements}],
+            "theme": "default",
+            "image_plan": {},
+            "images": [],
+            "skill_runs": [],
+        }
+        reviewed, report = with_provider(lambda: workbench._review(article, session))
+        return ToolResult({"title": session["topic"], "article": reviewed, "review": report}, (
+            ArtifactOutput(type="article", title=session["topic"], content=reviewed),
+            ArtifactOutput(type="report", title="反 AI 复核报告", content_json=report),
+        ))
 
     def typeset_article(args, context):
         article = required_text(args, "article")
@@ -45,6 +66,5 @@ def create_tools():
         ))
 
     return {"search_topics": search_topics, "write_article": write_article,
-            "revise_article": revise_article, "generate_image": model_image,
-            "typeset_article": typeset_article}
-
+            "revise_article": revise_article, "review_article": review_article,
+            "generate_image": model_image, "typeset_article": typeset_article}

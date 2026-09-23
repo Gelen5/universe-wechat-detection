@@ -66,6 +66,20 @@
       }
     },
     {
+      "name": "review_article",
+      "description": "使用公众号 Skill 与反 AI Skill 对当前文章做事实边界、可读性和表达复核，并返回修订稿与复核报告",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "title": {"type": "string"},
+          "article": {"type": "string", "description": "当前文章全文"},
+          "requirements": {"type": "string", "description": "文章要求与复核重点"}
+        },
+        "required": ["article"],
+        "additionalProperties": false
+      }
+    },
+    {
       "name": "typeset_article",
       "description": "把当前文章排版为公众号 HTML",
       "parameters": {
