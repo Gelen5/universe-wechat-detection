@@ -96,6 +96,6 @@
   ],
   "pricing": {"base_points": 10},
   "model_policy": {"text": "default_text", "image": "default_image"},
-  "limits": {"timeout_seconds": 600, "max_tool_calls": 20},
+  "limits": {"timeout_seconds": 1200, "max_tool_calls": 20},
   "trusted": true
 }

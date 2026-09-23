@@ -26,7 +26,7 @@ def dispatch_run(run_id: str) -> str:
 
 
 @celery_app.task(bind=True, name="agent.run", max_retries=4, acks_late=True,
-                 reject_on_worker_lost=True, soft_time_limit=600, time_limit=660)
+                 reject_on_worker_lost=True, soft_time_limit=1200, time_limit=1260)
 def execute_agent_run(self, run_id: str):
     claimed = conversation_repository.claim_run(run_id, self.request.id)
     if not claimed:
