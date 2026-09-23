@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import hashlib
 import inspect
+import os
 import time
 from dataclasses import dataclass
 from typing import Any, Callable
@@ -52,8 +53,9 @@ def run_tool_loop(*, model_service: ModelService, messages: list[dict[str, Any]]
             sort_keys=True, separators=(",", ":"), default=str,
         ).encode()).hexdigest()[:24]
         model_key = f"{run_id}:model:{calls + 1}:{request_hash}"
+        provider_timeout = max(60, int(os.getenv("AGENT_PROVIDER_REQUEST_TIMEOUT", "300") or 300))
         response = model_service.create_response(messages, tools=definitions,
-                                                 timeout=min(120, remaining), idempotency_key=model_key,
+                                                 timeout=min(provider_timeout, remaining), idempotency_key=model_key,
                                                  run_id=run_id, user_id=user_id)
         if not heartbeat():
             raise RuntimeError("run execution lease changed")
