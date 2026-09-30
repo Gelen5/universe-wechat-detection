@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import asyncio
+from pathlib import Path
 from typing import Callable
 
 from .. import conversation_repository
@@ -116,18 +118,40 @@ class AgentOrchestrator:
                 tool_artifacts.extend(created)
                 return self._compact_tool_result(result, created)
 
-            answer = run_tool_loop(
-                model_service=self.model_service,
-                messages=[{"role": "system", "content": instructions}, *history],
-                tools=self.tool_resolver(decision.skill_id, run_id, user_id),
-                run_id=run_id, user_id=user_id,
-                skill_id=decision.skill_id,
-                max_tool_calls=int(manifest.limits.get("max_tool_calls", 12)),
-                timeout_seconds=int(manifest.limits.get("timeout_seconds", 600)),
-                is_cancelled=(lambda: not conversation_repository.run_lease_owned(run_id, task_id)) if task_id else (lambda: False),
-                heartbeat=(lambda: conversation_repository.heartbeat_run(run_id, task_id)) if task_id else (lambda: True),
-                on_tool_result=persist_result,
-            )
+            is_cancelled = (lambda: not conversation_repository.run_lease_owned(run_id, task_id)) if task_id else (lambda: False)
+            heartbeat = (lambda: conversation_repository.heartbeat_run(run_id, task_id)) if task_id else (lambda: True)
+            if manifest.runtime.get("engine") == "easel_native":
+                from ..integrations.easel.harness import UniverseNativeHarness
+                from ..integrations.easel.harness.schemas import RunContext
+                from ..integrations.easel.native.catalog import skill_loader
+                skill = skill_loader().load(manifest.root.name)
+                metadata = conversation.get("metadata") or {}
+                profile = metadata.get("profile") if isinstance(metadata, dict) else None
+                context = RunContext(
+                    user_id=user_id, run_id=run_id, conversation_id=conversation["id"],
+                    workspace=Path(__file__).resolve().parents[2],
+                    output_dir=Path(__file__).resolve().parents[2] / "output" / run_id,
+                    timeout_seconds=int(manifest.limits.get("timeout_seconds", 300)),
+                    history=history[:-1], is_cancelled=is_cancelled, heartbeat=heartbeat,
+                )
+                result = asyncio.run(UniverseNativeHarness(self.model_service).execute(
+                    run_context=context, skill=skill, input_data=trigger,
+                    profile=profile if isinstance(profile, dict) else {},
+                    attachments=[], tools=self.tool_resolver(decision.skill_id, run_id, user_id),
+                ))
+                answer = result.text
+            else:
+                answer = run_tool_loop(
+                    model_service=self.model_service,
+                    messages=[{"role": "system", "content": instructions}, *history],
+                    tools=self.tool_resolver(decision.skill_id, run_id, user_id),
+                    run_id=run_id, user_id=user_id,
+                    skill_id=decision.skill_id,
+                    max_tool_calls=int(manifest.limits.get("max_tool_calls", 12)),
+                    timeout_seconds=int(manifest.limits.get("timeout_seconds", 600)),
+                    is_cancelled=is_cancelled, heartbeat=heartbeat,
+                    on_tool_result=persist_result,
+                )
             if task_id and not conversation_repository.heartbeat_run(run_id, task_id):
                 raise RuntimeError("run execution lease changed")
             message = conversation_repository.add_message(conversation["id"], user_id, "assistant", answer)

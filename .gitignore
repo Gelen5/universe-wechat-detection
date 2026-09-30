@@ -30,3 +30,16 @@ scripts_css_append.py
 scripts_refactor_entry.py
 shot_v3r2.py
 selftest_v3r2.py
+
+# Keep the reviewed native text batch; other local Easel source files are audit input.
+/vendor/easel/skills/openclaw/*
+!/vendor/easel/skills/openclaw/skill-account-diagnosis/
+!/vendor/easel/skills/openclaw/skill-article-outline/
+!/vendor/easel/skills/openclaw/skill-audience-profiler/
+!/vendor/easel/skills/openclaw/skill-carousel-planner/
+!/vendor/easel/skills/openclaw/skill-content-matrix/
+!/vendor/easel/skills/openclaw/skill-positioning-analysis/
+!/vendor/easel/skills/openclaw/skill-strategy-advisor/
+!/vendor/easel/skills/openclaw/skill-topic-evaluator/
+!/vendor/easel/skills/openclaw/skill-voice-builder/
+!/vendor/easel/skills/openclaw/style-transfer/

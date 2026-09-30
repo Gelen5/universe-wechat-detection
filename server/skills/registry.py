@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import threading
+import os
 from pathlib import Path
 
 from .loader import discover_manifests, load_manifest
@@ -20,6 +21,12 @@ class SkillRegistry:
         for root in self.roots:
             for path in discover_manifests(root):
                 manifest = load_manifest(path)
+                if manifest.id in discovered:
+                    raise ValueError(f"duplicate Skill id: {manifest.id}")
+                discovered[manifest.id] = manifest
+        if os.getenv("EASEL_NATIVE_ENABLED", "0").lower() in {"1", "true", "yes"}:
+            from ..integrations.easel.native.catalog import native_manifests
+            for manifest in native_manifests():
                 if manifest.id in discovered:
                     raise ValueError(f"duplicate Skill id: {manifest.id}")
                 discovered[manifest.id] = manifest
