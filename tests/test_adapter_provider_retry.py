@@ -1,4 +1,5 @@
 import unittest
+from contextlib import nullcontext
 from unittest.mock import patch
 
 from server import workbench
@@ -21,7 +22,9 @@ class AdapterProviderRetryTests(unittest.TestCase):
                     raise workbench.ProviderError("text API failed") from exc
             return "ok"
 
-        with patch("server.skills.adapter_support.time.sleep"):
+        with patch("server.skills.adapter_support.time.sleep"), patch(
+            "server.skills.adapter_support.workbench.provider_overrides", return_value=nullcontext()
+        ):
             self.assertEqual(with_provider(invoke), "ok")
         self.assertEqual(calls, 3)
 
@@ -33,7 +36,7 @@ class AdapterProviderRetryTests(unittest.TestCase):
             calls += 1
             raise workbench.ProviderError("invalid response")
 
-        with self.assertRaises(workbench.ProviderError):
+        with patch("server.skills.adapter_support.workbench.provider_overrides", return_value=nullcontext()), self.assertRaises(workbench.ProviderError):
             with_provider(invoke)
         self.assertEqual(calls, 1)
 
@@ -42,7 +45,9 @@ class AdapterProviderRetryTests(unittest.TestCase):
             self.assertEqual(session["topic"], "测试标题")
             return "<p>正文</p>"
 
-        with patch("vendor.skills.wechat_writer.adapter.workbench._typeset", side_effect=fake_typeset):
+        with patch("server.skills.adapter_support.workbench.provider_overrides", return_value=nullcontext()), patch(
+            "vendor.skills.wechat_writer.adapter.workbench._typeset", side_effect=fake_typeset
+        ):
             result = create_tools()["typeset_article"](
                 {"title": "测试标题", "article": "正文"}, None)
         self.assertEqual(result.data["html"], "<p>正文</p>")
