@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import uuid
+import time
 from typing import Any, Callable
 
 from .. import creator_tools, image_provider, workbench
+from ..providers import ProviderRequestError
 from .executor import ToolContext
 from .tool_result import ArtifactOutput, ToolResult
 
@@ -17,7 +19,16 @@ def required_text(args: dict[str, Any], key: str) -> str:
 
 def with_provider(call: Callable[[], Any]):
     with workbench.provider_overrides():
-        return call()
+        for attempt in range(3):
+            try:
+                return call()
+            except workbench.ProviderError as exc:
+                cause = exc.__cause__
+                if not isinstance(cause, ProviderRequestError) or not cause.transient:
+                    raise
+                if attempt == 2:
+                    raise cause from exc
+                time.sleep(2 ** attempt)
 
 
 def topics_result(topics: Any) -> ToolResult:
