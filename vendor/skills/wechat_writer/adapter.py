@@ -34,7 +34,8 @@ def create_tools():
 
     def typeset_article(args, context):
         article = required_text(args, "article")
-        session = {"id": uuid.uuid4().hex, "article": article,
+        session = {"id": uuid.uuid4().hex, "topic": str(args.get("title") or "公众号文章"),
+                   "article": article,
                    "theme": str(args.get("theme") or "default"), "image_plan": {}, "images": [],
                    "skill_runs": [], "brief": str(args.get("requirements") or ""),
                    "typeset_html": "", "preview_document": ""}
