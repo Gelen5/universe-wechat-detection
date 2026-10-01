@@ -10,6 +10,7 @@ from sqlalchemy.orm import sessionmaker
 
 from server import conversation_repository, database
 from server.agent.orchestrator import AgentOrchestrator
+from server.agent.runtime import resolve_tools
 from server.integrations.easel.native.catalog import APPROVED_TEXT_SKILLS
 from server.models import Base, UsageRecord, Wallet, users_table
 from server.providers import ModelProvider, ModelService, ProviderResponse
@@ -54,7 +55,9 @@ class NativeWorkflowTests(unittest.TestCase):
         provider = TextProvider()
         service = ModelService(provider)
         orchestrator = AgentOrchestrator(registry=registry, model_service=service,
-                                          tool_resolver=lambda *_: {})
+                                          tool_resolver=lambda skill_id, run_id, user_id: resolve_tools(
+                                              skill_id, registry=registry, model_service=service,
+                                              run_id=run_id, user_id=user_id))
         for name in APPROVED_TEXT_SKILLS:
             skill_id = "easel_" + name.replace("-", "_")
             conversation = conversation_repository.create_conversation(

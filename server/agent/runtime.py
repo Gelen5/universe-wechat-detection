@@ -51,6 +51,8 @@ def resolve_tools(skill_id: str, *, registry: SkillRegistry | None = None,
                   run_id: str | None = None,
                   user_id: str | None = None) -> dict[str, ExecutableTool]:
     manifest = (registry or get_registry()).executable(skill_id)
+    if not manifest.tools:
+        return {}
     executors = get_executor_registry().tools(manifest)
     resolved: dict[str, ExecutableTool] = {}
     for tool in manifest.tools:

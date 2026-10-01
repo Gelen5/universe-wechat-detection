@@ -9,9 +9,19 @@ from unittest.mock import patch
 from server.integrations.easel.harness import UniverseNativeHarness
 from server.integrations.easel.harness.schemas import RunContext
 from server.integrations.easel.native.skill_loader import NativeSkillLoader
+from server.integrations.easel.native.catalog import native_manifests
+from server.agent.runtime import resolve_tools
+from server.skills.registry import SkillRegistry
 
 
 class EaselNativeTests(unittest.TestCase):
+    def test_production_resolver_accepts_text_only_skills(self):
+        with patch.dict("os.environ", {"EASEL_NATIVE_ENABLED": "1"}):
+            registry = SkillRegistry().reload()
+        self.assertEqual(10, len(native_manifests()))
+        for manifest in native_manifests():
+            self.assertEqual({}, resolve_tools(manifest.id, registry=registry))
+
     def test_loader_parses_yaml_and_assets(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
