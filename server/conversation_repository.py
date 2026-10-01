@@ -724,12 +724,22 @@ def _message_view(row: ConversationMessage) -> dict[str, Any]:
 
 
 def _run_view(row: AgentRun) -> dict[str, Any]:
+    error_text = (row.error_message or "").lower()
+    if any(marker in error_text for marker in ("额度不足", "余额不足", "insufficient balance", "insufficient_quota")):
+        error_kind = "provider_balance"
+    elif any(marker in error_text for marker in ("provider connection failed", "remote end closed", "connection reset")):
+        error_kind = "provider_connection"
+    elif row.error_code == "enqueue_failed":
+        error_kind = "queue"
+    else:
+        error_kind = None
     return {"id": row.id, "conversation_id": row.conversation_id,
             "trigger_message_id": row.trigger_message_id, "user_id": row.user_id,
             "skill_id": row.skill_id, "status": row.status, "usage_id": row.usage_id,
             "cost_points": row.cost_points, "provider_cost_micros": row.provider_cost_micros,
             "celery_task_id": row.celery_task_id, "attempt": row.attempt,
-            "heartbeat_at": row.heartbeat_at.isoformat() if row.heartbeat_at else None}
+            "heartbeat_at": row.heartbeat_at.isoformat() if row.heartbeat_at else None,
+            "error_kind": error_kind}
 
 
 def _artifact_view(row: Artifact) -> dict[str, Any]:

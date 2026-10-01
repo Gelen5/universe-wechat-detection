@@ -71,6 +71,20 @@ class ConversationApiTests(unittest.TestCase):
         self.assertEqual(422, missing.status_code)
         self.assertEqual(422, unknown.status_code)
 
+    def test_failed_run_snapshot_exposes_safe_provider_balance_reason(self):
+        conversation = self.create()
+        with patch("server.conversation_api.dispatch_run", return_value="task-1"):
+            response = self.client.post(f"/api/conversations/{conversation['id']}/messages",
+                                        headers={"Idempotency-Key": uuid.uuid4().hex},
+                                        json={"content": "审稿"})
+        run_id = response.json()["run_id"]
+        conversation_repository.transition_run(run_id, self.user_id, "failed",
+                                               error_code="ProviderError",
+                                               error_message="用户额度不足, request id: secret-provider-id")
+        snapshot = self.client.get(f"/api/runs/{run_id}").json()["run"]
+        self.assertEqual(snapshot["error_kind"], "provider_balance")
+        self.assertNotIn("secret-provider-id", str(snapshot))
+
     def test_send_is_async_and_idempotent_without_duplicate_message(self):
         conversation = self.create()
         key = uuid.uuid4().hex

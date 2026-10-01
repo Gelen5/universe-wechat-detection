@@ -91,6 +91,17 @@
     thread.scrollTop = thread.scrollHeight;
   }
 
+  function failureText(payload = {}) {
+    const error = String(payload.error_message || '').toLowerCase();
+    const kind = payload.error_kind || (
+      /额度不足|余额不足|insufficient balance|insufficient_quota/.test(error) ? 'provider_balance' :
+      /provider connection failed|remote end closed|connection reset/.test(error) ? 'provider_connection' : '');
+    if (kind === 'provider_balance') return '文本 API 额度不足，请联系管理员充值；本轮积分已退还';
+    if (kind === 'provider_connection') return '模型服务暂时断开，请稍后重试；本轮积分已退还';
+    if (kind === 'queue') return '任务暂时无法进入队列，请稍后重试；积分已退还';
+    return '本轮执行失败，已按规则退还积分';
+  }
+
   const eventText = (type, payload) => ({
     'run.created': '任务已经创建', 'run.queued': '任务正在排队', 'run.started': '正在理解你的需求',
     'run.running': '正在调用专业 Skill', 'skill.selected': `已选择 ${payload.skill_id || '合适的 Skill'}`,
@@ -99,7 +110,7 @@
     'tool.failed': `${payload.tool_name || '工具'}执行失败`,
     'artifact.created': '作品已经生成', 'artifact.updated': '作品已生成新版本',
     'assistant.completed': '回复与作品已保存', 'run.completed': '本轮已完成',
-    'run.failed': '本轮执行失败，已按规则退还积分', 'run.cancelled': '任务已取消',
+    'run.failed': failureText(payload), 'run.cancelled': '任务已取消',
     'run.waiting_input': '还需要你补充一点信息',
   }[type] || '任务状态已更新');
 
@@ -250,6 +261,10 @@
       try {
         const run = (await api(`/api/runs/${encodeURIComponent(runId)}`)).run;
         if (['completed', 'failed', 'cancelled', 'waiting_input'].includes(run.status)) {
+          if (run.status === 'failed') {
+            const message = failureText(run);
+            appendProgress(message); status.textContent = message;
+          }
           closeEvents(); activeRun = null; localStorage.removeItem(keyRun); setBusy(false); await refresh();
         }
       } catch { /* persisted replay handles transient disconnects */ }
@@ -296,7 +311,11 @@
     if (runId && conversation) {
       try {
         const run = (await api(`/api/runs/${encodeURIComponent(runId)}`)).run;
-        if (['queued', 'running'].includes(run.status)) watchRun(run.id); else localStorage.removeItem(keyRun);
+        if (['queued', 'running'].includes(run.status)) watchRun(run.id);
+        else {
+          localStorage.removeItem(keyRun);
+          if (run.status === 'failed') status.textContent = failureText(run);
+        }
       } catch { localStorage.removeItem(keyRun); }
     }
   }
