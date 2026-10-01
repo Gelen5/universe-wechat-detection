@@ -67,7 +67,16 @@ def run_tool_loop(*, model_service: ModelService, messages: list[dict[str, Any]]
                 raise RuntimeError("maximum tool calls exceeded")
             tool = tools.get(call.name)
             if not tool:
-                raise ValueError(f"Skill attempted unknown tool: {call.name}")
+                validation_failures += 1
+                messages.append({"role": "assistant", "content": "", "tool_calls": [{
+                    "id": call.id, "type": "function", "function": {"name": call.name,
+                    "arguments": json.dumps(call.arguments, ensure_ascii=False)}}]})
+                messages.append({"role": "tool", "tool_call_id": call.id, "content": json.dumps({
+                    "error": "unknown_tool", "allowed_tools": sorted(tools),
+                }, ensure_ascii=False)})
+                if validation_failures > 2:
+                    raise ValueError(f"Skill attempted unknown tool repeatedly: {call.name}")
+                continue
             schema = tool.definition.get("parameters") or {"type": "object"}
             errors = sorted(Draft202012Validator(schema).iter_errors(call.arguments),
                             key=lambda item: list(item.absolute_path))

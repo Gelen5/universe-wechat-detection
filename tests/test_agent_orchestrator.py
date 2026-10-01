@@ -104,6 +104,24 @@ class AgentOrchestratorTests(unittest.TestCase):
                     lambda args: {"ok": True})}, run_id=run["id"], user_id="user-a",
                 skill_id="wechat_writer", max_tool_calls=1, timeout_seconds=30)
 
+    def test_unknown_tool_is_rejected_and_model_can_recover(self):
+        _, run = self.make_run()
+        provider = SequenceProvider([
+            ProviderResponse(tool_calls=(ToolInvocation("bad", "Bash", {"command": "echo hi"}),)),
+            ProviderResponse(tool_calls=(ToolInvocation("good", "write", {"topic": "AI"}),)),
+            ProviderResponse(text="文章完成"),
+        ])
+        result = run_tool_loop(model_service=ModelService(provider), messages=[],
+            tools={"write": ExecutableTool(
+                {"name": "write", "description": "write", "parameters": {"type": "object"}},
+                lambda args: {"title": args["topic"]})},
+            run_id=run["id"], user_id="user-a", skill_id="wechat_writer",
+            max_tool_calls=4, timeout_seconds=30)
+        self.assertEqual("文章完成", result)
+        self.assertIn('"error": "unknown_tool"', str(provider.messages[1]))
+        with database.session_scope() as db:
+            self.assertEqual(["write"], [call.tool_name for call in db.query(ToolCall).all()])
+
     def test_tool_validation_error_is_returned_to_model_and_recovers_once(self):
         _, run = self.make_run()
         provider = SequenceProvider([
