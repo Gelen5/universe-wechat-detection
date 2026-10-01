@@ -722,6 +722,9 @@ def _validated_local_edits(
             if not isinstance(before, str) or not before or not isinstance(after, str):
                 errors.append('before或after格式错误')
                 continue
+            if not after:
+                errors.append('after不能为空；请用保留事实边界的具体措辞替换')
+                continue
             if revised.count(before) != 1:
                 errors.append('before在当前稿中不能唯一定位')
                 continue

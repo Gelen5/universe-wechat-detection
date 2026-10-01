@@ -29,6 +29,16 @@ class PipelineTests(unittest.TestCase):
         with patch.object(w, '_json_text', return_value=payload), self.assertRaises(w.ProviderError):
             w._validated_local_edits(article, 'prompt', True, anchors=['第一句。'])
 
+    def test_review_retries_empty_replacement_instead_of_crashing(self):
+        invalid = {'edits': [{'issue_index': 0, 'after': ''}], 'retained_issue_indexes': []}
+        valid = {'edits': [{'issue_index': 0, 'after': '改过的第一句。'}],
+                 'retained_issue_indexes': []}
+        with patch.object(w, '_json_text', side_effect=[invalid, valid]) as generate:
+            _, revised = w._validated_local_edits('第一句。第二句。', 'prompt', True,
+                                                 anchors=['第一句。'])
+        self.assertEqual(revised, '改过的第一句。第二句。')
+        self.assertIn('after不能为空', generate.call_args_list[1].args[0])
+
     def test_repeated_review_anchor_requires_unique_unchanged_context(self):
         article = '第一处说晚年生活。第二处说晚年生活。'
         payload = {'edits': [{'issue_index': 0, 'before': '第二处说晚年生活。',
