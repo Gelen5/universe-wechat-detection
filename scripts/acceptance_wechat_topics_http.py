@@ -35,6 +35,7 @@ def main() -> None:
     parser.add_argument("--with-layout", action="store_true")
     parser.add_argument("--image-only", action="store_true")
     parser.add_argument("--image-layout-only", action="store_true")
+    parser.add_argument("--review-only", action="store_true")
     parser.add_argument("--with-image-layout", action="store_true")
     args = parser.parse_args()
     base = args.base_url.rstrip("/")
@@ -48,6 +49,27 @@ def main() -> None:
         "title": "公众号选题验收", "mode": "manual", "skill_id": "wechat_writer",
     })["conversation"]
     cid = conversation["id"]
+    if args.review_only:
+        article = ("周日下午，父亲把手机递过来，让我帮他把常去的医院存进地图。"
+                   "我点开收藏夹，发现里面只有家和菜市场。他说以前没觉得要记这些地方。\n\n"
+                   "我们坐在餐桌旁，一起核对医院入口、公交站和回程路线。"
+                   "他记在纸上，我在手机里做了标记。快出门时，他又问了一遍站名。\n\n"
+                   "那天我才发现，教会一个操作并不等于对方从此不会遇到困难。"
+                   "下次回家，我想先问问他还有哪里走得不踏实。")
+        run_id = call(session, "POST", base + f"/api/conversations/{cid}/messages",
+                      headers={"Idempotency-Key": secrets.token_hex(16)}, json={
+                          "content": "请直接调用 review_article 审阅下面这篇已写好的文章；"
+                                     "必须运行复核 Skill，并保存修订文章与复核报告，不要写新文章。\n\n" + article,
+                      })["run_id"]
+        run = wait_run(session, base, run_id, 600)
+        assert run["status"] == "completed", run["status"]
+        artifacts = call(session, "GET", base + f"/api/conversations/{cid}/artifacts")["artifacts"]
+        reports = [item for item in artifacts if item["type"] == "report"]
+        assert reports and (reports[-1].get("content_json") or {}).get("gate") == "passed"
+        after = int(call(session, "GET", base + "/api/wallet")["wallet"]["balance"])
+        assert before - after == 10, (before, after)
+        print(f"WECHAT_REVIEW_ACCEPTANCE=PASS report={reports[-1]['id']} points={before}->{after}")
+        return
     if args.with_image_layout:
         for prompt, expected_type, seconds in (
             ("请写一篇约500字、关于中老年人如何与成年子女保持边界的完整公众号文章，调用写作工具保存正文。", "article", 300),
