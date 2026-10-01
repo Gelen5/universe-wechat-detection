@@ -12,6 +12,23 @@ from server import skill_runtime
 
 
 class PipelineTests(unittest.TestCase):
+    def test_review_keeps_valid_edits_when_model_invalidly_retains_other_issue(self):
+        article = '这句太空泛。下一句也空泛。'
+        payload = {'edits': [{'issue_index': 0, 'after': '这句说得更具体。'}],
+                   'retained_issue_indexes': [1]}
+        with patch.object(w, '_json_text', return_value=payload):
+            edits, revised = w._validated_local_edits(
+                article, 'prompt', True, anchors=['这句太空泛。', '下一句也空泛。'])
+        self.assertEqual(edits['retained_issue_indexes'], [])
+        self.assertEqual(revised, '这句说得更具体。下一句也空泛。')
+
+    def test_review_rejects_edit_that_glues_sentences(self):
+        article = '第一句。第二句。'
+        payload = {'edits': [{'issue_index': 0, 'after': '改过的第一句'}],
+                   'retained_issue_indexes': []}
+        with patch.object(w, '_json_text', return_value=payload), self.assertRaises(w.ProviderError):
+            w._validated_local_edits(article, 'prompt', True, anchors=['第一句。'])
+
     def test_repeated_review_anchor_requires_unique_unchanged_context(self):
         article = '第一处说晚年生活。第二处说晚年生活。'
         payload = {'edits': [{'issue_index': 0, 'before': '第二处说晚年生活。',

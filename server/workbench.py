@@ -689,9 +689,14 @@ def _validated_local_edits(
         if anchors and any(not isinstance(index, int) or not 0 <= index < len(anchors) for index in retained):
             errors = ['retained_issue_indexes包含无效下标']
             continue
-        if anchors and any(not _quoted_words(anchors[index]) for index in retained):
-            errors = ['仅含受保护引号原话的问题可以标记保留']
-            continue
+        if anchors:
+            invalid_retained = [index for index in retained if not _quoted_words(anchors[index])]
+            if invalid_retained and not edit_list:
+                errors = ['这些问题不能标记保留，必须提交局部修改：' + ','.join(map(str, invalid_retained))]
+                continue
+            if invalid_retained:
+                retained = [index for index in retained if index not in invalid_retained]
+                payload['retained_issue_indexes'] = retained
         revised = candidate
         errors = []
         for edit in edit_list:
@@ -723,6 +728,9 @@ def _validated_local_edits(
             lost_quotes = [words for words in _quoted_words(before) if words not in after]
             if lost_quotes:
                 errors.append('after丢失引号内原话：' + '、'.join(lost_quotes))
+                continue
+            if before[-1] in '。！？.!?' and after[-1] not in '。！？.!?':
+                errors.append('after丢失句末标点')
                 continue
             revised = revised.replace(before, after, 1)
         if not errors:
