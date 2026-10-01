@@ -6,6 +6,21 @@ import secrets
 import time
 
 import requests
+from bs4 import BeautifulSoup
+
+
+def assert_body_image_position(html: str) -> None:
+    soup = BeautifulSoup(html, "html.parser")
+    article = soup.select_one("#article-content") or soup
+    nodes = [node for node in article.find_all(["p", "img"])
+             if node.name == "img" or (len(node.get_text(strip=True)) >= 10
+                                      and not node.get_text(strip=True).startswith("图注："))]
+    image_positions = [index for index, node in enumerate(nodes)
+                       if node.name == "img" and str(node.get("src", "")).startswith("data:image/")]
+    assert image_positions, "final HTML omitted generated image"
+    assert any(any(node.name == "p" for node in nodes[:index])
+               and any(node.name == "p" for node in nodes[index + 1:])
+               for index in image_positions), "generated body image was not placed between article paragraphs"
 
 
 def call(session: requests.Session, method: str, url: str, **kwargs):
@@ -85,7 +100,7 @@ def main() -> None:
             current = [item for item in artifacts if item["type"] == expected_type]
             assert current, f"{expected_type} artifact missing"
             print(f"WECHAT_IMAGE_LAYOUT_STEP={expected_type} PASS", flush=True)
-        assert "data:image/" in (current[-1].get("content") or ""), "final HTML omitted generated image"
+        assert_body_image_position(current[-1].get("content") or "")
         after = int(call(session, "GET", base + "/api/wallet")["wallet"]["balance"])
         assert before - after == 30, (before, after)
         print(f"WECHAT_IMAGE_LAYOUT_ACCEPTANCE=PASS html_chars={len(current[-1]['content'])} "
@@ -119,7 +134,8 @@ def main() -> None:
             assert run["status"] == "completed", run["status"]
             artifacts = call(session, "GET", base + f"/api/conversations/{cid}/artifacts")["artifacts"]
             html = [item for item in artifacts if item["type"] == "html"]
-            assert html and "data:image/" in (html[-1].get("content") or ""), "HTML omitted image"
+            assert html, "HTML artifact missing"
+            assert_body_image_position(html[-1].get("content") or "")
             final_balance = int(call(session, "GET", base + "/api/wallet")["wallet"]["balance"])
             assert after - final_balance == 10, (after, final_balance)
             print(f"WECHAT_IMAGE_LAYOUT_ONLY=PASS html_chars={len(html[-1]['content'])} "
