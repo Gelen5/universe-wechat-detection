@@ -617,9 +617,9 @@ JSON的items要逐项覆盖列表中的每个下标；这只是返回报告覆�
 issues为空不表示通过；必须同时修复上述拦截原因。原话保护未通过时，把原稿对应原话逐字恢复，不得仅返回空edits。
 引用原话逐字保留；仅作为修辞的引号可以去掉，但其中的文字不要换成近义表达。
 只修改本轮有具体依据的问题，其余保留。禁止输出整篇文章。
-只返回JSON：{{"edits":[{{"issue_index":0,"after":"替换后的片段"}}],"retained_issue_indexes":[1]}}。
+只返回JSON：{{"edits":[{{"issue_index":0,"after":"替换后的片段","before":"仅当原片段重复时，填入包含原片段且全篇唯一的上下文"}}],"retained_issue_indexes":[1]}}。
 issue_index 对应以下已由复核定位、逐字来自当前稿的片段列表：{json.dumps(issue_anchors, ensure_ascii=False)}。
-每个需要修改的问题必须用 issue_index 指向；不要返回 before 字段。服务端会使用该下标对应的原文片段。
+每个需要修改的问题必须用 issue_index 指向。原片段在当前稿唯一时不要返回 before；重复时可提供 before，必须包含原片段与能唯一定位的原样上下文，after 必须保留上下文不变。
 若问题只是修辞且会删改或替换引号内原话，必须把该问题的下标放入 retained_issue_indexes，不得编造替代文本；其余问题必须修改。每个片段在当前稿中必须唯一；不要改变无关内容。'''
             edits, revised = _validated_local_edits(
                 candidate, edit_prompt, require_edits=bool(diagnosis['issues'] or blockers), anchors=issue_anchors,
@@ -676,7 +676,7 @@ def _validated_local_edits(
 ) -> tuple[dict[str, Any], str]:
     errors: list[str] = []
     for _ in range(3):
-        correction = '' if not errors else '\n上次返回无效：' + '；'.join(errors) + '。请重新给出可唯一定位且保留引号内原话的edits。'
+        correction = '' if not errors else '\n上次返回无效：' + '；'.join(errors) + '。若原片段重复，请给出包含原片段且全篇唯一的 before 上下文，after 原样保留上下文；保留引号内原话。'
         payload = _json_text(prompt + correction)
         edit_list = payload.get('edits') if isinstance(payload, dict) else None
         retained = payload.get('retained_issue_indexes', []) if isinstance(payload, dict) else []
@@ -702,7 +702,18 @@ def _validated_local_edits(
                 if not isinstance(issue_index, int) or not 0 <= issue_index < len(anchors):
                     errors.append('每条edit必须使用有效issue_index')
                     continue
-                before = anchors[issue_index]
+                anchor = anchors[issue_index]
+                if candidate.count(anchor) == 1:
+                    before = anchor
+                elif not (isinstance(before, str) and before.count(anchor) == 1
+                          and len(before) <= 500 and candidate.count(before) == 1):
+                    errors.append('重复片段需要提供唯一的before上下文')
+                    continue
+                else:
+                    prefix, suffix = before.split(anchor, 1)
+                    if not (isinstance(after, str) and after.startswith(prefix) and after.endswith(suffix)):
+                        errors.append('after必须原样保留before上下文')
+                        continue
             if not isinstance(before, str) or not before or not isinstance(after, str):
                 errors.append('before或after格式错误')
                 continue

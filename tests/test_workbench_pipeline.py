@@ -12,6 +12,22 @@ from server import skill_runtime
 
 
 class PipelineTests(unittest.TestCase):
+    def test_repeated_review_anchor_requires_unique_unchanged_context(self):
+        article = '第一处说晚年生活。第二处说晚年生活。'
+        payload = {'edits': [{'issue_index': 0, 'before': '第二处说晚年生活。',
+                              'after': '第二处说晚年相处。'}], 'retained_issue_indexes': []}
+        with patch.object(w, '_json_text', return_value=payload):
+            edits, revised = w._validated_local_edits(article, 'prompt', True, anchors=['晚年生活'])
+        self.assertEqual(edits, payload)
+        self.assertEqual(revised, '第一处说晚年生活。第二处说晚年相处。')
+
+    def test_repeated_review_anchor_rejects_context_change(self):
+        article = '第一处说晚年生活。第二处说晚年生活。'
+        payload = {'edits': [{'issue_index': 0, 'before': '第二处说晚年生活。',
+                              'after': '第三处说晚年相处。'}], 'retained_issue_indexes': []}
+        with patch.object(w, '_json_text', return_value=payload), self.assertRaises(w.ProviderError):
+            w._validated_local_edits(article, 'prompt', True, anchors=['晚年生活'])
+
     def test_image_plan_retries_schema_without_fabricating_fields(self):
         invalid = {'reason': '方向', 'images': [{'kind': 'cover', 'prompt': '封面'}]}
         valid = {'reason': '方向', 'images': [{'kind': 'cover', 'prompt': '封面', 'caption': 'AI示意图'}]}
