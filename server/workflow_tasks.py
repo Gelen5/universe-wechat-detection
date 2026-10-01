@@ -19,8 +19,8 @@ from .workflow_repository import (
 )
 
 
-NODE_SOFT_TIME_LIMIT = max(30, int(os.getenv("CELERY_NODE_SOFT_TIME_LIMIT", "300")))
-NODE_TIME_LIMIT = max(NODE_SOFT_TIME_LIMIT + 10, int(os.getenv("CELERY_NODE_TIME_LIMIT", "330")))
+NODE_SOFT_TIME_LIMIT = max(1200, int(os.getenv("CELERY_NODE_SOFT_TIME_LIMIT", "1200")))
+NODE_TIME_LIMIT = max(NODE_SOFT_TIME_LIMIT + 60, int(os.getenv("CELERY_NODE_TIME_LIMIT", "1260")))
 
 NODE_QUEUES = {
     "intent": "chat",

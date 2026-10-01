@@ -620,7 +620,7 @@ issues为空不表示通过；必须同时修复上述拦截原因。原话保�
 只修改本轮有具体依据的问题，其余保留。禁止输出整篇文章。
 只返回JSON：{{"edits":[{{"issue_index":0,"after":"替换后的片段","before":"仅当原片段重复时，填入包含原片段且全篇唯一的上下文"}}],"retained_issue_indexes":[1]}}。
 issue_index 对应以下已由复核定位、逐字来自当前稿的片段列表：{json.dumps(issue_anchors, ensure_ascii=False)}。
-每个需要修改的问题必须用 issue_index 指向。原片段在当前稿唯一时不要返回 before；重复时可提供 before，必须包含原片段与能唯一定位的原样上下文，after 必须保留上下文不变。
+每个需要修改的问题必须用 issue_index 指向。原片段在当前稿唯一时不要返回 before；重复时可提供 before，必须包含原片段与能唯一定位的原样上下文，after 必须保留上下文不变。若无法逐字复制唯一上下文，可改用 occurrence（该片段从前到后的出现序号，从1开始）和 replacement（只替换该片段本身的文字），不要猜测上下文。
 若问题只是修辞且会删改或替换引号内原话，必须把该问题的下标放入 retained_issue_indexes，不得编造替代文本；其余问题必须修改。每个片段在当前稿中必须唯一；不要改变无关内容。'''
             edits, revised = _validated_local_edits(
                 candidate, edit_prompt, require_edits=bool(diagnosis['issues'] or blockers), anchors=issue_anchors,
@@ -693,7 +693,7 @@ def _validated_local_edits(
     context_hint = ("\n重复片段的唯一定位候选（选择对应位置并逐字复制 before；after 保留前后上下文）："
                     + json.dumps(repeated_contexts, ensure_ascii=False)) if repeated_contexts else ""
     for _ in range(3):
-        correction = '' if not errors else '\n上次返回无效：' + '；'.join(errors) + '。若原片段重复，请给出包含原片段且全篇唯一的 before 上下文，after 原样保留上下文；保留引号内原话。'
+        correction = '' if not errors else '\n上次返回无效：' + '；'.join(errors) + '。若原片段重复，可逐字复制唯一 before 上下文并让 after 保留上下文；也可填写 occurrence（从1开始的出现序号）与 replacement（仅替换原片段）。保留引号内原话。'
         payload = _json_text(prompt + context_hint + correction)
         edit_list = payload.get('edits') if isinstance(payload, dict) else None
         retained = payload.get('retained_issue_indexes', []) if isinstance(payload, dict) else []
@@ -729,8 +729,18 @@ def _validated_local_edits(
                     before = anchor
                 elif not (isinstance(before, str) and before.count(anchor) == 1
                           and len(before) <= 500 and candidate.count(before) == 1):
-                    errors.append('重复片段需要提供唯一的before上下文')
-                    continue
+                    occurrence = edit.get('occurrence')
+                    replacement = edit.get('replacement')
+                    context = next((item['before'] for item in repeated_contexts
+                                    if item['issue_index'] == issue_index
+                                    and item['occurrence'] == occurrence), None)
+                    if (not isinstance(occurrence, int) or isinstance(occurrence, bool)
+                            or not isinstance(replacement, str) or not replacement or not context):
+                        errors.append('重复片段需要提供唯一的before上下文或有效的occurrence与replacement')
+                        continue
+                    before = context
+                    prefix, suffix = before.split(anchor, 1)
+                    after = prefix + replacement + suffix
                 else:
                     prefix, suffix = before.split(anchor, 1)
                     if not (isinstance(after, str) and after.startswith(prefix) and after.endswith(suffix)):

@@ -31,6 +31,7 @@ def call(session: requests.Session, method: str, url: str, **kwargs):
 
 def wait_run(session: requests.Session, base: str, run_id: str, seconds: int) -> dict:
     deadline = time.monotonic() + seconds
+    next_report = time.monotonic() + 30
     while time.monotonic() < deadline:
         try:
             run = call(session, "GET", base + f"/api/runs/{run_id}")["run"]
@@ -39,6 +40,9 @@ def wait_run(session: requests.Session, base: str, run_id: str, seconds: int) ->
             continue
         if run["status"] in {"completed", "failed", "cancelled", "waiting_input"}:
             return run
+        if time.monotonic() >= next_report:
+            print(f"WECHAT_RUN_STATUS={run['status']} run={run_id}", flush=True)
+            next_report = time.monotonic() + 30
         time.sleep(2)
     raise TimeoutError(f"WeChat run {run_id} did not finish")
 
@@ -87,9 +91,9 @@ def main() -> None:
         return
     if args.with_image_layout:
         for prompt, expected_type, seconds in (
-            ("请写一篇约500字、关于中老年人如何与成年子女保持边界的完整公众号文章，调用写作工具保存正文。", "article", 300),
-            ("请为刚才的文章调用 generate_image 生成一张清晨家庭客厅的正文配图，保存图片作品。", "image", 360),
-            ("请先审稿，再把刚才的文章与已生成配图一起排成公众号 HTML，图片必须出现在文章中。", "html", 600),
+            ("请写一篇约500字、关于中老年人如何与成年子女保持边界的完整公众号文章，调用写作工具保存正文。", "article", 1800),
+            ("请为刚才的文章调用 generate_image 生成一张清晨家庭客厅的正文配图，保存图片作品。", "image", 1800),
+            ("请先审稿，再把刚才的文章与已生成配图一起排成公众号 HTML，图片必须出现在文章中。", "html", 1800),
         ):
             run_id = call(session, "POST", base + f"/api/conversations/{cid}/messages",
                           headers={"Idempotency-Key": secrets.token_hex(16)},

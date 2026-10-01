@@ -48,6 +48,32 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(edits, payload)
         self.assertEqual(revised, '第一处说晚年生活。第二处说晚年相处。')
 
+    def test_repeated_review_anchor_accepts_verified_occurrence_replacement(self):
+        article = '第一处说晚年生活。第二处说晚年生活。'
+        payload = {'edits': [{'issue_index': 0, 'occurrence': 2,
+                              'replacement': '晚年相处'}], 'retained_issue_indexes': []}
+        with patch.object(w, '_json_text', return_value=payload):
+            _, revised = w._validated_local_edits(article, 'prompt', True, anchors=['晚年生活'])
+        self.assertEqual(revised, '第一处说晚年生活。第二处说晚年相处。')
+
+    def test_repeated_review_anchor_rejects_unverified_occurrence(self):
+        article = '第一处说晚年生活。第二处说晚年生活。'
+        payload = {'edits': [{'issue_index': 0, 'occurrence': 3,
+                              'replacement': '晚年相处'}], 'retained_issue_indexes': []}
+        with patch.object(w, '_json_text', return_value=payload), self.assertRaises(w.ProviderError):
+            w._validated_local_edits(article, 'prompt', True, anchors=['晚年生活'])
+
+    def test_repeated_review_anchor_retries_with_occurrence_guidance(self):
+        article = '第一处说晚年生活。第二处说晚年生活。'
+        invalid = {'edits': [{'issue_index': 0, 'before': '晚年生活',
+                              'after': '晚年相处'}], 'retained_issue_indexes': []}
+        valid = {'edits': [{'issue_index': 0, 'occurrence': 2,
+                            'replacement': '晚年相处'}], 'retained_issue_indexes': []}
+        with patch.object(w, '_json_text', side_effect=[invalid, valid]) as generate:
+            _, revised = w._validated_local_edits(article, 'prompt', True, anchors=['晚年生活'])
+        self.assertEqual(revised, '第一处说晚年生活。第二处说晚年相处。')
+        self.assertIn('occurrence', generate.call_args_list[1].args[0])
+
     def test_repeated_review_anchor_supplies_unique_context_choices(self):
         article = '第一处说晚年生活。第二处说晚年生活。'
         payload = {'edits': [{'issue_index': 0, 'before': '第二处说晚年生活。',

@@ -85,8 +85,8 @@ class WorkflowTaskChainTests(unittest.TestCase):
 
     def test_transient_node_retry_budget_is_bounded_but_tolerant(self):
         self.assertEqual(2, run_workflow_node.max_retries)
-        self.assertEqual(300, NODE_SOFT_TIME_LIMIT)
-        self.assertEqual(330, NODE_TIME_LIMIT)
+        self.assertEqual(1200, NODE_SOFT_TIME_LIMIT)
+        self.assertEqual(1260, NODE_TIME_LIMIT)
 
     def test_recovery_task_uses_the_worker_queue(self):
         routes = celery_app.conf.task_routes
