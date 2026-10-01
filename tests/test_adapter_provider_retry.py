@@ -1,5 +1,8 @@
 import unittest
 from contextlib import nullcontext
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from server import workbench
@@ -64,12 +67,44 @@ class AdapterProviderRetryTests(unittest.TestCase):
             self.assertEqual(session["topic"], "测试标题")
             return "<p>正文</p>"
 
-        with patch("server.skills.adapter_support.workbench.provider_overrides", return_value=nullcontext()), patch(
+        context = SimpleNamespace(conversation_id="conversation", user_id="user")
+        with patch("vendor.skills.wechat_writer.adapter.conversation_repository.list_artifacts", return_value=[]), patch(
+            "server.skills.adapter_support.workbench.provider_overrides", return_value=nullcontext()), patch(
             "vendor.skills.wechat_writer.adapter.workbench._typeset", side_effect=fake_typeset
         ):
             result = create_tools()["typeset_article"](
-                {"title": "测试标题", "article": "正文"}, None)
+                {"title": "测试标题", "article": "正文"}, context)
         self.assertEqual(result.data["html"], "<p>正文</p>")
+
+    def test_typeset_reuses_only_current_article_images(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            image = root / "source.png"
+            image.write_bytes(b"image bytes")
+            artifacts = [
+                {"type": "image", "storage_key": "old", "created_at": "2026-01-01T00:00:00+00:00"},
+                {"type": "article", "run_id": "previous-run", "created_at": "2026-01-02T00:00:00+00:00"},
+                {"type": "image", "storage_key": "new", "title": "清晨配图",
+                 "created_at": "2026-01-03T00:00:00+00:00"},
+                {"type": "article", "run_id": "current-run", "created_at": "2026-01-04T00:00:00+00:00"},
+            ]
+            context = SimpleNamespace(conversation_id="conversation", user_id="user", run_id="current-run",
+                                      storage=SimpleNamespace(local_path=lambda key: image))
+
+            def fake_typeset(session):
+                self.assertEqual(len(session["images"]), 1)
+                self.assertEqual(session["images"][0]["caption"], "清晨配图")
+                self.assertEqual((root / session["id"] / "images" / "image-1.png").read_bytes(), b"image bytes")
+                return "<img>"
+
+            with patch("vendor.skills.wechat_writer.adapter.conversation_repository.list_artifacts",
+                       return_value=artifacts) as listed, patch(
+                "vendor.skills.wechat_writer.adapter.workbench.OUTPUT_DIR", root), patch(
+                "vendor.skills.wechat_writer.adapter.workbench._typeset", side_effect=fake_typeset), patch(
+                "vendor.skills.wechat_writer.adapter.with_provider", side_effect=lambda call: call()):
+                result = create_tools()["typeset_article"]({"article": "正文"}, context)
+            listed.assert_called_once_with("conversation", "user")
+            self.assertEqual(result.data["html"], "<img>")
 
 
 if __name__ == "__main__":
