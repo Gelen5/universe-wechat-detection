@@ -95,8 +95,8 @@ def create_tools():
             image_dir.mkdir(parents=True, exist_ok=True)
             filename = f"image-{index}{source.suffix}"
             shutil.copyfile(source, image_dir / filename)
-            kind = "cover" if index == 1 else "body"
             caption = str(item.get("title") or "AI 示意图")
+            kind = "cover" if "封面" in caption else "body"
             session["images"].append({"kind": kind, "plan_index": index,
                                       "file": filename, "caption": caption})
             session["image_plan"].setdefault("images", []).append(

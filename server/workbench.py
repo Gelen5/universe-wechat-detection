@@ -913,9 +913,10 @@ def _build_article_markdown(session: dict[str, Any]) -> str:
             image.get('section') or spec.get('section', ''),
             image.get('claim') or spec.get('claim', ''),
             int(image.get('plan_index') or 0),
+            image['kind'],
         ))
-    cover = image_markdown[0][0] if image_markdown else ""
-    body_images = [item for item in image_markdown if item[0] != cover]
+    cover = next((item[0] for item in image_markdown if item[4] == 'cover'), "")
+    body_images = [item for item in image_markdown if item[4] != 'cover']
     article = str(session.get("article") or "").strip()
     heading = f"# {session['topic']}"
     if article.startswith("#"):
@@ -940,8 +941,8 @@ def _build_article_markdown(session: dict[str, Any]) -> str:
             offset = end + 2
         return ranges
 
-    def insertion_for(body: tuple[str, str, str, int], ordinal: int) -> int:
-        _, section, claim, _ = body
+    def insertion_for(body: tuple[str, str, str, int, str], ordinal: int) -> int:
+        _, section, claim, _, _ = body
         ranges = paragraph_ranges(article)
         claim_key = anchor_text(claim)
         if claim_key:

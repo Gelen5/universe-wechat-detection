@@ -86,6 +86,26 @@ class WorkbenchTypesetTests(unittest.TestCase):
             finally:
                 workbench.OUTPUT_DIR = old_output
 
+    def test_article_markdown_does_not_promote_only_body_image_to_cover(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            old_output = workbench.OUTPUT_DIR
+            workbench.OUTPUT_DIR = Path(temp_dir)
+            try:
+                session_id = "single-body-image"
+                image_dir = workbench.OUTPUT_DIR / session_id / "images"
+                image_dir.mkdir(parents=True)
+                (image_dir / "body.jpg").write_bytes(b"body")
+                markdown = workbench._build_article_markdown({
+                    "id": session_id, "topic": "标题", "theme": "default",
+                    "article": "第一段。\n\n第二段。\n\n第三段。",
+                    "images": [{"kind": "body", "file": "body.jpg"}],
+                })
+                self.assertLess(markdown.find("第一段。"), markdown.find("![正文配图]"))
+                self.assertLess(markdown.find("![正文配图]"), markdown.find("第三段。"))
+                self.assertNotIn("![文章封面]", markdown)
+            finally:
+                workbench.OUTPUT_DIR = old_output
+
     def test_article_markdown_places_images_after_their_claims_in_plan_order(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             old_output = workbench.OUTPUT_DIR

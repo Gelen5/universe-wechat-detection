@@ -94,6 +94,7 @@ class AdapterProviderRetryTests(unittest.TestCase):
             def fake_typeset(session):
                 self.assertEqual(len(session["images"]), 1)
                 self.assertEqual(session["images"][0]["caption"], "清晨配图")
+                self.assertEqual(session["images"][0]["kind"], "body")
                 self.assertEqual((root / session["id"] / "images" / "image-1.png").read_bytes(), b"image bytes")
                 return "<img>"
 
