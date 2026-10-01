@@ -22,6 +22,7 @@
   const images = root.querySelector('#generated-images');
   const modeButtons = [...root.querySelectorAll('.mode-option')];
   const skillPicker = root.querySelector('#workbench-skill-picker');
+  const viewToggle = root.querySelector('#workbench-view-toggle');
   const historyPopover = root.querySelector('#workbench-chat-history');
   const keyConversation = 'universe.conversation.workbench';
   const keyRun = 'universe.conversation.activeRun';
@@ -32,6 +33,7 @@
   let selectedSkill = 'wechat_writer';
   let renderedEventIds = new Set();
   let currentArtifact = null;
+  let outputOpen = false;
   let editableArtifacts = [];
   let artifactIndex = -1;
   let saveTimer = null;
@@ -105,6 +107,14 @@
     return ({ article: '文章', outline: '框架', topic: '选题', image: '图片', report: '报告', html: 'HTML', markdown: 'Markdown' })[item.type] || item.type;
   }
 
+  function setOutputOpen(value) {
+    outputOpen = value;
+    root.dataset.outputOpen = String(value);
+    root.dataset.studioView = value ? 'article' : 'chat';
+    viewToggle.textContent = value ? '返回对话' : '查看作品';
+    viewToggle.setAttribute('aria-pressed', String(value));
+  }
+
   function showArtifact(item) {
     if (!item) return;
     currentArtifact = item;
@@ -122,12 +132,17 @@
     const current = editableArtifacts.at(-1) || ordered.at(-1);
     if (!current) {
       currentArtifact = null;
+      viewToggle.hidden = true;
+      setOutputOpen(false);
       title.textContent = '作品会在这里出现'; editor.value = '';
       editor.readOnly = true;
       artifactList.innerHTML = '<p class="empty-artifact">当前对话还没有作品</p>';
       return;
     }
+    const firstArtifact = !currentArtifact;
     showArtifact(current);
+    viewToggle.hidden = false;
+    if (firstArtifact) setOutputOpen(true);
     saveState.textContent = '已保存到当前对话';
     versionLabel.textContent = `${artifactKind(current)} · V${current.version}`;
     changeLabel.textContent = '每次修改都会保留历史版本';
@@ -295,6 +310,7 @@
   }
 
   captureClick('#start-workbench', () => submit());
+  captureClick('#workbench-view-toggle', () => setOutputOpen(!outputOpen));
   captureClick('#new-workbench-chat', () => {
     closeEvents(); conversation = null; activeRun = null; renderedEventIds = new Set();
     localStorage.removeItem(keyConversation); localStorage.removeItem(keyRun);
