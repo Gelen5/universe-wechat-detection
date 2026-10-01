@@ -69,6 +69,12 @@ class AgentOrchestrator:
     @staticmethod
     def _compact_tool_result(result: ToolResult, artifacts: list[dict]) -> dict:
         compact = dict(result.data)
+        html_artifacts = [item for item in artifacts if item.get("type") == "html"]
+        if html_artifacts:
+            compact.pop("html", None)
+            compact.pop("preview_document", None)
+            compact["html_artifact_id"] = html_artifacts[-1]["id"]
+            compact["html_chars"] = len(html_artifacts[-1].get("content") or "")
         images = [item for item in artifacts if item.get("type") == "image"]
         if not images:
             return compact

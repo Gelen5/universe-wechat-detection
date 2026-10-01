@@ -39,6 +39,14 @@ class SequenceProvider(ModelProvider):
 
 
 class AgentOrchestratorTests(unittest.TestCase):
+    def test_html_tool_result_does_not_echo_embedded_images_to_model(self):
+        large_html = '<img src="data:image/png;base64,' + ('A' * 100000) + '">'
+        result = ToolResult({"html": large_html, "preview_document": large_html}, ())
+        compact = AgentOrchestrator._compact_tool_result(result, [{
+            "id": "html-1", "type": "html", "content": large_html,
+        }])
+        self.assertEqual(compact, {"html_artifact_id": "html-1", "html_chars": len(large_html)})
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         engine = create_engine(f"sqlite:///{Path(self.temp.name, 'agent.db').as_posix()}",
