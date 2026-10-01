@@ -31,14 +31,26 @@ def with_provider(call: Callable[[], Any]):
                 time.sleep(2 ** attempt)
 
 
-def topics_result(topics: Any) -> ToolResult:
+def topics_result(topics: Any, evidence: dict[str, Any] | None = None) -> ToolResult:
     lines = []
     for index, topic in enumerate(topics if isinstance(topics, list) else [topics], 1):
         title = topic.get("title") if isinstance(topic, dict) else str(topic)
         lines.append(f"{index}. {title or ''}")
-    return ToolResult({"topics": topics}, (ArtifactOutput(
-        type="topic", title="选题建议", content="\n".join(lines),
-        content_json={"topics": topics},
+    evidence = evidence or {}
+    lines.insert(0, "以下为模型拟定的方向，不等于平台实时热榜：")
+    lines.extend(["", f"检索时间：{evidence.get('checked_at') or '未记录'}"])
+    sources = evidence.get("search_sources") or []
+    lines.append("搜索线索（摘要未核实原文）：" if sources else "未获取到可引用的近期搜索来源。")
+    for source in sources:
+        lines.append(f"- [{source['provider']}] {source['title']} | {source['published_at'] or '发布日期未提供'} | {source['url']}")
+    hotspots = evidence.get("platform_hotspots") or []
+    if hotspots:
+        lines.append("平台榜单采集（采集时间不是内容发布日期）：")
+        for item in hotspots:
+            lines.append(f"- [{', '.join(item['platforms'])}] {item['title']}")
+    return ToolResult({"topics": topics, "evidence": evidence}, (ArtifactOutput(
+        type="topic", title="选题建议与检索记录", content="\n".join(lines),
+        content_json={"topics": topics, "evidence": evidence},
     ),))
 
 

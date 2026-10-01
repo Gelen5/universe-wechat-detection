@@ -9,6 +9,25 @@ from vendor.skills.wechat_writer.adapter import create_tools
 
 
 class AdapterProviderRetryTests(unittest.TestCase):
+    def test_search_topics_keeps_actual_source_evidence_separate_from_suggestions(self):
+        def fake_suggestions(topic, persona, session):
+            session["topic_research"] = {
+                "checked_at": "2026-10-01T00:00:00Z", "status": "partial",
+                "sources": [{"provider": "google-news", "title": "真实搜索标题",
+                             "url": "https://example.org/news", "published_at": "2026-09-30"}],
+            }
+            session["skill_hotspots"] = [{"title": "榜单标题", "sources": ["weibo"]}]
+            return [{"title": "模型拟题"}]
+
+        with patch("vendor.skills.wechat_writer.adapter.with_provider", side_effect=lambda call: call()), patch(
+            "vendor.skills.wechat_writer.adapter.workbench._suggestions", side_effect=fake_suggestions
+        ):
+            result = create_tools()["search_topics"]({"topic": "情感"}, None)
+        self.assertEqual(result.data["topics"][0]["title"], "模型拟题")
+        self.assertEqual(result.data["evidence"]["search_sources"][0]["url"], "https://example.org/news")
+        self.assertIn("摘要未核实原文", result.artifacts[0].content)
+        self.assertIn("采集时间不是内容发布日期", result.artifacts[0].content)
+
     def test_transient_error_retries_only_failing_tool(self):
         calls = 0
 

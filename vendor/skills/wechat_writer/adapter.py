@@ -9,8 +9,25 @@ from server import workbench
 
 def create_tools():
     def search_topics(args, context):
-        return topics_result(with_provider(lambda: workbench._suggestions(
-            required_text(args, "topic"), str(args.get("persona") or "深度观察者"))))
+        session = {}
+        topics = with_provider(lambda: workbench._suggestions(
+            required_text(args, "topic"), str(args.get("persona") or "深度观察者"), session))
+        research = session.get("topic_research") or {}
+        evidence = {
+            "checked_at": research.get("checked_at"),
+            "search_status": research.get("status", "unavailable"),
+            "search_sources": [{
+                "provider": source.get("provider", "search"),
+                "title": source.get("title", ""),
+                "url": source.get("url", ""),
+                "published_at": source.get("published_at", ""),
+                "verification": "search_excerpt_only",
+            } for source in (research.get("sources") or [])[:10] if source.get("url", "").startswith("https://")],
+            "platform_hotspots": [{
+                "title": item.get("title", ""), "platforms": item.get("sources") or [],
+            } for item in (session.get("skill_hotspots") or [])[:10] if item.get("title")],
+        }
+        return topics_result(topics, evidence)
 
     def write_article(args, context):
         title = str(args.get("title") or args.get("topic") or "").strip()
