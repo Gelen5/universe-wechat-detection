@@ -21,6 +21,7 @@
   const cancel = root.querySelector('#cancel-workbench');
   const images = root.querySelector('#generated-images');
   const modeButtons = [...root.querySelectorAll('.mode-option')];
+  const skillPicker = root.querySelector('#workbench-skill-picker');
   const historyPopover = root.querySelector('#workbench-chat-history');
   const keyConversation = 'universe.conversation.workbench';
   const keyRun = 'universe.conversation.activeRun';
@@ -28,6 +29,7 @@
   let activeRun = null;
   let source = null;
   let selectedMode = 'manual';
+  let selectedSkill = 'wechat_writer';
   let renderedEventIds = new Set();
   let currentArtifact = null;
   let editableArtifacts = [];
@@ -173,7 +175,7 @@
     if (conversation) return conversation;
     const payload = selectedMode === 'auto'
       ? { mode: 'auto', title: 'AI 创作对话' }
-      : { mode: 'manual', skill_id: 'wechat_writer', title: '公众号创作' };
+      : { mode: 'manual', skill_id: selectedSkill, title: skillPicker.selectedOptions[0]?.textContent || '公众号创作' };
     const data = await api('/api/conversations', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
     });
@@ -186,6 +188,8 @@
     closeEvents(); activeRun = null; localStorage.removeItem(keyRun);
     conversation = (await api(`/api/conversations/${encodeURIComponent(conversationId)}`)).conversation;
     selectedMode = conversation.mode;
+    selectedSkill = conversation.skill_id || 'wechat_writer';
+    syncSkillPicker();
     modeButtons.forEach(button => button.classList.toggle(
       'active', (button.dataset.mode === 'auto') === (selectedMode === 'auto'),
     ));
@@ -204,7 +208,7 @@
       historyPopover.innerHTML = rows.length ? rows.map(item => `
         <button type="button" data-conversation-id="${escapeHtml(item.id)}" class="${item.id === conversation?.id ? 'current' : ''}">
           <strong>${escapeHtml(item.title || '新对话')}</strong>
-          <small>${escapeHtml(item.mode === 'auto' ? '自动选择' : '公众号创作')} · ${escapeHtml(new Date(item.updated_at).toLocaleString())}</small>
+          <small>${escapeHtml(item.mode === 'auto' ? '自动选择' : item.title || '指定能力')} · ${escapeHtml(new Date(item.updated_at).toLocaleString())}</small>
         </button>`).join('') : '<p class="empty-artifact">还没有历史对话</p>';
     } catch (error) { historyPopover.innerHTML = `<p class="empty-artifact">${escapeHtml(error.message)}</p>`; }
   }
@@ -267,6 +271,8 @@
       try {
         conversation = (await api(`/api/conversations/${encodeURIComponent(conversationId)}`)).conversation;
         selectedMode = conversation.mode;
+        selectedSkill = conversation.skill_id || 'wechat_writer';
+        syncSkillPicker();
         modeButtons.forEach(button => button.classList.toggle('active', (button.dataset.mode === 'auto') === (selectedMode === 'auto')));
         await refresh();
       } catch { conversation = null; localStorage.removeItem(keyConversation); }
@@ -293,6 +299,7 @@
     closeEvents(); conversation = null; activeRun = null; renderedEventIds = new Set();
     localStorage.removeItem(keyConversation); localStorage.removeItem(keyRun);
     submitting = false; setBusy(false); input.value = ''; renderMessages([]); renderArtifacts([]); status.textContent = '等待你的想法';
+    syncSkillPicker();
   });
   captureClick('#recent-workbench-chats', () => toggleConversationHistory());
   captureClick('[data-conversation-id]', button => openConversation(button.dataset.conversationId));
@@ -308,6 +315,11 @@
     if (conversation || activeRun) return;
     selectedMode = button.dataset.mode === 'auto' ? 'auto' : 'manual';
     modeButtons.forEach(item => item.classList.toggle('active', item === button));
+    syncSkillPicker();
+  });
+  skillPicker.addEventListener('change', () => {
+    if (conversation || activeRun) { skillPicker.value = selectedSkill; return; }
+    selectedSkill = skillPicker.value;
   });
   captureClick('[data-rewrite-selection]', button => {
     const selection = editor.value.slice(editor.selectionStart, editor.selectionEnd).trim();
@@ -363,5 +375,27 @@
   root.querySelector('.studio-switch')?.setAttribute('hidden', '');
   root.querySelector('#workbench-decision')?.setAttribute('hidden', '');
   root.querySelector('.flow-actionbar')?.setAttribute('hidden', '');
+  async function loadSkills() {
+    try {
+      const catalog = (await api('/api/skills')).skills || [];
+      for (const skill of catalog.filter(item => item.id.startsWith('easel_'))) {
+        const option = document.createElement('option');
+        option.value = skill.id;
+        option.textContent = skill.name;
+        skillPicker.append(option);
+      }
+      syncSkillPicker();
+    } catch { /* The existing WeChat Skill remains available. */ }
+  }
+
+  function syncSkillPicker() {
+    skillPicker.value = selectedSkill;
+    if (!skillPicker.value) skillPicker.value = 'wechat_writer';
+    skillPicker.disabled = Boolean(conversation || activeRun || selectedMode === 'auto');
+    skillPicker.parentElement.hidden = selectedMode === 'auto';
+  }
+
+  syncSkillPicker();
+  loadSkills();
   restore();
 })();

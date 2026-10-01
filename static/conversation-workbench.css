@@ -27,6 +27,17 @@
   border-radius: 50%; background: #10a37f; vertical-align: 2px;
 }
 .normalized-conversation .empty-artifact { color: var(--text-secondary, #667085); font-size: 13px; }
+.normalized-conversation .conversation-skill-select {
+  display: flex; align-items: center; gap: 12px; padding: 8px 24px;
+  color: var(--text-secondary, #667085); font-size: 12px;
+}
+.normalized-conversation .conversation-skill-select[hidden] { display: none; }
+.normalized-conversation .conversation-skill-select select {
+  min-width: 160px; max-width: 100%; padding: 7px 28px 7px 10px;
+  border: 1px solid var(--line, #e5e7eb); border-radius: 7px;
+  background: var(--bg, #fff); color: var(--text, #111827); font: inherit;
+}
+.normalized-conversation .conversation-skill-select select:disabled { opacity: .65; }
 
 @media (max-width: 980px) {
   .normalized-conversation .conversation-workbench-layout { grid-template-columns: 1fr; }
