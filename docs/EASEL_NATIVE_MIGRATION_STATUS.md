@@ -13,10 +13,21 @@ not 114 deployed Skills.
 - YAML-based loader with path checks, Markdown instructions and references.
 - Native execution using Universe ModelService and existing Tool Loop.
 - Ten explicitly selected text-only Skills in the Universe registry, gated by
-  `EASEL_NATIVE_ENABLED=1` while real-provider acceptance is pending.
+  `EASEL_NATIVE_ENABLED=1`. They are selectable in the conversation workbench.
 - Existing Conversation, Run, RunEvent, billing and Artifact paths remain in
   charge. No separate Easel process, provider config or session store.
 - No OpenClaw Harness, Gateway, CLI, runtime container or fallback code.
+
+## Verified on 2026-10-01
+
+- Production runs commit `dc109aa` with `EASEL_NATIVE_ENABLED=1`; public
+  `/workbench` and `/health/ready` returned HTTP 200 after deployment.
+- A direct paid-provider call and an approved text Skill invocation succeeded.
+- `scripts/acceptance_easel_native_http.py` passed against the public HTTPS
+  domain: two users ran simultaneously, each finished with one Artifact and
+  seven events, each wallet changed from 30 to 20 points, and cross-user
+  run, event and Artifact requests were rejected.
+- The project test suite passed: 183 tests and seven subtests.
 
 ## Not yet production ready
 
@@ -25,11 +36,11 @@ not 114 deployed Skills.
   authorization and memory retrieval remain future work.
 - Live hotspot search, media, browser and publisher adapters are not exposed.
   Static Skill instructions alone do not make these capabilities functional.
-- The ten text Skills have been exercised with a deterministic fake provider,
-  not a paid live model. Output quality and real-world tool equivalence are
-  not verified.
-- A real no-OpenClaw hotspot -> topic -> article -> Artifact test, SSE reconnect
-  and multi-user production deployment test have not yet passed.
+- The ten text Skills share a verified native execution path, but only the
+  tested examples have passed live-provider acceptance. Output quality across
+  all ten Skills and real-world tool equivalence remain unverified.
+- A real hotspot -> topic -> article -> publisher workflow and browser-level
+  SSE reconnect acceptance have not passed.
 
 Production decision: **NOT READY** for the full Easel workflow. Existing
 Universe functionality remains unchanged when `EASEL_NATIVE_ENABLED=0`.
