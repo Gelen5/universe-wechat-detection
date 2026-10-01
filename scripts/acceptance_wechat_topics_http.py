@@ -34,6 +34,7 @@ def main() -> None:
     parser.add_argument("--with-article", action="store_true")
     parser.add_argument("--with-layout", action="store_true")
     parser.add_argument("--image-only", action="store_true")
+    parser.add_argument("--image-layout-only", action="store_true")
     parser.add_argument("--with-image-layout", action="store_true")
     args = parser.parse_args()
     base = args.base_url.rstrip("/")
@@ -68,7 +69,7 @@ def main() -> None:
         print(f"WECHAT_IMAGE_LAYOUT_ACCEPTANCE=PASS html_chars={len(current[-1]['content'])} "
               f"points={before}->{after}")
         return
-    if args.image_only:
+    if args.image_only or args.image_layout_only:
         run_id = call(session, "POST", base + f"/api/conversations/{cid}/messages",
                       headers={"Idempotency-Key": secrets.token_hex(16)}, json={
                           "content": "请调用 generate_image 工具生成一张清晨窗边的公众号文章配图，保存图片作品。不要只用文字描述。",
@@ -81,6 +82,26 @@ def main() -> None:
         after = int(call(session, "GET", base + "/api/wallet")["wallet"]["balance"])
         assert before - after == 10, (before, after)
         print(f"WECHAT_IMAGE_ACCEPTANCE=PASS images={len(images)} points={before}->{after}")
+        if args.image_layout_only:
+            article = ("# 一顿饭的距离\n\n周末回家，母亲刚把汤端上桌，就问起下个月的安排。"
+                       "我原想说还没想好，却发现她已经把日历翻到了那一页。\n\n"
+                       "饭后我们一起收拾碗筷。我说，等工作安排确定后再告诉你。"
+                       "她点点头，没有继续追问。厨房里的水声比刚才的谈话更轻。\n\n"
+                       "亲近不必等于随时汇报。能把话说清楚，也能给彼此留一点时间，下一次见面才不必从解释开始。")
+            run_id = call(session, "POST", base + f"/api/conversations/{cid}/messages",
+                          headers={"Idempotency-Key": secrets.token_hex(16)}, json={
+                              "content": "请直接调用 typeset_article，将下面这篇已写好的文章排成公众号 HTML；"
+                                         "使用当前对话刚才生成的图片，不要重写正文或重新生成图片。\n\n" + article,
+                          })["run_id"]
+            run = wait_run(session, base, run_id, 360)
+            assert run["status"] == "completed", run["status"]
+            artifacts = call(session, "GET", base + f"/api/conversations/{cid}/artifacts")["artifacts"]
+            html = [item for item in artifacts if item["type"] == "html"]
+            assert html and "data:image/" in (html[-1].get("content") or ""), "HTML omitted image"
+            final_balance = int(call(session, "GET", base + "/api/wallet")["wallet"]["balance"])
+            assert after - final_balance == 10, (after, final_balance)
+            print(f"WECHAT_IMAGE_LAYOUT_ONLY=PASS html_chars={len(html[-1]['content'])} "
+                  f"points={after}->{final_balance}")
         return
     run_id = call(session, "POST", base + f"/api/conversations/{cid}/messages",
                   headers={"Idempotency-Key": secrets.token_hex(16)}, json={
