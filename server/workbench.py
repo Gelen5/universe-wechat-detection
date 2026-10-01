@@ -528,6 +528,7 @@ def _review(article: str, session: dict[str, Any]) -> tuple[str, dict[str, Any]]
 实际定位信号：{json.dumps(signals, ensure_ascii=False)}
 实际可读性：{json.dumps(prose, ensure_ascii=False)}
 信号是复核入口，不要求清零。先核对无来源的数据、经历和引用，再判断局部表达。
+issues 只列事实边界、原意保真、明显病句或用户明确要求等必须修的问题。"略显"、"可能"、"稍显"一类轻微风格偏好不构成拦截，放入 retained_signals 并说明保留理由；不要为了清零信号反复改稿。
 同时核查标题是否夸大承诺、是否满足用户指定步骤数量、有无无依据的绝对化判断。
 原稿本身可能有编造。经前轮明确判定无来源而删除的数字或案例，不应要求恢复；保真保护真实信息，不保护错误。
 已经判定无需修改的信号不要反复列入issues；编号用于教程步骤不构成需要删除的AI痕迹。
@@ -675,9 +676,25 @@ def _validated_local_edits(
     candidate: str, prompt: str, require_edits: bool, anchors: list[str] | None = None,
 ) -> tuple[dict[str, Any], str]:
     errors: list[str] = []
+    repeated_contexts: list[dict[str, Any]] = []
+    for index, anchor in enumerate(anchors or []):
+        if candidate.count(anchor) < 2:
+            continue
+        for occurrence, match in enumerate(re.finditer(re.escape(anchor), candidate), 1):
+            position = match.start()
+            choices = ((8, 0), (0, 8), (8, 8), (16, 0), (0, 16), (16, 16),
+                       (32, 0), (0, 32), (32, 32), (64, 64), (128, 128))
+            for left, right in choices:
+                before = candidate[max(0, position - left):min(len(candidate), match.end() + right)]
+                if before.count(anchor) == 1 and candidate.count(before) == 1:
+                    repeated_contexts.append({"issue_index": index, "occurrence": occurrence,
+                                              "before": before})
+                    break
+    context_hint = ("\n重复片段的唯一定位候选（选择对应位置并逐字复制 before；after 保留前后上下文）："
+                    + json.dumps(repeated_contexts, ensure_ascii=False)) if repeated_contexts else ""
     for _ in range(3):
         correction = '' if not errors else '\n上次返回无效：' + '；'.join(errors) + '。若原片段重复，请给出包含原片段且全篇唯一的 before 上下文，after 原样保留上下文；保留引号内原话。'
-        payload = _json_text(prompt + correction)
+        payload = _json_text(prompt + context_hint + correction)
         edit_list = payload.get('edits') if isinstance(payload, dict) else None
         retained = payload.get('retained_issue_indexes', []) if isinstance(payload, dict) else []
         if not isinstance(edit_list, list) or not isinstance(retained, list):
