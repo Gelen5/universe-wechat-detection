@@ -548,6 +548,7 @@ issues 只列事实边界、原意保真、明显病句或用户明确要求等�
                 diagnosis['issues'] = [
                     issue for issue in diagnosis['issues'] if issue not in retained_issues
                 ]
+            diagnosis = _anchor_review_issues(diagnosis, candidate)
             audit = _anti_ai_audit(article, candidate, session)
             records.append({'round':attempt, 'diagnosis':diagnosis, 'audit':audit})
             (directory / 'run.json').write_text(json.dumps(session['review_run'],ensure_ascii=False,indent=2),encoding='utf-8')
@@ -668,6 +669,32 @@ def _review_issue_is_retained(issue: Any, retained_fixes: set[str]) -> bool:
     return any(marker in reason for marker in ('无需修改', '无具体问题', '当前版本此处无误', '暂不修改', '保持原样'))
 
 
+def _anchor_review_issues(diagnosis: dict[str, Any], candidate: str) -> dict[str, Any]:
+    issues = diagnosis.get('issues') or []
+    missing = [index for index, issue in enumerate(issues)
+               if not isinstance(issue, dict) or not isinstance(issue.get('quote'), str)
+               or not issue['quote'].strip() or issue['quote'] not in candidate]
+    if not missing:
+        return diagnosis
+    for _ in range(2):
+        repaired = _json_text(f'''只修正去 AI 复核问题的原文定位，不改变问题原因或通过判断。
+当前稿：{candidate}
+需重新定位的问题（下标保持不变）：{json.dumps([{'index': index, 'issue': issues[index]} for index in missing], ensure_ascii=False)}
+返回JSON：{{"items":[{{"index":0,"quote":"当前稿中逐字连续出现、足以局部修复该问题的原文片段"}}]}}。
+每个下标都必须返回。quote 必须直接复制当前稿的连续文字，不得拼接不同段落，不得使用省略号代替原文；尽量选择全篇唯一的片段。''')
+        items = repaired.get('items') if isinstance(repaired, dict) else None
+        if not isinstance(items, list):
+            continue
+        replacements = {item.get('index'): item.get('quote') for item in items if isinstance(item, dict)}
+        if all(isinstance(replacements.get(index), str)
+               and replacements[index].strip() and replacements[index] in candidate
+               for index in missing):
+            for index in missing:
+                issues[index]['quote'] = replacements[index]
+            return diagnosis
+    raise ProviderError('去 AI 复核问题未能定位到当前稿的逐字连续片段，已保留原文')
+
+
 def _quoted_words(text: str) -> list[str]:
     return [value.strip() for value in re.findall(r'[“\"]([^”\"]+)[”\"]|‘([^’]+)’', text) for value in value if value.strip()]
 
@@ -675,6 +702,8 @@ def _quoted_words(text: str) -> list[str]:
 def _validated_local_edits(
     candidate: str, prompt: str, require_edits: bool, anchors: list[str] | None = None,
 ) -> tuple[dict[str, Any], str]:
+    if anchors and any(not anchor or anchor not in candidate for anchor in anchors):
+        raise ProviderError('去 AI 修改片段未逐字出现在当前稿，已保留原文')
     errors: list[str] = []
     repeated_contexts: list[dict[str, Any]] = []
     for index, anchor in enumerate(anchors or []):

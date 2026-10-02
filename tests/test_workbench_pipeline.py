@@ -12,6 +12,31 @@ from server import skill_runtime
 
 
 class PipelineTests(unittest.TestCase):
+    def test_review_reanchors_nonliteral_issue_quotes_without_dropping_issues(self):
+        article = '第一节说清楚关系。\n\n第二节说明边界。'
+        diagnosis = {'issues': [
+            {'quote': '第一节……第二节', 'reason': '两个段落过于模板化'},
+            {'quote': '边界。', 'reason': '表述含糊'},
+        ], 'reason': '需要局部修改'}
+        with patch.object(w, '_json_text', return_value={
+            'items': [{'index': 0, 'quote': '第一节说清楚关系。'}]
+        }):
+            revised = w._anchor_review_issues(diagnosis, article)
+        self.assertEqual(revised['issues'][0]['quote'], '第一节说清楚关系。')
+        self.assertEqual(revised['issues'][1]['quote'], '边界。')
+        self.assertEqual(len(revised['issues']), 2)
+
+    def test_review_rejects_reanchoring_to_nonliteral_text(self):
+        with patch.object(w, '_json_text', return_value={
+            'items': [{'index': 0, 'quote': '并不存在的句子'}]
+        }), self.assertRaises(w.ProviderError):
+            w._anchor_review_issues({'issues': [{'quote': '拼接……片段'}]}, '真正的原稿。')
+
+    def test_review_rejects_missing_anchor_before_requesting_edits(self):
+        with patch.object(w, '_json_text') as generate, self.assertRaises(w.ProviderError):
+            w._validated_local_edits('真正的原稿。', 'prompt', True, anchors=['拼接……片段'])
+        generate.assert_not_called()
+
     def test_review_keeps_valid_edits_when_model_invalidly_retains_other_issue(self):
         article = '这句太空泛。下一句也空泛。'
         payload = {'edits': [{'issue_index': 0, 'after': '这句说得更具体。'}],
