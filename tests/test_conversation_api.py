@@ -85,6 +85,23 @@ class ConversationApiTests(unittest.TestCase):
         self.assertEqual(snapshot["error_kind"], "provider_balance")
         self.assertNotIn("secret-provider-id", str(snapshot))
 
+    def test_failed_run_snapshot_exposes_safe_provider_access_reason(self):
+        conversation = self.create()
+        with patch("server.conversation_api.dispatch_run", return_value="task-1"):
+            response = self.client.post(f"/api/conversations/{conversation['id']}/messages",
+                                        headers={"Idempotency-Key": uuid.uuid4().hex},
+                                        json={"content": "写文章"})
+        run_id = response.json()["run_id"]
+        conversation_repository.transition_run(run_id, self.user_id, "failed",
+                                               error_code="ip_not_allowed",
+                                               error_message="您的 IP 不在令牌允许访问的列表中, secret-provider-id")
+        snapshot = self.client.get(f"/api/runs/{run_id}").json()["run"]
+        self.assertEqual("provider_access", snapshot["error_kind"])
+        self.assertNotIn("secret-provider-id", str(snapshot))
+        with database.session_scope() as db:
+            usage = db.get(UsageRecord, snapshot["usage_id"])
+            self.assertEqual("refunded", usage.status)
+
     def test_send_is_async_and_idempotent_without_duplicate_message(self):
         conversation = self.create()
         key = uuid.uuid4().hex

@@ -53,7 +53,7 @@ def run_tool_loop(*, model_service: ModelService, messages: list[dict[str, Any]]
             sort_keys=True, separators=(",", ":"), default=str,
         ).encode()).hexdigest()[:24]
         model_key = f"{run_id}:model:{calls + 1}:{request_hash}"
-        provider_timeout = max(60, int(os.getenv("AGENT_PROVIDER_REQUEST_TIMEOUT", "300") or 300))
+        provider_timeout = max(10, int(os.getenv("AGENT_PROVIDER_REQUEST_TIMEOUT", "90") or 90))
         response = model_service.create_response(messages, tools=definitions,
                                                  timeout=min(provider_timeout, remaining), idempotency_key=model_key,
                                                  run_id=run_id, user_id=user_id)

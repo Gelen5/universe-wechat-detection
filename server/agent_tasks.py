@@ -53,7 +53,8 @@ def execute_agent_run(self, run_id: str):
                   conversation_id=claimed["conversation_id"], skill_id=claimed.get("skill_id"),
                   task_id=self.request.id, provider=getattr(exc, "provider", None),
                   status="retrying" if exc.transient else "failed", error_code=exc.code)
-        if exc.transient and self.request.retries < self.max_retries:
+        retry_limit = 1 if exc.code == "transport" else self.max_retries
+        if exc.transient and self.request.retries < retry_limit:
             # Return the persistent Run to queued before Celery redelivery.
             conversation_repository.transition_run(run_id, claimed["user_id"], "queued",
                                                    error_code=exc.code, error_message=str(exc), task_id=self.request.id)

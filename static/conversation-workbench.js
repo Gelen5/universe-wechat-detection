@@ -94,8 +94,10 @@
   function failureText(payload = {}) {
     const error = String(payload.error_message || '').toLowerCase();
     const kind = payload.error_kind || (
+      /ip 不在令牌允许访问|ip is not allowed/.test(error) ? 'provider_access' :
       /额度不足|余额不足|insufficient balance|insufficient_quota/.test(error) ? 'provider_balance' :
       /provider connection failed|remote end closed|connection reset/.test(error) ? 'provider_connection' : '');
+    if (kind === 'provider_access') return '文字 API Key 未允许服务器 IP 访问，请联系管理员检查白名单；本轮积分已退还';
     if (kind === 'provider_balance') return '文本 API 额度不足，请联系管理员充值；本轮积分已退还';
     if (kind === 'provider_connection') return '模型服务暂时断开，请稍后重试；本轮积分已退还';
     if (kind === 'queue') return '任务暂时无法进入队列，请稍后重试；积分已退还';

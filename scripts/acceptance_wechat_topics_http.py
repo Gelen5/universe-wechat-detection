@@ -56,6 +56,7 @@ def main() -> None:
     parser.add_argument("--image-layout-only", action="store_true")
     parser.add_argument("--review-only", action="store_true")
     parser.add_argument("--with-image-layout", action="store_true")
+    parser.add_argument("--text-only", action="store_true")
     args = parser.parse_args()
     base = args.base_url.rstrip("/")
     session = requests.Session()
@@ -147,7 +148,8 @@ def main() -> None:
         return
     run_id = call(session, "POST", base + f"/api/conversations/{cid}/messages",
                   headers={"Idempotency-Key": secrets.token_hex(16)}, json={
-                      "content": "请查询最近一周中老年情感相关热点，给我3个有来源和日期的公众号选题；不能核实的标为创意建议。",
+                      "content": "请查询最近一周中老年情感相关热点，给我3个有来源和日期的公众号选题；不能核实的标为创意建议。" +
+                                 ("只生成文字，不要生成、调用或插入任何图片。" if args.text_only else ""),
                   })["run_id"]
     run = wait_run(session, base, run_id, 240)
     assert run["status"] == "completed", run["status"]
@@ -167,13 +169,16 @@ def main() -> None:
     print(f"WECHAT_TOPICS_ACCEPTANCE=PASS sources={len(evidence['search_sources'])} "
           f"platform_hotspots={len(evidence['platform_hotspots'])} points={before}->{after}")
     if args.with_article or args.with_layout:
+        text_only = " 只生成文字，不要生成、调用或插入任何图片。" if args.text_only else ""
         run_id = call(session, "POST", base + f"/api/conversations/{cid}/messages",
                       headers={"Idempotency-Key": secrets.token_hex(16)}, json={
-                          "content": "采用刚才的第1个方向，写一篇约500字的完整公众号文章。请调用写作工具并保存文章作品。",
+                          "content": "采用刚才的第1个方向，写一篇约500字的完整公众号文章。请调用写作工具并保存文章作品。" + text_only,
                       })["run_id"]
         run = wait_run(session, base, run_id, 300)
         assert run["status"] == "completed", run["status"]
         artifacts = call(session, "GET", base + f"/api/conversations/{cid}/artifacts")["artifacts"]
+        if args.text_only:
+            assert not any(entry["type"] == "image" for entry in artifacts), "text-only article generated an image"
         articles = [entry for entry in artifacts if entry["type"] == "article"]
         assert articles and len(articles[-1].get("content") or "") >= 300, "write_article did not save a full article"
         final_balance = int(call(session, "GET", base + "/api/wallet")["wallet"]["balance"])
@@ -183,13 +188,16 @@ def main() -> None:
         if args.with_layout:
             run_id = call(session, "POST", base + f"/api/conversations/{cid}/messages",
                           headers={"Idempotency-Key": secrets.token_hex(16)}, json={
-                              "content": "请先调用 review_article 复核刚才保存的完整文章，再调用 typeset_article 用极简白主题排版，保存可下载的公众号 HTML。不得只口头说已完成。",
+                              "content": "请先调用 review_article 复核刚才保存的完整文章，再调用 typeset_article 用极简白主题排版，保存可下载的公众号 HTML。不得只口头说已完成。" + text_only,
                           })["run_id"]
             run = wait_run(session, base, run_id, 420)
             assert run["status"] == "completed", run["status"]
             artifacts = call(session, "GET", base + f"/api/conversations/{cid}/artifacts")["artifacts"]
             html = [entry for entry in artifacts if entry["type"] == "html"]
             assert html and "<" in (html[-1].get("content") or ""), "typeset_article did not persist HTML"
+            if args.text_only:
+                assert not any(entry["type"] == "image" for entry in artifacts), "text-only layout generated an image"
+                assert not BeautifulSoup(html[-1]["content"], "html.parser").find("img"), "text-only HTML contains an image"
             after_layout = int(call(session, "GET", base + "/api/wallet")["wallet"]["balance"])
             assert final_balance - after_layout == 10, (final_balance, after_layout)
             print(f"WECHAT_LAYOUT_ACCEPTANCE=PASS html_chars={len(html[-1]['content'])} "

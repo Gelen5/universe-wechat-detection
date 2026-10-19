@@ -82,6 +82,13 @@ class ProviderTests(unittest.TestCase):
             provider.create_response([])
         self.assertTrue(caught.exception.transient)
 
+    def test_ip_allowlist_rejection_is_not_retried(self):
+        provider = self.provider([FakeResponse({"error": {"message": "您的 IP 不在令牌允许访问的列表中"}}, 403)])
+        with self.assertRaises(ProviderRequestError) as caught:
+            provider.create_response([])
+        self.assertEqual("ip_not_allowed", caught.exception.code)
+        self.assertFalse(caught.exception.transient)
+
     def test_image_generation_uses_image_endpoint_and_idempotency(self):
         session = FakeSession([FakeResponse({"data": [{"url": "https://image.test/a.png"}]})])
         provider = OpenAICompatibleProvider(api_key="text", base_url="https://text.test",

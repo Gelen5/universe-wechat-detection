@@ -97,8 +97,11 @@ class OpenAICompatibleProvider(ModelProvider):
                 data = response.json()
             except ValueError:
                 data = {}
+            message = self._error(data) or f"provider HTTP {response.status_code}"
+            if response.status_code == 403 and ("IP 不在令牌允许访问" in message or "ip is not allowed" in message.lower()):
+                raise ProviderRequestError(message, code="ip_not_allowed", status_code=response.status_code)
             transient = response.status_code in {408, 409, 425, 429} or response.status_code >= 500
-            raise ProviderRequestError(self._error(data) or f"provider HTTP {response.status_code}",
+            raise ProviderRequestError(message,
                                        code="http_error", transient=transient, status_code=response.status_code)
         return response
 

@@ -725,7 +725,9 @@ def _message_view(row: ConversationMessage) -> dict[str, Any]:
 
 def _run_view(row: AgentRun) -> dict[str, Any]:
     error_text = (row.error_message or "").lower()
-    if any(marker in error_text for marker in ("额度不足", "余额不足", "insufficient balance", "insufficient_quota")):
+    if row.error_code == "ip_not_allowed" or "ip 不在令牌允许访问" in error_text:
+        error_kind = "provider_access"
+    elif any(marker in error_text for marker in ("额度不足", "余额不足", "insufficient balance", "insufficient_quota")):
         error_kind = "provider_balance"
     elif any(marker in error_text for marker in ("provider connection failed", "remote end closed", "connection reset")):
         error_kind = "provider_connection"
