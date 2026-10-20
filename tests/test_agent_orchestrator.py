@@ -206,6 +206,21 @@ class AgentOrchestratorTests(unittest.TestCase):
         artifacts = conversation_repository.list_artifacts(conversation["id"], "user-a")
         self.assertEqual(["这是完成的文章"], [item["content"] for item in artifacts])
 
+    def test_explicit_text_only_request_cannot_invoke_image_tool(self):
+        _, run = self.make_run(content="写一篇公众号文章，只生成文字，不要生成图片")
+        image_tool = ExecutableTool(
+            {"name": "generate_image", "description": "image", "parameters": {"type": "object"}},
+            lambda args: self.fail("image generation must be disabled"),
+        )
+        orchestrator = AgentOrchestrator(
+            registry=self.registry,
+            model_service=ModelService(SequenceProvider([ProviderResponse(text="纯文字完成")])),
+            tool_resolver=lambda *_: {"generate_image": image_tool},
+        )
+        with patch("server.agent.orchestrator.run_tool_loop", return_value="纯文字完成") as loop:
+            orchestrator.execute(run["id"], "user-a")
+        self.assertNotIn("generate_image", loop.call_args.kwargs["tools"])
+
     def test_orchestrator_persists_tool_output_as_idempotent_artifact(self):
         conversation, run = self.make_run()
         provider = SequenceProvider([

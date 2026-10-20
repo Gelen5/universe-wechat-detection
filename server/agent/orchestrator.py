@@ -147,10 +147,15 @@ class AgentOrchestrator:
                 ))
                 answer = result.text
             else:
+                tools = self.tool_resolver(decision.skill_id, run_id, user_id)
+                if any(phrase in trigger for phrase in (
+                    "只生成文字", "不要生成图片", "不要生成配图", "不需要配图", "无需配图",
+                )):
+                    tools.pop("generate_image", None)
                 answer = run_tool_loop(
                     model_service=self.model_service,
                     messages=[{"role": "system", "content": instructions}, *history],
-                    tools=self.tool_resolver(decision.skill_id, run_id, user_id),
+                    tools=tools,
                     run_id=run_id, user_id=user_id,
                     skill_id=decision.skill_id,
                     max_tool_calls=int(manifest.limits.get("max_tool_calls", 12)),
