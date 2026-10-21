@@ -76,6 +76,31 @@ class ProviderTests(unittest.TestCase):
         self.assertEqual("search_topics", result.tool_calls[0].name)
         self.assertEqual({"query": "AI"}, result.tool_calls[0].arguments)
 
+    def test_responses_api_tool_call_and_followup(self):
+        session = FakeSession([
+            FakeResponse({"status": "completed", "output": [{"type": "function_call", "call_id": "call-1",
+                "name": "search_topics", "arguments": '{"query":"AI"}'}],
+                "usage": {"input_tokens": 8, "output_tokens": 4}}),
+            FakeResponse({"status": "completed", "output": [{"type": "message", "content": [
+                {"type": "output_text", "text": "完成"}]}]}),
+        ])
+        provider = OpenAICompatibleProvider(api_key="secret", base_url="https://example.test/v1/responses",
+                                            text_model="text", session=session)
+        tools = [{"name": "search_topics", "description": "search", "parameters": {"type": "object"}}]
+        first = provider.create_response([{"role": "user", "content": "找选题"}], tools=tools)
+        self.assertEqual("https://example.test/v1/responses", session.requests[0][1])
+        self.assertEqual("search_topics", session.requests[0][2]["json"]["tools"][0]["name"])
+        self.assertEqual({"query": "AI"}, first.tool_calls[0].arguments)
+        self.assertEqual((8, 4), (first.input_tokens, first.output_tokens))
+        second = provider.create_response([
+            {"role": "user", "content": "找选题"},
+            {"role": "assistant", "content": "", "tool_calls": [{"id": "call-1", "type": "function",
+                "function": {"name": "search_topics", "arguments": '{"query":"AI"}'}}]},
+            {"role": "tool", "tool_call_id": "call-1", "content": '{"topics":[]}'}], tools=tools)
+        self.assertEqual("完成", second.text)
+        self.assertEqual("function_call", session.requests[1][2]["json"]["input"][1]["type"])
+        self.assertEqual("function_call_output", session.requests[1][2]["json"]["input"][2]["type"])
+
     def test_http_429_is_transient(self):
         provider = self.provider([FakeResponse({"error": {"message": "slow down"}}, 429)])
         with self.assertRaises(ProviderRequestError) as caught:

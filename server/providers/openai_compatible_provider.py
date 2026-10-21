@@ -15,6 +15,9 @@ class OpenAICompatibleProvider(ModelProvider):
                  image_model: str | None = None, verify_ssl: bool = True,
                  session: requests.Session | None = None):
         self.api_key = api_key
+        self.responses_api = base_url.strip().rstrip("/").endswith("/responses")
+        if self.responses_api:
+            base_url = base_url.strip().rstrip("/").removesuffix("/responses")
         self.base_url = self._v1(base_url)
         self.text_model = text_model
         self.image_api_key = image_api_key or api_key
@@ -31,6 +34,9 @@ class OpenAICompatibleProvider(ModelProvider):
 
     def create_response(self, messages: list[dict[str, Any]], *, tools: list[dict[str, Any]] | None = None,
                         timeout: int = 120, idempotency_key: str | None = None) -> ProviderResponse:
+        if self.responses_api:
+            return self._create_responses_response(messages, tools=tools, timeout=timeout,
+                                                   idempotency_key=idempotency_key)
         body: dict[str, Any] = {"model": self.text_model, "messages": messages}
         if tools:
             body["tools"] = [{"type": "function", "function": tool} for tool in tools]
@@ -55,6 +61,49 @@ class OpenAICompatibleProvider(ModelProvider):
         return ProviderResponse(text=str(content).strip(), tool_calls=tuple(calls),
                                 input_tokens=int(usage.get("prompt_tokens") or usage.get("input_tokens") or 0),
                                 output_tokens=int(usage.get("completion_tokens") or usage.get("output_tokens") or 0), raw=data)
+
+    def _create_responses_response(self, messages: list[dict[str, Any]], *, tools: list[dict[str, Any]] | None,
+                                   timeout: int, idempotency_key: str | None) -> ProviderResponse:
+        inputs: list[dict[str, Any]] = []
+        for message in messages:
+            role = message.get("role")
+            if role == "tool":
+                inputs.append({"type": "function_call_output", "call_id": message["tool_call_id"],
+                               "output": str(message.get("content") or "")})
+            elif role == "assistant" and message.get("tool_calls"):
+                for call in message["tool_calls"]:
+                    function = call.get("function") or {}
+                    inputs.append({"type": "function_call", "call_id": call["id"],
+                                   "name": function["name"], "arguments": function.get("arguments") or "{}"})
+            else:
+                inputs.append({"role": role, "content": message.get("content") or ""})
+        body: dict[str, Any] = {"model": self.text_model, "input": inputs}
+        if tools:
+            body["tools"] = [{"type": "function", **tool} for tool in tools]
+            body["tool_choice"] = "auto"
+        data = self._post(self.base_url + "/responses", self.api_key, body, timeout, idempotency_key)
+        if data.get("status") not in (None, "completed"):
+            raise ProviderRequestError(self._error(data) or f"provider response {data['status']}",
+                                       code="invalid_response")
+        content: list[str] = []
+        calls: list[ToolInvocation] = []
+        for item in data.get("output") or []:
+            if item.get("type") == "message":
+                content.extend(part.get("text") or "" for part in item.get("content") or []
+                               if part.get("type") == "output_text")
+            elif item.get("type") == "function_call":
+                try:
+                    arguments = json.loads(item.get("arguments") or "{}")
+                except json.JSONDecodeError as exc:
+                    raise ProviderRequestError("provider returned invalid tool arguments", code="invalid_tool_call") from exc
+                if not isinstance(arguments, dict):
+                    raise ProviderRequestError("tool arguments must be an object", code="invalid_tool_call")
+                calls.append(ToolInvocation(id=str(item.get("call_id") or ""),
+                                            name=str(item.get("name") or ""), arguments=arguments))
+        usage = data.get("usage") or {}
+        return ProviderResponse(text="".join(content).strip(), tool_calls=tuple(calls),
+                                input_tokens=int(usage.get("input_tokens") or 0),
+                                output_tokens=int(usage.get("output_tokens") or 0), raw=data)
 
     def generate_image(self, prompt: str, *, size: str, count: int = 1,
                        timeout: int = 300, idempotency_key: str | None = None) -> dict[str, Any]:
