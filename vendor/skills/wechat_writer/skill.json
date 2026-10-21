@@ -22,6 +22,20 @@
       }
     },
     {
+      "name": "create_outline",
+      "description": "根据已确认选题检索素材并生成可编辑的公众号文章大纲",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "title": {"type": "string"},
+          "persona": {"type": "string"},
+          "requirements": {"type": "string"}
+        },
+        "required": ["title"],
+        "additionalProperties": false
+      }
+    },
+    {
       "name": "write_article",
       "description": "基于已确认的选题和框架生成公众号文章",
       "parameters": {

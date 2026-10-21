@@ -14,7 +14,7 @@ def conversation_messages(conversation_id: str, user_id: str, *, limit: int = 40
         current = latest.get(artifact["type"])
         if current is None or artifact["version"] > current["version"]:
             latest[artifact["type"]] = artifact
-    editable = [latest[key] for key in ("article", "markdown", "html", "report", "topic") if key in latest]
+    editable = [latest[key] for key in ("article", "outline", "markdown", "html", "report", "topic") if key in latest]
     if editable:
         sections = []
         budget = 60000

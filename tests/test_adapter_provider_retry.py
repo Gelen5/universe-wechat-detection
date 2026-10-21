@@ -12,6 +12,15 @@ from vendor.skills.wechat_writer.adapter import create_tools
 
 
 class AdapterProviderRetryTests(unittest.TestCase):
+    def test_outline_uses_existing_skill_and_creates_editable_artifact(self):
+        frame = {"name": "SCQA", "outline": ["场景", "冲突"], "research": {}}
+        with patch("vendor.skills.wechat_writer.adapter.with_provider", side_effect=lambda call: call()), patch(
+            "vendor.skills.wechat_writer.adapter.workbench._framework", return_value=frame) as skill:
+            result = create_tools()["create_outline"]({"title": "测试选题"}, None)
+        skill.assert_called_once()
+        self.assertEqual("outline", result.artifacts[0].type)
+        self.assertIn("1. 场景", result.artifacts[0].content)
+
     def test_search_topics_keeps_actual_source_evidence_separate_from_suggestions(self):
         def fake_suggestions(topic, persona, session):
             session["topic_research"] = {

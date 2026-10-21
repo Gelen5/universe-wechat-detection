@@ -99,6 +99,40 @@ class AgentOrchestratorTests(unittest.TestCase):
             self.assertEqual("completed", call.status)
             self.assertEqual({"title": "AI"}, call.result_json)
 
+    def test_required_stage_tool_retries_one_text_only_answer(self):
+        _, run = self.make_run()
+        provider = SequenceProvider([
+            ProviderResponse(text="直接回答"),
+            ProviderResponse(tool_calls=(ToolInvocation("outline-1", "create_outline", {"title": "主题"}),)),
+        ])
+        answer = run_tool_loop(model_service=ModelService(provider), messages=[],
+            tools={"create_outline": ExecutableTool(
+                {"name": "create_outline", "parameters": {"type": "object"}},
+                lambda args: {"title": args["title"]})},
+            run_id=run["id"], user_id="user-a", skill_id="wechat_writer",
+            max_tool_calls=2, timeout_seconds=30, required_tool="create_outline")
+        self.assertEqual("当前阶段已完成，请查看作品区。", answer)
+        with database.session_scope() as db:
+            self.assertEqual(["create_outline"], [call.tool_name for call in db.query(ToolCall).all()])
+
+    def test_stage_run_limits_model_to_its_tool(self):
+        conversation = conversation_repository.create_conversation(
+            "user-a", mode="manual", skill_id="wechat_writer")
+        message = conversation_repository.add_message(
+            conversation["id"], "user-a", "user", "为主题生成大纲",
+            content_json={"workflow_stage": "outline"})
+        run, _ = conversation_repository.create_run(
+            conversation["id"], "user-a", message["id"], "stage-" + message["id"])
+        tools = {name: ExecutableTool(
+            {"name": name, "parameters": {"type": "object"}}, lambda args: {})
+            for name in ("create_outline", "generate_image", "write_article")}
+        orchestrator = AgentOrchestrator(registry=self.registry,
+            model_service=ModelService(SequenceProvider([])), tool_resolver=lambda *_: tools)
+        with patch("server.agent.orchestrator.run_tool_loop", return_value="大纲已生成") as loop:
+            orchestrator.execute(run["id"], "user-a")
+        self.assertEqual(["create_outline"], list(loop.call_args.kwargs["tools"]))
+        self.assertEqual("create_outline", loop.call_args.kwargs["required_tool"])
+
     def test_tool_loop_stops_at_manifest_limit(self):
         _, run = self.make_run()
         provider = SequenceProvider([

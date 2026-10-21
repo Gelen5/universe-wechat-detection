@@ -10,6 +10,12 @@ from server import workbench
 
 
 def create_tools():
+    def latest_artifact(context, artifact_type, items=None):
+        if items is None:
+            items = conversation_repository.list_artifacts(context.conversation_id, context.user_id)
+        return max((item for item in items if item["type"] == artifact_type),
+                   key=lambda item: (item.get("version", 0), item.get("created_at", "")), default=None)
+
     def search_topics(args, context):
         session = {}
         topics = with_provider(lambda: workbench._suggestions(
@@ -31,12 +37,31 @@ def create_tools():
         }
         return topics_result(topics, evidence)
 
+    def create_outline(args, context):
+        title = required_text(args, "title")
+        frame = with_provider(lambda: workbench._framework(
+            title, str(args.get("persona") or "深度观察者"),
+            str(args.get("requirements") or "")))
+        outline = "\n".join(f"{index}. {part}" for index, part in enumerate(frame["outline"], 1))
+        return ToolResult({"title": title, "framework": frame}, (
+            ArtifactOutput(type="outline", title=title, content=outline,
+                           content_json={"framework": frame}),
+        ))
+
     def write_article(args, context):
         title = str(args.get("title") or args.get("topic") or "").strip()
         if not title:
             raise ValueError("title or topic is required")
         persona, requirements = str(args.get("persona") or "深度观察者"), str(args.get("requirements") or "")
         frame = args.get("framework")
+        saved_outline = latest_artifact(context, "outline")
+        if saved_outline:
+            frame = dict((saved_outline.get("content_json") or {}).get("framework") or {})
+            edited_lines = [line.strip().split(". ", 1)[-1].strip()
+                            for line in (saved_outline.get("content") or "").splitlines()
+                            if line.strip()]
+            if len(edited_lines) >= 2:
+                frame["outline"] = edited_lines
         if not isinstance(frame, dict) or not frame.get("outline"):
             frame = with_provider(lambda: workbench._framework(title, persona, requirements))
         article = with_provider(lambda: workbench._draft(title, frame, persona, requirements))
@@ -53,7 +78,8 @@ def create_tools():
         return article_result(str(args.get("title") or "修订稿"), response.text)
 
     def review_article(args, context):
-        article = required_text(args, "article")
+        saved_article = latest_artifact(context, "article")
+        article = (saved_article or {}).get("content") or required_text(args, "article")
         requirements = str(args.get("requirements") or "").strip()
         session = {
             "id": f"{context.run_id}-review-{uuid.uuid4().hex[:12]}",
@@ -73,13 +99,14 @@ def create_tools():
         ))
 
     def typeset_article(args, context):
-        article = required_text(args, "article")
+        artifacts = conversation_repository.list_artifacts(context.conversation_id, context.user_id)
+        saved_article = latest_artifact(context, "article", artifacts)
+        article = (saved_article or {}).get("content") or required_text(args, "article")
         session = {"id": uuid.uuid4().hex, "topic": str(args.get("title") or "公众号文章"),
                    "article": article,
                    "theme": str(args.get("theme") or "default"), "image_plan": {}, "images": [],
                    "skill_runs": [], "brief": str(args.get("requirements") or ""),
                    "typeset_html": "", "preview_document": ""}
-        artifacts = conversation_repository.list_artifacts(context.conversation_id, context.user_id)
         latest_article = max((item for item in artifacts if item["type"] == "article"
                               and item.get("run_id") != context.run_id),
                              key=lambda item: item["created_at"], default=None)
@@ -107,6 +134,7 @@ def create_tools():
             ArtifactOutput(type="html", title="排版结果", content=preview),
         ))
 
-    return {"search_topics": search_topics, "write_article": write_article,
+    return {"search_topics": search_topics, "create_outline": create_outline,
+            "write_article": write_article,
             "revise_article": revise_article, "review_article": review_article,
             "generate_image": model_image, "typeset_article": typeset_article}

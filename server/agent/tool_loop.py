@@ -35,11 +35,14 @@ def run_tool_loop(*, model_service: ModelService, messages: list[dict[str, Any]]
                   run_id: str, user_id: str, skill_id: str, max_tool_calls: int,
                   timeout_seconds: int, is_cancelled: Callable[[], bool] = lambda: False,
                   heartbeat: Callable[[], bool] = lambda: True,
-                  on_tool_result: Callable[[ToolResult, str], dict[str, Any] | None] | None = None) -> str:
+                  on_tool_result: Callable[[ToolResult, str], dict[str, Any] | None] | None = None,
+                  required_tool: str | None = None) -> str:
     started = time.monotonic()
     definitions = [tool.definition for tool in tools.values()]
     calls = 0
     validation_failures = 0
+    required_attempts = 0
+    required_called = False
     while True:
         if is_cancelled():
             raise RuntimeError("run cancelled")
@@ -60,6 +63,13 @@ def run_tool_loop(*, model_service: ModelService, messages: list[dict[str, Any]]
         if not heartbeat():
             raise RuntimeError("run execution lease changed")
         if not response.tool_calls:
+            if required_tool and not required_called:
+                required_attempts += 1
+                if required_attempts > 1:
+                    raise RuntimeError(f"required stage tool was not called: {required_tool}")
+                messages.append({"role": "system", "content":
+                    f"本阶段尚未执行。必须先调用 {required_tool} 工具，不能直接回复。"})
+                continue
             return response.text
         for call in response.tool_calls:
             calls += 1
@@ -138,6 +148,9 @@ def run_tool_loop(*, model_service: ModelService, messages: list[dict[str, Any]]
                     conversation_repository.finish_tool_call(record["id"], run_id, user_id, error=str(exc))
                     notify(run_id)
                     raise
+            if call.name == required_tool:
+                required_called = True
+                return "当前阶段已完成，请查看作品区。"
             messages.append({"role": "assistant", "content": "", "tool_calls": [{
                 "id": call.id, "type": "function", "function": {"name": call.name,
                 "arguments": json.dumps(call.arguments, ensure_ascii=False)}}]})

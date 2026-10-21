@@ -24,8 +24,24 @@
   const skillPicker = root.querySelector('#workbench-skill-picker');
   const viewToggle = root.querySelector('#workbench-view-toggle');
   const historyPopover = root.querySelector('#workbench-chat-history');
+  const stageNav = root.querySelector('#workbench-stage-nav');
+  const stageTitle = root.querySelector('#workbench-stage-title');
+  const stageHint = root.querySelector('#workbench-stage-hint');
+  const stageKicker = root.querySelector('#workbench-stage-kicker');
+  const stageNext = root.querySelector('#workbench-stage-next');
+  const stageRerun = root.querySelector('#workbench-stage-rerun');
+  const stageChoices = root.querySelector('#workbench-stage-choices');
+  const htmlPreview = root.querySelector('#workbench-html-preview');
   const keyConversation = 'universe.conversation.workbench';
   const keyRun = 'universe.conversation.activeRun';
+  const stageKey = id => `universe.conversation.stage.${id}`;
+  const stages = [
+    { id: 'topic', label: '选题', hint: '输入主题，选择一个值得写的方向。' },
+    { id: 'outline', label: '大纲', hint: '确认文章结构；可以直接修改大纲。' },
+    { id: 'writing', label: '写作', hint: '根据确认的大纲生成正文。' },
+    { id: 'deai', label: '去 AI', hint: '保留原意，检查事实与表达并生成修订稿。' },
+    { id: 'typeset', label: '排版', hint: '用最新正文生成公众号 HTML 预览。' },
+  ];
   let conversation = null;
   let activeRun = null;
   let source = null;
@@ -41,6 +57,10 @@
   // Lock before the async conversation creation/request starts. Waiting for
   // the API response here would allow rapid clicks to create duplicate runs.
   let submitting = false;
+  let activeStage = 'topic';
+  let allArtifacts = [];
+  let selectedTopic = '';
+  let brief = '';
 
   const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, char => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;',
@@ -69,16 +89,20 @@
       progressDetail.textContent = '任务在后台执行，刷新页面也不会丢失';
       progressBar.style.width = '42%';
     }
+    renderStage();
   }
 
   function renderMessages(messages) {
+    const firstBrief = messages.find(message => message.role === 'user' &&
+      message.content_json?.workflow_stage === 'topic');
+    if (firstBrief) brief = firstBrief.content;
     thread.innerHTML = messages.length ? messages.map(message => `
       <article class="chat-message ${message.role === 'user' ? 'from-user' : 'from-ai'}">
         <span>${message.role === 'user' ? '你' : message.role === 'tool' ? '工具' : 'AI 共创助手'}</span>
         <p>${escapeHtml(message.content)}</p>
       </article>`).join('') : `
-      <article class="chat-message from-ai"><span>AI 共创助手</span>
-        <p>告诉我你想完成什么。我会选择能力、执行工具，并把作品保存在右侧。</p>
+      <article class="chat-message from-ai"><span>创作助手</span>
+        <p>输入一个主题，先从选题开始。之后可以按阶段查看和修改作品。</p>
       </article>`;
     thread.scrollTop = thread.scrollHeight;
   }
@@ -86,6 +110,10 @@
   function appendProgress(text, eventId = '') {
     if (eventId && renderedEventIds.has(eventId)) return;
     if (eventId) renderedEventIds.add(eventId);
+    status.textContent = text;
+  }
+
+  function appendNotice(text) {
     thread.insertAdjacentHTML('beforeend', `
       <article class="chat-message from-ai tool-progress"><span>执行进度</span><p>${escapeHtml(text)}</p></article>`);
     thread.scrollTop = thread.scrollHeight;
@@ -106,10 +134,10 @@
 
   const eventText = (type, payload) => ({
     'run.created': '任务已经创建', 'run.queued': '任务正在排队', 'run.started': '正在理解你的需求',
-    'run.running': '正在调用专业 Skill', 'skill.selected': `已选择 ${payload.skill_id || '合适的 Skill'}`,
-    'tool.started': `正在执行 ${payload.tool_name || '工具'}`,
-    'tool.completed': `${payload.tool_name || '工具'}执行完成`,
-    'tool.failed': `${payload.tool_name || '工具'}执行失败`,
+    'run.running': '正在处理当前阶段', 'skill.selected': '已开始当前阶段',
+    'tool.started': '正在生成当前阶段的成果',
+    'tool.completed': '当前阶段的成果已生成',
+    'tool.failed': '当前阶段执行失败',
     'artifact.created': '作品已经生成', 'artifact.updated': '作品已生成新版本',
     'assistant.completed': '回复与作品已保存', 'run.completed': '本轮已完成',
     'run.failed': failureText(payload), 'run.cancelled': '任务已取消',
@@ -117,7 +145,7 @@
   }[type] || '任务状态已更新');
 
   function artifactKind(item) {
-    return ({ article: '文章', outline: '框架', topic: '选题', image: '图片', report: '报告', html: 'HTML', markdown: 'Markdown' })[item.type] || item.type;
+    return ({ article: '文章', outline: '大纲', topic: '选题', image: '图片', report: '复核报告', html: '排版', markdown: 'Markdown' })[item.type] || item.type;
   }
 
   function setOutputOpen(value) {
@@ -126,6 +154,91 @@
     root.dataset.studioView = value ? 'article' : 'chat';
     viewToggle.textContent = value ? '返回对话' : '查看作品';
     viewToggle.setAttribute('aria-pressed', String(value));
+  }
+
+  function latestOf(type, predicate = () => true) {
+    return allArtifacts.filter(item => item.type === type && predicate(item)).at(-1) || null;
+  }
+
+  function stageArtifact(stage) {
+    const report = latestOf('report');
+    if (stage === 'topic') return latestOf('topic');
+    if (stage === 'outline') return latestOf('outline');
+    if (stage === 'writing') return latestOf('article', item => !report || item.run_id !== report.run_id)
+      || latestOf('article');
+    if (stage === 'deai') return report;
+    if (stage === 'typeset') return latestOf('html');
+    return null;
+  }
+
+  function isStale(stage) {
+    const index = stages.findIndex(item => item.id === stage);
+    if (index < 1 || !stageArtifact(stage)) return false;
+    const previous = stageArtifact(stages[index - 1].id);
+    return Boolean(previous && previous.updated_at > stageArtifact(stage).updated_at);
+  }
+
+  function selectStage(stage) {
+    if (!stages.some(item => item.id === stage)) return;
+    activeStage = stage;
+    if (conversation) localStorage.setItem(stageKey(conversation.id), stage);
+    renderStage();
+    if (window.matchMedia('(max-width: 980px)').matches && stageArtifact(stage)) setOutputOpen(true);
+  }
+
+  function renderStage() {
+    const index = stages.findIndex(item => item.id === activeStage);
+    const stage = stages[index] || stages[0];
+    const item = stageArtifact(stage.id);
+    const stale = isStale(stage.id);
+    stageKicker.textContent = `${String(index + 1).padStart(2, '0')} / 05`;
+    stageTitle.textContent = stage.label;
+    stageHint.textContent = stale ? '上游作品已修改，请更新本阶段结果。' : stage.hint;
+    stageNav.innerHTML = stages.map((entry, position) => {
+      const done = Boolean(stageArtifact(entry.id));
+      const state = isStale(entry.id) ? '需更新' : done ? '已完成' : position === index ? '当前阶段' : '待开始';
+      return `<button type="button" data-workbench-stage="${entry.id}" ${position === index ? 'aria-current="step"' : ''}>
+        <span>${String(position + 1).padStart(2, '0')} ${entry.label}</span><small>${state}</small></button>`;
+    }).join('');
+    const editorWrap = editor.closest('.editor-wrap');
+    const hasText = item && item.type !== 'html' && stage.id !== 'topic';
+    editorWrap.hidden = !hasText;
+    htmlPreview.hidden = stage.id !== 'typeset' || !item;
+    stageChoices.innerHTML = '';
+    if (stage.id === 'typeset' && item) htmlPreview.srcdoc = item.content || '';
+    if (stage.id === 'topic' && item) {
+      const topics = item.content_json?.topics || [];
+      if (Array.isArray(topics) && topics.length) {
+        stageChoices.innerHTML = `<strong>选择一个方向</strong>${topics.map((choice, position) => {
+          const name = String(typeof choice === 'string' ? choice : choice.title || '').trim();
+          return `<button type="button" data-topic-choice="${position}" aria-pressed="${name === selectedTopic}">
+            <span>${String(position + 1).padStart(2, '0')}</span>${escapeHtml(name)}</button>`;
+        }).join('')}`;
+      }
+    }
+    if (stage.id === 'deai' && item) {
+      const revised = latestOf('article', candidate => candidate.run_id === item.run_id);
+      showArtifact(revised || item);
+      if (item.content_json?.review) {
+        stageChoices.innerHTML = `<details><summary>查看复核报告</summary><pre>${escapeHtml(JSON.stringify(item.content_json.review, null, 2))}</pre></details>`;
+      }
+    } else if (item && hasText) showArtifact(item);
+    else {
+      currentArtifact = item;
+      title.textContent = item?.title || `等待${stage.label}结果`;
+      editor.value = '';
+      editor.readOnly = true;
+      versionLabel.textContent = item ? `${artifactKind(item)} · V${item.version}` : '尚未生成';
+    }
+    stageRerun.hidden = !item;
+    stageRerun.disabled = !progress.hidden;
+    stageRerun.textContent = stale ? '更新本阶段' : '重新生成';
+    stageNext.hidden = index === stages.length - 1;
+    stageNext.textContent = stale ? `更新${stage.label}` : item ? `继续：${stages[index + 1]?.label || ''}` : `生成${stage.label}`;
+    stageNext.disabled = Boolean(!progress.hidden || submitting || (stage.id === 'topic' && item && !selectedTopic) ||
+      (index > 0 && !stageArtifact(stages[index - 1].id)));
+    viewToggle.hidden = !allArtifacts.length;
+    resultMeta.textContent = item ? `${artifactKind(item)} · V${item.version}` : '当前阶段尚无作品';
   }
 
   function showArtifact(item) {
@@ -141,12 +254,13 @@
   function renderArtifacts(artifacts) {
     const ordered = [...artifacts].sort((a, b) =>
       String(a.updated_at || a.created_at || '').localeCompare(String(b.updated_at || b.created_at || '')));
-    editableArtifacts = ordered.filter(item => ['article', 'markdown', 'html', 'report', 'topic'].includes(item.type));
+    allArtifacts = ordered;
+    editableArtifacts = ordered.filter(item => ['article', 'outline', 'markdown', 'html', 'report', 'topic'].includes(item.type));
     const current = editableArtifacts.at(-1) || ordered.at(-1);
     if (!current) {
       currentArtifact = null;
       viewToggle.hidden = true;
-      setOutputOpen(false);
+      renderStage();
       title.textContent = '作品会在这里出现'; editor.value = '';
       editor.readOnly = true;
       artifactList.innerHTML = '<p class="empty-artifact">当前对话还没有作品</p>';
@@ -155,7 +269,7 @@
     const firstArtifact = !currentArtifact;
     showArtifact(current);
     viewToggle.hidden = false;
-    if (firstArtifact) setOutputOpen(true);
+    if (firstArtifact) setOutputOpen(false);
     saveState.textContent = '已保存到当前对话';
     versionLabel.textContent = `${artifactKind(current)} · V${current.version}`;
     changeLabel.textContent = '每次修改都会保留历史版本';
@@ -173,6 +287,7 @@
     images.hidden = !imageArtifacts.length;
     images.innerHTML = imageArtifacts.length ? `<div class="image-grid">${imageArtifacts.map(item => `
       <a href="${escapeHtml(item.storage_url)}" target="_blank" rel="noopener"><img src="${escapeHtml(item.storage_url)}" alt="${escapeHtml(item.title || '生成图片')}"><span><strong>${escapeHtml(item.title || '生成图片')}</strong><small>V${item.version}</small></span></a>`).join('')}</div>` : '';
+    renderStage();
   }
 
   async function refresh() {
@@ -182,6 +297,15 @@
       api(`/api/conversations/${encodeURIComponent(conversation.id)}/artifacts`),
     ]);
     renderMessages(messages.messages || []); renderArtifacts(artifacts.artifacts || []);
+  }
+
+  function stageInstruction(stage, extra = '') {
+    const addition = extra.trim() ? `\n补充要求：${extra.trim()}` : '';
+    if (stage === 'topic') return `${brief || extra}\n只生成公众号选题，不写正文，不生成图片。${addition}`;
+    if (stage === 'outline') return `为已确认选题《${selectedTopic}》生成可编辑的公众号文章大纲。只执行大纲阶段，不写正文。${addition}`;
+    if (stage === 'writing') return `根据当前已确认的大纲，为《${selectedTopic || stageArtifact('outline')?.title || '当前选题'}》写完整公众号正文。只执行写作阶段，不生成图片。${addition}`;
+    if (stage === 'deai') return `对当前最新正文执行去 AI 味、事实边界和可读性复核，保留原意并保存修订稿。只执行复核阶段。${addition}`;
+    return `用当前最新正文重新排版为公众号 HTML，不生成图片、不改写正文。只执行排版阶段。${addition}`;
   }
 
   async function saveArtifactEdit(sequence, artifact, content) {
@@ -215,6 +339,8 @@
   async function openConversation(conversationId) {
     closeEvents(); activeRun = null; localStorage.removeItem(keyRun);
     conversation = (await api(`/api/conversations/${encodeURIComponent(conversationId)}`)).conversation;
+    activeStage = localStorage.getItem(stageKey(conversation.id)) || 'topic';
+    selectedTopic = localStorage.getItem(`universe.conversation.topic.${conversation.id}`) || '';
     selectedMode = conversation.mode;
     selectedSkill = conversation.skill_id || 'wechat_writer';
     syncSkillPicker();
@@ -245,7 +371,7 @@
 
   function watchRun(runId) {
     closeEvents(); activeRun = runId; localStorage.setItem(keyRun, runId);
-    setBusy(true, 'AI 正在调用 Skill');
+    setBusy(true, `正在生成${stages.find(item => item.id === activeStage)?.label || '当前成果'}`);
     source = new EventSource(`/api/runs/${encodeURIComponent(runId)}/events`);
     const types = ['run.created', 'run.queued', 'run.started', 'run.running', 'run.waiting_input',
       'skill.selected', 'tool.started', 'tool.completed', 'tool.failed', 'artifact.created',
@@ -256,7 +382,8 @@
       appendProgress(eventText(type, payload), event.lastEventId); status.textContent = eventText(type, payload);
       if (['run.completed', 'run.failed', 'run.cancelled', 'run.waiting_input'].includes(type)) {
         closeEvents(); activeRun = null; localStorage.removeItem(keyRun); setBusy(false);
-        await refresh().catch(error => appendProgress(error.message));
+        await refresh().catch(error => appendNotice(error.message));
+        if (type === 'run.completed' && window.matchMedia('(max-width: 980px)').matches) setOutputOpen(true);
       }
     }));
     source.onerror = async () => {
@@ -273,27 +400,44 @@
     };
   }
 
-  async function submit() {
-    const content = input.value.trim();
+  async function submit(content = input.value.trim(), stage = activeStage) {
     if (!content || send.disabled || submitting) return;
     submitting = true;
+    if (stage === 'topic' && !brief) brief = content;
     setBusy(true, '正在提交你的消息');
     const idempotencyKey = uuid();
+    const draftInput = input.value;
     try {
       await ensureConversation();
       input.value = '';
       appendProgress('正在提交你的消息');
       const data = await api(`/api/conversations/${encodeURIComponent(conversation.id)}/messages`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content, content_json: { workflow_stage: stage } }),
       });
       await refresh(); watchRun(data.run_id);
     } catch (error) {
       setBusy(false);
-      appendProgress(error.message);
+      input.value = draftInput;
+      appendNotice(error.message);
     } finally {
       submitting = false;
     }
+  }
+
+  function runStage(stage, extra = '') {
+    if (stage === 'topic' && !brief && !extra.trim()) {
+      input.focus(); status.textContent = '请先输入你想写的主题'; return;
+    }
+    if (stage === 'outline' && !selectedTopic) {
+      selectStage('topic'); status.textContent = '请先选择一个选题方向'; return;
+    }
+    if (stage === 'topic' && stageArtifact('topic')) {
+      selectedTopic = '';
+      if (conversation) localStorage.removeItem(`universe.conversation.topic.${conversation.id}`);
+    }
+    selectStage(stage);
+    submit(stageInstruction(stage, extra), stage);
   }
 
   async function restore() {
@@ -302,6 +446,8 @@
     if (conversationId) {
       try {
         conversation = (await api(`/api/conversations/${encodeURIComponent(conversationId)}`)).conversation;
+        activeStage = localStorage.getItem(stageKey(conversation.id)) || 'topic';
+        selectedTopic = localStorage.getItem(`universe.conversation.topic.${conversation.id}`) || '';
         selectedMode = conversation.mode;
         selectedSkill = conversation.skill_id || 'wechat_writer';
         syncSkillPicker();
@@ -330,11 +476,34 @@
     }, true);
   }
 
-  captureClick('#start-workbench', () => submit());
+  captureClick('#start-workbench', () => {
+    const value = input.value.trim();
+    if (!value) return;
+    if (activeStage === 'topic' && !brief) {
+      brief = value; submit(value, 'topic');
+    } else runStage(activeStage, value);
+  });
+  captureClick('[data-workbench-stage]', button => selectStage(button.dataset.workbenchStage));
+  captureClick('[data-topic-choice]', button => {
+    const topics = stageArtifact('topic')?.content_json?.topics || [];
+    const choice = topics[Number(button.dataset.topicChoice)];
+    selectedTopic = String(typeof choice === 'string' ? choice : choice?.title || '').trim();
+    if (!selectedTopic) return;
+    localStorage.setItem(`universe.conversation.topic.${conversation.id}`, selectedTopic);
+    renderStage();
+  });
+  captureClick('#workbench-stage-next', () => {
+    const index = stages.findIndex(item => item.id === activeStage);
+    const target = isStale(activeStage) || !stageArtifact(activeStage)
+      ? activeStage : stages[index + 1]?.id;
+    if (target) runStage(target);
+  });
+  captureClick('#workbench-stage-rerun', () => runStage(activeStage));
   captureClick('#workbench-view-toggle', () => setOutputOpen(!outputOpen));
   captureClick('#new-workbench-chat', () => {
     closeEvents(); conversation = null; activeRun = null; renderedEventIds = new Set();
     localStorage.removeItem(keyConversation); localStorage.removeItem(keyRun);
+    activeStage = 'topic'; selectedTopic = ''; brief = ''; allArtifacts = [];
     submitting = false; setBusy(false); input.value = ''; renderMessages([]); renderArtifacts([]); status.textContent = '等待你的想法';
     syncSkillPicker();
   });
@@ -343,7 +512,7 @@
   captureClick('#cancel-workbench', async () => {
     if (!activeRun) return;
     try { await api(`/api/runs/${encodeURIComponent(activeRun)}/cancel`, { method: 'POST' }); }
-    catch (error) { appendProgress(error.message); }
+    catch (error) { appendNotice(error.message); }
   });
   captureClick('#workbench-regenerate-topics', () => {
     input.value = '请重新给我 10 个更具体的选题方向，并说明每个方向为什么值得写。'; input.focus();
@@ -396,7 +565,9 @@
   });
   input.addEventListener('keydown', event => {
     if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
-    event.preventDefault(); event.stopImmediatePropagation(); submit();
+    event.preventDefault(); event.stopImmediatePropagation();
+    if (activeStage === 'topic' && !brief) { brief = input.value.trim(); submit(brief, 'topic'); }
+    else runStage(activeStage, input.value.trim());
   }, true);
   editor.addEventListener('input', () => {
     if (!currentArtifact || editor.readOnly || editor.value === (currentArtifact.content || '')) return;

@@ -65,3 +65,84 @@
 @media (max-width: 760px) {
   #workbench.normalized-conversation[data-output-open="true"] .article-canvas { padding: 16px; }
 }
+
+/* Stage-first WeChat workspace. The conversation and current artifact stay visible together. */
+#workbench.normalized-conversation .workbench-stage-nav {
+  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px;
+  max-width: 1440px; margin: 0 auto 10px; padding: 4px;
+  border: 1px solid #e7e7e9; border-radius: 8px; background: #f7f7f8;
+}
+#workbench.normalized-conversation .workbench-stage-nav button {
+  min-width: 0; min-height: 48px; padding: 7px 12px; border: 0; border-radius: 6px;
+  background: transparent; color: #5f6368; font: inherit; text-align: left; cursor: pointer;
+}
+#workbench.normalized-conversation .workbench-stage-nav button[aria-current="step"] {
+  background: #fff; color: #17191c; box-shadow: 0 1px 5px #00000012;
+}
+#workbench.normalized-conversation .workbench-stage-nav span,
+#workbench.normalized-conversation .workbench-stage-nav small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#workbench.normalized-conversation .workbench-stage-nav span { font-size: 13px; font-weight: 650; }
+#workbench.normalized-conversation .workbench-stage-nav small { margin-top: 2px; font-size: 11px; color: #797c82; }
+#workbench.normalized-conversation .conversation-workbench-layout {
+  display: grid; grid-template-columns: minmax(320px, .75fr) minmax(460px, 1.25fr);
+  width: min(1440px, 100%); max-width: 1440px; height: min(calc(100dvh - 132px), 900px);
+  margin-inline: auto; border-radius: 8px;
+}
+#workbench.normalized-conversation .conversation-panel,
+#workbench.normalized-conversation .article-canvas { display: flex !important; min-width: 0; height: 100%; min-height: 0; box-sizing: border-box; }
+#workbench.normalized-conversation .conversation-panel { flex-direction: column; border-right: 1px solid #e7e7e9; }
+#workbench.normalized-conversation .article-canvas {
+  flex-direction: column; width: auto; margin: 0; padding: 20px 28px; overflow-y: auto;
+}
+#workbench.normalized-conversation[data-output-open="true"] .conversation-panel { display: flex !important; }
+#workbench.normalized-conversation .chat-mode-picker,
+#workbench.normalized-conversation .conversation-skill-select { display: none !important; }
+#workbench.normalized-conversation .conversation-panel-head { flex: none; }
+#workbench.normalized-conversation .chat-thread { flex: 1; min-height: 120px; overflow-y: auto; padding: 20px 24px; }
+#workbench.normalized-conversation .composer-shell { margin: 12px; }
+#workbench.normalized-conversation .workbench-progress { margin: 10px 12px 0; }
+#workbench.normalized-conversation .workbench-progress[hidden] { display: none !important; }
+#workbench.normalized-conversation .article-canvas-head,
+#workbench.normalized-conversation .version-strip { display: flex; }
+#workbench.normalized-conversation .workbench-stage-head {
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 14px;
+  padding-bottom: 16px; border-bottom: 1px solid #ebebed;
+}
+#workbench.normalized-conversation .workbench-stage-head h2 { margin: 3px 0; font-size: 22px; line-height: 1.35; }
+#workbench.normalized-conversation .workbench-stage-head p { margin: 0; color: #74777c; font-size: 12px; }
+#workbench.normalized-conversation #workbench-stage-kicker { color: #74777c; font-size: 11px; }
+#workbench.normalized-conversation .workbench-stage-actions { display: flex; flex: none; gap: 8px; }
+#workbench.normalized-conversation .workbench-stage-actions button {
+  min-height: 36px; padding: 7px 12px; border: 1px solid #d8dadd; border-radius: 6px;
+  background: #fff; color: #25282c; font: inherit; font-size: 12px; cursor: pointer;
+}
+#workbench.normalized-conversation .workbench-stage-actions #workbench-stage-next {
+  border-color: #202328; background: #202328; color: #fff;
+}
+#workbench.normalized-conversation .workbench-stage-actions button:disabled { opacity: .45; cursor: not-allowed; }
+#workbench.normalized-conversation .workbench-stage-actions button[hidden],
+#workbench.normalized-conversation .editor-wrap[hidden],
+#workbench.normalized-conversation .workbench-html-preview[hidden] { display: none !important; }
+#workbench.normalized-conversation .article-canvas-head { margin-top: 10px; }
+#workbench.normalized-conversation .workbench-stage-choices { display: grid; gap: 7px; margin-top: 16px; }
+#workbench.normalized-conversation .workbench-stage-choices > strong { margin-bottom: 3px; font-size: 13px; }
+#workbench.normalized-conversation .workbench-stage-choices button {
+  display: flex; align-items: flex-start; gap: 12px; min-height: 42px; padding: 10px 12px;
+  border: 1px solid #e1e3e6; border-radius: 6px; background: #fff;
+  color: #25282c; font: inherit; font-size: 13px; line-height: 1.5; text-align: left; cursor: pointer;
+}
+#workbench.normalized-conversation .workbench-stage-choices button[aria-pressed="true"] { border-color: #2578d2; background: #f3f8ff; }
+#workbench.normalized-conversation .workbench-stage-choices button span { color: #6b7077; font-size: 11px; }
+#workbench.normalized-conversation .workbench-stage-choices pre { overflow: auto; white-space: pre-wrap; font-size: 12px; }
+#workbench.normalized-conversation .workbench-html-preview {
+  width: 100%; min-height: 620px; margin-top: 16px; border: 1px solid #e1e3e6;
+  border-radius: 6px; background: #fff;
+}
+@media (max-width: 980px) {
+  #workbench.normalized-conversation .conversation-workbench-layout { display: block; height: calc(100dvh - 145px); min-height: 520px; }
+  #workbench.normalized-conversation .conversation-panel { display: flex !important; width: 100%; border-right: 0; }
+  #workbench.normalized-conversation .article-canvas { display: none !important; width: 100%; }
+  #workbench.normalized-conversation[data-output-open="true"] .conversation-panel { display: none !important; }
+  #workbench.normalized-conversation[data-output-open="true"] .article-canvas { display: flex !important; }
+  #workbench.normalized-conversation .workbench-stage-nav { overflow-x: auto; grid-template-columns: repeat(5, minmax(105px, 1fr)); }
+}

@@ -17,6 +17,15 @@ from .router import SkillRouter
 from .tool_loop import ExecutableTool, run_tool_loop
 
 
+WECHAT_STAGE_TO_TOOL = {
+    "topic": "search_topics",
+    "outline": "create_outline",
+    "writing": "write_article",
+    "deai": "review_article",
+    "typeset": "typeset_article",
+}
+
+
 class AgentOrchestrator:
     def __init__(self, *, registry: SkillRegistry, model_service: ModelService,
                  tool_resolver: Callable[[str, str, str], dict[str, ExecutableTool]]):
@@ -93,7 +102,11 @@ class AgentOrchestrator:
         if not conversation:
             raise KeyError("conversation not found")
         history = conversation_messages(conversation["id"], user_id)
-        trigger = next(item["content"] for item in reversed(history) if item["role"] == "user")
+        trigger_message = conversation_repository.get_message(
+            conversation["id"], user_id, run["trigger_message_id"])
+        if not trigger_message:
+            raise KeyError("trigger message not found")
+        trigger = trigger_message["content"]
         decision = SkillRouter(self.registry, self.model_service).route(
             trigger, mode=conversation["mode"], bound_skill_id=conversation["skill_id"],
             run_id=run_id, user_id=user_id)
@@ -148,6 +161,17 @@ class AgentOrchestrator:
                 answer = result.text
             else:
                 tools = self.tool_resolver(decision.skill_id, run_id, user_id)
+                stage = (trigger_message or {}).get("content_json", {}).get("workflow_stage")
+                required_tool = (WECHAT_STAGE_TO_TOOL.get(stage)
+                                 if decision.skill_id == "wechat_writer" and isinstance(stage, str) else None)
+                if required_tool:
+                    if required_tool not in tools:
+                        raise RuntimeError(f"Skill stage tool unavailable: {required_tool}")
+                    tools = {required_tool: tools[required_tool]}
+                    history.insert(0, {"role": "system", "content":
+                        f"当前只执行公众号创作的 {stage} 阶段。必须调用 {required_tool} 工具一次，"
+                        "使用用户本轮确认的选题与当前最新作品。不要调用其他阶段或生成图片。"
+                        "完成后只用一句话说明本阶段结果，不要在回复中重复整篇作品。"})
                 if any(phrase in trigger for phrase in (
                     "只生成文字", "不要生成图片", "不要生成配图", "不需要配图", "无需配图",
                 )):
@@ -162,6 +186,7 @@ class AgentOrchestrator:
                     timeout_seconds=int(manifest.limits.get("timeout_seconds", 600)),
                     is_cancelled=is_cancelled, heartbeat=heartbeat,
                     on_tool_result=persist_result,
+                    required_tool=required_tool,
                 )
             if task_id and not conversation_repository.heartbeat_run(run_id, task_id):
                 raise RuntimeError("run execution lease changed")

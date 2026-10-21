@@ -194,6 +194,18 @@ def list_messages(conversation_id: str, user_id: str, *, limit: int = 200) -> li
         return [_message_view(row) for row in rows]
 
 
+def get_message(conversation_id: str, user_id: str, message_id: str) -> dict[str, Any] | None:
+    with session_scope() as db:
+        row = db.scalar(select(ConversationMessage).join(
+            Conversation, Conversation.id == ConversationMessage.conversation_id,
+        ).where(
+            Conversation.id == conversation_id,
+            Conversation.user_id == user_id,
+            ConversationMessage.id == message_id,
+        ))
+        return _message_view(row) if row else None
+
+
 def create_run(conversation_id: str, user_id: str, trigger_message_id: str,
                idempotency_key: str, *, skill_id: str | None = None,
                usage_id: str | None = None) -> tuple[dict[str, Any], bool]:

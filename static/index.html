@@ -18,7 +18,7 @@
     <link rel="stylesheet" href="/static/studio-tools.css?v=20260904-1" />
     <link rel="stylesheet" href="/static/notion-workspace.css?v=20260905-settings-menu-1" />
     <link rel="stylesheet" href="/static/workbench-chat.css?v=20260911-chat-review-2" />
-    <link rel="stylesheet" href="/static/conversation-workbench.css?v=20261001-native-skills-2" />
+    <link rel="stylesheet" href="/static/conversation-workbench.css?v=20261020-stages-1" />
   </head>
   <body>
     <div class="app-shell">
@@ -338,6 +338,7 @@
            ============================================================ -->
       <section id="workbench" class="workbench-page article-workspace normalized-conversation" hidden>
         <header class="studio-heading"><div><h1>公众号创作</h1><p>发来一个主题，创作助手会调用完整 Skill 带你做到可交付。</p></div><div class="studio-heading-actions" hidden><button id="studio-details-toggle" type="button" aria-expanded="false" aria-controls="studio-details">结构与版本</button><button id="assistant-toggle" type="button" aria-expanded="true" aria-controls="creation-assistant">收起助手</button></div></header>
+        <nav id="workbench-stage-nav" class="workbench-stage-nav" aria-label="公众号创作阶段"></nav>
         <div id="workflow-steps" class="workflow-rail"></div>
         <div class="studio-switch" role="group" aria-label="工作区视图"><button type="button" data-studio-view="chat" aria-pressed="true">对话与选题</button><button type="button" data-studio-view="article" aria-pressed="false">文章画布</button></div>
         <div class="conversation-output-actions"><button id="workbench-view-toggle" type="button" hidden>查看作品</button></div>
@@ -345,23 +346,27 @@
           <aside id="creation-assistant" class="conversation-panel" aria-label="创作对话">
             <header class="conversation-panel-head"><div class="conversation-identity"><span class="assistant-mark"><i data-lucide="sparkles"></i></span><div><strong>公众号创作助手</strong><small>选题、检索、写作、审校、配图与排版</small></div></div><div class="conversation-panel-tools"><span id="workbench-status" class="work-status">等待你的想法</span><button id="recent-workbench-chats" class="new-chat-button" type="button" title="最近对话"><i data-lucide="history"></i> 最近对话</button><button id="new-workbench-chat" class="new-chat-button" type="button"><i data-lucide="square-pen"></i> 新对话</button></div></header>
             <div id="workbench-chat-history" class="conversation-history-popover" hidden></div>
-            <div id="workbench-mode-picker" class="chat-mode-picker" role="group" aria-label="创作模式">
+            <div id="workbench-mode-picker" class="chat-mode-picker" role="group" aria-label="创作模式" hidden>
               <button class="mode-option active" data-mode="interactive" type="button"><strong>指定能力</strong><small>选择公众号或其他 Skill</small></button>
               <button class="mode-option" data-mode="auto" type="button"><strong>自动选择</strong><small>由 AI 选择合适 Skill</small></button>
             </div>
-            <label class="conversation-skill-select" for="workbench-skill-picker">创作能力
+            <label class="conversation-skill-select" for="workbench-skill-picker" hidden>创作能力
               <select id="workbench-skill-picker" aria-label="选择创作能力"><option value="wechat_writer">公众号完整创作</option></select>
             </label>
             <div id="workbench-chat-thread" class="chat-thread" aria-live="polite"></div>
             <div id="topic-list" class="chat-choice-list"></div>
-            <div class="composer-shell"><label for="workbench-topic">发消息给创作助手</label><textarea id="workbench-topic" name="topic" autocomplete="off" placeholder="例如：查询最近一周中老年情感热点，给我 10 个公众号选题" aria-label="对创作助手说"></textarea><div class="composer-actions"><button id="workbench-regenerate-topics" class="composer-text-action" type="button">换一批方向</button><span class="composer-hint">Enter 发送 · Shift + Enter 换行</span><button id="start-workbench" class="composer-send" type="button" aria-label="发送"><i data-lucide="arrow-up"></i></button></div></div>
+            <div id="workbench-progress" class="workbench-progress" hidden><div><strong id="workbench-progress-title">正在处理</strong><span id="workbench-progress-detail">请稍候</span></div><div class="workbench-progress-track"><i id="workbench-progress-bar"></i></div><button id="cancel-workbench" class="outline-action" type="button">取消</button></div>
+            <div class="composer-shell"><label for="workbench-topic">当前阶段的要求</label><textarea id="workbench-topic" name="topic" autocomplete="off" placeholder="输入你想写的主题和要求" aria-label="当前阶段的要求"></textarea><div class="composer-actions"><button id="workbench-regenerate-topics" class="composer-text-action" type="button">换一批方向</button><span class="composer-hint">Enter 发送 · Shift + Enter 换行</span><button id="start-workbench" class="composer-send" type="button" aria-label="发送"><i data-lucide="arrow-up"></i></button></div></div>
             <div class="creator-options sr-only"><select id="workbench-persona"><option>深度观察者</option><option>亲切分享者</option><option>锐评手</option><option>故事大王</option><option>暖心治愈</option></select><select id="workbench-theme"><option value="default">极简白</option><option value="tech-card-green">科技卡片绿</option><option value="minimal-elegant">极简优雅</option></select></div>
           </aside>
           <section id="workbench-result" class="article-canvas">
+            <div class="workbench-stage-head"><div><span id="workbench-stage-kicker">01 / 05</span><h2 id="workbench-stage-title">选题</h2><p id="workbench-stage-hint">先输入主题，获取可写方向。</p></div><div class="workbench-stage-actions"><button id="workbench-stage-rerun" type="button" hidden>重新生成</button><button id="workbench-stage-next" type="button" disabled>生成大纲</button></div></div>
             <header class="article-canvas-head"><div><h2 id="result-title">还没有开始写</h2><p><i></i><span id="article-save-state">输入一个主题后，我会先和你确认写作方向</span></p></div><div class="canvas-actions"><button id="version-back" class="icon-action" type="button" title="上一个版本" aria-label="上一个版本"><i data-lucide="undo-2"></i></button><button id="version-forward" class="icon-action" type="button" title="下一个版本" aria-label="下一个版本"><i data-lucide="redo-2"></i></button><button id="edit-current" class="icon-action" type="button" title="编辑正文" aria-label="编辑正文"><i data-lucide="pen-line"></i></button><button id="copy-current-artifact" class="icon-action" type="button" title="复制当前作品" aria-label="复制当前作品"><i data-lucide="copy"></i></button><button id="download-current-artifact" class="icon-action" type="button" title="下载当前作品" aria-label="下载当前作品"><i data-lucide="download"></i></button></div></header>
             <div class="version-strip"><span id="article-version-label">当前草稿 · 尚未生成</span><span>·</span><span id="article-change-label">等待你的写作意图</span></div>
             <section id="workbench-decision" class="current-work-card" aria-live="polite"><strong>先告诉我，你想写什么</strong><p>在对话区输入主题、目标读者和已有素材。先确认选题，再确定框架；每一步确认后继续。</p></section>
             <section id="studio-stage-output" aria-label="当前步骤产物"></section>
+            <div id="workbench-stage-choices" class="workbench-stage-choices"></div>
+            <iframe id="workbench-html-preview" class="workbench-html-preview" title="公众号排版预览" sandbox="" hidden></iframe>
             <div class="editor-wrap"><div class="editor-head"><span>当前输出</span><span id="score-label">可直接编辑，也可选中一段再让 AI 重写</span></div><textarea id="article-editor" aria-label="当前文章正文" placeholder="文章会在这里持续更新"></textarea><div class="selection-actions"><button data-rewrite-selection="改短一点" type="button">改短一点</button><button data-rewrite-selection="换成故事开头" type="button">换成故事开头</button><button data-rewrite-selection="重写这一段" type="button">重写这一段</button></div></div>
             <div id="score-report" class="score-report" hidden></div>
             <div id="generated-images" class="generated-images" hidden></div>
@@ -371,7 +376,6 @@
             <header><strong>本轮成果</strong><i data-lucide="chevron-down"></i></header>
             <section><h3>当前文章结构</h3><ol id="workbench-outline" class="outline-list"><li><span>01</span><p>等待你确认写作方向</p></li></ol></section>
             <section class="version-history"><h3>版本记录</h3><div id="workbench-version-list"></div></section>
-            <div id="workbench-progress" class="workbench-progress" hidden><div><strong id="workbench-progress-title">正在处理</strong><span id="workbench-progress-detail">请稍候</span></div><div class="workbench-progress-track"><i id="workbench-progress-bar"></i></div><button id="cancel-workbench" class="outline-action" type="button"><i data-lucide="square"></i> 取消生成</button></div>
           </aside>
           <div class="flow-actionbar">
             <div class="flow-status"><span class="flow-dot"></span><div><strong id="flow-step-label">等待你的想法</strong><span id="flow-step-hint">从三个方向里挑一个开始</span></div></div>
@@ -904,6 +908,6 @@
         });
       })();
     </script>
-    <script src="/static/conversation-workbench.js?v=20261001-run-errors-1"></script>
+    <script src="/static/conversation-workbench.js?v=20261020-stages-1"></script>
   </body>
 </html>
