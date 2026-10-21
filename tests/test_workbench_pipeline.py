@@ -20,16 +20,25 @@ class PipelineTests(unittest.TestCase):
                 '# Skill\n' + 'unrelated history\n' * 1000
                 + '### 改写档位与范围\nProtect facts.\n'
                 + '### 第五步：定向修稿\nOnly local edits.\n'
+                + '### 第七步：黑盒检测\nDo not call detectors.\n'
+                + '### 第八步：双回读门\nRead for fidelity.\n'
                 + '## 自然中文风险检查\nArchive only.\n', encoding='utf-8')
-            for name in ('empirical-minimal-edit-rules.md', 'chinese-content-signals.md'):
-                (root / 'references' / name).write_text(name, encoding='utf-8')
+            (root / 'references' / 'empirical-minimal-edit-rules.md').write_text(
+                '## 明确不作为单独改写理由\nKeep minor style.\n'
+                '## 研究和许可边界\nArchive only.\n', encoding='utf-8')
+            (root / 'references' / 'chinese-content-signals.md').write_text(
+                '## 优先检查的内容信号\nCheck specific signals.\n'
+                '## 二次审计\nArchive only.\n', encoding='utf-8')
             context, manifest = w._review_skill_context(root)
         self.assertIn('Protect facts.', context)
         self.assertIn('Only local edits.', context)
-        self.assertIn('chinese-content-signals.md', context)
+        self.assertIn('Read for fidelity.', context)
+        self.assertIn('Keep minor style.', context)
         self.assertNotIn('unrelated history', context)
         self.assertNotIn('Archive only.', context)
+        self.assertNotIn('Do not call detectors.', context)
         self.assertEqual(len(manifest), 3)
+        self.assertEqual(manifest[-1]['file'], 'references/chinese-content-signals.md')
 
     def test_review_prompt_does_not_repeat_unchanged_article_or_signals(self):
         article = '这是一段待审正文。'

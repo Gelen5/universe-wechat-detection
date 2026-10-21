@@ -508,14 +508,25 @@ def _review_skill_context(root: Path) -> tuple[str, list[dict[str, str]]]:
                   'references/chinese-content-signals.md')
     full_context, manifest = skill_runtime.context(root, references)
     skill_text = (root / 'SKILL.md').read_text(encoding='utf-8')
-    start = re.search(r'^### 改写档位与范围', skill_text, re.M)
-    end = re.search(r'^## 自然中文风险检查', skill_text, re.M)
-    if not start or not end or end.start() <= start.start():
+
+    def section(text: str, start_label: str, end_label: str) -> str | None:
+        start = re.search(r'^#{2,3} [^\n]*' + re.escape(start_label), text, re.M)
+        end = re.search(r'^#{2,3} [^\n]*' + re.escape(end_label), text, re.M)
+        if not start or not end or end.start() <= start.start():
+            return None
+        return text[start.start():end.start()]
+
+    empirical = (root / references[0]).read_text(encoding='utf-8')
+    # The signal reference is represented by the Skill script's findings below.
+    excerpts = (
+        section(skill_text, '改写档位与范围', '第七步：黑盒检测'),
+        section(skill_text, '第八步：双回读门', '自然中文风险检查'),
+        section(empirical, '明确不作为单独改写理由', '研究和许可边界'),
+    )
+    if any(excerpt is None for excerpt in excerpts):
         return full_context, manifest
-    sections = [f'\n--- SKILL.md / 复核与保真规则 ---\n{skill_text[start.start():end.start()]}']
-    sections.extend(f'\n--- {name} ---\n{(root / name).read_text(encoding="utf-8")}'
-                    for name in references)
-    return '\n'.join(sections), manifest
+    return '\n'.join(f'--- {name} ---\n{excerpt}' for name, excerpt in zip(
+        ('SKILL.md / 局部改稿', 'SKILL.md / 双回读与保护', references[0]), excerpts)), manifest
 
 
 def _review(article: str, session: dict[str, Any]) -> tuple[str, dict[str, Any]]:
@@ -533,8 +544,9 @@ def _review(article: str, session: dict[str, Any]) -> tuple[str, dict[str, Any]]
             current_path.write_text(candidate, encoding='utf-8')
             signals = skill_runtime.script(ANTI_AI_SKILL_DIR, 'check_ai_tone_signals.py', current_path, '--mode', 'standard')
             prose = skill_runtime.script(ANTI_AI_SKILL_DIR, 'check_natural_prose.py', current_path, '--mode', 'standard')
-            prose_for_prompt = {key: value for key, value in prose.items()
-                                if key not in {'explicit_signals', 'observations'}}
+            prose_fields = ('complete_sentence_ratio', 'long_sentences_without_terminal_punctuation',
+                            'review_items', 'warnings', 'repeated_sentence_openings')
+            prose_for_prompt = {key: prose[key] for key in prose_fields if key in prose}
             original_for_prompt = article if candidate != article else '与当前稿相同'
             diagnosis = _json_text(f'''{instructions}
 当前只做标准改稿复核，不执行发布。用户需求和事实边界优先。
