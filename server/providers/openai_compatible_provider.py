@@ -13,7 +13,8 @@ class OpenAICompatibleProvider(ModelProvider):
     def __init__(self, *, api_key: str, base_url: str, text_model: str,
                  image_api_key: str | None = None, image_base_url: str | None = None,
                  image_model: str | None = None, verify_ssl: bool = True,
-                 session: requests.Session | None = None):
+                 session: requests.Session | None = None,
+                 reasoning_effort: str | None = None):
         self.api_key = api_key
         self.responses_api = base_url.strip().rstrip("/").endswith("/responses")
         if self.responses_api:
@@ -24,6 +25,7 @@ class OpenAICompatibleProvider(ModelProvider):
         self.image_base_url = self._v1(image_base_url or base_url)
         self.image_model = image_model or "gpt-image-2"
         self.verify_ssl = verify_ssl
+        self.reasoning_effort = reasoning_effort
         self.session = session or requests.Session()
         self.session.trust_env = False
 
@@ -78,6 +80,8 @@ class OpenAICompatibleProvider(ModelProvider):
             else:
                 inputs.append({"role": role, "content": message.get("content") or ""})
         body: dict[str, Any] = {"model": self.text_model, "input": inputs}
+        if self.reasoning_effort:
+            body["reasoning"] = {"effort": self.reasoning_effort}
         if tools:
             body["tools"] = [{"type": "function", **tool} for tool in tools]
             body["tool_choice"] = "auto"

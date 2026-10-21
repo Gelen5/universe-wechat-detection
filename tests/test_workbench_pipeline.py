@@ -46,6 +46,11 @@ class PipelineTests(unittest.TestCase):
                      'fidelity_ok': True, 'readability_ok': True}
         audit = {'status': 'success', 'complete_sentence_ratio': 1,
                  'missing_protected_spans': {}}
+        observed_effort = []
+        def generate_review(*args, **kwargs):
+            observed_effort.append(w.REVIEW_REASONING.get())
+            return diagnosis
+
         with tempfile.TemporaryDirectory() as directory, \
              patch.object(w, 'OUTPUT_DIR', Path(directory)), \
              patch.object(w, '_review_skill_context', return_value=('Skill rules', [])), \
@@ -53,13 +58,25 @@ class PipelineTests(unittest.TestCase):
                  {'signals': []}, {'explicit_signals': ['duplicate'],
                                    'observations': ['duplicate'], 'review_items': []}]), \
              patch.object(w, '_anti_ai_audit', return_value=audit), \
-             patch.object(w, '_json_text', return_value=diagnosis) as generate:
+             patch.object(w, '_json_text', side_effect=generate_review) as generate:
             revised, report = w._review(article, {'id': 'review-size-test', 'brief': '审稿'})
         prompt = generate.call_args.args[0]
         self.assertEqual(prompt.count(article), 1)
         self.assertNotIn('duplicate', prompt)
         self.assertEqual(revised, article)
         self.assertEqual(report['gate'], 'passed')
+        self.assertEqual(observed_effort, ['low'])
+        self.assertIsNone(w.REVIEW_REASONING.get())
+
+    def test_review_reasoning_effort_resets_after_failure(self):
+        with tempfile.TemporaryDirectory() as directory, \
+             patch.object(w, 'OUTPUT_DIR', Path(directory)), \
+             patch.object(w, '_review_skill_context', return_value=('Skill rules', [])), \
+             patch.object(skill_runtime, 'script', side_effect=[{'signals': []}, {'signals': []}]), \
+             patch.object(w, '_json_text', side_effect=RuntimeError('provider failed')):
+            with self.assertRaises(w.ProviderError):
+                w._review('待审正文。', {'id': 'review-failure-test', 'brief': '审稿'})
+        self.assertIsNone(w.REVIEW_REASONING.get())
 
     def test_review_reanchors_nonliteral_issue_quotes_without_dropping_issues(self):
         article = '第一节说清楚关系。\n\n第二节说明边界。'

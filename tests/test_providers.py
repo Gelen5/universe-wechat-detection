@@ -123,6 +123,19 @@ class ProviderTests(unittest.TestCase):
             provider.create_response([{"role": "user", "content": "hello"}])
         self.assertTrue(caught.exception.transient)
 
+    def test_responses_api_reasoning_effort_is_opt_in(self):
+        session = FakeSession([FakeResponse({"status": "completed", "output": []})])
+        provider = OpenAICompatibleProvider(api_key="secret", base_url="https://example.test/v1/responses",
+                                            text_model="text", session=session, reasoning_effort="low")
+        provider.create_response([{"role": "user", "content": "review"}])
+        self.assertEqual({"effort": "low"}, session.requests[0][2]["json"]["reasoning"])
+
+        default_session = FakeSession([FakeResponse({"status": "completed", "output": []})])
+        default_provider = OpenAICompatibleProvider(api_key="secret", base_url="https://example.test/v1/responses",
+                                                    text_model="text", session=default_session)
+        default_provider.create_response([{"role": "user", "content": "write"}])
+        self.assertNotIn("reasoning", default_session.requests[0][2]["json"])
+
     def test_http_429_is_transient(self):
         provider = self.provider([FakeResponse({"error": {"message": "slow down"}}, 429)])
         with self.assertRaises(ProviderRequestError) as caught:

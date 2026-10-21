@@ -45,6 +45,7 @@ SESSIONS: dict[str, dict[str, Any]] = {}
 CANCEL_REQUESTS: set[str] = set()
 STEPS = ["选题", "框架", "写作", "反 AI", "配图", "排版", "预览", "发布"]
 REQUEST_SETTINGS: ContextVar[dict[str, str]] = ContextVar("REQUEST_SETTINGS", default={})
+REVIEW_REASONING: ContextVar[str | None] = ContextVar("REVIEW_REASONING", default=None)
 
 # Selected from the authoritative dbs-wechat-html style library. Values are
 # inline-friendly because WeChat strips page-level CSS when rich text is pasted.
@@ -346,6 +347,7 @@ def _text(prompt: str, *, reasoning: str = "medium") -> str:
         image_api_key=_setting("WECHAT_IMAGE_API_KEY") or _setting("WECHAT_TEXT_API_KEY"),
         image_base_url=_setting("WECHAT_IMAGE_API_BASE_URL") or _setting("WECHAT_API_BASE_URL", "https://api.openai.com/v1"),
         image_model=_setting("WECHAT_IMAGE_MODEL", "gpt-image-2"), verify_ssl=_verify_ssl(),
+        reasoning_effort=REVIEW_REASONING.get(),
     )
     try:
         response = ModelService(provider).create_response([
@@ -538,6 +540,7 @@ def _review(article: str, session: dict[str, Any]) -> tuple[str, dict[str, Any]]
     candidate = article
     records = []
     session['review_run'] = {'status':'running', 'manifest':manifest, 'rounds':records}
+    reasoning_token = REVIEW_REASONING.set('low')
     try:
         for attempt in range(4):
             current_path = directory / f'round-{attempt}.txt'
@@ -684,6 +687,8 @@ issue_index 对应以下已由复核定位、逐字来自当前稿的片段列�
                       ['check_ai_tone_signals.py', 'check_natural_prose.py', 'audit_revision.py'],
                       'blocked', str(exc))
         raise ProviderError(str(exc)) from exc
+    finally:
+        REVIEW_REASONING.reset(reasoning_token)
 
 
 def _review_issue_is_retained(issue: Any, retained_fixes: set[str]) -> bool:
