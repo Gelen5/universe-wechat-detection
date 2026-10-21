@@ -12,6 +12,46 @@ from server import skill_runtime
 
 
 class PipelineTests(unittest.TestCase):
+    def test_review_skill_context_keeps_review_rules_and_manifest(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'references').mkdir()
+            (root / 'SKILL.md').write_text(
+                '# Skill\n' + 'unrelated history\n' * 1000
+                + '### 改写档位与范围\nProtect facts.\n'
+                + '### 第五步：定向修稿\nOnly local edits.\n'
+                + '## 自然中文风险检查\nArchive only.\n', encoding='utf-8')
+            for name in ('empirical-minimal-edit-rules.md', 'chinese-content-signals.md'):
+                (root / 'references' / name).write_text(name, encoding='utf-8')
+            context, manifest = w._review_skill_context(root)
+        self.assertIn('Protect facts.', context)
+        self.assertIn('Only local edits.', context)
+        self.assertIn('chinese-content-signals.md', context)
+        self.assertNotIn('unrelated history', context)
+        self.assertNotIn('Archive only.', context)
+        self.assertEqual(len(manifest), 3)
+
+    def test_review_prompt_does_not_repeat_unchanged_article_or_signals(self):
+        article = '这是一段待审正文。'
+        diagnosis = {'issues': [], 'reason': '没有必须修的问题',
+                     'fidelity_ok': True, 'readability_ok': True}
+        audit = {'status': 'success', 'complete_sentence_ratio': 1,
+                 'missing_protected_spans': {}}
+        with tempfile.TemporaryDirectory() as directory, \
+             patch.object(w, 'OUTPUT_DIR', Path(directory)), \
+             patch.object(w, '_review_skill_context', return_value=('Skill rules', [])), \
+             patch.object(skill_runtime, 'script', side_effect=[
+                 {'signals': []}, {'explicit_signals': ['duplicate'],
+                                   'observations': ['duplicate'], 'review_items': []}]), \
+             patch.object(w, '_anti_ai_audit', return_value=audit), \
+             patch.object(w, '_json_text', return_value=diagnosis) as generate:
+            revised, report = w._review(article, {'id': 'review-size-test', 'brief': '审稿'})
+        prompt = generate.call_args.args[0]
+        self.assertEqual(prompt.count(article), 1)
+        self.assertNotIn('duplicate', prompt)
+        self.assertEqual(revised, article)
+        self.assertEqual(report['gate'], 'passed')
+
     def test_review_reanchors_nonliteral_issue_quotes_without_dropping_issues(self):
         article = '第一节说清楚关系。\n\n第二节说明边界。'
         diagnosis = {'issues': [

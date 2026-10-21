@@ -503,9 +503,23 @@ def _draft(title: str, frame: dict[str, Any], persona: str, requirements: str = 
 
 
 
+def _review_skill_context(root: Path) -> tuple[str, list[dict[str, str]]]:
+    references = ('references/empirical-minimal-edit-rules.md',
+                  'references/chinese-content-signals.md')
+    full_context, manifest = skill_runtime.context(root, references)
+    skill_text = (root / 'SKILL.md').read_text(encoding='utf-8')
+    start = re.search(r'^### 改写档位与范围', skill_text, re.M)
+    end = re.search(r'^## 自然中文风险检查', skill_text, re.M)
+    if not start or not end or end.start() <= start.start():
+        return full_context, manifest
+    sections = [f'\n--- SKILL.md / 复核与保真规则 ---\n{skill_text[start.start():end.start()]}']
+    sections.extend(f'\n--- {name} ---\n{(root / name).read_text(encoding="utf-8")}'
+                    for name in references)
+    return '\n'.join(sections), manifest
+
+
 def _review(article: str, session: dict[str, Any]) -> tuple[str, dict[str, Any]]:
-    instructions, manifest = skill_runtime.context(ANTI_AI_SKILL_DIR, (
-        'references/empirical-minimal-edit-rules.md', 'references/chinese-content-signals.md'))
+    instructions, manifest = _review_skill_context(ANTI_AI_SKILL_DIR)
     directory = OUTPUT_DIR / session['id'] / 'anti_ai'
     directory.mkdir(parents=True, exist_ok=True)
     original_path = directory / 'original.txt'
@@ -519,14 +533,17 @@ def _review(article: str, session: dict[str, Any]) -> tuple[str, dict[str, Any]]
             current_path.write_text(candidate, encoding='utf-8')
             signals = skill_runtime.script(ANTI_AI_SKILL_DIR, 'check_ai_tone_signals.py', current_path, '--mode', 'standard')
             prose = skill_runtime.script(ANTI_AI_SKILL_DIR, 'check_natural_prose.py', current_path, '--mode', 'standard')
+            prose_for_prompt = {key: value for key, value in prose.items()
+                                if key not in {'explicit_signals', 'observations'}}
+            original_for_prompt = article if candidate != article else '与当前稿相同'
             diagnosis = _json_text(f'''{instructions}
 当前只做标准改稿复核，不执行发布。用户需求和事实边界优先。
 完整需求：{skill_runtime.brief(session)}
-原稿（用于事实保真）：{article}
+原稿（用于事实保真）：{original_for_prompt}
 当前稿：{candidate}
 之前定位的问题与已执行修改：{json.dumps(records,ensure_ascii=False)}
 实际定位信号：{json.dumps(signals, ensure_ascii=False)}
-实际可读性：{json.dumps(prose, ensure_ascii=False)}
+实际可读性：{json.dumps(prose_for_prompt, ensure_ascii=False)}
 信号是复核入口，不要求清零。先核对无来源的数据、经历和引用，再判断局部表达。
 issues 只列事实边界、原意保真、明显病句或用户明确要求等必须修的问题。"略显"、"可能"、"稍显"一类轻微风格偏好不构成拦截，放入 retained_signals 并说明保留理由；不要为了清零信号反复改稿。
 同时核查标题是否夸大承诺、是否满足用户指定步骤数量、有无无依据的绝对化判断。
@@ -562,7 +579,7 @@ issues 只列事实边界、原意保真、明显病句或用户明确要求等�
             if missing:
                 spans = [str(span) for values in protected.values() for span in values]
                 adjudication = _json_text(f'''核对一次改稿保护片段。返回JSON {{"items":[{{"index":0,"safe":false,"reason":"逐项具体依据"}}]}}。
-原稿：{article}
+原稿：{original_for_prompt}
 当前稿：{candidate}
 缺失项列表，下标从0开始：{json.dumps(spans,ensure_ascii=False)}
 前轮诊断：{json.dumps(records,ensure_ascii=False)}
@@ -611,7 +628,7 @@ JSON的items要逐项覆盖列表中的每个下标；这只是返回报告覆�
 只执行 standard 定向改稿，用户要求优先，不执行任何发布。
 完整需求：{skill_runtime.brief(session)}
 保护原稿的事实、数字、关系和原话；无来源的事实保留待核验边界，不能补造证据。
-原稿：{article}
+原稿：{original_for_prompt}
 当前稿：{candidate}
 本轮明确问题：{json.dumps(diagnosis, ensure_ascii=False)}
 实际审计：{json.dumps(audit, ensure_ascii=False)}
