@@ -81,7 +81,33 @@ class OpenAICompatibleProvider(ModelProvider):
         if tools:
             body["tools"] = [{"type": "function", **tool} for tool in tools]
             body["tool_choice"] = "auto"
-        data = self._post(self.base_url + "/responses", self.api_key, body, timeout, idempotency_key)
+        body["stream"] = True
+        response = self._request("POST", self.base_url + "/responses", self.api_key, body,
+                                 timeout, idempotency_key, stream=True)
+        data: dict[str, Any] | None = None
+        try:
+            for line in response.iter_lines():
+                if not line or not line.startswith(b"data: "):
+                    continue
+                try:
+                    event = json.loads(line[6:])
+                except ValueError as exc:
+                    raise ProviderRequestError("provider returned invalid stream event", code="invalid_response") from exc
+                if event.get("type") == "response.completed":
+                    data = event.get("response")
+                elif event.get("type") in {"response.failed", "response.incomplete", "error"}:
+                    detail = event.get("response") or event
+                    message = self._error(detail) or "provider stream failed"
+                    transient = any(marker in message.lower() for marker in
+                                    ("overload", "try again later", "timed out", "rate limit"))
+                    raise ProviderRequestError(message, code="provider_unavailable" if transient else "invalid_response",
+                                               transient=transient)
+        except requests.RequestException as exc:
+            raise ProviderRequestError(f"provider stream failed: {exc}", code="transport", transient=True) from exc
+        finally:
+            response.close()
+        if not isinstance(data, dict):
+            raise ProviderRequestError("provider stream ended without a completed response", code="invalid_response")
         if data.get("status") not in (None, "completed"):
             raise ProviderRequestError(self._error(data) or f"provider response {data['status']}",
                                        code="invalid_response")
@@ -132,13 +158,13 @@ class OpenAICompatibleProvider(ModelProvider):
         return self._decode(self._request("POST", url, key, body, timeout, idempotency_key))
 
     def _request(self, method: str, url: str, key: str, body: dict[str, Any] | None,
-                 timeout: int, idempotency_key: str | None):
+                 timeout: int, idempotency_key: str | None, stream: bool = False):
         headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
         if idempotency_key:
             headers["Idempotency-Key"] = idempotency_key
         try:
             response = self.session.request(method, url, headers=headers, json=body,
-                                            timeout=timeout, verify=self.verify_ssl)
+                                            timeout=timeout, verify=self.verify_ssl, stream=stream)
         except requests.RequestException as exc:
             raise ProviderRequestError(f"provider connection failed: {exc}", code="transport", transient=True) from exc
         if not response.ok:

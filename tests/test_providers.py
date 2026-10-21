@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import unittest
 
 from server.providers import ModelService, OpenAICompatibleProvider, ProviderCostPolicy, ProviderRequestError
@@ -11,6 +12,18 @@ class FakeResponse:
 
     def json(self):
         return self.data
+
+    def iter_lines(self):
+        yield b"event: response.completed"
+        yield b"data: " + json.dumps({"type": "response.completed", "response": self.data}).encode()
+
+    def close(self):
+        pass
+
+
+class FakeStreamFailure(FakeResponse):
+    def iter_lines(self):
+        yield b"data: " + json.dumps({"type": "response.failed", "response": self.data}).encode()
 
 
 class FakeSession:
@@ -89,6 +102,7 @@ class ProviderTests(unittest.TestCase):
         tools = [{"name": "search_topics", "description": "search", "parameters": {"type": "object"}}]
         first = provider.create_response([{"role": "user", "content": "找选题"}], tools=tools)
         self.assertEqual("https://example.test/v1/responses", session.requests[0][1])
+        self.assertTrue(session.requests[0][2]["json"]["stream"])
         self.assertEqual("search_topics", session.requests[0][2]["json"]["tools"][0]["name"])
         self.assertEqual({"query": "AI"}, first.tool_calls[0].arguments)
         self.assertEqual((8, 4), (first.input_tokens, first.output_tokens))
@@ -100,6 +114,14 @@ class ProviderTests(unittest.TestCase):
         self.assertEqual("完成", second.text)
         self.assertEqual("function_call", session.requests[1][2]["json"]["input"][1]["type"])
         self.assertEqual("function_call_output", session.requests[1][2]["json"]["input"][2]["type"])
+
+    def test_responses_api_overload_is_transient(self):
+        session = FakeSession([FakeStreamFailure({"error": {"message": "Our servers are currently overloaded. Please try again later."}})])
+        provider = OpenAICompatibleProvider(api_key="secret", base_url="https://example.test/v1/responses",
+                                            text_model="text", session=session)
+        with self.assertRaises(ProviderRequestError) as caught:
+            provider.create_response([{"role": "user", "content": "hello"}])
+        self.assertTrue(caught.exception.transient)
 
     def test_http_429_is_transient(self):
         provider = self.provider([FakeResponse({"error": {"message": "slow down"}}, 429)])
