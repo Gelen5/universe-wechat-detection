@@ -756,6 +756,8 @@ def _validated_local_edits(
                 anchor = anchors[issue_index]
                 if candidate.count(anchor) == 1:
                     before = anchor
+                    if not isinstance(after, str) and isinstance(edit.get('replacement'), str):
+                        after = edit['replacement']
                 elif not (isinstance(before, str) and before.count(anchor) == 1
                           and len(before) <= 500 and candidate.count(before) == 1):
                     occurrence = edit.get('occurrence')
