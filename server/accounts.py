@@ -36,6 +36,10 @@ OWNER_EMAIL = (os.getenv("CREATOR_OWNER_EMAIL") or "gelen5@163.com").strip().low
 NEW_USER_TRIAL_POINTS = max(0, int(os.getenv("CREATOR_NEW_USER_TRIAL_POINTS", "30") or 30))
 
 DEFAULT_PRICING = [
+    ("POST", "/api/qihaoshou/generate", "起号兽写作", 10, 0),
+    ("POST", "/api/qihaoshou/titles", "起号兽候选标题", 3, 0),
+    ("POST", "/api/qihaoshou/deai", "起号兽表达优化", 5, 0),
+    ("POST", "/api/qihaoshou/image", "起号兽文章配图", 30, 0),
     ("POST", "/api/diagnose", "公众号诊断", 10, 0),
     ("POST", "/api/xiaohongshu/package", "小红书图文生成", 10, 0),
     ("POST", "/api/tie-tu/plan", "微信贴图策划", 10, 0),

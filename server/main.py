@@ -20,6 +20,7 @@ from . import workbench
 from . import conversation_repository, database
 from .workflow_api import router as workflow_router
 from .conversation_api import router as conversation_router
+from .qihaoshou import router as qihaoshou_router
 from .workflow_events import redis_ready
 from .observability import event as log_event
 
@@ -41,6 +42,7 @@ accounts.recover_interrupted_workbench_jobs()
 database.require_postgres_in_production()
 app.include_router(workflow_router)
 app.include_router(conversation_router)
+app.include_router(qihaoshou_router)
 
 
 @app.middleware("http")
@@ -84,7 +86,7 @@ async def account_and_points_gate(request: Request, call_next):
 
     # The long-running full workbench owns billing in its background job so a
     # later provider failure can refund points after the HTTP response returned.
-    rule = accounts.pricing_rule(request.method, path) if user and path != "/api/workbench/sessions" else None
+    rule = accounts.pricing_rule(request.method, path) if user and path not in {"/api/workbench/sessions", "/api/qihaoshou/generate"} else None
     usage_id = None
     started = time.perf_counter()
     if rule:

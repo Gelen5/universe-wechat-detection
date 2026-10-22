@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>起号兽写作 · 宇宙创作台</title>
+    <link rel="stylesheet" href="/static/qihaoshou.css?v=1" />
+  </head>
+  <body>
+    <header class="studio-header">
+      <a href="/" class="back">← 工作台</a>
+      <div>
+        <h1>起号兽写作</h1>
+        <span>从一个想法，到一篇可以交付的文章</span>
+      </div>
+      <div class="header-actions">
+        <span id="q-wallet"></span
+        ><button id="q-new" type="button">新建文章</button>
+      </div>
+    </header>
+    <div id="q-login" class="login-panel" hidden>
+      <h2>登录后开始创作</h2>
+      <p>沿用工作台账号、积分和模型设置。</p>
+      <form id="q-login-form">
+        <label
+          >邮箱<input
+            id="q-email"
+            type="email"
+            autocomplete="username"
+            required /></label
+        ><label
+          >密码<input
+            id="q-password"
+            type="password"
+            autocomplete="current-password"
+            required /></label
+        ><button class="primary" type="submit">登录</button
+        ><a href="/">返回首页注册</a>
+      </form>
+      <p id="q-login-error" role="alert"></p>
+    </div>
+    <main id="q-studio" class="studio" hidden>
+      <aside class="settings panel">
+        <div class="panel-title">
+          <span class="eyebrow">01 / 创作设定</span>
+          <h2>这次，想写什么？</h2>
+        </div>
+        <label
+          >最近草稿<select id="q-history">
+            <option value="">选择历史文章</option>
+          </select></label
+        >
+        <label
+          >文章主题<textarea
+            id="q-topic"
+            rows="3"
+            maxlength="1000"
+            placeholder="例如：普通创作者怎样把 AI 用进每天的写作"
+          ></textarea>
+        </label>
+        <label
+          >目标读者<input id="q-audience" value="公众号读者" maxlength="200"
+        /></label>
+        <div class="field-row">
+          <label>写作风格<select id="q-style"></select></label
+          ><label
+            >目标字数<select id="q-length">
+              <option value="600">短文 · 600 字</option>
+              <option value="1200" selected>长文 · 1200 字</option>
+              <option value="2000">深度 · 2000 字</option>
+              <option value="3000">专题 · 3000 字</option>
+            </select></label
+          >
+        </div>
+        <label>排版主题<select id="q-theme"></select></label
+        ><button id="q-layout" type="button">将主题应用到正文</button>
+        <details>
+          <summary>参考文章与写作要求</summary>
+          <label
+            >参考文章链接<input
+              id="q-source-url"
+              type="url"
+              placeholder="https://…" /></label
+          ><label
+            >参考正文<textarea
+              id="q-reference"
+              rows="5"
+              maxlength="30000"
+              placeholder="链接无法读取时，直接粘贴正文"
+            ></textarea></label
+          ><label
+            >补充要求<textarea
+              id="q-instructions"
+              rows="3"
+              maxlength="2000"
+              placeholder="需要保留的事实、表达方向、避免的内容"
+            ></textarea>
+          </label>
+        </details>
+        <div id="q-provider" class="capabilities"></div>
+        <p id="q-cost" class="hint"></p>
+        <button id="q-generate" class="primary" type="button">开始写作</button
+        ><button id="q-stop" type="button" hidden>停止生成，保留原稿</button>
+      </aside>
+      <section class="conversation panel">
+        <div class="panel-title">
+          <span class="eyebrow">02 / 写作过程</span>
+          <h2>让想法逐渐成形</h2>
+          <p>生成过程实时显示，完成后同步到右侧编辑区。</p>
+        </div>
+        <div id="q-status" role="status" aria-live="polite">准备就绪</div>
+        <pre id="q-stream" aria-label="生成过程">
+写下主题，选择风格，开始你的第一篇文章。</pre>
+        <div class="extensions">
+          <h3>继续打磨</h3>
+          <div class="extension-actions">
+            <button id="q-titles" type="button">候选标题</button
+            ><button id="q-deai" type="button">去 AI · 表达优化</button>
+          </div>
+          <div id="q-title-list"></div>
+          <label
+            >配图画面<textarea
+              id="q-image-prompt"
+              rows="2"
+              maxlength="2000"
+              placeholder="例如：阳光下的创作者书桌，纸张、笔与电脑，写实摄影"
+            ></textarea></label
+          ><button id="q-image" type="button">生成并插入配图</button>
+          <p class="hint">首张配图用作公众号封面。配图另计积分。</p>
+        </div>
+      </section>
+      <section class="editor panel">
+        <div class="panel-title editor-title">
+          <div>
+            <span class="eyebrow">03 / 文章编辑</span>
+            <h2>把内容，变成作品</h2>
+          </div>
+          <span id="q-save-state">尚未保存</span>
+        </div>
+        <label class="title-label"
+          >文章标题<input id="q-title" maxlength="120" placeholder="文章标题"
+        /></label>
+        <div
+          id="q-toolbar"
+          class="toolbar"
+          role="toolbar"
+          aria-label="正文格式"
+        >
+          <button data-command="bold" type="button" title="加粗">
+            <b>B</b></button
+          ><button data-command="italic" type="button" title="斜体">
+            <i>I</i></button
+          ><button data-command="underline" type="button" title="下划线">
+            <u>U</u></button
+          ><button data-command="formatBlock" data-value="h2" type="button">
+            小标题</button
+          ><button data-command="formatBlock" data-value="p" type="button">
+            正文</button
+          ><button
+            data-command="formatBlock"
+            data-value="blockquote"
+            type="button"
+          >
+            引用</button
+          ><button data-command="insertUnorderedList" type="button">列表</button
+          ><button data-command="justifyLeft" type="button">左对齐</button
+          ><button data-command="justifyCenter" type="button">居中</button
+          ><button data-command="undo" type="button">撤销</button
+          ><button data-command="redo" type="button">重做</button
+          ><label
+            >字号<select id="q-font">
+              <option value="16px">16px</option>
+              <option value="14px">14px</option>
+              <option value="18px">18px</option>
+              <option value="20px">20px</option>
+              <option value="24px">24px</option>
+            </select></label
+          ><label
+            >字色<input id="q-color" type="color" value="#128263"
+          /></label>
+        </div>
+        <iframe
+          id="q-editor"
+          title="可编辑文章预览"
+          sandbox="allow-same-origin"
+          srcdoc="<!doctype html><html lang='zh-CN'><meta charset='utf-8'><style>body{font-family:Microsoft YaHei,sans-serif;line-height:1.9;padding:20px;margin:0;color:#26352f;overflow-wrap:anywhere}body:empty:before{content:'可以直接粘贴文章，也可以等待左侧生成';color:#6b7280}img{max-width:100%;height:auto}</style><body contenteditable='true' aria-label='文章正文'></body></html>"
+        ></iframe>
+        <footer class="delivery">
+          <button id="q-save" type="button">保存草稿</button
+          ><button id="q-copy" type="button">复制带格式正文</button
+          ><button id="q-export" type="button">导出 HTML</button
+          ><button id="q-publish" class="primary" type="button">
+            同步公众号草稿箱
+          </button>
+          <p id="q-wechat-hint" class="hint"></p>
+        </footer>
+      </section>
+    </main>
+    <script type="module" src="/static/qihaoshou.js?v=1"></script>
+  </body>
+</html>

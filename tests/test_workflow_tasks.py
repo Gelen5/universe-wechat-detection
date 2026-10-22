@@ -36,6 +36,10 @@ class WorkflowTaskChainTests(unittest.TestCase):
             patch("server.workflow_tasks.execute_node", side_effect=lambda workflow, node: {f"result_{node}": True}),
             patch("server.workflow_tasks.node_lock", side_effect=lambda *args, **kwargs: contextlib.nullcontext()),
             patch("server.workflow_tasks.notify"),
+            # This suite replaces node execution; provider configuration belongs
+            # to the adapter tests, not this temporary engine's schema.
+            patch("server.workflow_tasks.workbench.provider_overrides",
+                  side_effect=lambda *args, **kwargs: contextlib.nullcontext()),
         ]
         for item in self.patches:
             item.start()
