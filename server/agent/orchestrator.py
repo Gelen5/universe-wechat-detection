@@ -8,6 +8,7 @@ from typing import Callable
 from .. import conversation_repository
 from ..agent_events import notify
 from ..providers import ModelService, ProviderRequestError
+from .failures import fail_run
 from ..skills.registry import SkillRegistry
 from ..skills.runtime import load_instructions
 from ..skills.tool_result import ArtifactOutput, ToolResult
@@ -24,6 +25,38 @@ WECHAT_STAGE_TO_TOOL = {
     "deai": "review_article",
     "typeset": "typeset_article",
 }
+
+STAGE_LABELS = {
+    "topic": "选题", "outline": "大纲", "writing": "写作",
+    "deai": "去 AI 复核", "typeset": "排版",
+}
+
+STAGE_REQUIREMENTS = {
+    "topic": "围绕用户方向生成 10 个差异明显、能真正展开的公众号选题；"
+             "不写正文、不生成配图、不排版，也不要重复历史选题。",
+    "outline": "为下面已确认的选题生成可编辑的公众号大纲；只输出结构，不写正文。",
+    "writing": "按已确认的大纲写完整公众号正文；不配图、不排版，不改动选题方向。",
+    "deai": "只对当前最新正文做事实边界与表达复核并保存修订稿；不改选题、不掉事实、不改结构。",
+    "typeset": "只用当前最新正文生成公众号 HTML；不改写正文、不配图，不新增事实。",
+}
+
+
+def stage_contract(stage: str, tool: str, content_json: dict) -> str:
+    """Server-side stage prompt so the composer can stay a plain chat box."""
+    label = STAGE_LABELS.get(stage, stage)
+    direction = str(content_json.get("topic_direction") or "").strip()
+    selected = str(content_json.get("selected_topic") or "").strip()
+    lines = [
+        f"当前只执行公众号创作的「{label}」阶段（workflow_stage={stage}）。",
+        f"必须调用 {tool} 工具一次，不要调用其它阶段的工具，不要生成图片。",
+    ]
+    if direction:
+        lines.append(f"用户本轮方向：{direction}")
+    if selected:
+        lines.append(f"已确认选题：{selected}")
+    lines.append(f"阶段要求：{STAGE_REQUIREMENTS.get(stage, '只完成当前阶段。')}")
+    lines.append("完成后只用一句话说明本阶段结果，不要在回复里重复整篇作品。")
+    return "\n".join(lines)
 
 
 class AgentOrchestrator:
@@ -161,7 +194,8 @@ class AgentOrchestrator:
                 answer = result.text
             else:
                 tools = self.tool_resolver(decision.skill_id, run_id, user_id)
-                stage = (trigger_message or {}).get("content_json", {}).get("workflow_stage")
+                content_json = (trigger_message or {}).get("content_json") or {}
+                stage = content_json.get("workflow_stage") if isinstance(content_json, dict) else None
                 required_tool = (WECHAT_STAGE_TO_TOOL.get(stage)
                                  if decision.skill_id == "wechat_writer" and isinstance(stage, str) else None)
                 if required_tool:
@@ -169,9 +203,7 @@ class AgentOrchestrator:
                         raise RuntimeError(f"Skill stage tool unavailable: {required_tool}")
                     tools = {required_tool: tools[required_tool]}
                     history.insert(0, {"role": "system", "content":
-                        f"当前只执行公众号创作的 {stage} 阶段。必须调用 {required_tool} 工具一次，"
-                        "使用用户本轮确认的选题与当前最新作品。不要调用其他阶段或生成图片。"
-                        "完成后只用一句话说明本阶段结果，不要在回复中重复整篇作品。"})
+                                       stage_contract(stage, required_tool, content_json)})
                 if any(phrase in trigger for phrase in (
                     "只生成文字", "不要生成图片", "不要生成配图", "不需要配图", "无需配图",
                 )):
@@ -209,14 +241,10 @@ class AgentOrchestrator:
         except ProviderRequestError as exc:
             if exc.transient:
                 raise
-            conversation_repository.transition_run(
-                run_id, user_id, "failed", error_code=exc.code,
-                error_message=str(exc), task_id=task_id,
-            )
+            fail_run(run_id, user_id, exc, task_id=task_id)
             notify(run_id)
             raise
         except Exception as exc:
-            conversation_repository.transition_run(run_id, user_id, "failed",
-                                                   error_code=type(exc).__name__, error_message=str(exc), task_id=task_id)
+            fail_run(run_id, user_id, exc, task_id=task_id)
             notify(run_id)
             raise

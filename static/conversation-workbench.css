@@ -146,3 +146,48 @@
   #workbench.normalized-conversation[data-output-open="true"] .article-canvas { display: flex !important; }
   #workbench.normalized-conversation .workbench-stage-nav { overflow-x: auto; grid-template-columns: repeat(5, minmax(105px, 1fr)); }
 }
+
+/* ---- 对话流里的失败卡片与"下一步"卡片 ---- */
+#workbench.normalized-conversation .chat-thread .chat-message p { white-space: pre-wrap; }
+#workbench.normalized-conversation .chat-message.is-failure {
+  border-left: 2px solid #d93025; background: #fff7f6;
+}
+#workbench.normalized-conversation .chat-message.is-failure > span { color: #b3261e; }
+#workbench.normalized-conversation .chat-failure p { margin: 0 0 8px; color: #3c2b29; }
+#workbench.normalized-conversation .chat-failure-tech { margin: 6px 0 10px; font-size: 12px; color: #7a6a68; }
+#workbench.normalized-conversation .chat-failure-tech summary { cursor: pointer; }
+#workbench.normalized-conversation .chat-failure-tech code {
+  display: block; margin-top: 6px; padding: 8px 10px; border-radius: 6px;
+  background: #f4efee; color: #4a3b39; white-space: pre-wrap; word-break: break-all;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+#workbench.normalized-conversation .chat-failure-actions,
+#workbench.normalized-conversation .chat-action-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+#workbench.normalized-conversation .chat-action-primary,
+#workbench.normalized-conversation .chat-action-ghost {
+  min-height: 34px; padding: 7px 14px; border-radius: 7px; font: inherit; font-size: 13px; cursor: pointer;
+}
+#workbench.normalized-conversation .chat-action-primary {
+  border: 1px solid #202328; background: #202328; color: #fff;
+}
+#workbench.normalized-conversation .chat-action-primary:hover { background: #000; }
+#workbench.normalized-conversation .chat-action-ghost {
+  border: 1px solid #d8dbe0; background: #fff; color: #202124;
+}
+#workbench.normalized-conversation .chat-action-ghost:hover { border-color: #b9bdc4; }
+#workbench.normalized-conversation .chat-action-card {
+  margin: 14px 0 4px; padding: 14px 16px; border: 1px solid #e1e3e6; border-radius: 10px;
+  background: #fafafa;
+}
+#workbench.normalized-conversation .chat-action-card > strong { display: block; font-size: 13px; color: #202124; }
+#workbench.normalized-conversation .chat-action-card > p {
+  margin: 5px 0 0; color: var(--text-secondary, #667085); font-size: 12.5px; line-height: 1.6;
+}
+#workbench.normalized-conversation .chat-choice-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+#workbench.normalized-conversation .chat-choice-row button {
+  max-width: 100%; padding: 8px 12px; border: 1px solid #e1e3e6; border-radius: 999px;
+  background: #fff; color: #25282c; font: inherit; font-size: 12.5px; line-height: 1.4;
+  text-align: left; cursor: pointer;
+}
+#workbench.normalized-conversation .chat-choice-row button:hover { border-color: #2578d2; color: #1a5fa8; }
+

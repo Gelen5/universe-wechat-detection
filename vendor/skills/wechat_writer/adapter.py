@@ -24,6 +24,7 @@ def create_tools():
         evidence = {
             "checked_at": research.get("checked_at"),
             "search_status": research.get("status", "unavailable"),
+            "hotspot_status": session.get("hotspot_status", "unavailable"),
             "search_sources": [{
                 "provider": source.get("provider", "search"),
                 "title": source.get("title", ""),

@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Callable
 
 from . import conversation_repository
+from .agent.failures import fail_run
 from .agent.orchestrator import AgentOrchestrator
 from .agent.runtime import build_orchestrator
 from .agent_events import notify
@@ -61,10 +62,8 @@ def execute_agent_run(self, run_id: str):
             raise self.retry(exc=exc, countdown=min(30, 2 ** (self.request.retries + 1)))
         current = conversation_repository.get_run(run_id, claimed["user_id"])
         if current and current["status"] not in {"completed", "failed", "cancelled"}:
-            conversation_repository.transition_run(
-                run_id, claimed["user_id"], "failed", error_code=exc.code,
-                error_message=str(exc), task_id=self.request.id,
-            )
+            fail_run(run_id, claimed["user_id"], exc, task_id=self.request.id)
+            notify(run_id)
         raise
     except Exception as exc:
         log_event("agent.run.failed", run_id=run_id, user_id=claimed["user_id"],
@@ -72,10 +71,8 @@ def execute_agent_run(self, run_id: str):
                   task_id=self.request.id, status="failed", error_code=type(exc).__name__)
         current = conversation_repository.get_run(run_id, claimed["user_id"])
         if current and current["status"] not in {"completed", "failed", "cancelled"}:
-            conversation_repository.transition_run(
-                run_id, claimed["user_id"], "failed", error_code=type(exc).__name__,
-                error_message=str(exc), task_id=self.request.id,
-            )
+            fail_run(run_id, claimed["user_id"], exc, task_id=self.request.id)
+            notify(run_id)
         raise
 
 

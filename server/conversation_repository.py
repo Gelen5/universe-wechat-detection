@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -333,7 +334,9 @@ def transition_run(run_id: str, user_id: str, status: str, *, error_code: str | 
         if task_id is not None and row.celery_task_id != task_id:
             raise RuntimeError("run execution lease changed")
         now = _now()
-        if row.status in {"completed", "failed", "cancelled"} and row.status != status:
+        if row.status in {"completed", "failed", "cancelled"}:
+            # A terminal run is final: re-entering the same status would issue a
+            # second refund and a second run.failed event.
             raise ValueError("terminal run cannot transition")
         row.status, row.updated_at = status, now
         row.error_code, row.error_message = error_code, error_message
@@ -346,10 +349,13 @@ def transition_run(run_id: str, user_id: str, status: str, *, error_code: str | 
             _settle_usage_locked(db, row)
         elif status in {"failed", "cancelled"}:
             _refund_usage_locked(db, row, 499 if status == "cancelled" else 500)
-        _event(db, row, f"run.{status}", {
-            "error_code": error_code, "error_message": error_message,
-        } if error_code or error_message else {})
-        return _run_view(row)
+        view = _run_view(row)
+        # Event payloads travel to the browser over SSE: expose the bounded code
+        # only. The raw provider message stays in runs.error_message for operators.
+        payload = {"error_code": error_code, "error_kind": view["error_kind"]} \
+            if (error_code or error_message) else {}
+        _event(db, row, f"run.{status}", payload)
+        return view
 
 
 def claim_run(run_id: str, task_id: str) -> dict[str, Any] | None:
@@ -735,9 +741,28 @@ def _message_view(row: ConversationMessage) -> dict[str, Any]:
             "metadata": row.metadata_json, "created_at": row.created_at.isoformat()}
 
 
+_SECRET_PATTERN = re.compile(r"\b(?:sk|ak)-[A-Za-z0-9_\-]{6,}", re.I)
+
+# Failure codes written by server.agent.failures.describe(); surfaced verbatim so
+# the client can pick a precise message instead of the generic fallback.
+FAILURE_KINDS = {
+    "provider_access", "provider_balance", "provider_connection", "queue",
+    "skill_missing", "stage_tool_missing", "topic_source", "topic_schema",
+    "provider", "timeout", "tool_limit", "tool_missing_call", "tool_error",
+}
+
+
+def _redact(value: str | None, limit: int = 400) -> str | None:
+    if not value:
+        return None
+    return _SECRET_PATTERN.sub("[已隐藏凭据]", str(value)).strip()[:limit]
+
+
 def _run_view(row: AgentRun) -> dict[str, Any]:
-    error_text = (row.error_message or "").lower()
-    if row.error_code == "ip_not_allowed" or "ip 不在令牌允许访问" in error_text:
+    error_text = row.error_message or ""
+    if row.error_code in FAILURE_KINDS:
+        error_kind = row.error_code
+    elif row.error_code == "ip_not_allowed" or "ip 不在令牌允许访问" in error_text:
         error_kind = "provider_access"
     elif any(marker in error_text for marker in ("额度不足", "余额不足", "insufficient balance", "insufficient_quota")):
         error_kind = "provider_balance"
@@ -745,15 +770,19 @@ def _run_view(row: AgentRun) -> dict[str, Any]:
         error_kind = "provider_connection"
     elif row.error_code == "enqueue_failed":
         error_kind = "queue"
+    elif row.error_code:
+        error_kind = "tool_error"
     else:
         error_kind = None
+    # Only the bounded code leaves the server: raw provider messages can carry
+    # request ids and account hints. Operators read runs.error_message instead.
     return {"id": row.id, "conversation_id": row.conversation_id,
             "trigger_message_id": row.trigger_message_id, "user_id": row.user_id,
             "skill_id": row.skill_id, "status": row.status, "usage_id": row.usage_id,
             "cost_points": row.cost_points, "provider_cost_micros": row.provider_cost_micros,
             "celery_task_id": row.celery_task_id, "attempt": row.attempt,
             "heartbeat_at": row.heartbeat_at.isoformat() if row.heartbeat_at else None,
-            "error_kind": error_kind}
+            "error_kind": error_kind, "error_code": row.error_code}
 
 
 def _artifact_view(row: Artifact) -> dict[str, Any]:
