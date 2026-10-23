@@ -32,6 +32,30 @@
       if (el) nav.append(el);
     });
   }
+  // 按固定清单重建导航：不再依赖节点原来的位置
+  {
+    const plan = [
+      ['内容创作', ['/workbench', '/one-click-writing', '/xiaohongshu', '/tie-tu', '/morning-generator']],
+      ['分析', ['/diagnose', '/hit-detector']],
+      ['资源', ['/market', '/bookshelf']],
+    ];
+    const home = nav.querySelector('a[href="/"]');
+    const frag = document.createDocumentFragment();
+    for (const [label, hrefs] of plan) {
+      const cap = document.createElement('div');
+      cap.className = 'nav-group-label';
+      cap.textContent = label;
+      frag.appendChild(cap);
+      for (const href of hrefs) {
+        const el = nav.querySelector(`a[href="${href}"], a[data-view][href$="${href}"]`);
+        if (el) frag.appendChild(el);
+      }
+    }
+    nav.innerHTML = '';
+    if (home) nav.appendChild(home);
+    nav.appendChild(frag);
+  }
+
   nav.querySelector('[data-view=diagnose] span').textContent='账号诊断';
   nav.querySelector('[data-view=hit-detector] span').textContent='发布前复核';
   function syncNav() {
