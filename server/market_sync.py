@@ -14,6 +14,7 @@ import logging
 import os
 import time
 import zipfile
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -249,7 +250,7 @@ def sync(translate_items: bool = True) -> dict[str, Any]:
     translated = translate(items) if translate_items else 0
     payload = {
         "items": items,
-        "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+        "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
         "source": source,
         "count": len(items),
         "translated": sum(1 for item in items if item.get("description_zh")),

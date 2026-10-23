@@ -46,6 +46,15 @@
     return Number(value || 0).toLocaleString('en-US');
   }
 
+  function formatWhen(value) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value || '');
+    return date.toLocaleString('zh-CN', {
+      timeZone: 'Asia/Shanghai', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hour12: false,
+    });
+  }
+
   function title(row) {
     return row.name_zh || row.name || '';
   }
@@ -116,7 +125,7 @@
       metaEls.repos.textContent = formatNumber(data.repos);
       metaEls.official.textContent = formatNumber(data.official);
       metaEls.updated.textContent = data.generated_at
-        ? `数据更新于 ${data.generated_at.slice(5, 16).replace('T', ' ')}`
+        ? `数据更新于 ${formatWhen(data.generated_at)}`
         : '尚未同步';
       renderCategories(data.categories || []);
     } catch (error) {
