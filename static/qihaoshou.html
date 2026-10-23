@@ -115,9 +115,11 @@
           <h3>继续打磨</h3>
           <div class="extension-actions">
             <button id="q-titles" type="button">候选标题</button
-            ><button id="q-deai" type="button">去 AI · 表达优化</button>
+            ><button id="q-deai" type="button">去 AI · 深度改稿</button>
           </div>
           <div id="q-title-list"></div>
+          <details id="q-deai-review" hidden><summary>去 AI 前后对照</summary><div id="q-deai-changes"></div><button id="q-deai-undo" type="button">恢复改写前正文</button></details>
+          <p class="hint">去 AI：深度改稿后独立复核事实与语义，5 积分；无有效修改或复核失败退回积分。</p>
           <label
             >配图画面<textarea
               id="q-image-prompt"

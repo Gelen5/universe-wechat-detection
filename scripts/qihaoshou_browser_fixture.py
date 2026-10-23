@@ -31,7 +31,11 @@ class Provider(BaseHTTPRequestHandler):
    self.send_header('Content-Type','application/json');self.end_headers();self.wfile.write(json.dumps({'data':[{'b64_json':encoded}]}).encode());return
   prompt=(data.get('messages') or data.get('input'))[-1]['content']
   if '拟5个' in prompt:result={'titles':['从一段记录开始写作','把素材整理成自己的文章','先把一件事情说明白']}
-  elif 'paragraphs' in prompt:result={'paragraphs':json.loads(prompt.rsplit('\n',1)[-1])}
+  elif '你是独立校对编辑' in prompt:result=dict(facts_preserved=True,stance_preserved=True,conditions_preserved=True,no_invention=True,readable=True,issues=[])
+  elif '你是中文深度编辑' in prompt:
+   blocks=json.loads(prompt.split('材料：',1)[1])
+   result={'edits':[{'id':part['id'],'text':part['text'].replace('先记录今天发生的事情','先把今天发生的事记下来')} for block in blocks for part in block['parts']]}
+
   else:result=None
   text=json.dumps(result,ensure_ascii=False) if result else ARTICLE
   if data.get('stream'):

@@ -105,6 +105,26 @@ class WritingStudioTests(unittest.TestCase):
         self.assertEqual(result.status_code,502);self.assertEqual(self.balance(),97)
         self.assertEqual(self.client.get('/api/qihaoshou/sessions/'+self.data['id']).json()['html'],self.data['html'])
 
+    def test_deai_changes_review_undo_and_noop_refund(self):
+        old = self.data['html']
+        review = dict(facts_preserved=True, stance_preserved=True, conditions_preserved=True, no_invention=True, readable=True, issues=[])
+        with patch.object(q,'provider_ready'), patch.object(workbench,'_json_text',side_effect=[{'edits':[{'id':'0','text':'2026年，每天花10分钟记录；别把工具当作结果。'}]},review]):
+            result = self.client.post('/api/qihaoshou/deai',json=self.op())
+        self.assertEqual(result.status_code,200,result.text)
+        self.data = result.json()
+        self.assertEqual(self.balance(),95)
+        self.assertEqual(self.data['deai_review']['before_html'],old)
+        self.assertIn('别把工具',self.data['html'])
+        restored = self.client.post('/api/qihaoshou/deai-undo',json=self.op())
+        self.assertEqual(restored.status_code,200,restored.text)
+        self.data = restored.json()
+        self.assertEqual(self.data['html'],old)
+        self.assertEqual(self.balance(),95)
+        with patch.object(q,'provider_ready'), patch.object(workbench,'_json_text',return_value={'edits':[{'id':'0','text':'2026年每天记录10分钟，不把工具当作结果。'}]}):
+            result = self.client.post('/api/qihaoshou/deai',json=self.op())
+        self.assertEqual(result.status_code,502)
+        self.assertEqual(self.balance(),95)
+
     def test_image_insert_owned_asset_and_failed_image_refund(self):
         buffer=io.BytesIO();Image.new('RGB',(16,16),'green').save(buffer,'PNG')
         with tempfile.TemporaryDirectory() as folder,patch.object(q,'OUTPUT',Path(folder)),patch.object(q,'provider_ready'),patch.object(q.image_provider,'generate',return_value={'data':[{'b64_json':base64.b64encode(buffer.getvalue()).decode()}]}):

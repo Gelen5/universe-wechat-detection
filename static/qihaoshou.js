@@ -52,6 +52,15 @@ function showLogin() {
 }
 function fill(data) {
   current = data;
+  const changes = data.deai_review?.changes || [];
+  $("q-deai-review").hidden = !changes.length;
+  $("q-deai-changes").replaceChildren();
+  for (const change of changes) {
+    const before = document.createElement("p"), after = document.createElement("p");
+    before.textContent = "改前：" + change.before;
+    after.textContent = "改后：" + change.after;
+    $("q-deai-changes").append(before, after);
+  }
   for (const key of fields) $("q-" + key).value = data[key] ?? "";
   $("q-source-url").value = data.reference_url || "";
   if (body()) body().innerHTML = data.html || "";
@@ -324,10 +333,14 @@ $("q-titles").onclick = () =>
   });
 $("q-deai").onclick = () =>
   task(async () => {
-    status("正在检查表达并优化，原稿将在检查通过后更新…");
+    status("正在深度改稿并独立复核事实与语义，请稍候…");
     await extension("/deai");
-    status("表达优化通过保意检查，已保存；不保证任何检测结果");
+    status("深度改稿通过模型保意复核，已保存；可展开前后对照或恢复原稿");
   });
+$("q-deai-undo").onclick = () => task(async () => {
+  await extension("/deai-undo");
+  status("已恢复改写前正文并保存");
+});
 $("q-image").onclick = () =>
   task(async () => {
     const prompt = $("q-image-prompt").value.trim();
