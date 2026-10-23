@@ -103,6 +103,7 @@ html body.library-body, body.library-body .app-shell { background:var(--lib-pape
 .detail-save svg { width:19px; height:19px; }
 .detail-save[aria-pressed=true] svg { fill:var(--lib-green); }
 .detail-read-note { font-size:11px; color:var(--lib-muted); line-height:1.8; margin:12px 0 28px; }
+.detail-chapter-link { display:inline-flex; align-items:center; min-height:44px; color:var(--lib-green) !important; text-decoration:underline !important; text-underline-offset:3px; }
 .detail-about { border-top:1px solid var(--lib-line); padding:24px 0 0; margin-top:24px; }
 .detail-about h2 { font-size:17px; font-weight:600; margin:0 0 14px; }
 .detail-about p { color:#53584f; line-height:1.95; font-size:14px; margin:0 0 16px; }
