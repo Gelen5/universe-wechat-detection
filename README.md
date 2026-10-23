@@ -6,6 +6,8 @@
 
 ## 项目结构
 
+新增公开模块 **[AI 书架](/bookshelf)**：11 本经来源核实的 AI 教程，分类、搜索、Star 快照排序、书籍详情、收藏和作者官方阅读入口。无需登录，不转载教程正文。数据维护与验收见 [`docs/AI_BOOKSHELF.md`](docs/AI_BOOKSHELF.md)。
+
 ```text
 server/
   main.py                 FastAPI 与兼容 API 入口

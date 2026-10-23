@@ -1,0 +1,386 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-10-23T15:20:25+00:00",
+  "books": [
+    {
+      "id": "hermes",
+      "title": "Hermes Agent 橙皮书",
+      "subtitle": "自我进化的 AI Agent",
+      "author": "花叔（HuaShu）",
+      "description": "从安装与第一次对话开始，认识 Hermes 的记忆、技能、任务编排与部署方式。适合想把 Agent 放进日常工作流的读者。",
+      "category": "Agent",
+      "tags": [
+        "自动化",
+        "Skills"
+      ],
+      "cover": {
+        "type": "css",
+        "theme": "hermes",
+        "title": "Hermes\nAgent",
+        "series": "橙皮书 · ORANGE BOOK"
+      },
+      "githubUrl": "https://github.com/alchaincyf/hermes-agent-orange-book",
+      "readUrl": "https://www.workbuddy.cn/space/d/qAVr77wMMaD1AmkPtmL501",
+      "stars": 5010,
+      "starsUpdatedAt": "2026-10-23T15:20:25+00:00",
+      "license": {
+        "name": "MIT",
+        "url": "https://github.com/alchaincyf/hermes-agent-orange-book/blob/main/LICENSE",
+        "note": "已核实仓库 MIT 许可及版权声明；首版仍使用作者官方阅读入口。"
+      },
+      "readingMode": "official",
+      "featured": true,
+      "copyright": "版权归原作者花叔（HuaShu）所有。",
+      "sourceReadme": "https://github.com/alchaincyf/hermes-agent-orange-book/blob/main/README.md",
+      "verifiedAt": "2026-10-23T15:20:25+00:00",
+      "linkStatus": "reachable",
+      "linkCheckedAt": "2026-10-23T15:20:25+00:00",
+      "readUrlHttpStatus": 200
+    },
+    {
+      "id": "obsidian",
+      "title": "Obsidian + Claude Code 橙皮书",
+      "subtitle": "用 AI 重建你的第二大脑",
+      "author": "花叔（HuaShu）",
+      "description": "从笔记结构到 AI 协作，讨论如何用 Obsidian、Markdown 和 Claude Code 建立个人知识库，并整理可复用的工作流。",
+      "category": "知识管理",
+      "tags": [
+        "AI 编程",
+        "自动化"
+      ],
+      "cover": {
+        "type": "css",
+        "theme": "obsidian",
+        "title": "Obsidian\n+ Claude",
+        "series": "橙皮书 · ORANGE BOOK"
+      },
+      "githubUrl": "https://github.com/alchaincyf/obsidian-ai-orange-book",
+      "readUrl": "https://www.workbuddy.cn/space/d/g5E78ejX962o977geKeOjj",
+      "stars": 1478,
+      "starsUpdatedAt": "2026-10-23T15:20:25+00:00",
+      "license": {
+        "name": "学习交流 · 引用需署名",
+        "url": "https://github.com/alchaincyf/obsidian-ai-orange-book/blob/master/README.md",
+        "note": "作者的使用声明不等同于明确的商业再发布授权；本站仅提供介绍与官方链接。"
+      },
+      "readingMode": "official",
+      "featured": true,
+      "copyright": "版权归原作者花叔（HuaShu）所有。",
+      "sourceReadme": "https://github.com/alchaincyf/obsidian-ai-orange-book/blob/master/README.md",
+      "verifiedAt": "2026-10-23T15:20:25+00:00",
+      "linkStatus": "reachable",
+      "linkCheckedAt": "2026-10-23T15:20:25+00:00",
+      "readUrlHttpStatus": 200
+    },
+    {
+      "id": "deepseek",
+      "title": "DeepSeek Harness 橙皮书",
+      "subtitle": "从开机到拆开",
+      "author": "花叔（HuaShu）",
+      "description": "跟随作者的安装和运行记录，了解 DeepSeek Harness 的启动、工具、审批与插件机制。书中也保留了实测中遇到的问题。",
+      "category": "Agent",
+      "tags": [
+        "自动化"
+      ],
+      "cover": {
+        "type": "css",
+        "theme": "deepseek",
+        "title": "DeepSeek\nHarness",
+        "series": "橙皮书 · ORANGE BOOK"
+      },
+      "githubUrl": "https://github.com/alchaincyf/deepseek-harness-orange-book",
+      "readUrl": "https://www.workbuddy.cn/space/d/XABVjoKqAElOoh6PgTgjeM",
+      "stars": 1371,
+      "starsUpdatedAt": "2026-10-23T15:20:25+00:00",
+      "license": {
+        "name": "CC BY-NC-SA 4.0",
+        "url": "https://github.com/alchaincyf/deepseek-harness-orange-book/blob/main/README.md",
+        "note": "作者声明非商业许可；本站仅收录书目信息，不转载教程正文或原书封面。"
+      },
+      "readingMode": "official",
+      "featured": false,
+      "copyright": "版权归原作者花叔（HuaShu）所有。",
+      "sourceReadme": "https://github.com/alchaincyf/deepseek-harness-orange-book/blob/main/README.md",
+      "verifiedAt": "2026-10-23T15:20:25+00:00",
+      "linkStatus": "reachable",
+      "linkCheckedAt": "2026-10-23T15:20:25+00:00",
+      "readUrlHttpStatus": 200
+    },
+    {
+      "id": "loop",
+      "title": "Loop Engineering 橙皮书",
+      "subtitle": "让工作流自己转起来",
+      "author": "花叔（HuaShu）",
+      "description": "理解循环工程如何把调度、验证、记忆与下一步决策连接起来。从概念、组成到实际代价，建立对自动化循环的完整认识。",
+      "category": "自动化",
+      "tags": [
+        "Agent"
+      ],
+      "cover": {
+        "type": "css",
+        "theme": "loop",
+        "title": "Loop\nEngineering",
+        "series": "橙皮书 · ORANGE BOOK"
+      },
+      "githubUrl": "https://github.com/alchaincyf/loop-engineering-orange-book",
+      "readUrl": "https://www.workbuddy.cn/space/d/H6TXqZsuCnOeR3SvXpNXZk",
+      "stars": 1129,
+      "starsUpdatedAt": "2026-10-23T15:20:25+00:00",
+      "license": {
+        "name": "MIT",
+        "url": "https://github.com/alchaincyf/loop-engineering-orange-book/blob/main/LICENSE",
+        "note": "已核实仓库 MIT 许可及版权声明；首版仍使用作者官方阅读入口。"
+      },
+      "readingMode": "official",
+      "featured": false,
+      "copyright": "版权归原作者花叔（HuaShu）所有。",
+      "sourceReadme": "https://github.com/alchaincyf/loop-engineering-orange-book/blob/main/README.md",
+      "verifiedAt": "2026-10-23T15:20:25+00:00",
+      "linkStatus": "reachable",
+      "linkCheckedAt": "2026-10-23T15:20:25+00:00",
+      "readUrlHttpStatus": 200
+    },
+    {
+      "id": "codex",
+      "title": "OpenAI Codex 橙皮书",
+      "subtitle": "从工具上手到独立交付",
+      "author": "花叔（HuaShu）",
+      "description": "围绕 Codex 的命令行、桌面、云端与编辑器形态展开，介绍安装、协作和实际开发流程。不同语言版本的更新进度请以作者说明为准。",
+      "category": "AI 编程",
+      "tags": [
+        "Agent"
+      ],
+      "cover": {
+        "type": "css",
+        "theme": "codex",
+        "title": "Codex",
+        "series": "橙皮书 · ORANGE BOOK"
+      },
+      "githubUrl": "https://github.com/alchaincyf/codex-orange-book",
+      "readUrl": "https://www.workbuddy.cn/space/d/6X9tCSrgcsExJxZV9zSRhS",
+      "stars": 667,
+      "starsUpdatedAt": "2026-10-23T15:20:25+00:00",
+      "license": {
+        "name": "CC BY-NC-SA 4.0",
+        "url": "https://github.com/alchaincyf/codex-orange-book/blob/main/README.md",
+        "note": "作者声明非商业许可；本站仅收录书目信息，不转载教程正文或原书封面。"
+      },
+      "readingMode": "official",
+      "featured": true,
+      "copyright": "版权归原作者花叔（HuaShu）所有。",
+      "sourceReadme": "https://github.com/alchaincyf/codex-orange-book/blob/main/README.md",
+      "verifiedAt": "2026-10-23T15:20:25+00:00",
+      "linkStatus": "reachable",
+      "linkCheckedAt": "2026-10-23T15:20:25+00:00",
+      "readUrlHttpStatus": 200
+    },
+    {
+      "id": "claude",
+      "title": "Claude Code 橙皮书",
+      "subtitle": "AI 编程实战指南",
+      "author": "花叔（HuaShu）",
+      "description": "面向 Claude Code 使用者的实战指南，从基本操作到协作习惯，帮助读者把 AI 编程工具放进自己的开发过程。",
+      "category": "AI 编程",
+      "tags": [
+        "Agent",
+        "Skills"
+      ],
+      "cover": {
+        "type": "css",
+        "theme": "claude",
+        "title": "Claude\nCode",
+        "series": "橙皮书 · ORANGE BOOK"
+      },
+      "githubUrl": "https://github.com/alchaincyf/claude-code-orange-book",
+      "readUrl": "https://www.workbuddy.cn/space/d/cY2uZj6drEgu0MQnKRI0li",
+      "stars": 327,
+      "starsUpdatedAt": "2026-10-23T15:20:25+00:00",
+      "license": {
+        "name": "CC BY-NC-SA 4.0",
+        "url": "https://github.com/alchaincyf/claude-code-orange-book/blob/main/README.md",
+        "note": "作者声明非商业许可；本站仅收录书目信息，不转载教程正文或原书封面。"
+      },
+      "readingMode": "official",
+      "featured": false,
+      "copyright": "版权归原作者花叔（HuaShu）所有。",
+      "sourceReadme": "https://github.com/alchaincyf/claude-code-orange-book/blob/main/README.md",
+      "verifiedAt": "2026-10-23T15:20:25+00:00",
+      "linkStatus": "reachable",
+      "linkCheckedAt": "2026-10-23T15:20:25+00:00",
+      "readUrlHttpStatus": 200
+    },
+    {
+      "id": "vibe",
+      "title": "3D Vibe Coding 手册",
+      "subtitle": "从一句话到能跑的场景",
+      "author": "花叔（HuaShu）",
+      "description": "从生成 3D 资产到把模型接入可运行的场景，覆盖减面、绑骨、动画和项目组装；配套仓库提供示例与资源索引。",
+      "category": "AI 编程",
+      "tags": [
+        "自动化"
+      ],
+      "cover": {
+        "type": "css",
+        "theme": "vibe",
+        "title": "3D Vibe\nCoding",
+        "series": "橙皮书 · ORANGE BOOK"
+      },
+      "githubUrl": "https://github.com/alchaincyf/3d-vibe-coding-handbook",
+      "readUrl": "https://alchaincyf.github.io/3d-vibe-coding-handbook/book/index.html",
+      "stars": 298,
+      "starsUpdatedAt": "2026-10-23T15:20:25+00:00",
+      "license": {
+        "name": "CC BY-NC-SA 4.0",
+        "url": "https://github.com/alchaincyf/3d-vibe-coding-handbook/blob/master/README.md",
+        "note": "作者声明非商业许可；本站仅收录书目信息，不转载教程正文或原书封面。"
+      },
+      "readingMode": "official",
+      "featured": false,
+      "copyright": "版权归原作者花叔（HuaShu）所有。",
+      "sourceReadme": "https://github.com/alchaincyf/3d-vibe-coding-handbook/blob/master/README.md",
+      "verifiedAt": "2026-10-23T15:20:25+00:00",
+      "linkStatus": "reachable",
+      "linkCheckedAt": "2026-10-23T15:20:25+00:00",
+      "readUrlHttpStatus": 200
+    },
+    {
+      "id": "source",
+      "title": "Claude Code 源码解析",
+      "subtitle": "理解 Agent 的内部结构",
+      "author": "花叔（HuaShu）",
+      "description": "从架构与实现角度理解 Claude Code 的工具、上下文和会话机制。作者声明本书用于教育研究，并基于公开暴露的客户端代码分析。",
+      "category": "AI 编程",
+      "tags": [
+        "Agent"
+      ],
+      "cover": {
+        "type": "css",
+        "theme": "source",
+        "title": "Claude Code\n源码解析",
+        "series": "橙皮书 · ORANGE BOOK"
+      },
+      "githubUrl": "https://github.com/alchaincyf/claude-code-source-analysis-orange-book",
+      "readUrl": "https://www.workbuddy.cn/space/d/XFmwjvAbcxmujlmXdftvlK",
+      "stars": 113,
+      "starsUpdatedAt": "2026-10-23T15:20:25+00:00",
+      "license": {
+        "name": "教育研究声明 · 未明确授权商业转载",
+        "url": "https://github.com/alchaincyf/claude-code-source-analysis-orange-book/blob/main/README.md",
+        "note": "作者的使用声明不等同于明确的商业再发布授权；本站仅提供介绍与官方链接。"
+      },
+      "readingMode": "official",
+      "featured": false,
+      "copyright": "版权归原作者花叔（HuaShu）所有。",
+      "sourceReadme": "https://github.com/alchaincyf/claude-code-source-analysis-orange-book/blob/main/README.md",
+      "verifiedAt": "2026-10-23T15:20:25+00:00",
+      "linkStatus": "reachable",
+      "linkCheckedAt": "2026-10-23T15:20:25+00:00",
+      "readUrlHttpStatus": 200
+    },
+    {
+      "id": "harness",
+      "title": "Harness Engineering 橙皮书",
+      "subtitle": "AI Agent 缰绳工程学",
+      "author": "花叔（HuaShu）",
+      "description": "围绕指令、约束、反馈、记忆与编排，介绍让 Agent 更可靠的工程实践，并通过案例与上手路径解释这些组成如何协同。",
+      "category": "Agent",
+      "tags": [
+        "AI 编程",
+        "自动化"
+      ],
+      "cover": {
+        "type": "css",
+        "theme": "harness",
+        "title": "Harness\nEngineering",
+        "series": "橙皮书 · ORANGE BOOK"
+      },
+      "githubUrl": "https://github.com/alchaincyf/harness-engineering-orange-book",
+      "readUrl": "https://www.workbuddy.cn/space/d/XaAUeol6AD4lNQqk1NY00W",
+      "stars": 110,
+      "starsUpdatedAt": "2026-10-23T15:20:25+00:00",
+      "license": {
+        "name": "教育研究声明 · 未明确授权商业转载",
+        "url": "https://github.com/alchaincyf/harness-engineering-orange-book/blob/main/README.md",
+        "note": "作者的使用声明不等同于明确的商业再发布授权；本站仅提供介绍与官方链接。"
+      },
+      "readingMode": "official",
+      "featured": false,
+      "copyright": "版权归原作者花叔（HuaShu）所有。",
+      "sourceReadme": "https://github.com/alchaincyf/harness-engineering-orange-book/blob/main/README.md",
+      "verifiedAt": "2026-10-23T15:20:25+00:00",
+      "linkStatus": "reachable",
+      "linkCheckedAt": "2026-10-23T15:20:25+00:00",
+      "readUrlHttpStatus": 200
+    },
+    {
+      "id": "openclaw",
+      "title": "OpenClaw 橙皮书",
+      "subtitle": "构建你自己的 AI 助手",
+      "author": "花叔（HuaShu）",
+      "description": "从架构、部署到渠道接入，认识 OpenClaw 的技能、模型配置、安全与成本控制。阅读时请同时关注作者的版本说明。",
+      "category": "Agent",
+      "tags": [
+        "自动化",
+        "Skills"
+      ],
+      "cover": {
+        "type": "css",
+        "theme": "openclaw",
+        "title": "OpenClaw",
+        "series": "橙皮书 · ORANGE BOOK"
+      },
+      "githubUrl": "https://github.com/alchaincyf/openclaw-orange-book",
+      "readUrl": "https://www.workbuddy.cn/space/d/2UiiQIDT8kkhFn8seBRAS1",
+      "stars": 83,
+      "starsUpdatedAt": "2026-10-23T15:20:25+00:00",
+      "license": {
+        "name": "教育研究声明 · 未明确授权商业转载",
+        "url": "https://github.com/alchaincyf/openclaw-orange-book/blob/main/README.md",
+        "note": "作者的使用声明不等同于明确的商业再发布授权；本站仅提供介绍与官方链接。"
+      },
+      "readingMode": "official",
+      "featured": false,
+      "copyright": "版权归原作者花叔（HuaShu）所有。",
+      "sourceReadme": "https://github.com/alchaincyf/openclaw-orange-book/blob/main/README.md",
+      "verifiedAt": "2026-10-23T15:20:25+00:00",
+      "linkStatus": "reachable",
+      "linkCheckedAt": "2026-10-23T15:20:25+00:00",
+      "readUrlHttpStatus": 200
+    },
+    {
+      "id": "skills",
+      "title": "Agent Skills 橙皮书",
+      "subtitle": "把工作方法交给 AI",
+      "author": "花叔（HuaShu）",
+      "description": "从 Skills 的概念、安装与使用，到创建自己的 SKILL.md 和设计模式，学习如何把重复的工作方法组织成可复用的技能。",
+      "category": "Skills",
+      "tags": [
+        "Agent",
+        "自动化"
+      ],
+      "cover": {
+        "type": "css",
+        "theme": "skills",
+        "title": "Agent\nSkills",
+        "series": "橙皮书 · ORANGE BOOK"
+      },
+      "githubUrl": "https://github.com/alchaincyf/agent-skills-orange-book",
+      "readUrl": "https://www.workbuddy.cn/space/d/JEdWEHCbVQDe5RmhKwsz77",
+      "stars": 57,
+      "starsUpdatedAt": "2026-10-23T15:20:25+00:00",
+      "license": {
+        "name": "个人及教育使用 · 商业转载需授权",
+        "url": "https://github.com/alchaincyf/agent-skills-orange-book/blob/main/README.md",
+        "note": "作者的使用声明不等同于明确的商业再发布授权；本站仅提供介绍与官方链接。"
+      },
+      "readingMode": "official",
+      "featured": false,
+      "copyright": "版权归原作者花叔（HuaShu）所有。",
+      "sourceReadme": "https://github.com/alchaincyf/agent-skills-orange-book/blob/main/README.md",
+      "verifiedAt": "2026-10-23T15:20:25+00:00",
+      "linkStatus": "reachable",
+      "linkCheckedAt": "2026-10-23T15:20:25+00:00",
+      "readUrlHttpStatus": 200
+    }
+  ]
+}
