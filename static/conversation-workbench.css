@@ -188,11 +188,28 @@
 #workbench.normalized-conversation .chat-action-card > p {
   margin: 5px 0 0; color: var(--text-secondary, #667085); font-size: 12.5px; line-height: 1.6;
 }
-#workbench.normalized-conversation .chat-choice-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-#workbench.normalized-conversation .chat-choice-row button {
+#workbench.normalized-conversation .chat-choice-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }#workbench.normalized-conversation .chat-choice-row button {
   max-width: 100%; padding: 8px 12px; border: 1px solid #e1e3e6; border-radius: 999px;
   background: #fff; color: #25282c; font: inherit; font-size: 12.5px; line-height: 1.4;
   text-align: left; cursor: pointer;
 }
 #workbench.normalized-conversation .chat-choice-row button:hover { border-color: #2578d2; color: #1a5fa8; }
 
+
+/* ---- 长任务进度：每一步都可见，并显示已等待时长 ---- */
+#workbench.normalized-conversation .chat-steps {
+  list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 5px;
+}
+#workbench.normalized-conversation .chat-steps li {
+  position: relative; padding-left: 20px; font-size: 12.5px; line-height: 1.5; color: #8a8f96;
+}
+#workbench.normalized-conversation .chat-steps li::before {
+  content: "\25cb"; position: absolute; left: 0; top: 0; font-size: 12px;
+}
+#workbench.normalized-conversation .chat-steps li[data-state="active"] { color: #1a5fa8; font-weight: 600; }
+#workbench.normalized-conversation .chat-steps li[data-state="active"]::before { content: "\25d0"; color: #2578d2; }
+#workbench.normalized-conversation .chat-steps li[data-state="done"] { color: #2f7d4f; }
+#workbench.normalized-conversation .chat-steps li[data-state="done"]::before { content: "\2713"; color: #2f7d4f; }
+#workbench.normalized-conversation .chat-steps li[data-state="failed"] { color: #b3261e; }
+#workbench.normalized-conversation .chat-steps li[data-state="failed"]::before { content: "\2715"; color: #b3261e; }
+#workbench.normalized-conversation .chat-steps-hint { color: #9aa0a6 !important; font-size: 12px !important; }

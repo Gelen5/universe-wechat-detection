@@ -22,7 +22,7 @@ class AdapterProviderRetryTests(unittest.TestCase):
         self.assertIn("1. 场景", result.artifacts[0].content)
 
     def test_search_topics_keeps_actual_source_evidence_separate_from_suggestions(self):
-        def fake_suggestions(topic, persona, session):
+        def fake_suggestions(topic, persona, session, progress=None):
             session["topic_research"] = {
                 "checked_at": "2026-10-01T00:00:00Z", "status": "partial",
                 "sources": [{"provider": "google-news", "title": "真实搜索标题",

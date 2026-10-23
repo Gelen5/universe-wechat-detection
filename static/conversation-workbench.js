@@ -1,4 +1,4 @@
-(() => {
+﻿(() => {
   'use strict';
 
   const root = document.querySelector('#workbench.normalized-conversation');
@@ -52,6 +52,83 @@
     deai: '做一次去 AI 和事实复核',
     typeset: '把最新正文排版成公众号 HTML',
   };
+  // 每一步要等 1-4 分钟，必须让用户看见"现在在干什么、等了多久"。
+  const STAGE_STEPS = {
+    topic: [['submit', '提交任务'], ['intent', '理解要求'], ['hotspots', '抓取热点'],
+            ['search', '搜索参考'], ['generating', '生成方向'], ['saving', '保存结果']],
+    outline: [['submit', '提交任务'], ['intent', '理解要求'], ['generating', '生成大纲'],
+              ['saving', '保存结果']],
+    writing: [['submit', '提交任务'], ['intent', '理解要求'], ['generating', '撰写正文'],
+              ['saving', '保存结果']],
+    deai: [['submit', '提交任务'], ['intent', '理解要求'], ['generating', '复核与改写'],
+           ['saving', '保存结果']],
+    typeset: [['submit', '提交任务'], ['intent', '理解要求'], ['generating', '生成排版'],
+              ['saving', '保存结果']],
+  };
+  let progressStage = 'topic';
+  let progressSteps = [];
+  let stepState = {};
+  let progressNote = '';
+  let progressStartedAt = 0;
+  let progressTimer = null;
+
+  function formatElapsed(ms) {
+    const total = Math.max(0, Math.round(ms / 1000));
+    return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+  }
+
+  function tickProgress() {
+    if (!progressSteps.length) return;
+    const done = progressSteps.filter(step => ['done', 'skipped'].includes(stepState[step.key])).length;
+    const active = progressSteps.find(step => stepState[step.key] === 'active');
+    const failed = progressSteps.find(step => stepState[step.key] === 'failed');
+    const pct = Math.round((done / progressSteps.length) * 100);
+    if (progress && !progress.hidden) {
+      progressTitle.textContent = `正在执行：${stageLabel(progressStage)}`;
+      progressBar.style.width = `${Math.max(6, Math.min(100, pct))}%`;
+      const elapsed = `已等待 ${formatElapsed(Date.now() - progressStartedAt)}`;
+    const state = failed ? '这一步失败了' : (progressNote || (active ? `${active.label}…` : '即将完成'));
+      progressDetail.textContent = `${state} · ${elapsed}`;
+    }
+    const elapsedEl = thread.querySelector('#chat-elapsed');
+    if (elapsedEl) elapsedEl.textContent = `已等待 ${formatElapsed(Date.now() - progressStartedAt)}`;
+  }
+
+  function beginProgress(stage) {
+    progressStage = stages.some(item => item.id === stage) ? stage : activeStage;
+    const defs = STAGE_STEPS[progressStage] || STAGE_STEPS.topic;
+    progressSteps = defs.map(([key, label]) => ({ key, label }));
+    stepState = Object.fromEntries(progressSteps.map(step => [step.key, 'pending']));
+    stepState[progressSteps[0].key] = 'active';
+    progressNote = '';
+    progressStartedAt = Date.now();
+    clearInterval(progressTimer);
+    progressTimer = setInterval(tickProgress, 1000);
+    tickProgress();
+  }
+
+  function endProgress() {
+    clearInterval(progressTimer);
+    progressTimer = null;
+    progressSteps = [];
+    stepState = {};
+    progressNote = '';
+  }
+
+  function setStep(key, state, detail = '') {
+    if (!progressSteps.length || !(key in stepState)) return;
+    stepState[key] = state;
+    if (detail) progressNote = detail;
+    tickProgress();
+    if (progress && !progress.hidden) renderActionCard();
+  }
+
+  function activateNextStep(after = ['submit', 'intent']) {
+    const next = progressSteps.find(step => !after.includes(step.key)
+      && ['pending', 'active'].includes(stepState[step.key]));
+    if (next) setStep(next.key, 'active');
+  }
+
   let conversation = null;
   let activeRun = null;
   let source = null;
@@ -96,9 +173,11 @@
     progress.hidden = !value;
     progress.style.display = value ? '' : 'none';
     if (value) {
-      progressTitle.textContent = label || '正在处理你的请求';
-      progressDetail.textContent = '任务在后台执行，刷新页面也不会丢失';
-      progressBar.style.width = '42%';
+      if (!progressSteps.length) beginProgress(activeStage);
+      progressTitle.textContent = label || `正在执行：${stageLabel(progressStage)}`;
+      tickProgress();
+    } else {
+      endProgress();
     }
     renderStage();
     renderActionCard();
@@ -331,8 +410,14 @@
     const next = firstMissingStage();
     let html = '';
     if (busy) {
-      html = `<strong>正在执行：${escapeHtml(stageLabel(activeStage))}</strong>
-        <p>完成后会出现在这里；可以离开页面，任务不会丢。</p>`;
+      const steps = (progressSteps.length ? progressSteps : STAGE_STEPS.topic.map(([key, label]) => ({ key, label })))
+        .map(step => `<li data-state="${stepState[step.key] || 'pending'}">${escapeHtml(step.label)}</li>`)
+        .join('');
+      const elapsed = formatElapsed(Date.now() - (progressStartedAt || Date.now()));
+      html = `<strong>正在执行：${escapeHtml(stageLabel(progressStage || activeStage))}</strong>
+        <ol class="chat-steps">${steps}</ol>
+        <p><span id="chat-elapsed">已等待 ${elapsed}</span>${progressNote ? ` · ${escapeHtml(progressNote)}` : ''}</p>
+        <p class="chat-steps-hint">这一步通常要 1–4 分钟，可以离开页面，任务不会丢。</p>`;
     } else if (failure) {
       const meta = messageMeta(failure);
       const stage = meta.stage || activeStage;
@@ -501,9 +586,9 @@
     setBusy(true, `正在生成${stages.find(item => item.id === activeStage)?.label || '当前成果'}`);
     source = new EventSource(`/api/runs/${encodeURIComponent(runId)}/events`);
     const types = ['run.created', 'run.queued', 'run.started', 'run.running', 'run.waiting_input',
-      'skill.selected', 'stage.resolved', 'tool.started', 'tool.completed', 'tool.failed',
-      'artifact.created', 'artifact.updated', 'assistant.completed', 'run.completed',
-      'run.failed', 'run.cancelled'];
+      'skill.selected', 'stage.resolved', 'tool.started', 'tool.progress', 'tool.completed',
+      'tool.failed', 'artifact.created', 'artifact.updated', 'assistant.completed',
+      'run.completed', 'run.failed', 'run.cancelled'];
     types.forEach(type => source.addEventListener(type, async event => {
       let payload = {};
       try { payload = JSON.parse(event.data || '{}').payload || {}; } catch { /* non-fatal */ }
@@ -515,11 +600,47 @@
           // 重新出选题时旧的"已选方向"作废，避免拿旧标题去写大纲。
           if (payload.stage === 'topic' && payload.source === 'model') selectedTopic = '';
           selectStage(payload.stage);
+          if (!progress.hidden) beginProgress(payload.stage);
+          setStep('submit', 'done');
+          setStep('intent', 'done');
+          activateNextStep();
         }
         const reason = payload.reason || (payload.stage ? stageLabel(payload.stage) : '这是提问');
         appendProgress(`已理解：${reason}`, event.lastEventId);
         status.textContent = `已理解：${reason}`;
         return;
+      }
+      if (type === 'tool.progress') {
+        const step = String(payload.step || '');
+        if (step === 'hotspots') {
+          const running = payload.status === 'running';
+          setStep('hotspots', running ? 'active' : 'done',
+                  running ? '正在抓取热点' : `热点 ${payload.count ?? 0} 条`);
+          if (!running) setStep('search', 'active');
+        } else if (step === 'search') {
+          const running = payload.status === 'running';
+          setStep('search', running ? 'active' : 'done',
+                  running ? '正在搜索参考' : `搜索线索 ${payload.count ?? 0} 条`);
+          if (!running) setStep('generating', 'active');
+        } else if (step === 'generating') {
+          setStep('generating', 'active', payload.label || '生成中');
+        } else if (step === 'generated') {
+          setStep('generating', 'done', payload.label || `已生成 ${payload.count ?? ''}`);
+          setStep('saving', 'active');
+        }
+        appendProgress(progressNote || '正在执行', event.lastEventId);
+        status.textContent = progressNote || '正在执行';
+        return;
+      }
+      if (type === 'tool.started') {
+        setStep('generating', 'active');
+      } else if (type === 'artifact.created' || type === 'assistant.completed') {
+        setStep('saving', 'done');
+      } else if (type === 'run.completed') {
+        progressSteps.forEach(step => setStep(step.key, 'done'));
+      } else if (type === 'run.failed') {
+        const active = progressSteps.find(step => stepState[step.key] === 'active');
+        if (active) setStep(active.key, 'failed');
       }
       appendProgress(eventText(type, payload), event.lastEventId); status.textContent = eventText(type, payload);
       if (['run.completed', 'run.failed', 'run.cancelled', 'run.waiting_input'].includes(type)) {

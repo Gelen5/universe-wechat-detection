@@ -10,6 +10,15 @@ from server import workbench
 
 
 def create_tools():
+    def progress_for(context):
+        """把节点内部进度写进 Run 事件流，前端才能显示"卡在哪一步"。"""
+        def emit(step, detail=None):
+            try:
+                context.emit("tool.progress", {"step": step, **(detail or {})})
+            except Exception:
+                pass
+        return emit
+
     def latest_artifact(context, artifact_type, items=None):
         if items is None:
             items = conversation_repository.list_artifacts(context.conversation_id, context.user_id)
@@ -19,7 +28,8 @@ def create_tools():
     def search_topics(args, context):
         session = {}
         topics = with_provider(lambda: workbench._suggestions(
-            required_text(args, "topic"), str(args.get("persona") or "深度观察者"), session))
+            required_text(args, "topic"), str(args.get("persona") or "深度观察者"), session,
+            progress_for(context)))
         research = session.get("topic_research") or {}
         evidence = {
             "checked_at": research.get("checked_at"),
@@ -40,10 +50,13 @@ def create_tools():
 
     def create_outline(args, context):
         title = required_text(args, "title")
+        progress = progress_for(context)
+        progress("generating", {"label": "生成大纲"})
         frame = with_provider(lambda: workbench._framework(
             title, str(args.get("persona") or "深度观察者"),
             str(args.get("requirements") or "")))
         outline = "\n".join(f"{index}. {part}" for index, part in enumerate(frame["outline"], 1))
+        progress("generated", {"label": "大纲已生成", "count": len(frame["outline"])})
         return ToolResult({"title": title, "framework": frame}, (
             ArtifactOutput(type="outline", title=title, content=outline,
                            content_json={"framework": frame}),
@@ -65,7 +78,10 @@ def create_tools():
                 frame["outline"] = edited_lines
         if not isinstance(frame, dict) or not frame.get("outline"):
             frame = with_provider(lambda: workbench._framework(title, persona, requirements))
+        progress = progress_for(context)
+        progress("generating", {"label": "生成正文"})
         article = with_provider(lambda: workbench._draft(title, frame, persona, requirements))
+        progress("generated", {"label": "正文已生成", "count": len(article)})
         return article_result(title, article)
 
     def revise_article(args, context):
@@ -94,6 +110,7 @@ def create_tools():
             "skill_runs": [],
         }
         reviewed, report = with_provider(lambda: workbench._review(article, session))
+        progress_for(context)("generated", {"label": "复核完成", "count": len(reviewed)})
         return ToolResult({"title": session["topic"], "article": reviewed, "review": report}, (
             ArtifactOutput(type="article", title=session["topic"], content=reviewed),
             ArtifactOutput(type="report", title="反 AI 复核报告", content_json=report),
@@ -129,8 +146,10 @@ def create_tools():
                                       "file": filename, "caption": caption})
             session["image_plan"].setdefault("images", []).append(
                 {"kind": kind, "caption": caption})
+        progress_for(context)("generating", {"label": "生成公众号 HTML"})
         html = with_provider(lambda: workbench._typeset(session))
         preview = session.get("preview_document", "") or html
+        progress_for(context)("generated", {"label": "排版已完成", "count": len(preview)})
         return ToolResult({"html": html, "preview_document": preview}, (
             ArtifactOutput(type="html", title="排版结果", content=preview),
         ))

@@ -388,12 +388,23 @@ def provider_status() -> dict[str, Any]:
     }
 
 
-def _suggestions(topic: str, persona: str, session=None) -> list[dict[str, Any]]:
+def _emit_progress(progress, step: str, **detail) -> None:
+    """进度只是提示，绝不能因为它失败而影响节点执行。"""
+    if not progress:
+        return
+    try:
+        progress(step, detail)
+    except Exception:
+        pass
+
+
+def _suggestions(topic: str, persona: str, session=None, progress=None) -> list[dict[str, Any]]:
     """选题：热点/搜索只是参考信号，任何一路拿不到都必须降级而不是中断。"""
     seed = topic.strip() or "适合公众号读者的高价值内容"
     _require_skill()
     instructions, manifest = skill_runtime.context(SKILL_DIR, ('references/topic-selection.md',))
     hotspot_status = 'unavailable'
+    _emit_progress(progress, 'hotspots', status='running')
     try:
         hotspots = skill_runtime.script(SKILL_DIR, 'fetch_hotspots.py', '--source', 'all', '--limit', '30')
         if not isinstance(hotspots, list):
@@ -405,14 +416,19 @@ def _suggestions(topic: str, persona: str, session=None) -> list[dict[str, Any]]
         hotspots = []
         _record_skill(session, 1, '选题 Skill 热点抓取', manifest, ['fetch_hotspots.py'],
                       'degraded', f'热点未获取，已降级继续：{exc}')
+    _emit_progress(progress, 'hotspots', status=hotspot_status, count=len(hotspots or []))
+    _emit_progress(progress, 'search', status='running')
     research = workbench_research.search(seed)
     history = workbench_research.history(SKILL_DIR)
+    _emit_progress(progress, 'search', status=research.get('status'),
+                   count=len(research.get('sources') or []))
     if session is not None:
         session['topic_research'] = research
         session['history_check'] = history
         session['skill_hotspots'] = (hotspots or [])[:30]
         session['hotspot_status'] = hotspot_status
     minimum = max(3, min(10, int(_setting("WECHAT_TOPIC_MIN", "6") or 6)))
+    _emit_progress(progress, 'generating', status='running', minimum=minimum)
     try:
         data = _json_text(model=_setting("WECHAT_TOPIC_MODEL") or None,
                           base_url=_setting("WECHAT_TOPIC_API_BASE_URL") or None,
@@ -460,6 +476,7 @@ weChat-autoCreate Skill 热点脚本真实返回（status={hotspot_status}）：
     for index, item in enumerate(result, 1):
         item['id'] = index
         item['heat_label'] = '模型估计，非平台热度'
+    _emit_progress(progress, 'generated', status='done', count=len(result))
     _record_skill(session, 1,
                   f'选题 Skill：热点({hotspot_status})、搜索信号、历史去重与 {len(result)} 个方向生成',
                   manifest, ['fetch_hotspots.py'], 'passed',
