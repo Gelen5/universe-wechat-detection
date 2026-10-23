@@ -695,3 +695,35 @@ body.atelier.library-body .library-nav-footer {
     z-index: 60 !important;
   }
 }
+
+
+/* 手机：底部条内部用绝对定位，避免被 column 排版挤出可视区 */
+@media (max-width: 760px) {
+  body.atelier .app-shell > .v3-topbar .app-tabs,
+  body.atelier .v3-topbar.shell-nav .app-tabs {
+    position: absolute !important;
+    left: 8px !important;
+    right: 8px !important;
+    bottom: 8px !important;
+    top: auto !important;
+    height: 46px !important;
+    margin: 0 !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 2px !important;
+    transform: none !important;
+  }
+
+  body.atelier .app-shell > .v3-topbar .app-tabs a,
+  body.atelier .v3-topbar.shell-nav .app-tabs a {
+    flex: 1 1 0 !important;
+    height: 44px !important;
+    min-width: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 !important;
+  }
+}
