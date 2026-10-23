@@ -1,0 +1,477 @@
+/* Atelier skin for the public AI 超市 index. */
+
+body.atelier.market-body {
+  background: var(--a-stone);
+  color: var(--a-ink);
+  font-family: var(--a-sans);
+}
+
+body.atelier.market-body .market-page {
+  --m-bg: transparent;
+  --m-surface: var(--a-paper);
+  --m-surface-2: var(--a-stone-soft);
+  --m-text: var(--a-ink);
+  --m-text-2: var(--a-ink-soft);
+  --m-text-3: var(--a-muted);
+  --m-text-4: var(--a-muted);
+  --m-line: var(--a-line);
+  --m-line-2: var(--a-control);
+  --m-ikb: var(--a-celadon);
+  --m-ikb-soft: var(--a-celadon-soft);
+  --m-sans: var(--a-sans);
+  --m-mono: var(--a-sans);
+  color: var(--a-ink);
+  font-size: 14px;
+}
+
+body.atelier.market-body .market-topbar {
+  position: sticky;
+  top: 0;
+  background: var(--a-stone);
+  border-bottom: 1px solid var(--a-line);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+body.atelier.market-body .market-topbar .market-wrap {
+  height: 64px;
+  max-width: 1440px;
+  gap: 28px;
+}
+
+body.atelier.market-body .market-brand {
+  gap: 10px;
+  color: var(--a-ink);
+  font-family: var(--a-serif);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+body.atelier.market-body .market-mark {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  background: var(--a-celadon);
+}
+
+body.atelier.market-body .market-mark::after {
+  content: "宇";
+  position: static;
+  inset: auto;
+  border: 0;
+  transform: none;
+  color: var(--a-paper);
+  font-family: var(--a-serif);
+  font-size: 14px;
+  line-height: 1;
+}
+
+body.atelier.market-body .market-tabs {
+  gap: 2px;
+}
+
+body.atelier.market-body .market-tabs a {
+  padding: 7px 9px;
+  border-radius: 4px;
+  color: var(--a-muted);
+  font-size: 12.5px;
+}
+
+body.atelier.market-body .market-tabs a:hover {
+  background: var(--a-stone-soft);
+  color: var(--a-ink);
+}
+
+body.atelier.market-body .market-tabs a.active {
+  background: var(--a-stone-deep);
+  color: var(--a-ink);
+  font-weight: 500;
+}
+
+body.atelier.market-body .market-hero {
+  padding: 58px 0 30px;
+  border-bottom: 1px solid var(--a-line);
+}
+
+body.atelier.market-body .market-kicker {
+  display: none;
+}
+
+body.atelier.market-body .market-hero h1 {
+  margin: 0;
+  color: var(--a-ink);
+  font-family: var(--a-serif);
+  font-size: 44px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.035em;
+}
+
+body.atelier.market-body .market-hero p {
+  margin: 16px 0 0;
+  max-width: 56ch;
+  color: var(--a-muted);
+  font-size: 13px;
+  line-height: 1.9;
+}
+
+body.atelier.market-body .market-meta {
+  margin-top: 18px;
+  gap: 20px;
+  color: var(--a-muted);
+  font-family: var(--a-sans);
+  font-size: 11px;
+}
+
+body.atelier.market-body .market-meta b {
+  color: var(--a-ink);
+  font-weight: 600;
+}
+
+body.atelier.market-body .market-searchwrap {
+  padding: 24px 0 0;
+}
+
+body.atelier.market-body .market-search {
+  height: 48px;
+  padding: 0 14px;
+  border: 1px solid var(--a-control);
+  border-radius: 6px;
+  background: var(--a-paper);
+  box-shadow: none;
+}
+
+body.atelier.market-body .market-search:focus-within {
+  border-color: var(--a-celadon);
+  box-shadow: 0 0 0 3px var(--a-celadon-soft);
+}
+
+body.atelier.market-body .market-search input {
+  color: var(--a-ink);
+  font-family: var(--a-sans);
+  font-size: 14px;
+}
+
+body.atelier.market-body .market-search kbd {
+  border-color: var(--a-line);
+  border-radius: 3px;
+  background: var(--a-stone-soft);
+  color: var(--a-muted);
+  font-family: var(--a-sans);
+  font-size: 10.5px;
+}
+
+body.atelier.market-body .market-layout {
+  grid-template-columns: 190px minmax(0, 1fr);
+  gap: 48px;
+  padding: 38px 0 72px;
+}
+
+body.atelier.market-body .market-rail h2,
+body.atelier.market-body .market-section-head span,
+body.atelier.market-body .market-count,
+body.atelier.market-body .market-fcard .tag,
+body.atelier.market-body .market-fcard .src,
+body.atelier.market-body .market-row .meta,
+body.atelier.market-body .market-row .cat {
+  font-family: var(--a-sans);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+body.atelier.market-body .market-rail h2 {
+  margin-bottom: 10px;
+  color: var(--a-muted);
+  font-size: 11px;
+}
+
+body.atelier.market-body .market-rail a {
+  padding: 7px 0;
+  color: var(--a-muted);
+  font-size: 13px;
+}
+
+body.atelier.market-body .market-rail a:hover,
+body.atelier.market-body .market-rail a.on {
+  color: var(--a-celadon-deep);
+}
+
+body.atelier.market-body .market-rail a.on .n {
+  color: var(--a-celadon);
+}
+
+body.atelier.market-body .market-section-head h2 {
+  color: var(--a-ink);
+  font-family: var(--a-serif);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+body.atelier.market-body .market-section-head span {
+  color: var(--a-muted);
+  font-size: 10.5px;
+}
+
+body.atelier.market-body .market-featured {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+body.atelier.market-body .market-fcard {
+  padding: 16px;
+  border: 1px solid var(--a-line);
+  border-radius: 8px;
+  background: var(--a-paper);
+  box-shadow: none;
+  transition: border-color 0.16s ease, background 0.16s ease;
+}
+
+body.atelier.market-body .market-fcard:hover {
+  border-color: var(--a-control);
+  background: var(--a-paper-bright);
+  box-shadow: none;
+  transform: none;
+}
+
+body.atelier.market-body .market-fcard .tag {
+  color: var(--a-celadon-deep);
+  font-size: 10.5px;
+}
+
+body.atelier.market-body .market-fcard .tag::before {
+  background: var(--a-celadon);
+}
+
+body.atelier.market-body .market-fcard strong {
+  color: var(--a-ink);
+  font-family: var(--a-serif);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+body.atelier.market-body .market-fcard p {
+  color: var(--a-muted);
+  font-size: 12px;
+}
+
+body.atelier.market-body .market-fcard .src {
+  color: var(--a-muted);
+  font-size: 10.5px;
+}
+
+body.atelier.market-body .market-toolbar {
+  margin-top: 32px;
+  margin-bottom: 8px;
+}
+
+body.atelier.market-body .market-count {
+  color: var(--a-muted);
+  font-size: 11px;
+}
+
+body.atelier.market-body .market-seg {
+  gap: 2px;
+  padding: 2px;
+  border-radius: 4px;
+  background: var(--a-stone-soft);
+}
+
+body.atelier.market-body .market-seg button {
+  padding: 5px 10px;
+  border-radius: 3px;
+  color: var(--a-muted);
+  font-size: 11.5px;
+}
+
+body.atelier.market-body .market-seg button[aria-pressed="true"] {
+  background: var(--a-paper);
+  color: var(--a-ink);
+  box-shadow: none;
+}
+
+body.atelier.market-body .market-list {
+  border-top: 1px solid var(--a-line);
+}
+
+body.atelier.market-body .market-row {
+  grid-template-columns: minmax(0, 1fr) 120px 20px;
+  gap: 20px;
+  padding: 16px 8px;
+  border-bottom: 1px solid var(--a-line-soft);
+}
+
+body.atelier.market-body .market-row:hover {
+  background: var(--a-paper-warm);
+}
+
+body.atelier.market-body .market-row .name {
+  color: var(--a-ink);
+  font-family: var(--a-serif);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+body.atelier.market-body .market-badge {
+  padding: 1px 5px;
+  border: 1px solid var(--a-line);
+  border-radius: 2px;
+  color: var(--a-muted);
+  font-family: var(--a-sans);
+  font-size: 10.5px;
+  letter-spacing: 0;
+}
+
+body.atelier.market-body .market-badge.official {
+  border-color: var(--a-celadon);
+  background: var(--a-celadon-soft);
+  color: var(--a-celadon-deep);
+}
+
+body.atelier.market-body .market-row .desc {
+  margin-top: 5px;
+  color: var(--a-muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+body.atelier.market-body .market-row .meta {
+  margin-top: 6px;
+  color: var(--a-muted);
+  font-size: 10.5px;
+}
+
+body.atelier.market-body .market-row .stars {
+  color: var(--a-ink-soft);
+  font-family: var(--a-sans);
+  font-size: 12px;
+}
+
+body.atelier.market-body .market-row .cat {
+  color: var(--a-muted);
+  font-size: 10.5px;
+}
+
+body.atelier.market-body .market-row .go {
+  color: var(--a-line);
+}
+
+body.atelier.market-body .market-row:hover .go {
+  color: var(--a-celadon);
+}
+
+body.atelier.market-body .market-more button {
+  min-height: 32px;
+  padding: 6px 12px;
+  border: 1px solid var(--a-line);
+  border-radius: 4px;
+  color: var(--a-ink-soft);
+  font-size: 11px;
+}
+
+body.atelier.market-body .market-foot {
+  border-top: 1px solid var(--a-line);
+  padding: 22px 0 40px;
+}
+
+body.atelier.market-body .market-foot p {
+  color: var(--a-muted);
+  font-size: 10.5px;
+}
+
+body.atelier.market-body .market-foot a {
+  color: var(--a-celadon-deep);
+  border-bottom-color: var(--a-line);
+}
+
+body.atelier.market-body .market-admin-toggle {
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 4px;
+  background: var(--a-ink);
+  color: var(--a-paper);
+  font-size: 11px;
+  box-shadow: none;
+}
+
+body.atelier.market-body .market-admin {
+  border-left: 1px solid var(--a-line);
+  background: var(--a-paper);
+  box-shadow: -18px 0 48px rgba(20, 22, 18, 0.12);
+}
+
+body.atelier.market-body .market-admin h3 {
+  font-family: var(--a-serif);
+  font-size: 18px;
+}
+
+body.atelier.market-body .market-admin p.hint,
+body.atelier.market-body .market-admin label {
+  color: var(--a-muted);
+  font-size: 11px;
+}
+
+body.atelier.market-body .market-admin input,
+body.atelier.market-body .market-admin select,
+body.atelier.market-body .market-admin textarea {
+  border-color: var(--a-control);
+  border-radius: 4px;
+  background: var(--a-paper-bright);
+  color: var(--a-ink);
+  font-family: var(--a-sans);
+  font-size: 12px;
+}
+
+body.atelier.market-body .market-admin button.primary {
+  border-radius: 4px;
+  background: var(--a-ink);
+  color: var(--a-paper);
+  font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  body.atelier.market-body .market-topbar .market-wrap {
+    height: 58px;
+    gap: 10px;
+  }
+
+  body.atelier.market-body .market-brand-name {
+    display: none;
+  }
+
+  body.atelier.market-body .market-tabs a {
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+
+  body.atelier.market-body .market-hero {
+    padding: 36px 0 24px;
+  }
+
+  body.atelier.market-body .market-hero h1 {
+    font-size: 32px;
+  }
+
+  body.atelier.market-body .market-layout {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    padding: 24px 0 56px;
+  }
+
+  body.atelier.market-body .market-featured {
+    grid-template-columns: 1fr;
+  }
+
+  body.atelier.market-body .market-row {
+    grid-template-columns: minmax(0, 1fr) 20px;
+  }
+
+  body.atelier.market-body .market-row .side {
+    display: none;
+  }
+}

@@ -175,30 +175,11 @@
         </header>
 
         <div class="atelier-home-body">
-          <div class="atelier-home-left">
-            <a class="atelier-start" href="/workbench">
-              <span class="atelier-start-label">开始一篇新文章</span>
-              <span class="atelier-start-prompt">写下主题，或贴一篇文章…</span>
-              <span class="atelier-start-note">先写一句，AI 编辑会从选题接手。</span>
-              <span class="atelier-start-go">进入创作台 <b>→</b></span>
-            </a>
-
-            <section class="atelier-flow" aria-labelledby="atelier-flow-title">
-              <h2 id="atelier-flow-title">一张纸，五步走完</h2>
-              <div class="atelier-flow-row" aria-label="写作流程">
-                <span>选题</span><i>→</i><span>大纲</span><i>→</i><span>正文</span><i>→</i><span>去 AI</span><i>→</i><span>排版</span>
-              </div>
-              <p>每一阶段都可回溯；正文、版本和排版都在同一张纸上。</p>
-            </section>
-
-            <section class="atelier-recent" aria-labelledby="atelier-recent-title">
-              <h2 id="atelier-recent-title">最近</h2>
-              <a class="atelier-recent-empty" href="/workbench">
-                <span>还没有作品</span>
-                <small>开始第一篇，版本会留在这里。</small>
-                <b>→</b>
-              </a>
-            </section>
+          <div class="atelier-start">
+            <label class="atelier-start-label" for="atelier-draft">开始一篇新文章</label>
+            <textarea id="atelier-draft" class="atelier-start-input" rows="3" placeholder="写下主题，或贴一篇文章…"></textarea>
+            <span class="atelier-start-note">先写一句，AI 编辑会从选题接手。Enter 进入创作台，Shift + Enter 换行。</span>
+            <a class="atelier-start-go" id="atelier-start-go" href="/workbench">进入创作台 <b>→</b></a>
           </div>
 
           <section class="atelier-index" aria-labelledby="atelier-index-title">
@@ -232,6 +213,25 @@
               <span class="atelier-index-name">早安祝福</span>
               <span class="atelier-index-desc">每日图片与文案，按时交稿。</span>
               <span class="atelier-index-arrow">→</span>
+            </a>
+          </section>
+        </div>
+
+        <div class="atelier-home-notes">
+          <section class="atelier-flow" aria-labelledby="atelier-flow-title">
+            <h2 id="atelier-flow-title">一张纸，五步走完</h2>
+            <div class="atelier-flow-row" aria-label="写作流程">
+              <span>选题</span><i>→</i><span>大纲</span><i>→</i><span>正文</span><i>→</i><span>去 AI</span><i>→</i><span>排版</span>
+            </div>
+            <p>每一阶段都可回溯；正文、版本和排版都在同一张纸上。</p>
+          </section>
+
+          <section class="atelier-recent" aria-labelledby="atelier-recent-title">
+            <h2 id="atelier-recent-title">最近</h2>
+            <a class="atelier-recent-empty" href="/workbench">
+              <span>还没有作品</span>
+              <small>开始第一篇，版本会留在这里。</small>
+              <b>→</b>
             </a>
           </section>
         </div>

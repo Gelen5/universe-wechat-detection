@@ -23,4 +23,23 @@
     subtree: true,
   });
   window.setTimeout(fix, 1200);
+
+  // Carry a draft from the home desk into the workbench composer.
+  const draft = document.querySelector("#atelier-draft");
+  const start = document.querySelector("#atelier-start-go");
+  if (draft && start) {
+    const forward = (event) => {
+      if (event) event.preventDefault();
+      const value = draft.value.trim();
+      if (value) sessionStorage.setItem("universe.homeDraft", value);
+      window.location.href = "/workbench";
+    };
+    start.addEventListener("click", forward);
+    draft.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
+        event.preventDefault();
+        forward();
+      }
+    });
+  }
 })();

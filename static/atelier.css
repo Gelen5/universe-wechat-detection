@@ -220,7 +220,7 @@ body.atelier .atelier-home-body {
   display: grid;
   grid-template-columns: minmax(0, 1.12fr) minmax(300px, 0.88fr);
   gap: clamp(32px, 5vw, 80px);
-  align-items: start;
+  align-items: stretch;
   margin-top: clamp(36px, 5vw, 64px);
 }
 
@@ -312,13 +312,13 @@ body.atelier .atelier-start {
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  min-height: 184px;
+  min-height: 0;
   padding: 26px 28px 22px;
   border: 1px solid var(--a-line);
   border-radius: 12px;
   background: var(--a-paper);
   color: var(--a-ink);
-  text-decoration: none;
+  cursor: text;
   transition: border-color 0.16s ease, background 0.16s ease;
 }
 
@@ -332,13 +332,31 @@ body.atelier .atelier-start-label {
   font-size: 11px;
 }
 
-body.atelier .atelier-start-prompt {
-  margin: 20px 0 0;
+body.atelier .atelier-start-input {
+  flex: 1;
+  width: 100%;
+  min-height: 120px;
+  margin: 18px 0 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
   color: var(--a-ink);
   font-family: var(--a-serif);
   font-size: clamp(20px, 1.8vw, 26px);
   font-weight: 400;
   line-height: 1.55;
+  resize: none;
+  outline: none;
+}
+
+body.atelier .atelier-start-input::placeholder {
+  color: var(--a-faint);
+  opacity: 1;
+}
+
+body.atelier .atelier-start:focus-within {
+  border-color: var(--a-celadon);
+  background: var(--a-paper-bright);
 }
 
 body.atelier .atelier-start-note {
@@ -355,6 +373,12 @@ body.atelier .atelier-start-go {
   color: var(--a-celadon);
   font-size: 12px;
   font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+body.atelier .atelier-start-go:hover {
+  color: var(--a-celadon-deep);
 }
 
 body.atelier .atelier-start-go b {

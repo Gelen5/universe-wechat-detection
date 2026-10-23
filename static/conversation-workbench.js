@@ -5,6 +5,13 @@
   if (!root) return;
   const thread = root.querySelector('#workbench-chat-thread');
   const input = root.querySelector('#workbench-topic');
+  try {
+    const homeDraft = sessionStorage.getItem('universe.homeDraft');
+    if (homeDraft) {
+      input.value = homeDraft;
+      sessionStorage.removeItem('universe.homeDraft');
+    }
+  } catch { /* private mode */ }
   const send = root.querySelector('#start-workbench');
   const status = root.querySelector('#workbench-status');
   const editor = root.querySelector('#article-editor');
