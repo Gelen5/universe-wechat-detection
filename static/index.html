@@ -43,11 +43,12 @@
             <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
             <span>诊断</span>
           </a>
+          <a data-view="one-click-writing" href="/one-click-writing"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M4 20h16M5 15l10-10 4 4-10 10H5z"/></svg><span>公众号一键成文</span></a>
           <a data-view="workbench" href="/workbench">
             <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 13.5V4a2 2 0 0 1 2-2h8.5L20 7.5V20a2 2 0 0 1-2 2h-9.5"/><polyline points="14 2 14 8 20 8"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="13" y1="14" x2="7" y2="14"/></svg>
             <span>公众号创作</span>
           </a>
-          <a href="/qihaoshou"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M4 20h16M5 15l10-10 4 4-10 10H5z"/></svg><span>起号兽写作</span></a>
+
           <a data-view="xiaohongshu" href="/xiaohongshu">
             <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
             <span>小红书</span>
@@ -337,6 +338,9 @@
       <!-- ============================================================
            TAB 2 · /workbench — 公众号创作（对话式共创）
            ============================================================ -->
+      <section id="one-click-writing" hidden>
+        <iframe id="one-click-writing-frame" title="公众号一键成文" data-src="/qihaoshou?embedded=1" style="display:block;width:100%;height:calc(100dvh - 110px);min-height:650px;border:0;border-radius:12px" allow="clipboard-read; clipboard-write"></iframe>
+      </section>
       <section id="workbench" class="workbench-page article-workspace normalized-conversation" hidden>
         <header class="studio-heading"><div><h1>公众号创作</h1><p>发来一个主题，创作助手会调用完整 Skill 带你做到可交付。</p></div><div class="studio-heading-actions" hidden><button id="studio-details-toggle" type="button" aria-expanded="false" aria-controls="studio-details">结构与版本</button><button id="assistant-toggle" type="button" aria-expanded="true" aria-controls="creation-assistant">收起助手</button></div></header>
         <nav id="workbench-stage-nav" class="workbench-stage-nav" aria-label="公众号创作阶段"></nav>
@@ -775,7 +779,7 @@
     </div>
 
     <script src="/static/vendor/lucide.min.js"></script>
-    <script src="/static/app.js?v=20260911-chat-review-2"></script>
+    <script src="/static/app.js?v=20261023-one-click-writing"></script>
     <script src="/static/flow.js?v=20260904-tools-1"></script>
     <script src="/static/studio-tools.js?v=20260904-1"></script>
     <link rel="stylesheet" href="/static/creator-chat.css?v=20260906-conversation-1">

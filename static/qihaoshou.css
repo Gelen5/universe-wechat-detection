@@ -398,3 +398,6 @@ summary {
     scroll-behavior: auto !important;
   }
 }
+
+body.embedded .studio-header .back { display: none; }
+body.embedded .studio-header { position: static; }

@@ -32,7 +32,7 @@ class WritingStudioTests(unittest.TestCase):
 
     def test_menu_page_and_auth(self):
         self.assertEqual(self.client.get('/qihaoshou').status_code,200)
-        self.assertIn('href="/qihaoshou"',self.client.get('/').text)
+        self.assertIn('data-view="one-click-writing"',self.client.get('/').text)
         self.assertEqual(TestClient(app).get('/api/qihaoshou/sessions').status_code,401)
         self.assertFalse(self.client.get('/api/qihaoshou/capabilities').json()['wechat'])
 

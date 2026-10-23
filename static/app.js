@@ -1314,6 +1314,7 @@ const viewMap = {
   home: homePage,
   diagnose: diagnosePage,
   workbench,
+  'one-click-writing': document.querySelector('#one-click-writing'),
   xiaohongshu: xiaohongshuPage,
   'tie-tu': tieTuPage,
   'hit-detector': hitDetectorPage,
@@ -1324,6 +1325,7 @@ const viewMap = {
 const viewTitles = {
   home: '宇宙第一工作台',
   workbench: '公众号创作',
+  'one-click-writing': '公众号一键成文',
   xiaohongshu: '小红书创作',
   'tie-tu': '微信贴图号',
   'hit-detector': '爆文检测',
@@ -1343,6 +1345,10 @@ function setActiveView(view, updateHash = false) {
   document.querySelectorAll('.app-tabs [data-view]').forEach(item => item.classList.toggle('active', item.dataset.view === view));
   appShell?.classList.toggle('workbench-active', view !== 'home' && view !== 'diagnose' && view !== 'report');
   if (downloadButton) downloadButton.hidden = view !== 'report';
+  if (view === 'one-click-writing') {
+    const frame = document.querySelector('#one-click-writing-frame');
+    if (frame && !frame.hasAttribute('src')) frame.src = frame.dataset.src;
+  }
   if (view === 'morning') syncMorningApiKey();
   const commandTitle = document.querySelector('#command-title');
   if (commandTitle) commandTitle.textContent = viewTitles[view] || '宇宙第一工作台';
