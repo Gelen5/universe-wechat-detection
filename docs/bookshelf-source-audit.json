@@ -1,0 +1,194 @@
+{
+  "checkedAt": "2026-10-23T15:20:25+00:00",
+  "records": [
+    {
+      "id": "hermes",
+      "repo": "hermes-agent-orange-book",
+      "stars": 5010,
+      "starSource": "GitHub REST API",
+      "branch": "main",
+      "readmeSha256": "79cf0ac4b598fcd4ec6bed1ecbb4ceb2e226e1e07175d0047bae9621e8eecbe4",
+      "license": "MIT",
+      "licenseSource": "https://github.com/alchaincyf/hermes-agent-orange-book/blob/main/LICENSE",
+      "readUrlSource": "README.md",
+      "licenseFileStatus": "MIT verified"
+    },
+    {
+      "id": "obsidian",
+      "repo": "obsidian-ai-orange-book",
+      "stars": 1478,
+      "starSource": "GitHub REST API",
+      "branch": "master",
+      "readmeSha256": "dd99ded38835e9f0b2591ea9ef3223e58da6f2ad9ba29e153b0b6c1b80e3702a",
+      "license": "学习交流 · 引用需署名",
+      "licenseSource": "https://github.com/alchaincyf/obsidian-ai-orange-book/blob/master/README.md",
+      "readUrlSource": "README.md",
+      "licenseFileStatus": "No root LICENSE found; README declaration inspected"
+    },
+    {
+      "id": "deepseek",
+      "repo": "deepseek-harness-orange-book",
+      "stars": 1371,
+      "starSource": "GitHub REST API",
+      "branch": "main",
+      "readmeSha256": "1f871c479e75d4256d45fe71b7857eef324c0535388abab4f39bb58ba40a9da1",
+      "license": "CC BY-NC-SA 4.0",
+      "licenseSource": "https://github.com/alchaincyf/deepseek-harness-orange-book/blob/main/README.md",
+      "readUrlSource": "README.md",
+      "licenseFileStatus": "No root LICENSE found; README declaration inspected"
+    },
+    {
+      "id": "loop",
+      "repo": "loop-engineering-orange-book",
+      "stars": 1129,
+      "starSource": "GitHub REST API",
+      "branch": "main",
+      "readmeSha256": "66408520a4cd044f20242686c72d733797cb73abff1fda0f3a7cc6e50f040f0f",
+      "license": "MIT",
+      "licenseSource": "https://github.com/alchaincyf/loop-engineering-orange-book/blob/main/LICENSE",
+      "readUrlSource": "README.md",
+      "licenseFileStatus": "MIT verified"
+    },
+    {
+      "id": "codex",
+      "repo": "codex-orange-book",
+      "stars": 667,
+      "starSource": "GitHub REST API",
+      "branch": "main",
+      "readmeSha256": "11fc1898adbbe3ddb1378f6d786c2045fae555b397b3011b2bbbaa1483c9f049",
+      "license": "CC BY-NC-SA 4.0",
+      "licenseSource": "https://github.com/alchaincyf/codex-orange-book/blob/main/README.md",
+      "readUrlSource": "README.md",
+      "licenseFileStatus": "No root LICENSE found; README declaration inspected"
+    },
+    {
+      "id": "claude",
+      "repo": "claude-code-orange-book",
+      "stars": 327,
+      "starSource": "GitHub REST API",
+      "branch": "main",
+      "readmeSha256": "e6f412724b1cbc89af0160eb0a11862bd0b79c952911d4292fc539d90230e31a",
+      "license": "CC BY-NC-SA 4.0",
+      "licenseSource": "https://github.com/alchaincyf/claude-code-orange-book/blob/main/README.md",
+      "readUrlSource": "README.md",
+      "licenseFileStatus": "No root LICENSE found; README declaration inspected"
+    },
+    {
+      "id": "vibe",
+      "repo": "3d-vibe-coding-handbook",
+      "stars": 298,
+      "starSource": "GitHub REST API",
+      "branch": "master",
+      "readmeSha256": "4514b6e66ac73e67405f58e54f29c521f3789c6f0199b6eca31859ecd319f4b1",
+      "license": "CC BY-NC-SA 4.0",
+      "licenseSource": "https://github.com/alchaincyf/3d-vibe-coding-handbook/blob/master/README.md",
+      "readUrlSource": "README.md relative book/index.html (Pages checked separately)",
+      "licenseFileStatus": "No root LICENSE found; README declaration inspected"
+    },
+    {
+      "id": "source",
+      "repo": "claude-code-source-analysis-orange-book",
+      "stars": 113,
+      "starSource": "GitHub REST API",
+      "branch": "main",
+      "readmeSha256": "293dda585781d851b9908a4397e7a03341f1b43e3e044c6a4703b1d0acb736e9",
+      "license": "教育研究声明 · 未明确授权商业转载",
+      "licenseSource": "https://github.com/alchaincyf/claude-code-source-analysis-orange-book/blob/main/README.md",
+      "readUrlSource": "README.md",
+      "licenseFileStatus": "No root LICENSE found; README declaration inspected"
+    },
+    {
+      "id": "harness",
+      "repo": "harness-engineering-orange-book",
+      "stars": 110,
+      "starSource": "GitHub repository embedded JSON",
+      "branch": "main",
+      "readmeSha256": "cf91a4dd529f0f3be7ac651ec75c8dc752ceff259d7b9cb3106b6192ed0f64c8",
+      "license": "教育研究声明 · 未明确授权商业转载",
+      "licenseSource": "https://github.com/alchaincyf/harness-engineering-orange-book/blob/main/README.md",
+      "readUrlSource": "README.md",
+      "licenseFileStatus": "No root LICENSE found; README declaration inspected"
+    },
+    {
+      "id": "openclaw",
+      "repo": "openclaw-orange-book",
+      "stars": 83,
+      "starSource": "GitHub repository embedded JSON",
+      "branch": "main",
+      "readmeSha256": "c2943d32d96760388f96f820c47d4049d98bdc3acdffeadeccbbfa02fb757db2",
+      "license": "教育研究声明 · 未明确授权商业转载",
+      "licenseSource": "https://github.com/alchaincyf/openclaw-orange-book/blob/main/README.md",
+      "readUrlSource": "README.md",
+      "licenseFileStatus": "No root LICENSE found; README declaration inspected"
+    },
+    {
+      "id": "skills",
+      "repo": "agent-skills-orange-book",
+      "stars": 57,
+      "starSource": "GitHub repository embedded JSON",
+      "branch": "main",
+      "readmeSha256": "ac12a2578c715b44e0d3ef91d7449e9fd1c8132936357414dcef086651dd1038",
+      "license": "个人及教育使用 · 商业转载需授权",
+      "licenseSource": "https://github.com/alchaincyf/agent-skills-orange-book/blob/main/README.md",
+      "readUrlSource": "README.md",
+      "licenseFileStatus": "No root LICENSE found; README declaration inspected"
+    }
+  ],
+  "linkChecks": {
+    "hermes": {
+      "url": "https://www.workbuddy.cn/space/d/qAVr77wMMaD1AmkPtmL501",
+      "status": 200,
+      "finalUrl": "https://www.workbuddy.cn/space/d/qAVr77wMMaD1AmkPtmL501"
+    },
+    "obsidian": {
+      "url": "https://www.workbuddy.cn/space/d/g5E78ejX962o977geKeOjj",
+      "status": 200,
+      "finalUrl": "https://www.workbuddy.cn/space/d/g5E78ejX962o977geKeOjj"
+    },
+    "deepseek": {
+      "url": "https://www.workbuddy.cn/space/d/XABVjoKqAElOoh6PgTgjeM",
+      "status": 200,
+      "finalUrl": "https://www.workbuddy.cn/space/d/XABVjoKqAElOoh6PgTgjeM"
+    },
+    "loop": {
+      "url": "https://www.workbuddy.cn/space/d/H6TXqZsuCnOeR3SvXpNXZk",
+      "status": 200,
+      "finalUrl": "https://www.workbuddy.cn/space/d/H6TXqZsuCnOeR3SvXpNXZk"
+    },
+    "codex": {
+      "url": "https://www.workbuddy.cn/space/d/6X9tCSrgcsExJxZV9zSRhS",
+      "status": 200,
+      "finalUrl": "https://www.workbuddy.cn/space/d/6X9tCSrgcsExJxZV9zSRhS"
+    },
+    "claude": {
+      "url": "https://www.workbuddy.cn/space/d/cY2uZj6drEgu0MQnKRI0li",
+      "status": 200,
+      "finalUrl": "https://www.workbuddy.cn/space/d/cY2uZj6drEgu0MQnKRI0li"
+    },
+    "source": {
+      "url": "https://www.workbuddy.cn/space/d/XFmwjvAbcxmujlmXdftvlK",
+      "status": 200,
+      "finalUrl": "https://www.workbuddy.cn/space/d/XFmwjvAbcxmujlmXdftvlK"
+    },
+    "harness": {
+      "url": "https://www.workbuddy.cn/space/d/XaAUeol6AD4lNQqk1NY00W",
+      "status": 200,
+      "finalUrl": "https://www.workbuddy.cn/space/d/XaAUeol6AD4lNQqk1NY00W"
+    },
+    "openclaw": {
+      "url": "https://www.workbuddy.cn/space/d/2UiiQIDT8kkhFn8seBRAS1",
+      "status": 200,
+      "finalUrl": "https://www.workbuddy.cn/space/d/2UiiQIDT8kkhFn8seBRAS1"
+    },
+    "skills": {
+      "url": "https://www.workbuddy.cn/space/d/JEdWEHCbVQDe5RmhKwsz77",
+      "status": 200,
+      "finalUrl": "https://www.workbuddy.cn/space/d/JEdWEHCbVQDe5RmhKwsz77"
+    },
+    "vibe": {
+      "url": "https://alchaincyf.github.io/3d-vibe-coding-handbook/book/index.html",
+      "status": 200,
+      "finalUrl": "https://alchaincyf.github.io/3d-vibe-coding-handbook/book/index.html"
+    }
+  }
+}
