@@ -257,3 +257,94 @@ body.atelier.market-body .market-v2 .market-wrap {
   padding: 0 26px !important;
   max-width: none !important;
 }
+
+
+/* ==========================================================================
+   手机：AI 超市 / AI 书架
+   ========================================================================== */
+@media (max-width: 760px) {
+  /* 超市：分类栏独立成横向 chip 条，主列表单列 */
+  body.atelier.market-body .market-layout {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 12px !important;
+    padding: 16px 0 30px !important;
+  }
+
+  body.atelier.market-body .market-rail {
+    position: static !important;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  body.atelier.market-body .market-rail h2 { display: none !important; }
+
+  body.atelier.market-body .market-rail ul {
+    display: flex !important;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+  }
+
+  body.atelier.market-body .market-rail li { flex: none; }
+
+  body.atelier.market-body .market-rail a {
+    white-space: nowrap;
+    border: 1px solid var(--hairline);
+    background: rgba(255, 255, 255, .72);
+    border-radius: 999px;
+    padding: 6px 12px !important;
+  }
+
+  body.atelier.market-body .market-rail a.on {
+    background: var(--g-100) !important;
+    border-color: rgba(62, 141, 107, .3) !important;
+    color: var(--g-700) !important;
+  }
+
+  /* 工具条与排序不挤 */
+  body.atelier.market-body .market-toolbar {
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  body.atelier.market-body .market-seg {
+    display: flex !important;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+
+  body.atelier.market-body .market-seg button { white-space: nowrap; }
+
+  body.atelier.market-body .market-card,
+  body.atelier.market-body .market-row,
+  body.atelier.market-body .market-featured { max-width: 100%; }
+}
+
+/* 书架：筛选条可横滑，去掉浮动圆点 */
+@media (max-width: 760px) {
+  body.atelier.library-body .library-main {
+    max-width: 100% !important;
+    padding: 18px 16px 96px !important;
+  }
+
+  body.atelier.library-body [class*="filter"],
+  body.atelier.library-body [class*="tabs"] {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    gap: 8px;
+  }
+
+  body.atelier.library-body [class*="filter"] > *,
+  body.atelier.library-body [class*="tabs"] > * { flex: none; }
+
+  body.atelier.library-body [class*="float"],
+  body.atelier.library-body [class*="fab"] { display: none !important; }
+}
