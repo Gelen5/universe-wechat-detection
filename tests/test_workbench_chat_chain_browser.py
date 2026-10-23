@@ -92,9 +92,10 @@ def test_full_chain_driven_from_the_chat_thread():
             page.locator("#workbench-topic").fill("写一篇给职场人的 AI 工具实测")
             page.locator("#start-workbench").click()
 
-            # 选题卡片直接出现在对话流里，点一个方向就能继续
-            page.locator("#workbench-action-card [data-topic-choice]").first.wait_for(timeout=10000)
-            page.locator("#workbench-action-card [data-topic-choice]").first.click()
+            # 方向只在左侧选题工作区完整展示；对话卡只负责引导，不重复清单。
+            page.locator("#workbench-action-card [data-topic-choice]").wait_for(state="detached", timeout=10000)
+            page.locator("#workbench-stage-choices [data-topic-choice]").first.wait_for(timeout=10000)
+            page.locator("#workbench-stage-choices [data-topic-choice]").first.click()
 
             for stage in ("outline", "writing", "deai", "typeset"):
                 button = page.locator(f'#workbench-action-card [data-next-stage="{stage}"]')

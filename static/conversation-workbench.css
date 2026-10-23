@@ -213,3 +213,141 @@
 #workbench.normalized-conversation .chat-steps li[data-state="failed"] { color: #b3261e; }
 #workbench.normalized-conversation .chat-steps li[data-state="failed"]::before { content: "\2715"; color: #b3261e; }
 #workbench.normalized-conversation .chat-steps-hint { color: #9aa0a6 !important; font-size: 12px !important; }
+
+/* ---- 选题工作区：方向只在左侧完整展示，右侧对话不重复清单 ---- */
+#workbench.normalized-conversation .article-canvas-head h2 { font-size: 23px; }
+#workbench.normalized-conversation .topic-board { margin-top: 12px; }
+#workbench.normalized-conversation .topic-board-head {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
+  padding: 0 2px 8px;
+}
+#workbench.normalized-conversation .topic-board-head > div { min-width: 0; }
+#workbench.normalized-conversation .topic-board-head strong {
+  display: block; color: #202124; font-size: 14px; line-height: 1.45;
+}
+#workbench.normalized-conversation .topic-board-head p {
+  margin: 2px 0 0; color: #9aa0a6; font-size: 11px; line-height: 1.5;
+}
+#workbench.normalized-conversation .topic-row-list { display: grid; gap: 4px; }
+#workbench.normalized-conversation .workbench-stage-choices .topic-row,
+#workbench.normalized-conversation button.topic-row {
+  position: relative; display: grid; grid-template-columns: 22px minmax(0, 1fr) 12px;
+  align-items: start; gap: 9px; width: 100%; min-height: 0; padding: 6px 10px 6px 8px;
+  box-sizing: border-box; border: 1px solid #e3e5e8; border-radius: 8px; background: #fff;
+  color: #202124; font: inherit; text-align: left; cursor: pointer;
+  transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+}
+#workbench.normalized-conversation .workbench-stage-choices .topic-row:hover,
+#workbench.normalized-conversation button.topic-row:hover {
+  border-color: #b9cce3; box-shadow: 0 2px 8px rgba(32, 33, 36, .05);
+}
+#workbench.normalized-conversation .workbench-stage-choices .topic-row:focus-visible,
+#workbench.normalized-conversation button.topic-row:focus-visible {
+  outline: 2px solid #2578d2; outline-offset: 2px;
+}
+#workbench.normalized-conversation .workbench-stage-choices .topic-row.is-selected,
+#workbench.normalized-conversation button.topic-row.is-selected {
+  border-color: #2578d2; background: #f7fbff; box-shadow: 0 0 0 1px #2578d2 inset;
+}
+#workbench.normalized-conversation .topic-row-index {
+  padding-top: 2px; color: #b0b5ba;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 10px; font-weight: 600; letter-spacing: .03em;
+}
+#workbench.normalized-conversation .topic-row-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+#workbench.normalized-conversation .topic-row-heading { display: flex; align-items: center; min-width: 0; }
+#workbench.normalized-conversation .workbench-stage-choices .topic-row .topic-row-title {
+  overflow: hidden; min-width: 0; color: #202124; font-size: 12.8px; font-weight: 600;
+  line-height: 1.55; text-overflow: ellipsis; white-space: nowrap;
+}
+#workbench.normalized-conversation .workbench-stage-choices .topic-row.is-selected .topic-row-title {
+  display: -webkit-box; overflow: hidden; color: #1a5fa8;
+  -webkit-box-orient: vertical; -webkit-line-clamp: 2; white-space: normal;
+}
+#workbench.normalized-conversation .workbench-stage-choices .topic-row .topic-row-reason {
+  display: none; color: #7b8087; font-size: 11px; line-height: 1.6;
+}
+#workbench.normalized-conversation .workbench-stage-choices .topic-row.is-selected .topic-row-reason {
+  display: -webkit-box; overflow: hidden; margin-top: 2px;
+  -webkit-box-orient: vertical; -webkit-line-clamp: 3;
+}
+#workbench.normalized-conversation .topic-row-meta {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 5px 9px; margin-top: 2px;
+}
+#workbench.normalized-conversation .workbench-stage-choices .topic-row .topic-row-type {
+  padding: 0 5px; border-radius: 3px; background: #f3f4f6;
+  color: #7b8087; font-size: 9.5px; line-height: 1.7;
+}
+#workbench.normalized-conversation .workbench-stage-choices .topic-row .topic-row-pick {
+  padding: 0 5px; border-radius: 3px; background: #eaf3ff;
+  color: #1a5fa8; font-size: 9.5px; font-weight: 600; line-height: 1.7;
+}
+#workbench.normalized-conversation .workbench-stage-choices .topic-signal {
+  display: inline-flex; align-items: center; gap: 3px;
+  color: #9aa0a6; font-size: 9.5px; line-height: 1;
+}
+#workbench.normalized-conversation .workbench-stage-choices .topic-signal b {
+  color: #4a4f57; font-size: 10px; font-weight: 600;
+}
+#workbench.normalized-conversation .topic-meter {
+  display: inline-block; width: 24px; height: 3px; overflow: hidden;
+  border-radius: 999px; background: #edf0f3;
+}
+#workbench.normalized-conversation .topic-meter i {
+  display: block; height: 100%; border-radius: inherit; background: #9dc1e8;
+}
+#workbench.normalized-conversation .workbench-stage-choices .topic-row-competition {
+  display: inline-flex; align-items: center; color: #9aa0a6; font-size: 9.5px; line-height: 1.6;
+}
+#workbench.normalized-conversation .workbench-stage-choices .topic-row-competition::before {
+  content: ""; display: inline-block; width: 5px; height: 5px; margin-right: 4px;
+  border-radius: 50%; background: #d0a12a; vertical-align: 1px;
+}
+#workbench.normalized-conversation .workbench-stage-choices .topic-row-competition[data-level="低"]::before { background: #3f8f5f; }
+#workbench.normalized-conversation .workbench-stage-choices .topic-row-competition[data-level="高"]::before { background: #c0564a; }
+#workbench.normalized-conversation .workbench-stage-choices .topic-row-state {
+  padding-top: 1px; color: #c4c8cc; font-size: 14px; line-height: 1; text-align: center;
+}
+#workbench.normalized-conversation .workbench-stage-choices .topic-row.is-selected .topic-row-state {
+  color: #2578d2; font-size: 12px; font-weight: 700;
+}
+
+#workbench.normalized-conversation .topic-evidence {
+  margin-top: 10px; border-top: 1px dashed #e3e5e8; padding-top: 9px;
+}
+#workbench.normalized-conversation .topic-evidence > summary {
+  display: flex; align-items: center; gap: 8px; color: #7b8087;
+  font-size: 11px; line-height: 1.5; cursor: pointer; list-style: none;
+}
+#workbench.normalized-conversation .topic-evidence > summary::-webkit-details-marker { display: none; }
+#workbench.normalized-conversation .topic-evidence > summary::before {
+  content: "+"; color: #9aa0a6; font-size: 12px; line-height: 1;
+}
+#workbench.normalized-conversation .topic-evidence[open] > summary::before { content: "−"; }
+#workbench.normalized-conversation .topic-evidence > summary span { color: #a0a5ab; font-size: 10px; }
+#workbench.normalized-conversation .topic-evidence-body {
+  display: grid; gap: 10px; margin-top: 9px; padding: 11px 13px;
+  border-radius: 7px; background: #fafbfc;
+}
+#workbench.normalized-conversation .topic-evidence-body h4 {
+  margin: 0 0 5px; color: #5f646b; font-size: 10px; font-weight: 600; letter-spacing: .04em;
+}
+#workbench.normalized-conversation .topic-evidence-body ul {
+  display: grid; gap: 5px; margin: 0; padding: 0; list-style: none;
+}
+#workbench.normalized-conversation .topic-evidence-body li {
+  display: flex; align-items: baseline; gap: 8px; color: #3c4147; font-size: 11px; line-height: 1.5;
+}
+#workbench.normalized-conversation .topic-evidence-body li a { color: #1a5fa8; text-decoration: none; }
+#workbench.normalized-conversation .topic-evidence-body li a:hover { text-decoration: underline; }
+#workbench.normalized-conversation .topic-evidence-body li small { margin-left: auto; flex: none; color: #a0a5ab; font-size: 9.5px; }
+#workbench.normalized-conversation .topic-evidence-body p { margin: 5px 0 0; color: #a0a5ab; font-size: 9.5px; }
+@media (max-width: 760px) {
+  #workbench.normalized-conversation .workbench-stage-choices .topic-row,
+  #workbench.normalized-conversation button.topic-row {
+    grid-template-columns: 20px minmax(0, 1fr) 12px; padding: 10px;
+  }
+  #workbench.normalized-conversation .topic-row-signals { display: none; }
+  #workbench.normalized-conversation .workbench-stage-choices .topic-row .topic-row-title { white-space: normal; }
+  #workbench.normalized-conversation .workbench-stage-choices .topic-row .topic-row-reason { white-space: normal; }
+}

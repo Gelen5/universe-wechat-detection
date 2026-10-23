@@ -1,4 +1,4 @@
-﻿(() => {
+(() => {
   'use strict';
 
   const root = document.querySelector('#workbench.normalized-conversation');
@@ -153,6 +153,110 @@
   const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, char => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;',
   }[char]));
+
+  // ---- 选题工作区 -------------------------------------------------------
+  // 方向只在一个地方完整展示：左侧作品区。对话流里不再重复整份清单，
+  // 只保留一句状态说明和下一步动作，避免同一批标题出现两遍。
+  function topicMeta(choice) {
+    return choice && typeof choice === 'object' ? choice : { title: String(choice ?? '') };
+  }
+
+  function topicTitle(choice) {
+    return String(topicMeta(choice).title || '').trim();
+  }
+
+  function safeTopicUrl(value) {
+    const url = String(value || '').trim();
+    return /^https?:\/\//i.test(url) ? escapeHtml(url) : '';
+  }
+
+  function topicEvidenceHtml(item) {
+    const evidence = item?.content_json?.evidence;
+    if (!evidence || typeof evidence !== 'object') return '';
+    const sources = (Array.isArray(evidence.search_sources) ? evidence.search_sources : [])
+      .filter(source => source && typeof source === 'object').slice(0, 6);
+    const hotspots = (Array.isArray(evidence.platform_hotspots) ? evidence.platform_hotspots : [])
+      .filter(source => source && typeof source === 'object').slice(0, 6);
+    if (!sources.length && !hotspots.length) return '';
+    const checked = String(evidence.checked_at || '').trim();
+    const sourcesHtml = sources.map(source => {
+      const url = safeTopicUrl(source.url);
+      const title = escapeHtml(source.title || '未命名线索');
+      const meta = [source.provider, source.published_at].filter(Boolean).map(escapeHtml).join(' · ');
+      return `<li>${url ? `<a href="${url}" target="_blank" rel="noopener noreferrer">${title}</a>` : `<span>${title}</span>`}${meta ? `<small>${meta}</small>` : ''}</li>`;
+    }).join('');
+    const hotspotsHtml = hotspots.map(source => {
+      const platforms = Array.isArray(source.platforms) ? source.platforms.join(' / ') : '';
+      return `<li><span>${escapeHtml(source.title || '')}</span>${platforms ? `<small>${escapeHtml(platforms)}</small>` : ''}</li>`;
+    }).join('');
+    return `<details class="topic-evidence">
+      <summary>检索依据 <span>${sources.length + hotspots.length} 条线索${checked ? ` · ${escapeHtml(checked)}` : ''}</span></summary>
+      <div class="topic-evidence-body">
+        ${sourcesHtml ? `<section><h4>搜索线索</h4><ul>${sourcesHtml}</ul><p>线索摘要，未核实原文。</p></section>` : ''}
+        ${hotspotsHtml ? `<section><h4>平台榜单</h4><ul>${hotspotsHtml}</ul><p>采集时间不是内容发布时间。</p></section>` : ''}
+      </div>
+    </details>`;
+  }
+
+  function topicBoardHtml(item, topics) {
+    const normalized = (Array.isArray(topics) ? topics : []).map(topicMeta);
+    if (!normalized.length) return '';
+    const scored = normalized.map((topic, index) => ({
+      index,
+      score: (Number(topic.fan_score) || 0) * 0.7 + (Number(topic.heat) || 0) * 3,
+    }));
+    const hasScore = normalized.some(topic => Number(topic.heat) > 0 || Number(topic.fan_score) > 0);
+    const recommended = normalized.length > 1 && hasScore
+      ? scored.slice().sort((a, b) => b.score - a.score)[0].index : -1;
+    const cards = normalized.map((topic, index) => {
+      const name = String(topic.title || '').trim();
+      if (!name) return '';
+      const selected = name === selectedTopic;
+      const type = String(topic.type || '方向').trim();
+      const heat = Math.max(1, Math.min(10, Number(topic.heat) || 0));
+      const fan = Math.max(0, Math.min(100, Number(topic.fan_score) || 0));
+      const hasMetrics = Number(topic.heat) > 0 || Number(topic.fan_score) > 0;
+      const competition = ['低', '中', '高'].includes(String(topic.competition))
+        ? String(topic.competition) : '中';
+      return `<button type="button" class="topic-row${selected ? ' is-selected' : ''}"
+          data-topic-choice="${index}" aria-pressed="${selected}">
+        <span class="topic-row-index">${String(index + 1).padStart(2, '0')}</span>
+        <span class="topic-row-main">
+          <span class="topic-row-heading">
+            <strong class="topic-row-title">${escapeHtml(name)}</strong>
+          </span>
+          ${topic.reason ? `<span class="topic-row-reason">${escapeHtml(topic.reason)}</span>` : ''}
+          <span class="topic-row-meta">
+            <span class="topic-row-type">${escapeHtml(type)}</span>
+            ${index === recommended ? '<span class="topic-row-pick" title="按模型估计的热度与涨粉潜力综合排序">推荐</span>' : ''}
+            ${hasMetrics ? `
+            <span class="topic-signal" title="模型估计热度，不是平台真实数据">
+              <span class="topic-signal-label">热度</span>
+              <span class="topic-meter" aria-hidden="true"><i style="width:${heat * 10}%"></i></span>
+              <b>${heat}</b>
+            </span>
+            <span class="topic-signal" title="模型估计涨粉潜力，不是平台真实数据">
+              <span class="topic-signal-label">涨粉</span>
+              <span class="topic-meter" aria-hidden="true"><i style="width:${fan}%"></i></span>
+              <b>${fan}</b>
+            </span>
+            <span class="topic-row-competition" data-level="${escapeHtml(competition)}" title="竞争度">竞争 ${escapeHtml(competition)}</span>` : ''}
+          </span>
+        </span>
+        <span class="topic-row-state" aria-hidden="true">${selected ? '✓' : '›'}</span>
+      </button>`;
+    }).join('');
+    return `<div class="topic-board">
+      <header class="topic-board-head">
+        <div>
+          <strong>选一个能写下去的方向</strong>
+          <p>${normalized.length} 个方向 · 热度与涨粉为模型估计，不是平台真实数据</p>
+        </div>
+      </header>
+      <div class="topic-row-list">${cards}</div>
+      ${topicEvidenceHtml(item)}
+    </div>`;
+  }
 
   async function api(path, options = {}) {
     const response = await fetch(path, options);
@@ -350,11 +454,7 @@
     if (stage.id === 'topic' && item) {
       const topics = item.content_json?.topics || [];
       if (Array.isArray(topics) && topics.length) {
-        stageChoices.innerHTML = `<strong>选择一个方向</strong>${topics.map((choice, position) => {
-          const name = String(typeof choice === 'string' ? choice : choice.title || '').trim();
-          return `<button type="button" data-topic-choice="${position}" aria-pressed="${name === selectedTopic}">
-            <span>${String(position + 1).padStart(2, '0')}</span>${escapeHtml(name)}</button>`;
-        }).join('')}`;
+        stageChoices.innerHTML = topicBoardHtml(item, topics);
       }
     }
     if (stage.id === 'deai' && item) {
@@ -430,16 +530,15 @@
       html = `<strong>先告诉我你想写什么</strong>
         <p>一句话就够，例如「写一篇给 30 岁职场人的 AI 工具实测」。</p>`;
     } else if (!selectedTopic) {
-      const topics = (topicItem.content_json?.topics || []).slice(0, 6);
-      html = `<strong>选一个方向开始写</strong>
-        <p>选完就能直接生成大纲，也可以在作品区挑。</p>
-        <div class="chat-choice-row">${topics.map((choice, position) => {
-          const name = String(typeof choice === 'string' ? choice : choice.title || '').trim();
-          return `<button type="button" data-topic-choice="${position}">${escapeHtml(name)}</button>`;
-        }).join('')}</div>
-        ${topics.length ? '' : `<div class="chat-action-row">
-          <button type="button" class="chat-action-primary" data-retry-stage="topic">重新生成选题</button>
-        </div>`}`;
+      const topics = (topicItem.content_json?.topics || []).filter(choice => topicTitle(choice));
+      html = `<strong>${topics.length ? `${topics.length} 个方向已就绪` : '还没有可用方向'}</strong>
+        <p>${topics.length
+          ? `左侧已排好 ${topics.length} 个方向：热度、涨粉、竞争度可横向比较，点开任一方向看推荐理由。选中后我接着写大纲。`
+          : '这次没有返回可用方向，可以重新生成。'}</p>
+        <div class="chat-action-row">
+          ${topics.length ? '<button type="button" class="chat-action-primary" data-focus-topics>去左侧选择方向</button>' : ''}
+          <button type="button" class="${topics.length ? 'chat-action-ghost' : 'chat-action-primary'}" data-retry-stage="topic">${topics.length ? '换一批' : '重新生成选题'}</button>
+        </div>`;
     } else if (next) {
       html = `<strong>下一步：${escapeHtml(stageLabel(next))}</strong>
         <p>已选方向《${escapeHtml(selectedTopic)}》。已完成的阶段都会保留。</p>
@@ -763,13 +862,24 @@
     const choice = topics[Number(button.dataset.topicChoice)];
     selectedTopic = String(typeof choice === 'string' ? choice : choice?.title || '').trim();
     if (!selectedTopic) return;
+    const choiceIndex = button.dataset.topicChoice;
     if (conversation) localStorage.setItem(`universe.conversation.topic.${conversation.id}`, selectedTopic);
     renderStage();
     renderActionCard();
+    window.requestAnimationFrame(() => {
+      stageChoices.querySelector(`[data-topic-choice="${choiceIndex}"]`)?.focus({ preventScroll: true });
+    });
   });
   captureClick('[data-retry-stage]', button => runStage(button.dataset.retryStage || activeStage));
   captureClick('[data-next-stage]', button => runStage(button.dataset.nextStage || activeStage));
   captureClick('[data-workbench-view-toggle]', () => setOutputOpen(true));
+  captureClick('[data-focus-topics]', () => {
+    if (window.matchMedia?.('(max-width: 980px)').matches) setOutputOpen(true);
+    window.setTimeout(() => {
+      stageChoices.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      stageChoices.querySelector('[data-topic-choice]')?.focus({ preventScroll: true });
+    }, 80);
+  });
   captureClick('[data-copy-html]', async () => {
     const item = stageArtifact('typeset');
     if (!item) { status.textContent = '还没有可复制的排版结果'; return; }
