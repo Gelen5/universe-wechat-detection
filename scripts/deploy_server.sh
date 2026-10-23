@@ -25,8 +25,28 @@ die()  { printf '\nERROR: %s\n' "$*" >&2; exit 1; }
 
 [ "$(id -u)" -eq 0 ] || die "请用 root 运行：sudo bash $0"
 
+# 全程留痕：部署失败时看 /var/log/universe-deploy.log 最后 50 行就够定位
+LOG_FILE="${LOG_FILE:-/var/log/universe-deploy.log}"
+exec > >(tee -a "$LOG_FILE") 2>&1
+printf '\n===== %s | %s =====\n' "$(date '+%F %T')" "${*:-deploy main}"
+
 remote_main() {
-  git ls-remote "https://github.com/${REPO}.git" refs/heads/main 2>/dev/null | cut -f1
+  local sha
+  # 1) git 协议：快，但国内链路会间歇性超时
+  sha=$(timeout 20 git ls-remote "https://github.com/${REPO}.git" refs/heads/main 2>/dev/null | cut -f1)
+  if [ -n "$sha" ]; then printf '%s\n' "$sha"; return 0; fi
+  # 2) REST API：实测这条一般 1 秒内返回
+  sha=$(timeout 20 curl -fsS "https://api.github.com/repos/${REPO}/commits/main" 2>/dev/null \
+        | python3 -c 'import json,sys
+try:
+    print(json.load(sys.stdin)["sha"])
+except Exception:
+    pass' 2>/dev/null)
+  if [ -n "$sha" ]; then printf '%s\n' "$sha"; return 0; fi
+  # 3) 归档地址 302（有的网络只放行 codeload）
+  timeout 25 curl -s -o /dev/null -w '%{redirect_url}' \
+    "https://github.com/${REPO}/archive/refs/heads/main.zip" 2>/dev/null \
+    | sed -n 's#.*/zip/\([0-9a-f]\{40\}\).*#\1#p'
 }
 
 wait_ready() {
@@ -44,6 +64,20 @@ current_release_dir() {
   docker inspect -f '{{index .Config.Labels "com.docker.compose.project.working_dir"}}' \
     "${PROJECT}-web-1" 2>/dev/null || true
 }
+
+# ---------------------------------------------------------------- status
+if [ "${1:-}" = "--status" ]; then
+  echo "== 线上 release"
+  current_release_dir
+  echo "== 容器"
+  docker ps --format '{{.Names}} | {{.Status}}' | grep "$PROJECT" || true
+  echo "== 健康"
+  curl -fsS -m 5 "$HEALTH_URL" || echo "health 不可用"
+  echo
+  echo "== 最近部署日志（$LOG_FILE）"
+  tail -n 15 "$LOG_FILE" 2>/dev/null || echo "（还没有日志）"
+  exit 0
+fi
 
 # ---------------------------------------------------------------- rollback
 if [ "${1:-}" = "--rollback" ]; then
@@ -65,6 +99,10 @@ if [ "${1:-}" = "--rollback" ]; then
 fi
 
 # ---------------------------------------------------------------- resolve
+# 同一时间只允许一个部署：多个 agent 并发时构建和容器切换会互相踩
+exec 9>/var/lock/universe-deploy.lock
+flock -n 9 || die "另一个部署正在进行（/var/lock/universe-deploy.lock）。等它结束再试，或先跑 deploy.sh --status"
+
 SHA="${1:-}"
 if [ -z "$SHA" ]; then
   SHA="$(remote_main)"
@@ -80,6 +118,12 @@ if [ -n "$MAIN_SHA" ] && [ "$MAIN_SHA" != "$SHA" ]; then
   warn "$SHORT 不是当前 main（main=${MAIN_SHA:0:7}），将按你指定的提交部署"
 fi
 
+# 预检：这台机器只有 1.6G 内存，构建期最容易被打爆
+MEM_AVAIL=$(awk '/MemAvailable/ {print int($2/1024)}' /proc/meminfo 2>/dev/null || echo 0)
+DISK_AVAIL=$(df -Pk / 2>/dev/null | awk 'NR==2 {print int($4/1024)}')
+[ "${MEM_AVAIL:-0}" -lt 350 ] && warn "可用内存仅 ${MEM_AVAIL}MB，构建可能被 OOM 杀掉（可先 docker builder prune）"
+[ "${DISK_AVAIL:-0}" -lt 3000 ] && warn "根分区剩余 ${DISK_AVAIL}MB，可能不够构建"
+
 PREV_DIR="$(current_release_dir)"
 PREV_SHORT="$(basename "${PREV_DIR:-}" 2>/dev/null || true)"
 [ -n "$PREV_SHORT" ] && log "当前线上: $PREV_SHORT"
@@ -91,8 +135,14 @@ else
   log "下载 $SHORT 源码"
   TMP="$(mktemp -d)"
   trap 'if [ -n "${TMP:-}" ]; then rm -rf "$TMP"; fi' EXIT
-  curl -fsSL -o "$TMP/src.zip" "https://codeload.github.com/${REPO}/zip/${SHA}" \
-    || die "下载失败：https://codeload.github.com/${REPO}/zip/${SHA}"
+  ok=0
+  for attempt in 1 2 3; do
+    if curl -fsSL --retry 2 --retry-delay 3 --connect-timeout 20 --max-time 300 \
+        -o "$TMP/src.zip" "https://codeload.github.com/${REPO}/zip/${SHA}"; then ok=1; break; fi
+    warn "第 ${attempt} 次下载失败，重试…"
+    sleep $((attempt * 3))
+  done
+  [ "$ok" = 1 ] || die "下载失败（已重试 3 次）：https://codeload.github.com/${REPO}/zip/${SHA}"
   SRC="$(python3 - "$TMP/src.zip" "$TMP/unpack" <<'PY'
 import pathlib, sys, zipfile
 zip_path, dest = sys.argv[1], sys.argv[2]
@@ -151,4 +201,4 @@ docker ps --format '{{.Names}} | {{.Status}}' | grep "$PROJECT" || true
 
 log "完成"
 echo "  线上: $SHORT  ($REL)"
-[ -n "$PREV_SHORT" ] && echo "  回滚: sudo bash $0 --rollback $PREV_SHORT"
+[ -n "$PREV_SHORT" ] && [ "$PREV_SHORT" != "$SHORT" ] && echo "  回滚: sudo bash $0 --rollback $PREV_SHORT"
