@@ -559,3 +559,22 @@ body.atelier .hv-stats b {
 }
 
 /* 平板档删掉：只保留手机与桌面两档 */
+
+
+/* 手机：首页必须单列（1024 档删掉后这条补回来） */
+@media (max-width: 760px) {
+  body.atelier #home.home-v2 .hv-body {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 12px;
+  }
+  body.atelier #home.home-v2 .hv-rail {
+    flex-direction: column;
+  }
+  body.atelier #home.home-v2 .hv-hero h1 {
+    max-width: none;
+    font-size: 26px;
+  }
+  body.atelier #home.home-v2 .hv-lede {
+    max-width: none;
+  }
+}
