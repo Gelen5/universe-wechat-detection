@@ -150,9 +150,16 @@ body.atelier.market-body .market-search:focus-within {
 }
 
 body.atelier.market-body .market-search input {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
   color: var(--a-ink);
   font-family: var(--a-sans);
   font-size: 14px;
+}
+
+body.atelier.market-body .market-search input:focus {
+  outline: none;
 }
 
 body.atelier.market-body .market-search kbd {
