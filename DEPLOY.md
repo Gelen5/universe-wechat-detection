@@ -108,3 +108,24 @@ sudo -n ls -1dt /opt/universe-wechat-detection-releases/* | head -5
 
 - AI 超市数据快照：`/opt/universe-data/output/market/{skills.json,meta.json,custom.json}`
 - 每日同步：Celery beat `market-sync-daily`（04:10），手动触发见 `POST /api/admin/market/sync`
+---
+
+## 六、已授权的密钥
+
+`/home/admin/.ssh/authorized_keys` 当前三把：
+
+| 指纹 | 备注 |
+|---|---|
+| `SHA256:HG6WeHa/...` | swas-imported-key（早期，ECDSA） |
+| `SHA256:iuUfLjQb...` | codex-universe-deploy（ED25519） |
+| `SHA256:GHSl8BMmtYODTkRLgWxgRzgyX1wROJR4/eVkm4TYBig` | **window3-deploy**（ED25519） |
+
+短命令已安装在服务器：
+
+```bash
+universe-deploy              # 部署当前 main
+universe-deploy <sha>        # 部署指定提交
+universe-deploy --rollback <sha>
+```
+
+（内部是 `sudo -n bash /opt/universe-deploy/deploy.sh "$@"`）
