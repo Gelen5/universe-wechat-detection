@@ -19,8 +19,13 @@
     <link rel="stylesheet" href="/static/notion-workspace.css?v=20260905-settings-menu-1" />
     <link rel="stylesheet" href="/static/workbench-chat.css?v=20260911-chat-review-2" />
     <link rel="stylesheet" href="/static/conversation-workbench.css?v=20261023-topic-dedup-3" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600&family=Noto+Serif+SC:wght@400;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'" />
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600&family=Noto+Serif+SC:wght@400;600;700&display=swap" /></noscript>
+    <link rel="stylesheet" href="/static/atelier.css?v=20261024-1" />
   </head>
-  <body>
+  <body class="atelier">
     <div class="app-shell">
 
       <!-- ============================================================
@@ -30,7 +35,7 @@
         <div class="brand">
           <a href="/" aria-label="宇宙第一工作台 首页">
             <span class="mark"></span>
-            <span class="name">宇宙第一工作台</span>
+            <h1 class="name">宇宙第一工作台</h1>
             <span class="ver">v3.2.0</span>
           </a>
         </div>
@@ -100,7 +105,7 @@
           <div class="auth-tabs"><button class="active" data-auth-mode="login" type="button">登录</button><button data-auth-mode="register" type="button">注册</button></div>
           <form id="auth-form" class="auth-form">
             <span><label id="display-name-field" hidden>昵称<input id="auth-display-name" type="text" maxlength="40" autocomplete="name" placeholder="怎么称呼你"></label></span>
-            <label>邮箱<input id="auth-email" type="email" maxlength="254" autocomplete="email" placeholder="name@example.com" required></label>
+            <label>邮箱<input id="auth-email" type="email" maxlength="254" autocomplete="email" placeholder="name@domain.com" required></label>
             <label>密码<input id="auth-password" type="password" minlength="8" maxlength="128" autocomplete="current-password" placeholder="至少 8 位" required></label>
             <button id="auth-submit" class="primary-action" type="submit">登录</button>
           </form>
@@ -162,113 +167,79 @@
       <!-- ============================================================
            TAB 1 · / — 首页（产品 hero + 六个工具模块墙）
            ============================================================ -->
-      <section id="home" class="home-page">
-        <div class="v3-meta">
-          <span class="l"><span class="line"></span><span>Workspace H/00 · Home</span></span>
-          <span class="r"><i></i>all-in-one · 6 modules</span>
+      <section id="home" class="home-page atelier-home" data-atelier="true">
+        <header class="atelier-home-head">
+          <p class="atelier-home-date">2026 年 10 月 24 日 · 周六</p>
+          <h1>今天，写一篇<br />值得读完的。</h1>
+          <p class="lede">从选题、写作到排版发布，AI 编辑和你共用一张书桌。</p>
+        </header>
+
+        <div class="atelier-home-body">
+          <div class="atelier-home-left">
+            <a class="atelier-start" href="/workbench">
+              <span class="atelier-start-label">开始一篇新文章</span>
+              <span class="atelier-start-prompt">写下主题，或贴一篇文章…</span>
+              <span class="atelier-start-note">先写一句，AI 编辑会从选题接手。</span>
+              <span class="atelier-start-go">进入创作台 <b>→</b></span>
+            </a>
+
+            <section class="atelier-flow" aria-labelledby="atelier-flow-title">
+              <h2 id="atelier-flow-title">一张纸，五步走完</h2>
+              <div class="atelier-flow-row" aria-label="写作流程">
+                <span>选题</span><i>→</i><span>大纲</span><i>→</i><span>正文</span><i>→</i><span>去 AI</span><i>→</i><span>排版</span>
+              </div>
+              <p>每一阶段都可回溯；正文、版本和排版都在同一张纸上。</p>
+            </section>
+
+            <section class="atelier-recent" aria-labelledby="atelier-recent-title">
+              <h2 id="atelier-recent-title">最近</h2>
+              <a class="atelier-recent-empty" href="/workbench">
+                <span>还没有作品</span>
+                <small>开始第一篇，版本会留在这里。</small>
+                <b>→</b>
+              </a>
+            </section>
+          </div>
+
+          <section class="atelier-index" aria-labelledby="atelier-index-title">
+            <h2 id="atelier-index-title">工作台</h2>
+            <a href="/workbench">
+              <span class="atelier-index-name">公众号创作</span>
+              <span class="atelier-index-desc">选题、正文、去 AI、排版，一张纸走完。</span>
+              <span class="atelier-index-arrow">→</span>
+            </a>
+            <a href="/diagnose">
+              <span class="atelier-index-name">账号诊断</span>
+              <span class="atelier-index-desc">看清内容力与商业潜力的短板。</span>
+              <span class="atelier-index-arrow">→</span>
+            </a>
+            <a href="/xiaohongshu">
+              <span class="atelier-index-name">小红书创作</span>
+              <span class="atelier-index-desc">标题、正文、封面，一次成包。</span>
+              <span class="atelier-index-arrow">→</span>
+            </a>
+            <a href="/tie-tu">
+              <span class="atelier-index-name">微信贴图号</span>
+              <span class="atelier-index-desc">3:4 卡片分镜与批量出图。</span>
+              <span class="atelier-index-arrow">→</span>
+            </a>
+            <a href="/hit-detector">
+              <span class="atelier-index-name">发布前复核</span>
+              <span class="atelier-index-desc">事实、结构与表达风险检查。</span>
+              <span class="atelier-index-arrow">→</span>
+            </a>
+            <a href="/morning-generator">
+              <span class="atelier-index-name">早安祝福</span>
+              <span class="atelier-index-desc">每日图片与文案，按时交稿。</span>
+              <span class="atelier-index-arrow">→</span>
+            </a>
+          </section>
         </div>
 
-        <div class="v3-hero">
-          <div class="v3-hero-l">
-            <div class="kicker"><span class="line"></span><span>AI · CREATOR · WORKSPACE</span></div>
-            <h1>六个 AI 工具，<br>一套<span class="serif">节奏</span><span class="blue">.</span></h1>
-            <p class="lede">为公众号作者打造的一站式 AI 工作台。从账号诊断到文章发布，全链路托管，AI Key 由平台安全保管。</p>
-
-            <div class="cta-row">
-              <a class="primary" href="/diagnose">开始诊断 <span class="arr">→</span></a>
-              <a class="secondary" href="/workbench">去创作 <span class="arr">→</span></a>
-            </div>
-
-            <div class="proof">
-              <span><b>1,247</b> 公众号已建档</span>
-              <span class="sep"></span>
-              <span><b>87%</b> 首测拿到优质档</span>
-              <span class="sep"></span>
-              <span><b>12s</b> 平均完成</span>
-            </div>
-          </div>
-
-          <div class="v3-hero-r">
-            <div class="hero-collage">
-              <a class="hc-card hc-1" href="/diagnose"><span class="n">01</span><span class="t">号号诊断</span><span class="d">全维度内容力扫描</span></a>
-              <a class="hc-card hc-2" href="/workbench"><span class="n">02</span><span class="t">公众号创作</span><span class="d">8 步从选题到发布</span></a>
-              <a class="hc-card hc-3" href="/xiaohongshu"><span class="n">03</span><span class="t">小红书创作</span><span class="d">3 标题 + 6 图文 + 1 封面</span></a>
-              <a class="hc-card hc-4" href="/tie-tu"><span class="n">04</span><span class="t">贴图号</span><span class="d">3:4 卡片分镜批量</span></a>
-              <a class="hc-card hc-5" href="/hit-detector"><span class="n">05</span><span class="t">爆文检测</span><span class="d">发布前质量复核</span></a>
-              <a class="hc-card hc-6" href="/morning-generator"><span class="n">06</span><span class="t">早安祝福</span><span class="d">每日图片 + 文案</span></a>
-            </div>
-          </div>
-        </div>
-
-        <section class="v3-modules">
-          <div class="head">
-            <div class="l">
-              <span class="lbl">— All Workspaces · 06 modules</span>
-              <h2>六个工具，一套<span class="serif">节奏</span>。</h2>
-            </div>
-            <div class="r">last sync 13:01 · 12s</div>
-          </div>
-          <div class="modlist">
-            <div class="mod" data-view-link="/" data-section="diagnose">
-              <span class="num">01</span>
-              <span class="name"><span class="serif">公众号</span><span class="em">号号诊断</span></span>
-              <span class="desc">内容力与商业潜力报告。全维度扫描，给出可执行的改稿方向。</span>
-              <span class="stat"><span class="dot"></span>READY</span>
-              <span class="arrow">→</span>
-            </div>
-            <div class="mod" data-view-link="/workbench">
-              <span class="num">02</span>
-              <span class="name"><span class="serif">公众号</span><span class="em">创作</span></span>
-              <span class="desc">从选题到排版发布。8 步全链路管道，集成反 AI 改稿与排版。</span>
-              <span class="stat"><span class="dot"></span>READY</span>
-              <span class="arrow">→</span>
-            </div>
-            <div class="mod" data-view-link="/xiaohongshu">
-              <span class="num">03</span>
-              <span class="name">小红书<span class="serif em">创作</span></span>
-              <span class="desc">一键生成完整种草内容包。含配图与封面，社媒属性专属排版。</span>
-              <span class="stat"><span class="dot"></span>READY</span>
-              <span class="arrow">→</span>
-            </div>
-            <div class="mod" data-view-link="/tie-tu">
-              <span class="num">04</span>
-              <span class="name">微信<span class="serif em">贴图</span>号</span>
-              <span class="desc">卡片设计与批量生图。贴图号专属工作流，分镜自动排布。</span>
-              <span class="stat"><span class="dot"></span>READY</span>
-              <span class="arrow">→</span>
-            </div>
-            <div class="mod" data-view-link="/hit-detector">
-              <span class="num">05</span>
-              <span class="name">爆文<span class="serif em">检测</span></span>
-              <span class="desc">发布前编辑质量复核。结构参考分、事实账本、可执行改稿建议。</span>
-              <span class="stat"><span class="dot"></span>READY</span>
-              <span class="arrow">→</span>
-            </div>
-            <div class="mod" data-view-link="/morning-generator">
-              <span class="num">06</span>
-              <span class="name">早安<span class="serif em">祝福</span></span>
-              <span class="desc">图片与文案自动生成。早安号专用工作流，每日定时产出。</span>
-              <span class="stat"><span class="dot"></span>READY</span>
-              <span class="arrow">→</span>
-            </div>
-          </div>
-
-          <div class="recent-line">
-            <span class="l">Recent</span>
-            <button type="button" class="recent-item" data-account="滚去睡">
-              <span>滚去睡</span>
-              <span class="recent-meta">内容力 82 · 3d</span>
-            </button>
-            <button type="button" class="recent-item" data-account="星空漫游">
-              <span>星空漫游</span>
-              <span class="recent-meta">内容力 74 · 1w</span>
-            </button>
-            <button type="button" class="recent-item" data-account="养龟日记">
-              <span>养龟日记</span>
-              <span class="recent-meta">内容力 68 · 1w</span>
-            </button>
-          </div>
-        </section>
+        <footer class="atelier-home-foot">
+          <span>六个工具，一套工作流。</span>
+          <a href="/bookshelf">AI 书架 →</a>
+        </footer>
       </section>
 
       <!-- ============================================================
@@ -466,7 +437,7 @@
                 </article>
                 <article class="empty-preview empty-preview-pin">
                   <header><span class="ep-tag">04 · 置顶评论</span><em class="ep-meta">提升互动</em></header>
-                  <div class="ep-pin"><strong>📌 留个钩子问读者</strong><p>你踩过哪个坑？评论区告诉我。</p></div>
+                  <div class="ep-pin"><strong>置顶评论：留个钩子问读者</strong><p>你踩过哪个坑？评论区告诉我。</p></div>
                 </article>
               </div>
               <footer class="empty-foot"><span>提交表单后 4 部分按顺序生成</span><small>4 outputs · 1 click</small></footer>
@@ -915,5 +886,6 @@
       })();
     </script>
     <script src="/static/conversation-workbench.js?v=20261023-topic-dedup-3"></script>
+    <script src="/static/atelier.js?v=20261024-1"></script>
   </body>
 </html>

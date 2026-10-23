@@ -390,6 +390,13 @@
     root.dataset.studioView = value ? 'article' : 'chat';
     viewToggle.textContent = value ? '返回对话' : '查看作品';
     viewToggle.setAttribute('aria-pressed', String(value));
+    if (value) {
+      window.requestAnimationFrame(() => {
+        const canvas = root.querySelector('.article-canvas');
+        if (canvas) canvas.scrollTop = 0;
+        window.scrollTo(0, 0);
+      });
+    }
   }
 
   function latestOf(type, predicate = () => true) {
@@ -874,11 +881,16 @@
   captureClick('[data-next-stage]', button => runStage(button.dataset.nextStage || activeStage));
   captureClick('[data-workbench-view-toggle]', () => setOutputOpen(true));
   captureClick('[data-focus-topics]', () => {
-    if (window.matchMedia?.('(max-width: 980px)').matches) setOutputOpen(true);
-    window.setTimeout(() => {
-      stageChoices.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      stageChoices.querySelector('[data-topic-choice]')?.focus({ preventScroll: true });
-    }, 80);
+    const narrow = window.matchMedia?.('(max-width: 980px)').matches;
+    if (narrow) {
+      setOutputOpen(true);
+      window.setTimeout(() => {
+        stageChoices.querySelector('[data-topic-choice]')?.focus({ preventScroll: true });
+      }, 80);
+      return;
+    }
+    stageChoices.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    stageChoices.querySelector('[data-topic-choice]')?.focus({ preventScroll: true });
   });
   captureClick('[data-copy-html]', async () => {
     const item = stageArtifact('typeset');

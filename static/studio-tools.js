@@ -37,8 +37,11 @@
   }
   // Static marketing placeholders must not look like live product data.
   document.querySelectorAll('#home .proof, #home .recent-line, #diagnose .proof, #diagnose .v3-meta .r').forEach(el=>el.remove());
-  const homeTitle = document.querySelector('#home h1'); homeTitle.textContent='今天，想完成什么？';
-  document.querySelector('#home .lede').textContent='选择一个工具开始。填写需求、检查结果，再复制或导出到你的发布平台。';
+  const home = document.querySelector('#home');
+  if (home && !home.hasAttribute('data-atelier')) {
+    const homeTitle = home.querySelector('h1'); if (homeTitle) homeTitle.textContent='今天，想完成什么？';
+    const homeLede = home.querySelector('.lede'); if (homeLede) homeLede.textContent='选择一个工具开始。填写需求、检查结果，再复制或导出到你的发布平台。';
+  }
   const morning = document.querySelector('#morning-generator');
   morning.querySelector('h1').textContent='早安祝福';
   morning.querySelector('.morning-intro p').textContent='选择内容和图片风格，预览效果后生成，再复制或下载。';

@@ -1,0 +1,1665 @@
+/* ============================================================
+   ATELIER · 纸墨工作台
+   A paper-and-ink skin for the content studio.
+   Loaded last; all rules are scoped to body.atelier.
+   ============================================================ */
+
+:root {
+  --a-stone: #e3e1db;
+  --a-stone-deep: #d8d4cb;
+  --a-stone-soft: #ece9e2;
+  --a-paper: #f6f7f7;
+  --a-paper-warm: #f0f1f0;
+  --a-paper-bright: #fbfcfc;
+  --a-ink: #1a1c19;
+  --a-ink-soft: #4f534c;
+  --a-muted: #5f625b;
+  --a-faint: #62655d;
+  --a-line: #e4ded3;
+  --a-line-soft: #ece7dd;
+  --a-control: #cfc7b7;
+  --a-celadon: #2f6b5a;
+  --a-celadon-deep: #1f4c40;
+  --a-celadon-soft: #dce8e1;
+  --a-danger: #a33a2f;
+  --a-sans: "IBM Plex Sans", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --a-serif: "Noto Serif SC", "Songti SC", "STSong", "SimSun", serif;
+  --a-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+}
+
+body.atelier {
+  --sans: "IBM Plex Sans", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-sans: var(--sans);
+  --serif: var(--a-serif);
+  --ikb: var(--a-celadon);
+  --ikb-bright: var(--a-celadon);
+  --accent: var(--a-celadon);
+  background: var(--a-stone);
+  color: var(--a-ink);
+  font-family: var(--a-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body.atelier ::selection {
+  background: var(--a-celadon-soft);
+  color: var(--a-ink);
+}
+
+body.atelier h1,
+body.atelier h2,
+body.atelier h3,
+body.atelier h4 {
+  font-family: var(--a-serif);
+  letter-spacing: -0.02em;
+  color: var(--a-ink);
+}
+
+body.atelier p,
+body.atelier li,
+body.atelier label,
+body.atelier span {
+  font-family: var(--a-sans);
+}
+
+body.atelier .app-shell {
+  background: var(--a-stone);
+}
+
+body.atelier .v3-meta {
+  display: none !important;
+}
+
+/* ---------- shell ---------- */
+@media (min-width: 761px) {
+  body.atelier .app-shell > .v3-topbar {
+    width: 232px !important;
+    background: var(--a-stone) !important;
+    padding: 26px 14px 18px !important;
+    gap: 26px;
+    border: 0 !important;
+  }
+
+  body.atelier .v3-topbar .brand a {
+    padding: 0 8px;
+    gap: 10px;
+  }
+
+  body.atelier .v3-topbar .brand .mark {
+    width: 26px;
+    height: 26px;
+    display: grid;
+    place-items: center;
+    background: var(--a-celadon) !important;
+    border-radius: 4px;
+    color: var(--a-paper-bright);
+    font-family: var(--a-serif);
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  body.atelier .v3-topbar .brand .mark::after {
+    content: "宇";
+  }
+
+  body.atelier .v3-topbar .brand .name {
+    margin: 0;
+    color: var(--a-ink);
+    font-family: var(--a-serif);
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 1.3;
+    letter-spacing: 0.01em;
+  }
+
+  body.atelier .v3-topbar .brand .ver {
+    display: none;
+  }
+
+  body.atelier .v3-topbar .app-tabs {
+    gap: 2px;
+  }
+
+  body.atelier .nav-group-label {
+    padding: 20px 10px 6px;
+    color: var(--a-faint);
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+  }
+
+  body.atelier .v3-topbar .app-tabs a {
+    min-height: 38px;
+    padding: 8px 10px;
+    border-radius: 4px;
+    color: var(--a-ink-soft);
+    font-size: 13px;
+    font-weight: 400;
+  }
+
+  body.atelier .v3-topbar .app-tabs a:hover {
+    background: var(--a-stone-soft);
+    color: var(--a-ink);
+  }
+
+  body.atelier .v3-topbar .app-tabs a.active {
+    background: var(--a-stone-deep);
+    color: var(--a-ink);
+    font-weight: 500;
+    box-shadow: none;
+  }
+
+  body.atelier .v3-topbar .tab-icon {
+    width: 16px;
+    height: 16px;
+    opacity: 0.72;
+  }
+
+  body.atelier .v3-topbar .right {
+    border-top: 1px solid var(--a-line);
+    padding: 16px 8px 0;
+  }
+
+  body.atelier .v3-topbar .right .stat {
+    color: var(--a-muted);
+    font-size: 10.5px;
+  }
+}
+
+body.atelier .workspace-menu-toggle {
+  border: 1px solid var(--a-control);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--a-ink);
+}
+
+/* ---------- home ---------- */
+body.atelier .home-page {
+  min-height: 100dvh;
+  padding: 56px clamp(28px, 5vw, 76px) 24px;
+  background: var(--a-stone);
+  display: flex;
+  flex-direction: column;
+}
+
+body.atelier .atelier-home {
+  max-width: 1440px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+body.atelier .atelier-home-head {
+  max-width: 720px;
+}
+
+body.atelier .atelier-home-date {
+  margin: 0 0 18px;
+  color: var(--a-muted);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+
+body.atelier .atelier-home h1 {
+  margin: 0;
+  font-family: var(--a-serif);
+  font-size: 32px;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: -0.035em;
+  color: var(--a-ink);
+}
+body.atelier .atelier-home .lede {
+  max-width: 32em;
+  margin: 18px 0 0;
+  color: var(--a-ink-soft);
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+body.atelier .atelier-home-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.12fr) minmax(300px, 0.88fr);
+  gap: clamp(32px, 5vw, 80px);
+  align-items: start;
+  margin-top: clamp(36px, 5vw, 64px);
+}
+
+body.atelier .atelier-home-notes {
+  display: grid;
+  grid-template-columns: minmax(0, 1.12fr) minmax(300px, 0.88fr);
+  gap: clamp(32px, 5vw, 80px);
+  margin-top: clamp(30px, 3.5vw, 44px);
+}
+
+body.atelier .atelier-home-left {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(34px, 4vw, 52px);
+}
+
+body.atelier .atelier-flow,
+body.atelier .atelier-recent {
+  border-top: 1px solid var(--a-line);
+  padding-top: 15px;
+}
+
+body.atelier .atelier-flow h2,
+body.atelier .atelier-recent h2 {
+  margin: 0;
+  color: var(--a-muted);
+  font-family: var(--a-sans);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+body.atelier .atelier-flow-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  color: var(--a-ink-soft);
+  font-size: 12px;
+}
+
+body.atelier .atelier-flow-row i {
+  color: var(--a-line);
+  font-style: normal;
+}
+
+body.atelier .atelier-flow p {
+  margin: 8px 0 0;
+  color: var(--a-muted);
+  font-size: 10.5px;
+  line-height: 1.7;
+}
+
+body.atelier .atelier-recent-empty {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 12px;
+  margin-top: 8px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--a-line-soft);
+  text-decoration: none;
+}
+
+body.atelier .atelier-recent-empty span {
+  color: var(--a-ink-soft);
+  font-family: var(--a-serif);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+body.atelier .atelier-recent-empty small {
+  grid-column: 1;
+  margin-top: 2px;
+  color: var(--a-muted);
+  font-size: 10.5px;
+}
+
+body.atelier .atelier-recent-empty b {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  color: var(--a-line);
+  font-weight: 400;
+}
+
+
+body.atelier .atelier-start {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  min-height: 184px;
+  padding: 26px 28px 22px;
+  border: 1px solid var(--a-line);
+  border-radius: 12px;
+  background: var(--a-paper);
+  color: var(--a-ink);
+  text-decoration: none;
+  transition: border-color 0.16s ease, background 0.16s ease;
+}
+
+body.atelier .atelier-start:hover {
+  border-color: var(--a-celadon);
+  background: var(--a-paper-bright);
+}
+
+body.atelier .atelier-start-label {
+  color: var(--a-muted);
+  font-size: 11px;
+}
+
+body.atelier .atelier-start-prompt {
+  margin: 20px 0 0;
+  color: var(--a-ink);
+  font-family: var(--a-serif);
+  font-size: clamp(20px, 1.8vw, 26px);
+  font-weight: 400;
+  line-height: 1.55;
+}
+
+body.atelier .atelier-start-note {
+  margin-top: 12px;
+  color: var(--a-muted);
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+body.atelier .atelier-start-go {
+  align-self: flex-start;
+  margin-top: auto;
+  padding-top: 24px;
+  color: var(--a-celadon);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+body.atelier .atelier-start-go b {
+  font-weight: 400;
+  margin-left: 6px;
+}
+
+body.atelier .atelier-index {
+  border-top: 1px solid var(--a-line);
+}
+
+body.atelier .atelier-index h2 {
+  margin: 0;
+  padding: 14px 0 10px;
+  color: var(--a-muted);
+  font-family: var(--a-sans);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+body.atelier .atelier-index a {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  column-gap: 16px;
+  row-gap: 3px;
+  padding: 15px 0;
+  border-bottom: 1px solid var(--a-line-soft);
+  text-decoration: none;
+  color: var(--a-ink);
+  transition: color 0.14s ease;
+}
+
+body.atelier .atelier-index a:hover {
+  color: var(--a-celadon-deep);
+}
+
+body.atelier .atelier-index-name {
+  font-family: var(--a-serif);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+body.atelier .atelier-index-desc {
+  grid-column: 1;
+  color: var(--a-muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+body.atelier .atelier-index-arrow {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  color: var(--a-line);
+  font-size: 13px;
+  transition: color 0.14s ease, transform 0.14s ease;
+}
+
+body.atelier .atelier-index a:hover .atelier-index-arrow {
+  color: var(--a-celadon);
+  transform: translateX(3px);
+}
+
+body.atelier .atelier-home-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  margin-top: clamp(48px, 7vw, 88px);
+  padding-top: 16px;
+  border-top: 1px solid var(--a-line);
+  color: var(--a-muted);
+  font-size: 11px;
+}
+
+body.atelier .atelier-home-foot a {
+  color: var(--a-celadon);
+  text-decoration: none;
+}
+
+/* ---------- workbench shell ---------- */
+body.atelier #workbench.workbench-page {
+  max-width: none;
+  padding: 18px 24px 0;
+  background: var(--a-stone);
+  color: var(--a-ink);
+}
+
+body.atelier #workbench .studio-heading {
+  margin: 0 0 14px;
+  align-items: flex-end;
+}
+
+body.atelier #workbench .studio-heading h1 {
+  margin: 0;
+  font-family: var(--a-serif);
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.03em;
+}
+
+body.atelier #workbench .studio-heading p {
+  margin: 4px 0 0;
+  color: var(--a-muted);
+  font-size: 11.5px;
+}
+
+body.atelier #workbench .workbench-stage-nav {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0;
+  margin: 0 0 0;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid var(--a-line);
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+}
+
+body.atelier #workbench .workbench-stage-nav button {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  align-items: flex-start;
+  min-height: 52px;
+  padding: 10px 12px 9px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--a-muted);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+body.atelier #workbench .workbench-stage-nav button:hover {
+  color: var(--a-ink);
+  background: var(--a-stone-soft);
+}
+
+body.atelier #workbench .workbench-stage-nav button[aria-current="step"] {
+  color: var(--a-ink);
+  background: transparent;
+  box-shadow: inset 0 -2px 0 var(--a-celadon);
+}
+
+body.atelier #workbench .workbench-stage-nav button span {
+  font-family: var(--a-serif);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+body.atelier #workbench .workbench-stage-nav button small {
+  color: var(--a-faint);
+  font-family: var(--a-sans);
+  font-size: 9.5px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+body.atelier #workbench .workbench-stage-nav button[aria-current="step"] small {
+  color: var(--a-celadon);
+}
+
+body.atelier #workbench .conversation-output-actions {
+  display: none;
+}
+
+@media (min-width: 981px) {
+  body.atelier #workbench .conversation-workbench-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 382px;
+    width: calc(100% - 8px);
+    max-width: none;
+    height: clamp(560px, calc(100dvh - 182px), 860px);
+    min-height: 560px;
+    margin: 0 8px 8px 0;
+    border: 1px solid var(--a-line);
+    border-radius: 16px;
+    background: var(--a-paper);
+    overflow: hidden;
+    box-shadow: none;
+  }
+
+  body.atelier #workbench .article-canvas {
+    grid-column: 1;
+    grid-row: 1;
+    display: flex !important;
+    flex-direction: column;
+    width: auto;
+    height: 100%;
+    min-height: 0;
+    padding: 26px 36px 40px;
+    border: 0;
+    background: var(--a-paper);
+    overflow-y: auto;
+  }
+
+  body.atelier #workbench .conversation-panel {
+    grid-column: 2;
+    grid-row: 1;
+    display: flex !important;
+    width: auto;
+    height: 100%;
+    min-height: 0;
+    border: 0;
+    border-left: 1px solid var(--a-line);
+    background: var(--a-paper-warm);
+  }
+}
+
+body.atelier #workbench .article-canvas > * {
+  width: 100%;
+  max-width: 720px;
+  margin-left: auto;
+  margin-right: auto;
+  flex-shrink: 0;
+}
+
+body.atelier #workbench .workbench-stage-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 0;
+  padding: 0 0 10px;
+  border: 0;
+}
+
+body.atelier #workbench .workbench-stage-head > div:first-child {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+body.atelier #workbench #workbench-stage-kicker {
+  color: var(--a-faint);
+  font-family: var(--a-sans);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+body.atelier #workbench #workbench-stage-title {
+  margin: 0;
+  color: var(--a-ink);
+  font-family: var(--a-sans) !important;
+  font-size: 13px !important;
+  font-weight: 600;
+  line-height: 1.5;
+  letter-spacing: 0;
+}
+
+body.atelier #workbench #workbench-stage-hint {
+  display: none;
+}
+
+body.atelier #workbench .workbench-stage-actions {
+  display: flex;
+  gap: 6px;
+}
+
+body.atelier #workbench .workbench-stage-actions button {
+  min-height: 28px;
+  padding: 4px 9px;
+  border: 1px solid var(--a-line);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--a-ink-soft);
+  font-family: var(--a-sans);
+  font-size: 10.5px;
+  cursor: pointer;
+}
+
+body.atelier #workbench .workbench-stage-actions #workbench-stage-next {
+  border-color: var(--a-ink);
+  background: var(--a-ink);
+  color: var(--a-paper);
+}
+
+body.atelier #workbench .workbench-stage-actions button:disabled {
+  opacity: 0.35;
+}
+
+body.atelier #workbench .article-canvas-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin: 0;
+  padding: 4px 0 10px;
+  border: 0;
+}
+
+body.atelier #workbench .article-canvas-head h2 {
+  margin: 0;
+  font-family: var(--a-serif);
+  font-size: 32px;
+  font-weight: 600;
+  line-height: 1.28;
+  letter-spacing: -0.035em;
+  color: var(--a-ink);
+}
+
+body.atelier #workbench .article-canvas-head p {
+  margin: 7px 0 0;
+  color: var(--a-muted);
+  font-family: var(--a-sans);
+  font-size: 10.5px;
+}
+
+body.atelier #workbench .canvas-actions {
+  display: flex;
+  gap: 2px;
+  padding-top: 4px;
+}
+
+body.atelier #workbench .canvas-actions .icon-action {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--a-muted);
+}
+
+body.atelier #workbench .canvas-actions .icon-action:hover {
+  background: var(--a-paper-warm);
+  color: var(--a-ink);
+}
+
+body.atelier #workbench .version-strip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 0;
+  padding: 8px 0 11px;
+  border: 0;
+  border-bottom: 1px solid var(--a-line);
+  background: transparent;
+  color: var(--a-muted);
+  font-family: var(--a-sans);
+  font-size: 10px;
+}
+
+body.atelier #workbench #workbench-stage-choices {
+  margin-top: 14px;
+}
+
+body.atelier #workbench .topic-board {
+  margin-top: 0;
+}
+
+body.atelier #workbench .topic-board-head {
+  padding: 0 0 10px;
+}
+
+body.atelier #workbench .topic-board-head strong {
+  font-family: var(--a-serif);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--a-ink);
+}
+
+body.atelier #workbench .topic-board-head p {
+  margin: 3px 0 0;
+  color: var(--a-muted);
+  font-size: 10px;
+}
+
+body.atelier #workbench .topic-row-list {
+  display: grid;
+  gap: 0;
+  border-top: 1px solid var(--a-line);
+}
+
+body.atelier #workbench .workbench-stage-choices .topic-row,
+body.atelier #workbench button.topic-row {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) 12px;
+  align-items: start;
+  gap: 10px;
+  width: 100%;
+  min-height: 0;
+  padding: 13px 8px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--a-line-soft);
+  border-radius: 0;
+  background: transparent;
+  color: var(--a-ink);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.14s ease, box-shadow 0.14s ease;
+}
+
+body.atelier #workbench .workbench-stage-choices .topic-row:hover,
+body.atelier #workbench button.topic-row:hover {
+  background: var(--a-paper-warm);
+}
+
+body.atelier #workbench .workbench-stage-choices .topic-row:focus-visible,
+body.atelier #workbench button.topic-row:focus-visible {
+  outline: 2px solid var(--a-celadon);
+  outline-offset: 2px;
+}
+
+body.atelier #workbench .workbench-stage-choices .topic-row.is-selected,
+body.atelier #workbench button.topic-row.is-selected {
+  background: var(--a-celadon-soft);
+  box-shadow: inset 2px 0 0 var(--a-celadon);
+}
+
+body.atelier #workbench .topic-row-index {
+  padding-top: 2px;
+  color: var(--a-faint);
+  font-family: var(--a-mono);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+body.atelier #workbench .topic-row-main {
+  gap: 2px;
+}
+
+body.atelier #workbench .workbench-stage-choices .topic-row .topic-row-title {
+  color: var(--a-ink);
+  font-family: var(--a-serif);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.55;
+}
+
+body.atelier #workbench .workbench-stage-choices .topic-row.is-selected .topic-row-title {
+  color: var(--a-celadon-deep);
+}
+
+body.atelier #workbench .workbench-stage-choices .topic-row .topic-row-type,
+body.atelier #workbench .workbench-stage-choices .topic-row .topic-row-pick {
+  padding: 0 5px;
+  border-radius: 2px;
+  background: var(--a-stone-soft);
+  color: var(--a-muted);
+  font-family: var(--a-sans);
+  font-size: 9.5px;
+  line-height: 1.75;
+}
+
+body.atelier #workbench .workbench-stage-choices .topic-row .topic-row-pick {
+  background: var(--a-celadon-soft);
+  color: var(--a-celadon-deep);
+}
+
+body.atelier #workbench .workbench-stage-choices .topic-row .topic-row-reason {
+  color: var(--a-muted);
+  font-family: var(--a-sans);
+  font-size: 10.5px;
+}
+
+body.atelier #workbench .workbench-stage-choices .topic-signal {
+  color: var(--a-muted);
+  font-size: 9.5px;
+}
+
+body.atelier #workbench .workbench-stage-choices .topic-signal b {
+  color: var(--a-ink-soft);
+  font-size: 10px;
+}
+
+body.atelier #workbench .topic-meter {
+  width: 24px;
+  height: 2px;
+  background: var(--a-line);
+}
+
+body.atelier #workbench .topic-meter i {
+  background: var(--a-celadon);
+}
+
+body.atelier #workbench .workbench-stage-choices .topic-row-competition {
+  color: var(--a-muted);
+  font-size: 9.5px;
+}
+
+body.atelier #workbench .workbench-stage-choices .topic-row-state {
+  color: var(--a-line);
+  font-size: 13px;
+}
+
+body.atelier #workbench .workbench-stage-choices .topic-row.is-selected .topic-row-state {
+  color: var(--a-celadon);
+}
+
+body.atelier #workbench .topic-evidence {
+  margin-top: 10px;
+  border-top: 0;
+  padding-top: 8px;
+}
+
+body.atelier #workbench .topic-evidence > summary {
+  color: var(--a-muted);
+  font-size: 10px;
+}
+
+body.atelier #workbench .topic-evidence > summary span {
+  color: var(--a-faint);
+  font-size: 9.5px;
+}
+
+body.atelier #workbench .topic-evidence-body {
+  border-radius: 4px;
+  background: var(--a-paper-warm);
+}
+
+body.atelier #workbench .topic-evidence-body h4 {
+  color: var(--a-ink-soft);
+  font-size: 9.5px;
+}
+
+body.atelier #workbench .topic-evidence-body li {
+  color: var(--a-ink-soft);
+  font-size: 10.5px;
+}
+
+body.atelier #workbench .topic-evidence-body li a {
+  color: var(--a-celadon);
+}
+
+/* editor & article body */
+body.atelier #workbench .editor-wrap {
+  margin-top: 18px;
+  border: 0;
+  background: transparent;
+}
+
+body.atelier #workbench .editor-head {
+  color: var(--a-muted);
+  font-family: var(--a-sans);
+  font-size: 9.5px;
+}
+
+body.atelier #workbench #article-editor {
+  min-height: 340px;
+  padding: 18px 0 40px;
+  border: 0;
+  background: transparent;
+  color: var(--a-ink);
+  font-family: var(--a-serif);
+  font-size: 16px;
+  line-height: 1.95;
+  resize: none;
+}
+
+body.atelier #workbench .article-canvas-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  margin-top: 12px;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--a-line);
+  color: var(--a-muted);
+  font-size: 9.5px;
+}
+
+/* ---------- conversation margin ---------- */
+body.atelier #workbench .conversation-panel-head {
+  min-height: 64px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--a-line);
+  background: transparent;
+}
+
+body.atelier #workbench .conversation-identity {
+  gap: 10px;
+}
+
+body.atelier #workbench .assistant-mark {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--a-celadon);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--a-celadon);
+}
+
+body.atelier #workbench .assistant-mark svg {
+  display: none;
+}
+
+body.atelier #workbench .assistant-mark::after {
+  content: "编";
+  font-family: var(--a-serif);
+  font-size: 11px;
+  line-height: 1;
+}
+
+body.atelier #workbench .conversation-identity strong {
+  color: var(--a-ink);
+  font-family: var(--a-serif);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+body.atelier #workbench .conversation-identity small {
+  color: var(--a-muted);
+  font-family: var(--a-sans);
+  font-size: 10px;
+}
+
+body.atelier #workbench .work-status {
+  color: var(--a-muted);
+  font-family: var(--a-sans);
+  font-size: 10px;
+}
+
+body.atelier #workbench .new-chat-button {
+  min-height: 26px;
+  padding: 3px 7px;
+  border: 1px solid var(--a-line);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--a-ink-soft);
+  font-family: var(--a-sans);
+  font-size: 10px;
+}
+
+body.atelier #workbench .new-chat-button:hover {
+  border-color: var(--a-control);
+  background: var(--a-paper);
+}
+
+body.atelier #workbench .chat-thread {
+  padding: 20px 20px 8px;
+  background: transparent;
+}
+
+body.atelier #workbench .chat-message {
+  margin: 0 0 22px;
+  max-width: none;
+}
+
+body.atelier #workbench .chat-message > span {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--a-faint);
+  font-family: var(--a-sans);
+  font-size: 9.5px;
+  letter-spacing: 0.02em;
+}
+
+body.atelier #workbench .chat-message p {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--a-ink-soft);
+  font-family: var(--a-sans);
+  font-size: 12.5px;
+  line-height: 1.8;
+}
+
+body.atelier #workbench .chat-message.from-user p {
+  padding-left: 10px;
+  border-left: 2px solid var(--a-celadon);
+  color: var(--a-ink);
+}
+
+body.atelier #workbench .chat-message.from-ai p {
+  color: var(--a-ink-soft);
+}
+
+body.atelier #workbench .chat-action-card {
+  margin: 8px 0 4px;
+  padding: 14px;
+  border: 1px solid var(--a-line);
+  border-radius: 8px;
+  background: var(--a-paper);
+  box-shadow: none;
+}
+
+body.atelier #workbench .chat-action-card > strong {
+  color: var(--a-ink);
+  font-family: var(--a-serif);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+body.atelier #workbench .chat-action-card > p {
+  margin: 5px 0 0;
+  color: var(--a-muted);
+  font-size: 10.5px;
+  line-height: 1.7;
+}
+
+body.atelier #workbench .chat-action-row {
+  gap: 6px;
+  margin-top: 10px;
+}
+
+body.atelier #workbench .chat-action-primary,
+body.atelier #workbench .chat-action-ghost {
+  min-height: 30px;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-family: var(--a-sans);
+  font-size: 10.5px;
+}
+
+body.atelier #workbench .chat-action-primary {
+  border: 1px solid var(--a-ink);
+  background: var(--a-ink);
+  color: var(--a-paper);
+}
+
+body.atelier #workbench .chat-action-primary:hover {
+  background: #000;
+}
+
+body.atelier #workbench .chat-action-ghost {
+  border: 1px solid var(--a-line);
+  background: transparent;
+  color: var(--a-ink-soft);
+}
+
+body.atelier #workbench .chat-choice-row {
+  display: none;
+}
+
+body.atelier #workbench .chat-steps li,
+body.atelier #workbench .chat-steps-hint {
+  color: var(--a-muted);
+  font-size: 10.5px;
+}
+
+body.atelier #workbench .chat-steps li[data-state="active"] {
+  color: var(--a-celadon);
+}
+
+body.atelier #workbench .chat-steps li[data-state="done"] {
+  color: var(--a-celadon-deep);
+}
+
+body.atelier #workbench .composer-shell {
+  margin: 12px;
+  padding: 10px 11px 8px;
+  border: 1px solid var(--a-control);
+  border-radius: 8px;
+  background: var(--a-paper-bright);
+  box-shadow: none;
+}
+
+body.atelier #workbench .composer-shell label {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--a-muted);
+  font-family: var(--a-sans);
+  font-size: 9.5px;
+}
+
+body.atelier #workbench #workbench-topic {
+  width: 100%;
+  min-height: 54px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--a-ink);
+  font-family: var(--a-sans);
+  font-size: 12.5px;
+  line-height: 1.7;
+  resize: none;
+  outline: none;
+}
+
+body.atelier #workbench #workbench-topic::placeholder {
+  color: var(--a-faint);
+}
+
+body.atelier #workbench .composer-actions {
+  gap: 8px;
+  margin-top: 5px;
+}
+
+body.atelier #workbench .composer-text-action {
+  color: var(--a-celadon);
+  font-size: 10px;
+}
+
+body.atelier #workbench .composer-hint {
+  color: var(--a-faint);
+  font-size: 9px;
+}
+
+body.atelier #workbench .composer-send {
+  width: 34px;
+  height: 34px;
+  border-radius: 4px;
+  background: var(--a-ink);
+  color: var(--a-paper);
+}
+
+body.atelier #workbench .composer-send svg {
+  width: 15px;
+  height: 15px;
+}
+
+body.atelier #workbench .composer-send:hover {
+  background: #000;
+}
+
+/* ---------- shared components on other screens ---------- */
+body.atelier input,
+body.atelier textarea,
+body.atelier select {
+  border: 1px solid var(--a-control);
+  border-radius: 6px;
+  background: var(--a-paper-bright);
+  color: var(--a-ink);
+  font-family: var(--a-sans);
+}
+
+body.atelier input:focus,
+body.atelier textarea:focus,
+body.atelier select:focus {
+  outline: 2px solid var(--a-celadon);
+  outline-offset: 1px;
+  border-color: var(--a-celadon);
+}
+
+body.atelier .primary,
+body.atelier #submit-button,
+body.atelier .flow-primary,
+body.atelier .begin-writing {
+  border: 1px solid var(--a-ink);
+  border-radius: 4px;
+  background: var(--a-ink);
+  color: var(--a-paper);
+  box-shadow: none;
+}
+
+body.atelier .primary:hover,
+body.atelier #submit-button:hover,
+body.atelier .flow-primary:hover {
+  background: #000;
+}
+
+body.atelier .secondary,
+body.atelier .flow-secondary,
+body.atelier .chip {
+  border: 1px solid var(--a-line);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--a-ink-soft);
+  box-shadow: none;
+}
+
+body.atelier .chip:hover {
+  border-color: var(--a-celadon);
+  color: var(--a-celadon-deep);
+}
+
+body.atelier .diagnose-page,
+body.atelier .skill-page,
+body.atelier .report-page {
+  background: var(--a-stone);
+  color: var(--a-ink);
+}
+
+body.atelier .skill-page {
+  padding: 34px clamp(24px, 4vw, 48px) 24px;
+}
+
+body.atelier .skill-page .tool-heading h1 {
+  font-family: var(--a-serif);
+  font-size: 30px !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.035em;
+}
+
+body.atelier .skill-page .tool-heading p {
+  color: var(--a-muted);
+  font-size: 11px;
+}
+
+body.atelier .studio-tool .skill-shell {
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+  gap: 20px;
+  height: clamp(520px, calc(100dvh - 208px), 760px);
+  min-height: 520px;
+  align-items: stretch;
+}
+
+body.atelier .studio-tool .skill-form-col,
+body.atelier .studio-tool .skill-output-col {
+  height: 100%;
+  max-height: none;
+  padding: 24px;
+  border: 1px solid var(--a-line);
+  border-radius: 12px;
+  background: var(--a-paper);
+  overflow: auto;
+}
+
+body.atelier .studio-tool .skill-form-col {
+  display: flex;
+  flex-direction: column;
+}
+
+body.atelier .studio-tool .skill-form-col::before {
+  content: "写作简报";
+  display: block;
+  margin-bottom: 18px;
+  color: var(--a-muted);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+body.atelier .studio-tool .skill-form-col::after {
+  content: "填写后，右侧会按顺序生成可编辑的产出。";
+  display: block;
+  margin-top: auto;
+  padding-top: 24px;
+  color: var(--a-muted);
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+body.atelier .studio-tool .skill-form {
+  margin: 0 !important;
+}
+
+body.atelier .studio-tool .skill-output-col {
+  position: static;
+  display: flex;
+  flex-direction: column;
+}
+
+body.atelier .studio-tool .skill-empty {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 0;
+  padding: 24px;
+}
+
+body.atelier .studio-tool .skill-empty h2 {
+  max-width: 18em;
+  margin: 0 0 12px;
+  color: var(--a-ink);
+  font-family: var(--a-serif);
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+body.atelier .studio-tool .skill-empty p {
+  max-width: 36em;
+  color: var(--a-muted);
+  font-size: 12px;
+  line-height: 1.9;
+}
+
+body.atelier .studio-tool .skill-form :is(input, select, textarea) {
+  width: 100%;
+  border: 1px solid var(--a-control);
+  border-radius: 6px;
+  background: var(--a-paper-bright);
+  color: var(--a-ink);
+  font-size: 13px;
+}
+
+body.atelier .studio-tool .skill-form textarea {
+  min-height: 148px;
+  padding: 12px;
+  line-height: 1.8;
+}
+
+body.atelier .studio-tool .skill-primary,
+body.atelier #diagnose #submit-button {
+  border: 1px solid var(--a-ink) !important;
+  border-radius: 4px !important;
+  background: var(--a-ink) !important;
+  color: var(--a-paper) !important;
+  box-shadow: none !important;
+}
+
+body.atelier .studio-tool .form-section {
+  border-bottom-color: var(--a-line);
+}
+
+body.atelier .studio-tool .skill-output-col[aria-busy="true"] {
+  border-color: var(--a-celadon);
+}
+
+/* diagnose keeps its sample report; bring its accents into the same palette */
+body.atelier .diagnose-page {
+  padding: 34px clamp(24px, 4vw, 48px) 24px;
+}
+
+body.atelier .diagnose-page .diagnose-shell {
+  gap: clamp(28px, 4vw, 56px);
+  align-items: start;
+}
+
+body.atelier .diagnose-page .v3-hero-l h1 {
+  font-family: var(--a-serif);
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+}
+
+body.atelier .diagnose-page .v3-hero-r .frame {
+  border: 1px solid var(--a-line);
+  border-radius: 12px;
+  background: var(--a-paper);
+  box-shadow: none;
+}
+
+body.atelier .diagnose-page .frame .score-row .v {
+  font-family: var(--a-serif);
+  color: var(--a-ink);
+}
+
+body.atelier .diagnose-page .frame .dim .bar i {
+  background: var(--a-celadon);
+}
+
+body.atelier .diagnose-page .frame .head .live i,
+body.atelier .diagnose-page .frame-cap i {
+  background: var(--a-celadon);
+}
+
+body.atelier .diagnose-page .sample-row .chip {
+  border: 1px solid var(--a-line);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--a-ink-soft);
+}
+
+body.atelier .diagnose-page .sample-row .chip:hover {
+  border-color: var(--a-celadon);
+  color: var(--a-celadon-deep);
+}
+
+body.atelier :is(.diagnose-page, .skill-page, .report-page) h1,
+body.atelier :is(.diagnose-page, .skill-page, .report-page) h2 {
+  font-family: var(--a-serif);
+  letter-spacing: -0.03em;
+}
+
+body.atelier .skill-shell,
+body.atelier .skill-form,
+body.atelier .skill-output-col,
+body.atelier .diagnose-shell .frame,
+body.atelier .current-work-card,
+body.atelier .outcome-panel,
+body.atelier .score-report {
+  border: 1px solid var(--a-line);
+  border-radius: 10px;
+  background: var(--a-paper);
+  box-shadow: none;
+}
+
+body.atelier .kicker {
+  color: var(--a-muted);
+  font-family: var(--a-sans);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+}
+
+body.atelier .lede {
+  color: var(--a-ink-soft);
+}
+
+body.atelier .recent-item,
+body.atelier .recent-line {
+  border-color: var(--a-line);
+  background: transparent;
+}
+
+/* ---------- responsive ---------- */
+@media (max-width: 1150px) and (min-width: 981px) {
+  body.atelier #workbench .conversation-workbench-layout {
+    grid-template-columns: minmax(0, 1fr) 330px;
+  }
+}
+
+@media (max-width: 980px) {
+  body.atelier .atelier-home-body,
+  body.atelier .atelier-home-notes {
+    grid-template-columns: 1fr;
+    gap: 36px;
+  }
+
+  body.atelier #workbench .conversation-output-actions {
+    display: flex !important;
+    justify-content: flex-end;
+    padding: 6px 0;
+  }
+
+  body.atelier #workbench .conversation-output-actions button {
+    min-height: 28px;
+    padding: 4px 9px;
+    border: 1px solid var(--a-line);
+    border-radius: 4px;
+    background: var(--a-paper);
+    color: var(--a-ink-soft);
+    font-family: var(--a-sans);
+    font-size: 11px;
+  }
+
+  body.atelier .home-page {
+    padding: 40px 24px 24px;
+  }
+
+  body.atelier #workbench.workbench-page {
+    padding: 16px 16px 0;
+  }
+
+  body.atelier #workbench .conversation-workbench-layout {
+    height: auto;
+    min-height: 0;
+    margin: 0;
+    border-radius: 12px;
+  }
+
+  body.atelier #workbench .workbench-stage-nav {
+    overflow-x: auto;
+    grid-template-columns: repeat(5, minmax(108px, 1fr));
+    padding-right: 16px;
+    scroll-padding-right: 16px;
+  }
+
+  body.atelier #workbench .workbench-stage-nav button small {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  body.atelier .atelier-home h1 {
+    font-size: 30px;
+  }
+
+  body.atelier .atelier-start {
+    min-height: 156px;
+    padding: 22px 20px 18px;
+  }
+
+  body.atelier .atelier-home-foot {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  body.atelier #workbench .studio-heading h1 {
+    font-size: 22px;
+  }
+
+  body.atelier #workbench .article-canvas-head h2 {
+    font-size: 26px;
+  }
+
+  body.atelier #workbench .article-canvas {
+    padding: 20px 18px 32px;
+  }
+
+  body.atelier #workbench .chat-thread {
+    padding: 16px 16px 4px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.atelier *,
+  body.atelier *::before,
+  body.atelier *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Later layers in the old stack force a sans face with !important; the
+   editorial face is the one thing this skin must win back. */
+body.atelier #workbench :is(button, input, textarea, label, small, span, p, a, li),
+body.atelier #workbench .chat-message,
+body.atelier #workbench .composer-shell,
+body.atelier #workbench .workbench-stage-nav {
+  font-family: var(--a-sans) !important;
+}
+
+body.atelier #workbench .conversation-workbench-layout,
+body.atelier #workbench .article-canvas,
+body.atelier #workbench .conversation-panel,
+body.atelier #workbench .chat-action-card,
+body.atelier #workbench .composer-shell,
+body.atelier #workbench .topic-row,
+body.atelier #workbench .topic-evidence-body {
+  box-shadow: none !important;
+}
+
+body.atelier #workbench .topic-evidence-body li small,
+body.atelier #workbench .topic-evidence-body p,
+body.atelier #workbench .topic-evidence-body h4 {
+  color: var(--a-muted) !important;
+}
+
+body.atelier #workbench .version-strip,
+body.atelier #workbench .article-canvas-foot,
+body.atelier #workbench .article-canvas-foot span,
+body.atelier #workbench .editor-head {
+  color: var(--a-muted) !important;
+}
+
+body.atelier .atelier-home h1,
+body.atelier .atelier-index-name,
+body.atelier .v3-topbar .brand .name,
+body.atelier #workbench .studio-heading h1,
+body.atelier #workbench .article-canvas-head h2,
+body.atelier #workbench .topic-board-head strong,
+body.atelier #workbench .workbench-stage-choices .topic-row .topic-row-title,
+body.atelier #workbench .chat-action-card > strong,
+body.atelier #workbench .conversation-identity strong,
+body.atelier #workbench .assistant-mark::after,
+body.atelier :is(.diagnose-page, .skill-page, .report-page) h1,
+body.atelier :is(.diagnose-page, .skill-page, .report-page) h2 {
+  font-family: var(--a-serif) !important;
+}
+
+body.atelier #workbench .studio-heading {
+  display: flex !important;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 2px 0 10px;
+}
+
+body.atelier #workbench .studio-heading h1 {
+  font-size: 22px !important;
+  font-weight: 600 !important;
+  line-height: 1.35 !important;
+}
+
+body.atelier #workbench .studio-heading p {
+  margin: 3px 0 0;
+  color: var(--a-muted);
+  font-size: 11px;
+}
+
+body.atelier #workbench .chat-message p {
+  background: transparent !important;
+  border: 0 !important;
+  color: var(--a-ink-soft);
+}
+
+body.atelier #workbench .chat-message.from-user {
+  display: block !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  padding-left: 0 !important;
+  text-align: left;
+}
+
+body.atelier #workbench .chat-message.from-user > span {
+  display: none !important;
+}
+
+body.atelier #workbench .chat-message.from-user p {
+  display: block !important;
+  width: 100% !important;
+  box-sizing: border-box;
+  padding: 0 0 0 10px;
+  border-left: 2px solid var(--a-celadon) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--a-ink) !important;
+  text-align: left;
+}
+
+body.atelier #workbench #start-workbench {
+  width: 34px !important;
+  min-width: 34px !important;
+  height: 34px !important;
+  min-height: 34px !important;
+  padding: 0 !important;
+  border: 1px solid var(--a-ink) !important;
+  border-radius: 4px !important;
+  background: var(--a-ink) !important;
+  color: var(--a-paper) !important;
+  margin-left: 0 !important;
+}
+
+body.atelier #workbench #start-workbench svg {
+  width: 15px;
+  height: 15px;
+}
+
+
+body.atelier #workbench .chat-message.from-ai p {
+  color: var(--a-ink-soft) !important;
+}
+

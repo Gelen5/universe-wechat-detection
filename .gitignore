@@ -43,3 +43,6 @@ selftest_v3r2.py
 !/vendor/easel/skills/openclaw/skill-topic-evaluator/
 !/vendor/easel/skills/openclaw/skill-voice-builder/
 !/vendor/easel/skills/openclaw/style-transfer/
+
+# design review artifacts
+.taste-skill/
