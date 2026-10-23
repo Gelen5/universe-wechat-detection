@@ -83,9 +83,12 @@ def build_intent_service() -> ModelService | None:
     stored = accounts.provider_settings(include_secrets=True)
     text_key = _configured("WECHAT_TEXT_API_KEY", stored, "text_api_key")
     base = (os.getenv("WECHAT_INTENT_API_BASE_URL", "").strip()
-            or _configured("WECHAT_TEXT_API_BASE_URL", stored, "https://api.openai.com/v1"))
+            or _configured("WECHAT_TEXT_API_BASE_URL", stored, "text_base_url",
+                           "https://api.openai.com/v1"))
     if not os.getenv("WECHAT_INTENT_API_BASE_URL") and base.rstrip("/").endswith("/responses"):
         base = base.rstrip("/")[: -len("/responses")]
+    if not base:
+        base = "https://api.openai.com/v1"
     provider = OpenAICompatibleProvider(
         api_key=text_key, base_url=base, text_model=model,
         verify_ssl=os.getenv("WECHAT_API_VERIFY_SSL", "true").lower() not in {"0", "false", "no", "off"},

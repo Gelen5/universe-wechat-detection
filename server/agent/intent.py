@@ -11,10 +11,13 @@ falls back to the stage the user is currently looking at.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 from dataclasses import dataclass, field
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 STAGE_LABELS = {
     "topic": "选题",
@@ -150,10 +153,14 @@ def resolve_intent(*, model_service, text: str, stage_hint: str, artifacts: list
             run_id=run_id, user_id=user_id,
         )
     except Exception as exc:  # routing must never kill the run
-        return _fallback(text, hint, f"意图判断失败：{type(exc).__name__}")
+        logger.warning("intent routing failed for run %s: %s: %s",
+                       run_id, type(exc).__name__, exc)
+        return _fallback(text, hint, "按当前步骤继续")
     data = _parse(getattr(response, "text", ""))
     if not data:
-        return _fallback(text, hint, "没有看懂这句要做什么，按当前步骤继续")
+        logger.warning("intent routing returned unparsable output for run %s: %r",
+                       run_id, (getattr(response, "text", "") or "")[:300])
+        return _fallback(text, hint, "按当前步骤继续")
     stage = _normalize_stage(data.get("stage"))
     try:
         confidence = max(0.0, min(1.0, float(data.get("confidence") or 0)))

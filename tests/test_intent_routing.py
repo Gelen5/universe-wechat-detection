@@ -1,4 +1,4 @@
-﻿"""阶段由模型理解，不由关键词猜。"""
+"""阶段由模型理解，不由关键词猜。"""
 from __future__ import annotations
 
 import unittest
@@ -76,7 +76,7 @@ class IntentRoutingTests(unittest.TestCase):
         result, _ = resolve("写吧", error=RuntimeError("provider down"))
         self.assertEqual("writing", result.stage)
         self.assertEqual("fallback", result.source)
-        self.assertIn("意图判断失败", result.reason)
+        self.assertIn("按当前步骤继续", result.reason)
 
     def test_chinese_aliases_are_understood(self):
         result, _ = resolve("排版吧", '{"stage":"排版","confidence":0.9}')
