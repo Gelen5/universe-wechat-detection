@@ -523,3 +523,74 @@ body.atelier .skill-page .creator-form-mode > summary {
   color: var(--ink-3);
   cursor: pointer;
 }
+
+
+/* ==========================================================================
+   工作台候选标题（选题建议）8 条列表
+   不依赖具体子元素，只改卡片、间距、字号与配色
+   ========================================================================== */
+
+body.atelier .workbench-stage-choices .topic-row,
+body.atelier #studio-stage-output .topic-row,
+body.atelier button.topic-row {
+  display: block !important;
+  width: 100% !important;
+  text-align: left !important;
+  margin: 0 0 8px !important;
+  padding: 12px 14px !important;
+  border: 1px solid rgba(30, 45, 36, .08) !important;
+  border-radius: 14px !important;
+  background: rgba(255, 255, 255, .74) !important;
+  box-shadow: none !important;
+  cursor: pointer;
+  transition: background .16s, border-color .16s, box-shadow .16s;
+}
+
+body.atelier .workbench-stage-choices .topic-row:hover,
+body.atelier #studio-stage-output .topic-row:hover,
+body.atelier button.topic-row:hover {
+  background: #fff !important;
+  border-color: rgba(62, 141, 107, .28) !important;
+}
+
+body.atelier .workbench-stage-choices .topic-row.is-selected,
+body.atelier #studio-stage-output .topic-row.is-selected {
+  background: rgba(255, 255, 255, .95) !important;
+  border-color: rgba(62, 141, 107, .45) !important;
+  box-shadow: 0 0 0 3px rgba(62, 141, 107, .10) !important;
+}
+
+/* 标题：两行以内，字重提上来 */
+body.atelier .topic-row strong,
+body.atelier .topic-row b,
+body.atelier .topic-row .title {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  line-height: 1.55 !important;
+  color: var(--ink-1) !important;
+  letter-spacing: -.005em;
+}
+
+/* 第二行的元信息：抬高对比度、拉开间距 */
+body.atelier .topic-row span,
+body.atelier .topic-row em,
+body.atelier .topic-row small,
+body.atelier .topic-row p {
+  font-size: 10.5px !important;
+  line-height: 1.65 !important;
+  color: var(--ink-3) !important;
+}
+
+body.atelier .topic-row em,
+body.atelier .topic-row .tag {
+  font-style: normal !important;
+  color: var(--g-700) !important;
+}
+
+/* 序号 */
+body.atelier .topic-row > span:first-child,
+body.atelier .topic-row > i:first-child {
+  font-variant-numeric: tabular-nums;
+  color: var(--g-600) !important;
+  font-weight: 500 !important;
+}
