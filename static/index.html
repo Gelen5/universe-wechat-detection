@@ -37,7 +37,12 @@
   #market .market-rail a .n{margin-left:auto}
   #market .market-hero{padding-top:10px}
   #market .market-foot{border-top:1px solid var(--line,rgba(0,0,0,.08));margin-top:8px}
-</style>
+  /* 管理员操作只在悬停/聚焦时出现，避免每行都挂着按钮 */
+  @media (hover:hover){
+    #market .market-row .admin-actions{opacity:0;transition:opacity .16s ease}
+    #market .market-row:hover .admin-actions,
+    #market .market-row:focus-within .admin-actions{opacity:1}
+  }</style>
 </head>
   <body class="atelier">
     <div class="app-shell">
