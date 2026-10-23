@@ -4,7 +4,9 @@
 
 沿用 FastAPI 路由与原生 HTML/CSS/JavaScript；无新增依赖、数据库表、登录或积分规则。`/bookshelf` 为公开书架，`/bookshelf/{id}` 为可刷新、可分享的书籍详情。原工作台导航新增普通链接，不加入旧 SPA 的付费功能状态机。书架复用 tokens.css、notion-workspace.css 与产品导航，新增样式仅作用于 library-body。
 
-采用官方阅读模式：不抓取或代理全文、不嵌入第三方 iframe、不推断章节目录。详情显示作者、仓库、许可与快照日期。所有阅读地址来自作者 README；3D 手册 README 指向 book/index.html，本轮另行核实对应作者 GitHub Pages 地址。2026-10-23 检查 11 个阅读入口均返回 HTTP 200；这是连通性证据，不保证第三方今后可用、无需登录或内容不变。原仓库作为备用入口始终保留。
+采用官方阅读模式：不抓取或代理全文、不嵌入第三方 iframe、不推断章节目录。详情显示作者、仓库、许可与快照日期。主阅读入口是 README 提供的公开中文版 PDF 在 GitHub 上的预览页；3D 手册 README 指向 book/index.html，本轮另行核实对应作者 GitHub Pages 地址。原仓库作为备用入口始终保留。
+
+WorkBuddy 分章入口虽然 HEAD 返回 200，干净浏览器实测 Hermes 链接跳转登录页，因此没有用它作为主入口；保留为标注需登录的可选链接。HTTP 连通性不保证第三方今后可用或内容不变。
 
 ### 来源与许可
 

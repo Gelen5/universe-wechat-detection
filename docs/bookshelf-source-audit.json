@@ -10,7 +10,7 @@
       "readmeSha256": "79cf0ac4b598fcd4ec6bed1ecbb4ceb2e226e1e07175d0047bae9621e8eecbe4",
       "license": "MIT",
       "licenseSource": "https://github.com/alchaincyf/hermes-agent-orange-book/blob/main/LICENSE",
-      "readUrlSource": "README.md",
+      "readUrlSource": "Chinese PDF link in README; GitHub blob preview of the exact author-published file",
       "licenseFileStatus": "MIT verified"
     },
     {
@@ -22,7 +22,7 @@
       "readmeSha256": "dd99ded38835e9f0b2591ea9ef3223e58da6f2ad9ba29e153b0b6c1b80e3702a",
       "license": "学习交流 · 引用需署名",
       "licenseSource": "https://github.com/alchaincyf/obsidian-ai-orange-book/blob/master/README.md",
-      "readUrlSource": "README.md",
+      "readUrlSource": "Chinese PDF link in README; GitHub blob preview of the exact author-published file",
       "licenseFileStatus": "No root LICENSE found; README declaration inspected"
     },
     {
@@ -34,7 +34,7 @@
       "readmeSha256": "1f871c479e75d4256d45fe71b7857eef324c0535388abab4f39bb58ba40a9da1",
       "license": "CC BY-NC-SA 4.0",
       "licenseSource": "https://github.com/alchaincyf/deepseek-harness-orange-book/blob/main/README.md",
-      "readUrlSource": "README.md",
+      "readUrlSource": "Chinese PDF link in README; GitHub blob preview of the exact author-published file",
       "licenseFileStatus": "No root LICENSE found; README declaration inspected"
     },
     {
@@ -46,7 +46,7 @@
       "readmeSha256": "66408520a4cd044f20242686c72d733797cb73abff1fda0f3a7cc6e50f040f0f",
       "license": "MIT",
       "licenseSource": "https://github.com/alchaincyf/loop-engineering-orange-book/blob/main/LICENSE",
-      "readUrlSource": "README.md",
+      "readUrlSource": "Chinese PDF link in README; GitHub blob preview of the exact author-published file",
       "licenseFileStatus": "MIT verified"
     },
     {
@@ -58,7 +58,7 @@
       "readmeSha256": "11fc1898adbbe3ddb1378f6d786c2045fae555b397b3011b2bbbaa1483c9f049",
       "license": "CC BY-NC-SA 4.0",
       "licenseSource": "https://github.com/alchaincyf/codex-orange-book/blob/main/README.md",
-      "readUrlSource": "README.md",
+      "readUrlSource": "Chinese PDF link in README; GitHub blob preview of the exact author-published file",
       "licenseFileStatus": "No root LICENSE found; README declaration inspected"
     },
     {
@@ -70,7 +70,7 @@
       "readmeSha256": "e6f412724b1cbc89af0160eb0a11862bd0b79c952911d4292fc539d90230e31a",
       "license": "CC BY-NC-SA 4.0",
       "licenseSource": "https://github.com/alchaincyf/claude-code-orange-book/blob/main/README.md",
-      "readUrlSource": "README.md",
+      "readUrlSource": "Chinese PDF link in README; GitHub blob preview of the exact author-published file",
       "licenseFileStatus": "No root LICENSE found; README declaration inspected"
     },
     {
@@ -94,7 +94,7 @@
       "readmeSha256": "293dda585781d851b9908a4397e7a03341f1b43e3e044c6a4703b1d0acb736e9",
       "license": "教育研究声明 · 未明确授权商业转载",
       "licenseSource": "https://github.com/alchaincyf/claude-code-source-analysis-orange-book/blob/main/README.md",
-      "readUrlSource": "README.md",
+      "readUrlSource": "Chinese PDF link in README; GitHub blob preview of the exact author-published file",
       "licenseFileStatus": "No root LICENSE found; README declaration inspected"
     },
     {
@@ -106,7 +106,7 @@
       "readmeSha256": "cf91a4dd529f0f3be7ac651ec75c8dc752ceff259d7b9cb3106b6192ed0f64c8",
       "license": "教育研究声明 · 未明确授权商业转载",
       "licenseSource": "https://github.com/alchaincyf/harness-engineering-orange-book/blob/main/README.md",
-      "readUrlSource": "README.md",
+      "readUrlSource": "Chinese PDF link in README; GitHub blob preview of the exact author-published file",
       "licenseFileStatus": "No root LICENSE found; README declaration inspected"
     },
     {
@@ -118,7 +118,7 @@
       "readmeSha256": "c2943d32d96760388f96f820c47d4049d98bdc3acdffeadeccbbfa02fb757db2",
       "license": "教育研究声明 · 未明确授权商业转载",
       "licenseSource": "https://github.com/alchaincyf/openclaw-orange-book/blob/main/README.md",
-      "readUrlSource": "README.md",
+      "readUrlSource": "Chinese PDF link in README; GitHub blob preview of the exact author-published file",
       "licenseFileStatus": "No root LICENSE found; README declaration inspected"
     },
     {
@@ -130,7 +130,7 @@
       "readmeSha256": "ac12a2578c715b44e0d3ef91d7449e9fd1c8132936357414dcef086651dd1038",
       "license": "个人及教育使用 · 商业转载需授权",
       "licenseSource": "https://github.com/alchaincyf/agent-skills-orange-book/blob/main/README.md",
-      "readUrlSource": "README.md",
+      "readUrlSource": "Chinese PDF link in README; GitHub blob preview of the exact author-published file",
       "licenseFileStatus": "No root LICENSE found; README declaration inspected"
     }
   ],
@@ -189,6 +189,78 @@
       "url": "https://alchaincyf.github.io/3d-vibe-coding-handbook/book/index.html",
       "status": 200,
       "finalUrl": "https://alchaincyf.github.io/3d-vibe-coding-handbook/book/index.html"
+    }
+  },
+  "workbuddyBrowserCheck": "Hermes WorkBuddy entry redirected to login in a clean browser. WorkBuddy is optional, explicitly labeled login-required. Main entries use author-published Chinese PDFs or Pages.",
+  "primaryLinkChecks": {
+    "hermes": {
+      "url": "https://github.com/alchaincyf/hermes-agent-orange-book/blob/main/Hermes-Agent%E6%A9%99%E7%9A%AE%E4%B9%A62.0-v261020.pdf",
+      "status": 200,
+      "finalUrl": "https://github.com/alchaincyf/hermes-agent-orange-book/blob/main/Hermes-Agent%E6%A9%99%E7%9A%AE%E4%B9%A62.0-v261020.pdf"
+    },
+    "obsidian": {
+      "url": "https://github.com/alchaincyf/obsidian-ai-orange-book/blob/master/Obsidian-AI-v261020.pdf",
+      "status": 200,
+      "finalUrl": "https://github.com/alchaincyf/obsidian-ai-orange-book/blob/master/Obsidian-AI-v261020.pdf"
+    },
+    "deepseek": {
+      "url": "https://github.com/alchaincyf/deepseek-harness-orange-book/blob/main/DeepSeek-Harness-Orange-Book-zh-v261020.pdf",
+      "status": 200,
+      "finalUrl": "https://github.com/alchaincyf/deepseek-harness-orange-book/blob/main/DeepSeek-Harness-Orange-Book-zh-v261020.pdf"
+    },
+    "loop": {
+      "url": "https://github.com/alchaincyf/loop-engineering-orange-book/blob/main/Loop-Engineering%E6%A9%99%E7%9A%AE%E4%B9%A6-v261020.pdf",
+      "status": 200,
+      "finalUrl": "https://github.com/alchaincyf/loop-engineering-orange-book/blob/main/Loop-Engineering%E6%A9%99%E7%9A%AE%E4%B9%A6-v261020.pdf"
+    },
+    "codex": {
+      "url": "https://github.com/alchaincyf/codex-orange-book/blob/main/Codex-Complete-Guide-zh-v261020.pdf",
+      "status": 200,
+      "finalUrl": "https://github.com/alchaincyf/codex-orange-book/blob/main/Codex-Complete-Guide-zh-v261020.pdf"
+    },
+    "claude": {
+      "url": "https://github.com/alchaincyf/claude-code-orange-book/blob/main/Claude-Code-Complete-Guide-zh-v260411.pdf",
+      "status": 200,
+      "finalUrl": "https://github.com/alchaincyf/claude-code-orange-book/blob/main/Claude-Code-Complete-Guide-zh-v260411.pdf"
+    },
+    "vibe": {
+      "url": "https://alchaincyf.github.io/3d-vibe-coding-handbook/book/index.html",
+      "status": 200,
+      "finalUrl": "https://alchaincyf.github.io/3d-vibe-coding-handbook/book/index.html"
+    },
+    "source": {
+      "url": "https://github.com/alchaincyf/claude-code-source-analysis-orange-book/blob/main/Claude-Code-Source-Analysis-zh-v260411.pdf",
+      "error": "<urlopen error _ssl.c:1063: The handshake operation timed out>"
+    },
+    "harness": {
+      "url": "https://github.com/alchaincyf/harness-engineering-orange-book/blob/main/Harness-Engineering-v260411-zh.pdf",
+      "error": "<urlopen error _ssl.c:1063: The handshake operation timed out>"
+    },
+    "openclaw": {
+      "url": "https://github.com/alchaincyf/openclaw-orange-book/blob/main/OpenClaw-Complete-Guide-zh-v1.4.0.pdf",
+      "error": "<urlopen error _ssl.c:1063: The handshake operation timed out>"
+    },
+    "skills": {
+      "url": "https://github.com/alchaincyf/agent-skills-orange-book/blob/main/Agent-Skills-Complete-Guide-zh-v260411.pdf",
+      "error": "<urlopen error _ssl.c:1063: The handshake operation timed out>"
+    }
+  },
+  "pdfFileChecks": {
+    "source": {
+      "url": "https://raw.githubusercontent.com/alchaincyf/claude-code-source-analysis-orange-book/main/Claude-Code-Source-Analysis-zh-v260411.pdf",
+      "status": 200
+    },
+    "harness": {
+      "url": "https://raw.githubusercontent.com/alchaincyf/harness-engineering-orange-book/main/Harness-Engineering-v260411-zh.pdf",
+      "status": 200
+    },
+    "openclaw": {
+      "url": "https://raw.githubusercontent.com/alchaincyf/openclaw-orange-book/main/OpenClaw-Complete-Guide-zh-v1.4.0.pdf",
+      "status": 200
+    },
+    "skills": {
+      "url": "https://raw.githubusercontent.com/alchaincyf/agent-skills-orange-book/main/Agent-Skills-Complete-Guide-zh-v260411.pdf",
+      "status": 200
     }
   }
 }
