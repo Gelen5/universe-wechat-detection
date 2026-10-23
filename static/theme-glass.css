@@ -676,3 +676,22 @@ body.atelier.library-body .library-nav-footer {
     height: 20px !important;
   }
 }
+
+
+/* 手机：底部条必须 fixed，否则会跟着内容跑到视口外 */
+@media (max-width: 760px) {
+  body.atelier .app-shell > .v3-topbar,
+  body.atelier .v3-topbar.shell-nav {
+    position: fixed !important;
+    top: auto !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    height: 64px !important;
+    margin: 0 !important;
+    padding: 8px 10px calc(8px + env(safe-area-inset-bottom)) !important;
+    border-radius: 18px 18px 0 0 !important;
+    z-index: 60 !important;
+  }
+}
