@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env bash
+#!/usr/bin/env bash
 # 唯一的部署入口：从 GitHub main 拉取指定提交，新 release 目录 + 重建镜像。
 #
 #   sudo bash deploy.sh              # 部署当前 main
