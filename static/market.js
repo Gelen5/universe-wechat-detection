@@ -270,10 +270,17 @@
     } catch (error) { alert(`添加失败：${error.message}`); }
   });
 
-  (async function boot() {
+  // 工作台里的一个视图：第一次切到「AI 超市」时才拉数据，切走不销毁。
+  let booted = false;
+  async function ensureLoaded() {
+    if (booted) return;
+    booted = true;
     await loadSession();
     await loadMeta();
     await loadFeatured();
     await loadList();
-  })();
+  }
+  window.MarketView = { ensureLoaded };
+  const host = document.querySelector('#market');
+  if (host && !host.hidden) ensureLoaded();
 })();

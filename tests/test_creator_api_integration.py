@@ -1,3 +1,4 @@
+import re
 import unittest
 import os
 from pathlib import Path
@@ -246,7 +247,9 @@ class CreatorApiIntegrationTests(unittest.TestCase):
         self.assertIn("确认框架，生成初稿", script)
         self.assertIn("打开预览并复制", script)
         self.assertNotIn("shared-use-real", html)
-        self.assertEqual(html.count("data-view="), 8)
+        views = set(re.findall(r'data-view="([a-z-]+)"', html))
+        self.assertTrue({"home", "diagnose", "one-click-writing", "workbench", "xiaohongshu",
+                         "tie-tu", "hit-detector", "morning", "market"} <= views, views)
 
 
 if __name__ == "__main__":

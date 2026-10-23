@@ -100,7 +100,8 @@ def _public(row: dict[str, Any]) -> dict[str, Any]:
 # ---------------------------------------------------------------- 页面
 @router.get("/market", response_class=HTMLResponse, include_in_schema=False)
 def page():
-    html = (STATIC / "market.html").read_text(encoding="utf-8")
+    # AI 超市是工作台里的一个视图：/market 也落到同一个 SPA。
+    html = (STATIC / "index.html").read_text(encoding="utf-8")
     return HTMLResponse(html, headers={"Cache-Control": "no-cache"})
 
 

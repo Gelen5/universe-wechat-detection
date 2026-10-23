@@ -338,7 +338,8 @@ logoutButton?.addEventListener('click', async () => {
 async function loadAccount() {
   try {
     const response = await fetch('/api/auth/me');
-    if (!response.ok) { showAuth(); return; }
+    // AI 超市是公开索引：未登录也直接展示内容，不强弹登录框。
+    if (!response.ok) { if (pathToView(location.pathname) !== 'market') showAuth(); return; }
     const data = await readApiResponse(response);
     currentAccount = data.user;
     syncAdminVisibility();
@@ -1320,6 +1321,7 @@ const viewMap = {
   'hit-detector': hitDetectorPage,
   morning: morningGenerator,
   report: reportRoot,
+  market: document.querySelector('#market'),
 };
 
 const viewTitles = {
@@ -1331,6 +1333,7 @@ const viewTitles = {
   'hit-detector': '爆文检测',
   morning: '早安祝福',
   report: '诊断报告',
+  market: 'AI 超市',
 };
 
 function pathToView(path) {
@@ -1343,7 +1346,9 @@ function pathToView(path) {
 function setActiveView(view, updateHash = false) {
   Object.entries(viewMap).forEach(([name, element]) => { if (element) element.hidden = name !== view; });
   document.querySelectorAll('.app-tabs [data-view]').forEach(item => item.classList.toggle('active', item.dataset.view === view));
-  appShell?.classList.toggle('workbench-active', view !== 'home' && view !== 'diagnose' && view !== 'report');
+  appShell?.classList.toggle('workbench-active', view !== 'home' && view !== 'diagnose' && view !== 'report' && view !== 'market');
+  document.body.classList.toggle('market-body', view === 'market');
+  if (view === 'market') window.MarketView?.ensureLoaded?.();
   if (downloadButton) downloadButton.hidden = view !== 'report';
   if (view === 'one-click-writing') {
     const frame = document.querySelector('#one-click-writing-frame');
@@ -1360,6 +1365,13 @@ function setActiveView(view, updateHash = false) {
 }
 
 document.querySelector('#command-settings')?.addEventListener('click', openWallet);
+
+document.addEventListener('click', event => {
+  const jump = event.target.closest('[data-view]');
+  if (!jump || jump.closest('.app-tabs')) return;
+  event.preventDefault();
+  setActiveView(jump.dataset.view, true);
+});
 
 document.querySelectorAll('.app-tabs [data-view]').forEach(tab => tab.addEventListener('click', event => {
   event.preventDefault();

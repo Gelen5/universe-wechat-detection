@@ -24,11 +24,21 @@
     <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600&family=Noto+Serif+SC:wght@400;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'" />
     <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600&family=Noto+Serif+SC:wght@400;600;700&display=swap" /></noscript>
     <link rel="stylesheet" href="/static/atelier.css?v=20261024-2" />
-    <link rel="stylesheet" href="/static/theme-glass.css?v=20261024-ui1" />
+    <link rel="stylesheet" href="/static/market.css?v=20261024-3" />
+<link rel="stylesheet" href="/static/atelier-market.css?v=20261024-3" />
+<link rel="stylesheet" href="/static/market-v2.css?v=20261024-3" />
+<link rel="stylesheet" href="/static/theme-glass.css?v=20261024-ui1" />
     <link rel="stylesheet" href="/static/home-v2.css?v=20261024-ui1" />
     <link rel="stylesheet" href="/static/skill-v2.css?v=20261024-ui1" />
     <link rel="stylesheet" href="/static/report-v2.css?v=20261024-ui1" />
-  </head>
+  <style id="market-shell-fixes">
+  /* AI 超市在 shell 内的局部修正：分类数字右对齐、首页留白 */
+  #market .market-rail a{display:flex;align-items:baseline;gap:8px}
+  #market .market-rail a .n{margin-left:auto}
+  #market .market-hero{padding-top:10px}
+  #market .market-foot{border-top:1px solid var(--line,rgba(0,0,0,.08));margin-top:8px}
+</style>
+</head>
   <body class="atelier">
     <div class="app-shell">
 
@@ -74,7 +84,7 @@
             <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
             <span>早安祝福</span>
           </a>
-          <a data-library-link href="/bookshelf"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h6a3 3 0 0 1 2 1 3 3 0 0 1 2-1h6v15h-6a3 3 0 0 0-2 1 3 3 0 0 0-2-1H4z"/><path d="M12 5v15"/></svg><span>AI 书架</span></a><a data-library-link href="/market"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h18l-1.4 12.1a2 2 0 0 1-2 1.9H6.4a2 2 0 0 1-2-1.9z"/><path d="M8 7V5.5a4 4 0 0 1 8 0V7"/></svg><span>AI 超市</span></a>
+          <a data-library-link href="/bookshelf"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h6a3 3 0 0 1 2 1 3 3 0 0 1 2-1h6v15h-6a3 3 0 0 0-2 1 3 3 0 0 0-2-1H4z"/><path d="M12 5v15"/></svg><span>AI 书架</span></a><a data-view="market" href="/market"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h18l-1.4 12.1a2 2 0 0 1-2 1.9H6.4a2 2 0 0 1-2-1.9z"/><path d="M8 7V5.5a4 4 0 0 1 8 0V7"/></svg><span>AI 超市</span></a>
         </nav>
         <div class="right">
           <span class="stat"><i class="dot-live"></i><strong id="nav-wallet"><b id="wallet-balance">0</b></strong> 积分</span>
@@ -256,17 +266,17 @@
 
             <section class="hv-card">
               <h4>AI 超市 · 编辑精选</h4>
-              <a class="hv-skill" href="/market">
+              <a class="hv-skill" href="/market" data-view="market">
                 <span class="dot">写</span>
                 <span class="n"><b>爆文拆解</b><span>写作</span></span>
                 <span class="p">★ 12.4k</span>
               </a>
-              <a class="hv-skill" href="/market">
+              <a class="hv-skill" href="/market" data-view="market">
                 <span class="dot">封</span>
                 <span class="n"><b>封面生成器</b><span>设计</span></span>
                 <span class="p">★ 8.1k</span>
               </a>
-              <a class="hv-skill" href="/market">
+              <a class="hv-skill" href="/market" data-view="market">
                 <span class="dot">去</span>
                 <span class="n"><b>长文去 AI</b><span>写作</span></span>
                 <span class="p">★ 5.6k</span>
@@ -693,7 +703,68 @@
            TAB · 诊断报告 #report（由 app.js renderReport 渲染）
            innerHTML 内容结构由 renderReport 控制，className 兼容旧选择器
            ============================================================ -->
-      <main id="report" class="report-page" hidden>
+      <section id="market" class="market-view" hidden aria-label="AI 超市">
+  <div class="market-page market-v2" id="market-main">
+    <section class="market-hero">
+      <div class="market-wrap">
+        <div class="market-kicker"><i></i>SKILL INDEX · 001</div>
+        <h1>AI 超市</h1>
+        <p>收录 GitHub 上值得一用的 AI Agent Skills。按用途分类，标星排序，点开即到源码目录——不安装、不执行、不托管。</p>
+        <div class="market-meta">
+          <span><b id="meta-count">—</b> 个 skill</span>
+          <span><b id="meta-repos">—</b> 个来源仓库</span>
+          <span><b id="meta-official">—</b> 个官方出品</span>
+          <span id="meta-updated">正在读取索引…</span>
+        </div>
+      </div>
+    </section>
+  
+    <div class="market-wrap">
+      <div class="market-searchwrap">
+        <label class="market-search">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input id="market-search-input" placeholder="搜索 skill、仓库或用途…" aria-label="搜索 skill" autocomplete="off" />
+          <kbd>⌘K</kbd>
+        </label>
+      </div>
+  
+      <div class="market-layout">
+        <aside class="market-rail">
+          <h2>分类</h2>
+          <ul id="market-categories"></ul>
+        </aside>
+  
+        <div>
+          <section id="market-featured-section">
+            <div class="market-section-head"><h2>编辑精选</h2><span>EDITOR'S PICK</span></div>
+            <div class="market-featured" id="market-featured"></div>
+          </section>
+  
+          <div class="market-toolbar">
+            <span class="market-count"><b id="market-count">0</b> 个结果</span>
+            <div class="market-seg" id="market-sort" role="group" aria-label="排序方式">
+              <button type="button" data-sort="stars" aria-pressed="true">Star 最多</button>
+              <button type="button" data-sort="added" aria-pressed="false">最近收录</button>
+              <button type="button" data-sort="manual" aria-pressed="false">手动排序</button>
+            </div>
+          </div>
+  
+          <div class="market-list" id="market-list"></div>
+          <div class="market-more" id="market-more" hidden><button type="button">加载更多</button></div>
+        </div>
+      </div>
+    </div>
+  
+    <footer class="market-foot">
+      <div class="market-wrap">
+        <p>索引数据来自 <a href="https://github.com/truefoundry/awesome-skills-registry" target="_blank" rel="noopener noreferrer">truefoundry/awesome-skills-registry</a>（Apache-2.0），各 skill 的授权与安全性请见其源仓库。</p>
+        <p>本页只做介绍与跳转，不安装、不执行、不托管任何 skill 内容。</p>
+      </div>
+    </footer>
+  </div>
+</section>
+
+<main id="report" class="report-page" hidden>
         <div class="v3-meta">
           <span class="l"><span class="line"></span><span>Report · <span id="report-id">—</span></span></span>
           <span class="r"><i></i>scanning · completed</span>
@@ -801,7 +872,8 @@
     </div>
 
     <script src="/static/vendor/lucide.min.js"></script>
-    <script src="/static/app.js?v=20261023-one-click-writing"></script>
+    <script src="/static/market.js?v=20261024-3" defer></script>
+<script src="/static/app.js?v=20261023-one-click-writing"></script>
     <script src="/static/flow.js?v=20260904-tools-1"></script>
     <script src="/static/studio-tools.js?v=20260904-1"></script>
     <link rel="stylesheet" href="/static/creator-chat.css?v=20260906-conversation-1">
