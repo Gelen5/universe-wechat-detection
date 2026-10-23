@@ -57,7 +57,8 @@ if [ "${1:-}" = "--rollback" ]; then
       || die "缺少回滚镜像 ${PROJECT}-${svc}:${TARGET}（这个 release 部署时没有打标签）"
     docker tag "${PROJECT}-${svc}:${TARGET}" "${PROJECT}-${svc}:latest"
   done
-  ( cd "$REL" && docker compose -p "$PROJECT" --env-file "$ENV_FILE" up -d --no-build "${SERVICES[@]}" )
+  docker rm -f "${PROJECT}-migrate-1" >/dev/null 2>&1 || true
+  ( cd "$REL" && docker compose -p "$PROJECT" --env-file "$ENV_FILE" up -d --no-build --no-deps "${SERVICES[@]}" )
   wait_ready || die "回滚后服务未就绪，查看 docker logs ${PROJECT}-web-1"
   log "已回滚到 $TARGET"
   exit 0
@@ -126,7 +127,9 @@ log "构建镜像（约 3 分钟）"
 
 # ---------------------------------------------------------------- switch
 log "切换服务"
-( cd "$REL" && docker compose -p "$PROJECT" --env-file "$ENV_FILE" up -d "${SERVICES[@]}" )
+# 一次性 migrate 容器可能残留，名字冲突会让 up 直接失败；web 的 depends_on 已经不再需要它
+docker rm -f "${PROJECT}-migrate-1" >/dev/null 2>&1 || true
+( cd "$REL" && docker compose -p "$PROJECT" --env-file "$ENV_FILE" up -d --no-deps "${SERVICES[@]}" )
 
 if ! wait_ready; then
   docker ps --format '{{.Names}} | {{.Status}}' | grep "$PROJECT" || true
