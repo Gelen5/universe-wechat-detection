@@ -158,7 +158,7 @@
     try {
       data = await api(`/api/market/skills?${params.toString()}`);
     } catch (error) {
-      list.innerHTML = `<div class="market-empty"><strong>索引暂时读不到</strong>${escapeHtml(error.message)}</div>`;
+      list.innerHTML = `<div class="market-empty"><strong>索引暂时读不到</strong>${escapeHtml(error.message)}<button type="button" data-market-retry>重新加载</button></div>`;
       more.hidden = true;
       return;
     }
@@ -280,7 +280,8 @@
     await loadFeatured();
     await loadList();
   }
+  list.addEventListener('click', event => { if (event.target.closest('[data-market-retry]')) { booted = false; ensureLoaded(); } });
   window.MarketView = { ensureLoaded };
-  const host = document.querySelector('#market');
+  const host = document.querySelector('#market, #market-main');
   if (host && !host.hidden) ensureLoaded();
 })();

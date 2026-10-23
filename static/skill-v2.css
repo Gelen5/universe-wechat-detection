@@ -24,6 +24,12 @@ body.atelier .skill-page .skill-shell {
   align-items: start;
 }
 
+body.atelier .skill-page .skill-shell > * { min-width: 0; }
+@media (max-width: 900px) {
+  body.atelier .skill-page .skill-shell { grid-template-columns: minmax(0, 1fr); }
+  body.atelier .skill-page :is(.skill-form-col, .skill-output-col) { max-width: 100%; box-sizing: border-box; }
+}
+
 /* ---------- 左：表单卡 ---------- */
 body.atelier .skill-page .skill-form-col {
   padding: 22px 22px 24px;
@@ -646,4 +652,9 @@ body.atelier .topic-row > b:first-child {
   font-size: 10.5px !important;
   font-weight: 600 !important;
   font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 900px) {
+  body.atelier .studio-tool .skill-shell { height: auto; min-height: 0; }
+  body.atelier .studio-tool :is(.skill-form-col,.skill-output-col) { height: auto; max-height: none; overflow: visible; position: static; }
 }

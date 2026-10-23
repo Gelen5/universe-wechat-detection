@@ -116,6 +116,7 @@ async function switchToUser(userId) {
   try {
     const data = await readApiResponse(await fetch('/api/admin/impersonate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: userId }) }));
     currentAccount = data.user;
+    window.dispatchEvent(new Event('account-changed'));
     renderWallet(data.wallet);
     adminUsersModal.hidden = true;
     syncAdminVisibility();
@@ -127,6 +128,7 @@ async function stopImpersonation() {
   try {
     const data = await readApiResponse(await fetch('/api/auth/stop-impersonation', { method: 'POST' }));
     currentAccount = data.user;
+    window.dispatchEvent(new Event('account-changed'));
     renderWallet(data.wallet);
     syncAdminVisibility();
     showToast('已返回管理员账号');
@@ -240,6 +242,7 @@ document.querySelector('#auth-form')?.addEventListener('submit', async event => 
     });
     const data = await readApiResponse(response);
     currentAccount = data.user;
+    window.dispatchEvent(new Event('account-changed'));
     syncAdminVisibility();
     renderWallet(data.wallet);
     document.querySelector('#wallet-user-line').textContent = `${currentAccount.display_name} · ${currentAccount.email}`;
@@ -329,6 +332,7 @@ walletModal?.addEventListener('click', event => { if (event.target === walletMod
 logoutButton?.addEventListener('click', async () => {
   await fetch('/api/auth/logout', { method: 'POST' });
   currentAccount = null;
+  window.dispatchEvent(new Event('account-changed'));
   syncAdminVisibility();
   renderWallet({ balance: 0, trial: 0, bonus: 0, paid: 0 });
   walletModal.hidden = true;
@@ -342,6 +346,7 @@ async function loadAccount() {
     if (!response.ok) { if (pathToView(location.pathname) !== 'market') showAuth(); return; }
     const data = await readApiResponse(response);
     currentAccount = data.user;
+    window.dispatchEvent(new Event('account-changed'));
     syncAdminVisibility();
     renderWallet(data.wallet);
     document.querySelector('#wallet-user-line').textContent = `${currentAccount.display_name} · ${currentAccount.email}`;
@@ -1369,11 +1374,13 @@ document.querySelector('#command-settings')?.addEventListener('click', openWalle
 document.addEventListener('click', event => {
   const jump = event.target.closest('[data-view]');
   if (!jump || jump.closest('.app-tabs')) return;
+  if (jump.matches('a') && (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || event.button !== 0)) return;
   event.preventDefault();
   setActiveView(jump.dataset.view, true);
 });
 
 document.querySelectorAll('.app-tabs [data-view]').forEach(tab => tab.addEventListener('click', event => {
+  if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || event.button !== 0) return;
   event.preventDefault();
   setActiveView(tab.dataset.view, true);
 }));

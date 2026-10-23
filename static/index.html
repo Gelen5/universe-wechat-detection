@@ -23,14 +23,14 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600&family=Noto+Serif+SC:wght@400;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'" />
     <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600&family=Noto+Serif+SC:wght@400;600;700&display=swap" /></noscript>
-    <link rel="stylesheet" href="/static/atelier.css?v=20261024-2" />
+    <link rel="stylesheet" href="/static/atelier.css?v=20261024-shell-1" />
     <link rel="stylesheet" href="/static/market.css?v=20261024-3" />
 <link rel="stylesheet" href="/static/atelier-market.css?v=20261024-3" />
 <link rel="stylesheet" href="/static/market-v2.css?v=20261024-ui13" />
-<link rel="stylesheet" href="/static/theme-glass.css?v=20261024-ui12" />
-    <link rel="stylesheet" href="/static/home-v2.css?v=20261024-ui8" />
-    <link rel="stylesheet" href="/static/skill-v2.css?v=20261024-ui15" />
-    <link rel="stylesheet" href="/static/report-v2.css?v=20261024-ui6" />
+<link rel="stylesheet" href="/static/theme-glass.css?v=20261024-shell-1" />
+    <link rel="stylesheet" href="/static/home-v2.css?v=20261024-shell-1" />
+    <link rel="stylesheet" href="/static/skill-v2.css?v=20261024-shell-1" />
+    <link rel="stylesheet" href="/static/report-v2.css?v=20261024-shell-1" />
   <style id="market-shell-fixes">
   /* AI 超市在 shell 内的局部修正：分类数字右对齐、首页留白 */
   #market .market-rail a{display:flex;align-items:baseline;gap:8px}
@@ -43,6 +43,7 @@
     #market .market-row:hover .admin-actions,
     #market .market-row:focus-within .admin-actions{opacity:1}
   }</style>
+<script src="/static/shell.js?v=20261024-shell-1" defer></script>
 </head>
   <body class="atelier">
     <div class="app-shell">
@@ -195,17 +196,17 @@
           <div class="hv-main">
 
             <section class="hv-hero">
-              <p class="hv-date">2026 年 10 月 24 日 · 周六</p>
+              <p class="hv-date">创作工作台</p>
               <h1>今天，写一篇<br />值得读完的。</h1>
               <p class="hv-lede">从选题、写作到排版发布，AI 编辑和你共用一张书桌。</p>
 
               <div class="hv-compose">
-                <textarea id="atelier-draft" rows="2" placeholder="写下主题，或贴一篇文章…"></textarea>
+                <textarea id="atelier-draft" aria-label="创作主题或参考文章" rows="2" placeholder="写下主题，或贴一篇文章…"></textarea>
                 <div class="hv-compose-bar">
                   <div class="hv-chips" role="group" aria-label="创作目标">
-                    <button type="button" class="hv-chip is-on">公众号</button>
-                    <button type="button" class="hv-chip">小红书</button>
-                    <button type="button" class="hv-chip">贴图号</button>
+                    <button type="button" class="hv-chip is-on" data-target="/workbench" aria-pressed="true">公众号</button>
+                    <button type="button" class="hv-chip" data-target="/xiaohongshu" aria-pressed="false">小红书</button>
+                    <button type="button" class="hv-chip" data-target="/tie-tu" aria-pressed="false">贴图号</button>
                   </div>
                   <a id="atelier-start-go" class="hv-go" href="/workbench">进入创作台<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 5l7 7-7 7"/></svg></a>
                 </div>
@@ -217,82 +218,40 @@
                 <span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg></span>
                 <b>一键成文</b>
                 <p>给一个主题，直接出一篇可发初稿</p>
-                <span class="meta">平均 12 秒 · 12 积分</span>
+                <span class="meta">输入主题后开始生成</span>
               </a>
               <a class="hv-tool" href="/diagnose">
                 <span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>
                 <b>账号诊断</b>
                 <p>看清内容力、选题与商业潜力的短板</p>
-                <span class="meta">输入公众号名称 · 免费</span>
+                <span class="meta">输入公众号名称查看分析</span>
               </a>
               <a class="hv-tool" href="/hit-detector">
                 <span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6"/><path d="m9 12 2 2 4-4"/></svg></span>
                 <b>发布前复核</b>
                 <p>事实、结构、表达风险逐句检查</p>
-                <span class="meta">支持粘贴全文 · 8 积分</span>
+                <span class="meta">支持粘贴全文逐句复核</span>
               </a>
             </section>
 
-            <section class="hv-recent" aria-label="继续创作">
-              <div class="hv-sec-head"><h3>继续</h3><a href="/workbench">全部作品</a></div>
-              <a class="hv-row" href="/workbench">
-                <span class="thumb"></span>
-                <span class="txt"><b>把公众号写作拆成 8 步，每一步只解决一个问题</b><span>大纲 v3 · 2 分钟前 · 3,200 字</span></span>
-                <span class="st">大纲</span><span class="arw">›</span>
-              </a>
-              <a class="hv-row" href="/workbench">
-                <span class="thumb"></span>
-                <span class="txt"><b>我用 8 个步骤，把完读率从 21% 写到 46%</b><span>正文 · 昨天 21:40 · 4,100 字</span></span>
-                <span class="st">正文</span><span class="arw">›</span>
-              </a>
-              <a class="hv-row" href="/tie-tu">
-                <span class="thumb"></span>
-                <span class="txt"><b>贴图号 · 早八三件套</b><span>出图 · 10 月 21 日 · 6 张</span></span>
-                <span class="st">已出图</span><span class="arw">›</span>
-              </a>
-              <a class="hv-row is-new" href="/workbench">
-                <span class="thumb">+</span>
-                <span class="txt"><b>开始新的草稿</b><span>从选题开始，或贴一篇旧文重写</span></span>
-                <span class="arw">›</span>
-              </a>
+            <section class="hv-recent" aria-label="最近公众号创作">
+              <div class="hv-sec-head"><h3>继续公众号创作</h3><a href="/workbench">前往创作台</a></div>
+              <div id="home-recent-list" role="status" aria-live="polite"><p class="hv-empty">正在读取最近创作…</p></div>
+              <a class="hv-row is-new" href="/workbench"><span class="thumb">+</span><span class="txt"><b>开始创作</b><span>从选题开始，或继续已有对话</span></span><span class="arw">›</span></a>
             </section>
           </div>
 
           <aside class="hv-rail" aria-label="概览">
 
-            <section class="hv-card">
-              <h4>本周</h4>
-              <div class="hv-stats">
-                <div><span class="k"><b>4</b><span>篇产出</span></span><i>+2</i></div>
-                <div><span class="k"><b>38%</b><span>平均完读</span></span><i>+6</i></div>
-                <div><span class="k"><b>68</b><span>分钟平均耗时</span></span><i>−12</i></div>
-              </div>
-            </section>
+            <section class="hv-card"><h4>创作概览</h4><p class="hv-empty">暂无统计数据。可在最近创作中继续编辑。</p></section>
 
-            <section class="hv-card">
-              <h4>AI 超市 · 编辑精选</h4>
-              <a class="hv-skill" href="/market" data-view="market">
-                <span class="dot">写</span>
-                <span class="n"><b>爆文拆解</b><span>写作</span></span>
-                <span class="p">★ 12.4k</span>
-              </a>
-              <a class="hv-skill" href="/market" data-view="market">
-                <span class="dot">封</span>
-                <span class="n"><b>封面生成器</b><span>设计</span></span>
-                <span class="p">★ 8.1k</span>
-              </a>
-              <a class="hv-skill" href="/market" data-view="market">
-                <span class="dot">去</span>
-                <span class="n"><b>长文去 AI</b><span>写作</span></span>
-                <span class="p">★ 5.6k</span>
-              </a>
-            </section>
+            <section class="hv-card"><h4>AI 超市</h4><a class="hv-skill" href="/market" data-view="market"><span class="dot">选</span><span class="n"><b>发现适合你的 AI 能力</b><span>查看收录来源、用途和真实星标</span></span></a></section>
 
             <section class="hv-card">
               <h4>AI 书架</h4>
               <a class="hv-book" href="/bookshelf">
                 <span class="cover"></span>
-                <span><b>把文章写给会读完的人</b><span>12 章 · 编辑方法</span></span>
+                <span><b>浏览 AI 开源教程</b><span>按分类挑选，前往原文阅读</span></span>
               </a>
             </section>
           </aside>
@@ -368,7 +327,7 @@
            TAB 2 · /workbench — 公众号创作（对话式共创）
            ============================================================ -->
       <section id="one-click-writing" hidden>
-        <iframe id="one-click-writing-frame" title="公众号一键成文" data-src="/qihaoshou?embedded=1" style="display:block;width:100%;height:calc(100dvh - 110px);min-height:650px;border:0;border-radius:12px" allow="clipboard-read; clipboard-write"></iframe>
+        <iframe id="one-click-writing-frame" class="one-click-writing-frame" title="公众号一键成文" data-src="/qihaoshou?embedded=1" allow="clipboard-read; clipboard-write"></iframe>
       </section>
       <section id="workbench" class="workbench-page article-workspace normalized-conversation" hidden>
         <header class="studio-heading"><div><h1>公众号创作</h1><p>发来一个主题，创作助手会调用完整 Skill 带你做到可交付。</p></div><div class="studio-heading-actions" hidden><button id="studio-details-toggle" type="button" aria-expanded="false" aria-controls="studio-details">结构与版本</button><button id="assistant-toggle" type="button" aria-expanded="true" aria-controls="creation-assistant">收起助手</button></div></header>
@@ -868,21 +827,13 @@
       </footer>
     </div>
 
-    <div id="library-overlay" class="library-overlay" hidden>
-      <div class="library-overlay-bar">
-        <strong id="library-overlay-title">AI 超市</strong>
-        <button id="library-overlay-close" type="button">关闭</button>
-      </div>
-      <iframe id="library-overlay-frame" title="AI 超市" loading="lazy"></iframe>
-    </div>
-
     <script src="/static/vendor/lucide.min.js"></script>
-    <script src="/static/market.js?v=20261024-3" defer></script>
-<script src="/static/app.js?v=20261023-one-click-writing"></script>
+    <script src="/static/market.js?v=20261024-shell-1" defer></script>
+<script src="/static/app.js?v=20261024-shell-1"></script>
     <script src="/static/flow.js?v=20260904-tools-1"></script>
     <script src="/static/studio-tools.js?v=20260904-1"></script>
     <link rel="stylesheet" href="/static/creator-chat.css?v=20260906-conversation-1">
-    <script src="/static/creator-chat.js?v=20260906-conversation-1"></script>
+    <script src="/static/creator-chat.js?v=20261024-shell-1"></script>
     <script src="/static/notion-workspace.js?v=20261024-ui5"></script>
     <script>
       // 同步 recent-item（首页样例：点击触发诊断）
@@ -996,6 +947,7 @@
         document.addEventListener('click', (e) => {
           const a = e.target.closest('a[href]');
           if (!a) return;
+          if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || e.button !== 0) return;
           const href = a.getAttribute('href') || '';
           // 仅拦截同源、相对路径、内部 SPA 路由
           if (!/^\/(?!\/)/.test(href)) return;
@@ -1012,7 +964,7 @@
         });
       })();
     </script>
-    <script src="/static/conversation-workbench.js?v=20261023-topic-dedup-3"></script>
-    <script src="/static/atelier.js?v=20261024-2"></script>
+    <script src="/static/conversation-workbench.js?v=20261024-shell-1"></script>
+    <script src="/static/atelier.js?v=20261024-shell-1"></script>
   </body>
 </html>

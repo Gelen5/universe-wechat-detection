@@ -85,6 +85,14 @@
     const progress = document.createElement('progress'); progress.hidden = true; progress.setAttribute('aria-label', '正在执行');
     const output = document.createElement('div'); output.className = 'creator-chat-output';
     form.append(history, label, button, cancel, reset, progress, status, output);
+    try {
+      const draft = JSON.parse(sessionStorage.getItem('universe.creatorHomeDraft') || 'null');
+      if (draft && draft.target === location.pathname && draft.target.slice(1) === skill) {
+        input.value = String(draft.text || '');
+        sessionStorage.removeItem('universe.creatorHomeDraft');
+      }
+    } catch { sessionStorage.removeItem('universe.creatorHomeDraft'); }
+
     const existing = Array.from(column.children).find(child => child.tagName === 'FORM');
     column.insertBefore(form, existing || null);
     const legacy = skill === 'morning' ? document.querySelector('#morning-generator .morning-frame-wrap') : existing;

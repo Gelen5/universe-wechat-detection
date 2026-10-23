@@ -294,3 +294,12 @@ body.atelier #hit-detector .skill-shell {
   gap: 14px;
   align-items: start;
 }
+
+@media (max-width: 900px) {
+  body.atelier :is(.diagnose-page .diagnose-shell, #hit-detector .skill-shell) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  body.atelier :is(.diagnose-shell, #hit-detector .skill-shell) > * {
+    min-width: 0; max-width: 100%; box-sizing: border-box;
+  }
+}

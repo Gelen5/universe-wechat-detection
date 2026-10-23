@@ -15,8 +15,8 @@ body.atelier.qihaoshou {
 body.atelier.qihaoshou .studio-header,
 body.atelier.qihaoshou #q-login,
 body.atelier.qihaoshou .studio {
-  margin-left: 252px;
-  width: calc(100% - 252px - 18px);
+  margin-left: var(--shell-content-offset);
+  width: calc(100% - var(--shell-content-offset));
 }
 
 /* ---------- 顶栏 ---------- */
@@ -83,6 +83,36 @@ body.atelier.qihaoshou .studio {
   gap: 14px;
   padding: 14px 26px 22px 22px;
   align-items: start;
+}
+
+/* Embedded workspaces inherit their global navigation from the parent. */
+body.atelier.qihaoshou.embedded .shell-nav { display: none !important; }
+body.atelier.qihaoshou.embedded { padding-bottom: 0; }
+body.atelier.qihaoshou.embedded :is(.studio-header, #q-login, .studio) {
+  margin-left: 0 !important;
+  width: 100% !important;
+}
+body.atelier.qihaoshou .studio > .panel { min-width: 0; box-sizing: border-box; }
+
+@media (min-width: 761px) and (max-width: 1499px) {
+  body.atelier.qihaoshou .studio { grid-template-columns: minmax(240px, 300px) minmax(0, 1fr); }
+  body.atelier.qihaoshou .studio .settings { grid-column: 1; grid-row: 1; }
+  body.atelier.qihaoshou .studio .conversation { grid-column: 1; grid-row: 2; }
+  body.atelier.qihaoshou .studio .editor { grid-column: 2 !important; grid-row: 1 / span 2; }
+}
+
+@media (max-width: 760px) {
+  body.atelier.qihaoshou .studio {
+    display: flex;
+    flex-direction: column;
+    padding: 12px;
+  }
+  body.atelier.qihaoshou .studio > .panel {
+    grid-column: auto; grid-row: auto; order: 0; width: 100%;
+  }
+  body.atelier.qihaoshou .studio .editor { order: 3; }
+  body.atelier.qihaoshou #q-toolbar { flex-wrap: wrap; }
+  body.atelier.qihaoshou .studio-header { padding-inline: 12px; height: auto; min-height: 64px; flex-wrap: wrap; }
 }
 
 body.atelier.qihaoshou .studio .panel {

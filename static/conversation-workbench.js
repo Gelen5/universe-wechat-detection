@@ -829,10 +829,11 @@
 
   async function restore() {
     localStorage.removeItem('universe.activeWorkflowId');
-    const conversationId = localStorage.getItem(keyConversation);
+    const conversationId = new URLSearchParams(location.search).get('conversation') || localStorage.getItem(keyConversation);
     if (conversationId) {
       try {
         conversation = (await api(`/api/conversations/${encodeURIComponent(conversationId)}`)).conversation;
+        localStorage.setItem(keyConversation, conversation.id);
         activeStage = localStorage.getItem(stageKey(conversation.id)) || 'topic';
         selectedTopic = localStorage.getItem(`universe.conversation.topic.${conversation.id}`) || '';
         direction = localStorage.getItem(directionKey(conversation.id)) || '';

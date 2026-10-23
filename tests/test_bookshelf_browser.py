@@ -53,10 +53,10 @@ def test_bookshelf_public_reading_and_mobile_layout():
             assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), width
             assert len(page.locator('#book-grid').evaluate('e=>getComputedStyle(e).gridTemplateColumns.split(" ")')) == columns
         page.set_viewport_size({'width':390,'height':844})
-        page.get_by_role('button', name='菜单', exact=True).click()
-        expect(page.locator('#library-navigation')).to_be_visible()
+        page.get_by_role('button', name='更多', exact=True).click()
+        expect(page.get_by_role('dialog', name='全部功能')).to_be_visible()
         page.keyboard.press('Escape')
-        expect(page.get_by_role('button', name='菜单', exact=True)).to_be_focused()
+        expect(page.get_by_role('button', name='更多', exact=True)).to_be_focused()
         assert not errors, errors
         browser.close()
 
