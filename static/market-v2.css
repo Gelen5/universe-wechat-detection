@@ -348,3 +348,22 @@ body.atelier.market-body .market-v2 .market-wrap {
   body.atelier.library-body [class*="float"],
   body.atelier.library-body [class*="fab"] { display: none !important; }
 }
+
+
+/* 手机：书架筛选条加右侧渐隐，提示可横滑；隐藏右下浮动圆点 */
+@media (max-width: 760px) {
+  body.atelier.library-body [class*="filter"] {
+    -webkit-mask-image: linear-gradient(to right, #000 82%, transparent 100%);
+    mask-image: linear-gradient(to right, #000 82%, transparent 100%);
+    padding-right: 18px;
+  }
+
+  body.atelier.library-body .fixed-avatar,
+  body.atelier.library-body .library-float,
+  body.atelier.library-body .floating-avatar,
+  body.atelier.library-body a.avatar,
+  body.atelier.library-body .avatar[class*="float"],
+  body.atelier.library-body .app-shell > .avatar {
+    display: none !important;
+  }
+}
