@@ -619,8 +619,10 @@
           if (!running) setStep('search', 'active');
         } else if (step === 'search') {
           const running = payload.status === 'running';
+          const fetched = payload.fetched ?? 0;
           setStep('search', running ? 'active' : 'done',
-                  running ? '正在搜索参考' : `搜索线索 ${payload.count ?? 0} 条`);
+                  running ? '正在搜索参考'
+                          : `搜索线索 ${payload.count ?? 0} 条${fetched ? ` · 抓取 ${fetched} 篇原文` : ''}`);
           if (!running) setStep('generating', 'active');
         } else if (step === 'generating') {
           setStep('generating', 'active', payload.label || '生成中');
