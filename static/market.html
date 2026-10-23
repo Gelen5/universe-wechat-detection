@@ -12,31 +12,41 @@
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600&family=Noto+Serif+SC:wght@400;600;700&display=swap" /></noscript>
 <link rel="stylesheet" href="/static/atelier.css?v=20261024-2" />
 <link rel="stylesheet" href="/static/atelier-market.css?v=20261024-2" />
+<link rel="stylesheet" href="/static/theme-glass.css?v=20261024-ui1" />
+<link rel="stylesheet" href="/static/market-v2.css?v=20261024-ui1" />
 </head><body class="atelier market-body">
 <script>if (new URLSearchParams(location.search).get('embed') === '1') document.body.classList.add('embedded');</script>
 
-<header class="market-topbar">
-  <div class="market-wrap">
-    <a class="market-brand" href="/" aria-label="宇宙第一工作台 首页">
-      <span class="market-mark" aria-hidden="true"></span>
-      <span class="market-brand-name">宇宙第一工作台</span>
+<aside class="v3-topbar shell-nav">
+  <div class="brand">
+    <a href="/" aria-label="宇宙第一工作台 首页">
+      <span class="mark" aria-hidden="true"><svg viewBox="0 0 48 48" aria-hidden="true"><text x="24" y="35.5" text-anchor="middle" font-family="Noto Serif SC, Songti SC, serif" font-size="35" font-weight="700" fill="#fff">宇</text></svg></span>
+      <h1 class="name">宇宙第一工作台</h1>
+      <span class="ver">v3.2.0</span>
     </a>
-    <nav class="market-tabs" aria-label="产品模块">
-      <a href="/">首页</a>
-      <a href="/diagnose">诊断</a>
-      <a href="/workbench">公众号创作</a>
-      <a href="/qihaoshou">起号兽</a>
-      <a href="/xiaohongshu">小红书</a>
-      <a href="/tie-tu">贴图号</a>
-      <a href="/hit-detector">爆文检测</a>
-      <a href="/morning-generator">早安祝福</a>
-      <a href="/bookshelf">AI 书架</a>
-      <a href="/market" class="active" aria-current="page">AI 超市</a>
-    </nav>
   </div>
-</header>
+  <nav class="tabs app-tabs" aria-label="产品模块">
+    <a href="/"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span>首页</span></a>
+    <div class="nav-group-label">内容创作</div>
+    <a href="/workbench"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16M5 15l10-10 4 4-10 10H5z"/></svg><span>公众号创作</span></a>
+    <a href="/one-click-writing"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg><span>公众号一键成文</span></a>
+    <a href="/xiaohongshu"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 2 7 12 12 22 7 12 2"/></svg><span>小红书</span></a>
+    <a href="/tie-tu"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg><span>贴图号</span></a>
+    <a href="/morning-generator"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><span>早安祝福</span></a>
+    <div class="nav-group-label">分析</div>
+    <a href="/diagnose"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg><span>账号诊断</span></a>
+    <a href="/hit-detector"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6"/><path d="m9 12 2 2 4-4"/></svg><span>发布前复核</span></a>
+    <div class="nav-group-label">资源</div>
+    <a href="/market" class="active" aria-current="page"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h18l-1.4 12.1a2 2 0 0 1-2 1.9H6.4a2 2 0 0 1-2-1.9z"/><path d="M8 7V5.5a4 4 0 0 1 8 0V7"/></svg><span>AI 超市</span></a>
+    <a href="/bookshelf"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h6a3 3 0 0 1 2 1 3 3 0 0 1 2-1h6v15h-6a3 3 0 0 0-2 1 3 3 0 0 0-2-1H4z"/><path d="M12 5v15"/></svg><span>AI 书架</span></a>
+  </nav>
+  <div class="right">
+    <span class="stat"><i class="dot-live"></i>积分</span>
+    <span class="avatar" aria-hidden="true">宇</span>
+  </div>
+</aside>
 
-<main class="market-page" id="market-main">
+<main class="market-page market-v2" id="market-main">
   <section class="market-hero">
     <div class="market-wrap">
       <div class="market-kicker"><i></i>SKILL INDEX · 001</div>

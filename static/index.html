@@ -24,6 +24,10 @@
     <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600&family=Noto+Serif+SC:wght@400;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'" />
     <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600&family=Noto+Serif+SC:wght@400;600;700&display=swap" /></noscript>
     <link rel="stylesheet" href="/static/atelier.css?v=20261024-2" />
+    <link rel="stylesheet" href="/static/theme-glass.css?v=20261024-ui1" />
+    <link rel="stylesheet" href="/static/home-v2.css?v=20261024-ui1" />
+    <link rel="stylesheet" href="/static/skill-v2.css?v=20261024-ui1" />
+    <link rel="stylesheet" href="/static/report-v2.css?v=20261024-ui1" />
   </head>
   <body class="atelier">
     <div class="app-shell">
@@ -34,7 +38,7 @@
       <header class="v3-topbar">
         <div class="brand">
           <a href="/" aria-label="宇宙第一工作台 首页">
-            <span class="mark"></span>
+            <span class="mark" aria-hidden="true"><svg viewBox="0 0 48 48" aria-hidden="true"><text x="24" y="35.5" text-anchor="middle" font-family="Noto Serif SC, Songti SC, serif" font-size="35" font-weight="700" fill="#fff">宇</text></svg></span>
             <h1 class="name">宇宙第一工作台</h1>
             <span class="ver">v3.2.0</span>
           </a>
@@ -167,79 +171,117 @@
       <!-- ============================================================
            TAB 1 · / — 首页（产品 hero + 六个工具模块墙）
            ============================================================ -->
-      <section id="home" class="home-page atelier-home" data-atelier="true">
-        <header class="atelier-home-head">
-          <p class="atelier-home-date">2026 年 10 月 24 日 · 周六</p>
-          <h1>今天，写一篇<br />值得读完的。</h1>
-          <p class="lede">从选题、写作到排版发布，AI 编辑和你共用一张书桌。</p>
-        </header>
+      <!-- ============================================================
+           TAB 1 · / — 首页（薄荷玻璃 v2）
+           ============================================================ -->
+      <section id="home" class="home-page home-v2" data-atelier="true">
+        <div class="hv-body">
 
-        <div class="atelier-home-body">
-          <div class="atelier-start">
-            <label class="atelier-start-label" for="atelier-draft">开始一篇新文章</label>
-            <textarea id="atelier-draft" class="atelier-start-input" rows="3" placeholder="写下主题，或贴一篇文章…"></textarea>
-            <span class="atelier-start-note">先写一句，AI 编辑会从选题接手。Enter 进入创作台，Shift + Enter 换行。</span>
-            <a class="atelier-start-go" id="atelier-start-go" href="/workbench">进入创作台 <b>→</b></a>
+          <div class="hv-main">
+
+            <section class="hv-hero">
+              <p class="hv-date">2026 年 10 月 24 日 · 周六</p>
+              <h1>今天，写一篇<br />值得读完的。</h1>
+              <p class="hv-lede">从选题、写作到排版发布，AI 编辑和你共用一张书桌。</p>
+
+              <div class="hv-compose">
+                <textarea id="atelier-draft" rows="2" placeholder="写下主题，或贴一篇文章…"></textarea>
+                <div class="hv-compose-bar">
+                  <div class="hv-chips" role="group" aria-label="创作目标">
+                    <button type="button" class="hv-chip is-on">公众号</button>
+                    <button type="button" class="hv-chip">小红书</button>
+                    <button type="button" class="hv-chip">贴图号</button>
+                  </div>
+                  <a id="atelier-start-go" class="hv-go" href="/workbench">进入创作台<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 5l7 7-7 7"/></svg></a>
+                </div>
+              </div>
+            </section>
+
+            <section class="hv-tools" aria-label="快捷工具">
+              <a class="hv-tool" href="/one-click-writing">
+                <span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg></span>
+                <b>一键成文</b>
+                <p>给一个主题，直接出一篇可发初稿</p>
+                <span class="meta">平均 12 秒 · 12 积分</span>
+              </a>
+              <a class="hv-tool" href="/diagnose">
+                <span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>
+                <b>账号诊断</b>
+                <p>看清内容力、选题与商业潜力的短板</p>
+                <span class="meta">输入公众号名称 · 免费</span>
+              </a>
+              <a class="hv-tool" href="/hit-detector">
+                <span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6"/><path d="m9 12 2 2 4-4"/></svg></span>
+                <b>发布前复核</b>
+                <p>事实、结构、表达风险逐句检查</p>
+                <span class="meta">支持粘贴全文 · 8 积分</span>
+              </a>
+            </section>
+
+            <section class="hv-recent" aria-label="继续创作">
+              <div class="hv-sec-head"><h3>继续</h3><a href="/workbench">全部作品</a></div>
+              <a class="hv-row" href="/workbench">
+                <span class="thumb"></span>
+                <span class="txt"><b>把公众号写作拆成 8 步，每一步只解决一个问题</b><span>大纲 v3 · 2 分钟前 · 3,200 字</span></span>
+                <span class="st">大纲</span><span class="arw">›</span>
+              </a>
+              <a class="hv-row" href="/workbench">
+                <span class="thumb"></span>
+                <span class="txt"><b>我用 8 个步骤，把完读率从 21% 写到 46%</b><span>正文 · 昨天 21:40 · 4,100 字</span></span>
+                <span class="st">正文</span><span class="arw">›</span>
+              </a>
+              <a class="hv-row" href="/tie-tu">
+                <span class="thumb"></span>
+                <span class="txt"><b>贴图号 · 早八三件套</b><span>出图 · 10 月 21 日 · 6 张</span></span>
+                <span class="st">已出图</span><span class="arw">›</span>
+              </a>
+              <a class="hv-row is-new" href="/workbench">
+                <span class="thumb">+</span>
+                <span class="txt"><b>开始新的草稿</b><span>从选题开始，或贴一篇旧文重写</span></span>
+                <span class="arw">›</span>
+              </a>
+            </section>
           </div>
 
-          <section class="atelier-index" aria-labelledby="atelier-index-title">
-            <h2 id="atelier-index-title">工作台</h2>
-            <a href="/workbench">
-              <span class="atelier-index-name">公众号创作</span>
-              <span class="atelier-index-desc">选题、正文、去 AI、排版，一张纸走完。</span>
-              <span class="atelier-index-arrow">→</span>
-            </a>
-            <a href="/diagnose">
-              <span class="atelier-index-name">账号诊断</span>
-              <span class="atelier-index-desc">看清内容力与商业潜力的短板。</span>
-              <span class="atelier-index-arrow">→</span>
-            </a>
-            <a href="/xiaohongshu">
-              <span class="atelier-index-name">小红书创作</span>
-              <span class="atelier-index-desc">标题、正文、封面，一次成包。</span>
-              <span class="atelier-index-arrow">→</span>
-            </a>
-            <a href="/tie-tu">
-              <span class="atelier-index-name">微信贴图号</span>
-              <span class="atelier-index-desc">3:4 卡片分镜与批量出图。</span>
-              <span class="atelier-index-arrow">→</span>
-            </a>
-            <a href="/hit-detector">
-              <span class="atelier-index-name">发布前复核</span>
-              <span class="atelier-index-desc">事实、结构与表达风险检查。</span>
-              <span class="atelier-index-arrow">→</span>
-            </a>
-            <a href="/morning-generator">
-              <span class="atelier-index-name">早安祝福</span>
-              <span class="atelier-index-desc">每日图片与文案，按时交稿。</span>
-              <span class="atelier-index-arrow">→</span>
-            </a>
-          </section>
+          <aside class="hv-rail" aria-label="概览">
+
+            <section class="hv-card">
+              <h4>本周</h4>
+              <div class="hv-stats">
+                <div><span class="k"><b>4</b><span>篇产出</span></span><i>+2</i></div>
+                <div><span class="k"><b>38%</b><span>平均完读</span></span><i>+6</i></div>
+                <div><span class="k"><b>68</b><span>分钟平均耗时</span></span><i>−12</i></div>
+              </div>
+            </section>
+
+            <section class="hv-card">
+              <h4>AI 超市 · 编辑精选</h4>
+              <a class="hv-skill" href="/market">
+                <span class="dot">写</span>
+                <span class="n"><b>爆文拆解</b><span>写作</span></span>
+                <span class="p">★ 12.4k</span>
+              </a>
+              <a class="hv-skill" href="/market">
+                <span class="dot">封</span>
+                <span class="n"><b>封面生成器</b><span>设计</span></span>
+                <span class="p">★ 8.1k</span>
+              </a>
+              <a class="hv-skill" href="/market">
+                <span class="dot">去</span>
+                <span class="n"><b>长文去 AI</b><span>写作</span></span>
+                <span class="p">★ 5.6k</span>
+              </a>
+            </section>
+
+            <section class="hv-card">
+              <h4>AI 书架</h4>
+              <a class="hv-book" href="/bookshelf">
+                <span class="cover"></span>
+                <span><b>把文章写给会读完的人</b><span>12 章 · 编辑方法</span></span>
+              </a>
+            </section>
+          </aside>
         </div>
-
-        <div class="atelier-home-notes">
-          <section class="atelier-flow" aria-labelledby="atelier-flow-title">
-            <h2 id="atelier-flow-title">一张纸，五步走完</h2>
-            <div class="atelier-flow-row" aria-label="写作流程">
-              <span>选题</span><i>→</i><span>大纲</span><i>→</i><span>正文</span><i>→</i><span>去 AI</span><i>→</i><span>排版</span>
-            </div>
-            <p>每一阶段都可回溯；正文、版本和排版都在同一张纸上。</p>
-          </section>
-
-          <section class="atelier-recent" aria-labelledby="atelier-recent-title">
-            <h2 id="atelier-recent-title">最近</h2>
-            <a class="atelier-recent-empty" href="/workbench">
-              <span>还没有作品</span>
-              <small>开始第一篇，版本会留在这里。</small>
-              <b>→</b>
-            </a>
-          </section>
-        </div>
-
-        <footer class="atelier-home-foot">
-          <span>六个工具，一套工作流。</span>
-          <a href="/bookshelf">AI 书架 →</a>
-        </footer>
       </section>
 
       <!-- ============================================================

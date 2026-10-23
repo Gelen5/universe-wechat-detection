@@ -1,0 +1,447 @@
+/* ==========================================================================
+   qihaoshou-v2.css — 一键成文（起号兽）接入统一外壳
+   保留原有三栏结构（设定 / 过程 / 编辑）与全部 q-* id，只换外观与排布。
+   ========================================================================== */
+
+body.atelier.qihaoshou {
+  background:
+    radial-gradient(700px 580px at 0% -16%, #A9DCC0 0%, rgba(169, 220, 192, 0) 58%),
+    radial-gradient(720px 620px at 100% 0%, #F6E9DA 0%, rgba(246, 233, 218, 0) 56%),
+    linear-gradient(178deg, #FBFAF6 0%, #F1F2EA 54%, #EAEEE6 100%) !important;
+  min-height: 100vh;
+}
+
+/* ---------- 内容区避开固定侧栏 ---------- */
+body.atelier.qihaoshou .studio-header,
+body.atelier.qihaoshou #q-login,
+body.atelier.qihaoshou .studio {
+  margin-left: 252px;
+  width: calc(100% - 252px - 18px);
+}
+
+/* ---------- 顶栏 ---------- */
+body.atelier.qihaoshou .studio-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  height: 62px;
+  padding: 0 26px 0 22px;
+  background: transparent !important;
+  border-bottom: 1px solid var(--hairline);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  backdrop-filter: blur(20px) saturate(160%);
+}
+
+body.atelier.qihaoshou .studio-header .back {
+  display: none;
+}
+
+body.atelier.qihaoshou .studio-header h1 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -.02em;
+  color: var(--ink-1);
+}
+
+body.atelier.qihaoshou .studio-header > div > span {
+  display: block;
+  margin-top: 2px;
+  font-size: 10.5px;
+  color: var(--ink-3);
+}
+
+body.atelier.qihaoshou .header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+body.atelier.qihaoshou #q-wallet {
+  font-size: 10.5px;
+  color: var(--ink-3);
+}
+
+body.atelier.qihaoshou #q-new {
+  height: 30px;
+  padding: 0 13px;
+  border-radius: 999px;
+  border: 1px solid rgba(30, 45, 36, .12);
+  background: rgba(255, 255, 255, .72);
+  color: var(--ink-1);
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+/* ---------- 三栏 ---------- */
+body.atelier.qihaoshou .studio {
+  display: grid;
+  grid-template-columns: 316px minmax(0, 1fr) minmax(0, 1.05fr);
+  gap: 14px;
+  padding: 14px 26px 22px 22px;
+  align-items: start;
+}
+
+body.atelier.qihaoshou .studio .panel {
+  background: rgba(255, 255, 255, .66);
+  border: 1px solid rgba(255, 255, 255, .88);
+  border-radius: 20px;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, .95) inset,
+    0 26px 52px -44px rgba(18, 44, 30, .55);
+  padding: 16px 16px 18px;
+  min-height: 0;
+}
+
+/* 设定栏 */
+body.atelier.qihaoshou .panel-title .eyebrow {
+  font-size: 10px;
+  letter-spacing: .14em;
+  color: var(--ink-3);
+}
+
+body.atelier.qihaoshou .panel-title h2 {
+  margin: 6px 0 0;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -.02em;
+  color: var(--ink-1);
+}
+
+body.atelier.qihaoshou .panel-title p {
+  margin: 6px 0 0;
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--ink-3);
+}
+
+body.atelier.qihaoshou .studio label {
+  display: block;
+  margin-top: 12px;
+  font-size: 11px;
+  color: var(--ink-2);
+}
+
+body.atelier.qihaoshou .studio input[type="text"],
+body.atelier.qihaoshou .studio input[type="url"],
+body.atelier.qihaoshou .studio input[type="number"],
+body.atelier.qihaoshou .studio input:not([type]),
+body.atelier.qihaoshou .studio textarea,
+body.atelier.qihaoshou .studio select {
+  width: 100%;
+  margin-top: 5px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(30, 45, 36, .12);
+  background: rgba(255, 255, 255, .82);
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--ink-1);
+  outline: none;
+}
+
+body.atelier.qihaoshou .studio textarea {
+  line-height: 1.7;
+  resize: vertical;
+}
+
+body.atelier.qihaoshou .studio input:focus,
+body.atelier.qihaoshou .studio textarea:focus,
+body.atelier.qihaoshou .studio select:focus {
+  border-color: var(--g-600) !important;
+  box-shadow: 0 0 0 3px rgba(62, 141, 107, .12) !important;
+}
+
+body.atelier.qihaoshou .field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+body.atelier.qihaoshou .studio details {
+  margin-top: 12px;
+  border-top: 1px solid var(--hairline);
+  padding-top: 10px;
+}
+
+body.atelier.qihaoshou .studio summary {
+  font-size: 11px;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+body.atelier.qihaoshou .studio .primary,
+body.atelier.qihaoshou .studio button.primary {
+  width: 100%;
+  height: 36px;
+  margin-top: 14px;
+  border: 0;
+  border-radius: 11px;
+  background: linear-gradient(180deg, #6FC49A, #3E8D6B);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 10px 22px -14px rgba(46, 110, 84, .95), 0 1px 0 rgba(255, 255, 255, .4) inset;
+}
+
+body.atelier.qihaoshou #q-stop {
+  width: 100%;
+  height: 32px;
+  margin-top: 8px;
+  border-radius: 11px;
+  border: 1px solid rgba(30, 45, 36, .12);
+  background: rgba(255, 255, 255, .8);
+  color: var(--ink-2);
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+/* 过程栏 */
+body.atelier.qihaoshou #q-status {
+  margin-top: 12px;
+  font-size: 11px;
+  color: var(--g-700);
+}
+
+body.atelier.qihaoshou #q-stream {
+  margin-top: 8px;
+  max-height: 300px;
+  overflow: auto;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(252, 252, 249, .9);
+  border: 1px solid var(--hairline);
+  font-family: inherit;
+  font-size: 11.5px;
+  line-height: 1.8;
+  color: var(--ink-2);
+  white-space: pre-wrap;
+}
+
+body.atelier.qihaoshou .extensions {
+  margin-top: 14px;
+  border-top: 1px solid var(--hairline);
+  padding-top: 12px;
+}
+
+body.atelier.qihaoshou .extensions h3 {
+  margin: 0 0 8px;
+  font-size: 11px;
+  color: var(--ink-3);
+  font-weight: 500;
+}
+
+body.atelier.qihaoshou .extension-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+body.atelier.qihaoshou .extension-actions button,
+body.atelier.qihaoshou #q-layout,
+body.atelier.qihaoshou #q-image {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 9px;
+  border: 1px solid rgba(30, 45, 36, .12);
+  background: rgba(255, 255, 255, .8);
+  color: var(--ink-1);
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+body.atelier.qihaoshou .hint {
+  margin: 8px 0 0;
+  font-size: 10px;
+  line-height: 1.7;
+  color: var(--ink-3);
+}
+
+/* 编辑栏 */
+body.atelier.qihaoshou .editor-title {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+body.atelier.qihaoshou #q-save-state {
+  font-size: 10px;
+  color: var(--ink-3);
+}
+
+body.atelier.qihaoshou .title-label input {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+body.atelier.qihaoshou #q-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 10px;
+  padding: 6px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .7);
+  border: 1px solid var(--hairline);
+}
+
+body.atelier.qihaoshou #q-toolbar button {
+  height: 24px;
+  min-width: 24px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+body.atelier.qihaoshou #q-toolbar button:hover {
+  background: rgba(30, 45, 36, .06);
+  color: var(--ink-1);
+}
+
+body.atelier.qihaoshou #q-editor {
+  width: 100%;
+  min-height: 420px;
+  margin-top: 10px;
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  background: #fff;
+}
+
+body.atelier.qihaoshou .delivery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--hairline);
+}
+
+body.atelier.qihaoshou .delivery button {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(30, 45, 36, .12);
+  background: rgba(255, 255, 255, .85);
+  color: var(--ink-1);
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+body.atelier.qihaoshou .delivery button.primary {
+  border: 0;
+  background: linear-gradient(180deg, #6FC49A, #3E8D6B);
+  color: #fff;
+  box-shadow: 0 10px 22px -14px rgba(46, 110, 84, .95);
+}
+
+
+/* ---------- 细节修正 ---------- */
+body.atelier.qihaoshou #q-toolbar input[type="color"] {
+  width: 26px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid rgba(30, 45, 36, .12);
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+
+body.atelier.qihaoshou #q-toolbar label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0 0 0 4px;
+  font-size: 10.5px;
+  color: var(--ink-3);
+}
+
+body.atelier.qihaoshou #q-toolbar select {
+  width: auto;
+  margin: 0;
+  padding: 2px 6px;
+  font-size: 10.5px;
+  border-radius: 6px;
+}
+
+/* ---------- 登录卡 ---------- */
+body.atelier.qihaoshou .login-panel {
+  max-width: 380px;
+  margin: 40px auto 0;
+  padding: 26px 26px 22px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, .72);
+  border: 1px solid rgba(255, 255, 255, .9);
+  box-shadow: 0 30px 60px -46px rgba(18, 44, 30, .55), 0 1px 0 rgba(255, 255, 255, .95) inset;
+  backdrop-filter: blur(30px) saturate(170%);
+}
+
+body.atelier.qihaoshou .login-panel h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -.02em;
+  color: var(--ink-1);
+}
+
+body.atelier.qihaoshou .login-panel > p {
+  margin: 8px 0 16px;
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--ink-3);
+}
+
+body.atelier.qihaoshou .login-panel label {
+  display: block;
+  margin-top: 12px;
+  font-size: 11px;
+  color: var(--ink-2);
+}
+
+body.atelier.qihaoshou .login-panel input {
+  width: 100%;
+  margin-top: 5px;
+  padding: 9px 11px;
+  border-radius: 10px;
+  border: 1px solid rgba(30, 45, 36, .12);
+  background: rgba(255, 255, 255, .85);
+  font-family: inherit;
+  font-size: 12.5px;
+  color: var(--ink-1);
+  outline: none;
+}
+
+body.atelier.qihaoshou .login-panel input:focus {
+  border-color: var(--g-600);
+  box-shadow: 0 0 0 3px rgba(62, 141, 107, .12);
+}
+
+body.atelier.qihaoshou .login-panel button.primary {
+  width: 100%;
+  height: 38px;
+  margin-top: 16px;
+  border: 0;
+  border-radius: 11px;
+  background: linear-gradient(180deg, #6FC49A, #3E8D6B);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 10px 22px -14px rgba(46, 110, 84, .95), 0 1px 0 rgba(255, 255, 255, .4) inset;
+}
+
+body.atelier.qihaoshou .login-panel a {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--g-700);
+  text-decoration: none;
+}

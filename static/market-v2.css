@@ -1,0 +1,259 @@
+/* ==========================================================================
+   market-v2.css — AI 超市接进统一外壳
+   依赖 theme-glass.css（侧栏、玻璃、绿阶 token）。
+   只改布局与外观，market.js 依赖的 id 一个不动。
+   ========================================================================== */
+
+body.atelier.market-body {
+  background:
+    radial-gradient(700px 580px at 0% -16%, #A9DCC0 0%, rgba(169, 220, 192, 0) 58%),
+    radial-gradient(720px 620px at 100% 0%, #F6E9DA 0%, rgba(246, 233, 218, 0) 56%),
+    radial-gradient(900px 700px at 78% 112%, #DDE9D6 0%, rgba(221, 233, 214, 0) 62%),
+    linear-gradient(178deg, #FBFAF6 0%, #F1F2EA 54%, #EAEEE6 100%) !important;
+  min-height: 100vh;
+}
+
+/* 让内容避开固定侧栏 */
+body.atelier.market-body .market-page {
+  margin-left: 252px;
+  padding: 10px 0 40px;
+  overflow-x: clip;
+}
+
+body.atelier.market-body .market-wrap {
+  max-width: none;
+  padding: 0 26px;
+  margin: 0;
+}
+
+/* ---------- 页头 ---------- */
+body.atelier.market-body .market-hero {
+  padding: 26px 0 22px;
+  border-bottom: 0;
+}
+
+body.atelier.market-body .market-kicker {
+  font-size: 10px;
+  letter-spacing: .16em;
+  color: var(--ink-3);
+}
+
+body.atelier.market-body .market-kicker i {
+  background: var(--g-300);
+}
+
+body.atelier.market-body .market-hero h1 {
+  margin: 10px 0 0;
+  font-family: inherit;
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -.03em;
+  color: var(--ink-1);
+}
+
+body.atelier.market-body .market-hero p {
+  margin: 8px 0 0;
+  max-width: 56ch;
+  font-size: 12.5px;
+  line-height: 1.75;
+  color: var(--ink-2);
+}
+
+body.atelier.market-body .market-meta {
+  margin-top: 14px;
+  gap: 16px;
+  font-size: 10.5px;
+  color: var(--ink-3);
+}
+
+body.atelier.market-body .market-meta b {
+  color: var(--ink-1);
+  font-weight: 600;
+}
+
+/* ---------- 搜索 ---------- */
+body.atelier.market-body .market-searchwrap {
+  padding: 4px 0 0;
+}
+
+body.atelier.market-body .market-search {
+  height: 42px;
+  border-radius: 13px;
+  border: 1px solid rgba(255, 255, 255, .9);
+  background: rgba(255, 255, 255, .72);
+  box-shadow: 0 1px 2px rgba(20, 44, 32, .05), 0 1px 0 rgba(255, 255, 255, .95) inset;
+}
+
+body.atelier.market-body .market-search:focus-within {
+  border-color: rgba(62, 141, 107, .45);
+  box-shadow: 0 0 0 3px rgba(62, 141, 107, .12) !important;
+}
+
+body.atelier.market-body .market-search input {
+  font-size: 13px;
+  color: var(--ink-1);
+}
+
+body.atelier.market-body .market-search input::placeholder {
+  color: #9FAAA2;
+}
+
+body.atelier.market-body .market-search kbd {
+  font-size: 10px;
+  color: var(--ink-3);
+  border: 1px solid var(--hairline);
+  border-radius: 5px;
+  padding: 1px 5px;
+  background: rgba(255, 255, 255, .7);
+}
+
+/* ---------- 布局 ---------- */
+body.atelier.market-body .market-layout {
+  grid-template-columns: 176px minmax(0, 1fr);
+  gap: 32px;
+  padding: 22px 0 40px;
+}
+
+body.atelier.market-body .market-rail {
+  position: sticky;
+  top: 20px;
+}
+
+body.atelier.market-body .market-rail h2 {
+  font-size: 10px;
+  letter-spacing: .14em;
+  color: var(--ink-3);
+  margin-bottom: 10px;
+}
+
+body.atelier.market-body .market-rail a {
+  display: block;
+  padding: 6px 10px;
+  border-radius: 9px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+body.atelier.market-body .market-rail a:hover {
+  background: rgba(255, 255, 255, .6);
+  color: var(--ink-1);
+}
+
+body.atelier.market-body .market-rail a.on {
+  background: rgba(255, 255, 255, .85);
+  color: var(--g-700);
+  font-weight: 500;
+  box-shadow: 0 1px 2px rgba(20, 44, 32, .08);
+}
+
+/* ---------- 精选与列表 ---------- */
+body.atelier.market-body .market-section-head h2 {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-1);
+}
+
+body.atelier.market-body .market-section-head span {
+  font-size: 9.5px;
+  letter-spacing: .14em;
+  color: var(--ink-3);
+}
+
+body.atelier.market-body .market-featured .market-card,
+body.atelier.market-body .market-list .market-row {
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, .86);
+  background: rgba(255, 255, 255, .66);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .95) inset, 0 24px 48px -40px rgba(18, 44, 30, .5);
+}
+
+body.atelier.market-body .market-count {
+  font-size: 10.5px;
+  color: var(--ink-3);
+}
+
+body.atelier.market-body .market-seg {
+  border-radius: 10px;
+  background: rgba(30, 45, 36, .06);
+  padding: 2px;
+}
+
+body.atelier.market-body .market-seg button {
+  border-radius: 8px;
+  font-size: 11px;
+  color: var(--ink-2);
+  padding: 4px 10px;
+}
+
+body.atelier.market-body .market-seg button[aria-pressed="true"] {
+  background: #fff;
+  color: var(--ink-1);
+  font-weight: 500;
+  box-shadow: 0 1px 2px rgba(20, 44, 32, .12);
+}
+
+/* 页脚 */
+body.atelier.market-body .market-foot {
+  margin-left: 0;
+  border-top: 1px solid var(--hairline);
+  padding: 18px 0 26px;
+}
+
+body.atelier.market-body .market-foot p {
+  font-size: 10.5px;
+  color: var(--ink-3);
+  line-height: 1.8;
+}
+
+
+/* ==========================================================================
+   提权层：atelier-market.css 用 body.atelier.market-body 前缀写死了纸感样式，
+   这里再挂一层 .market-v2 提高特异度，避免靠 !important 打架。
+   ========================================================================== */
+
+body.atelier.market-body .market-v2 .market-hero {
+  padding: 22px 0 20px !important;
+  border-bottom: 0 !important;
+}
+
+body.atelier.market-body .market-v2 .market-kicker {
+  display: flex !important;
+  align-items: center;
+  gap: 9px;
+  font-size: 10px !important;
+  letter-spacing: .16em !important;
+  color: var(--ink-3) !important;
+}
+
+body.atelier.market-body .market-v2 .market-hero h1 {
+  margin: 8px 0 0 !important;
+  font-family: inherit !important;
+  font-size: 30px !important;
+  line-height: 1.2 !important;
+  font-weight: 600 !important;
+  letter-spacing: -.03em !important;
+  color: var(--ink-1) !important;
+}
+
+body.atelier.market-body .market-v2 .market-hero p {
+  margin: 8px 0 0 !important;
+  font-size: 12.5px !important;
+  line-height: 1.75 !important;
+  color: var(--ink-2) !important;
+}
+
+body.atelier.market-body .market-v2 .market-meta {
+  margin-top: 12px !important;
+  font-size: 10.5px !important;
+  color: var(--ink-3) !important;
+}
+
+body.atelier.market-body .market-v2 .market-hero,
+body.atelier.market-body .market-v2 .market-hero + .market-wrap {
+  background: transparent !important;
+}
+
+body.atelier.market-body .market-v2 .market-wrap {
+  padding: 0 26px !important;
+  max-width: none !important;
+}

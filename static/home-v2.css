@@ -1,0 +1,476 @@
+/* ==========================================================================
+   home-v2.css — 首页（薄荷玻璃）
+   依赖 theme-glass.css 的 token。只作用于 #home.home-v2，旧 atelier 首页样式
+   因 class 不再匹配而自动失效。
+   ========================================================================== */
+
+body.atelier #home.home-v2 {
+  padding: 18px 22px 26px !important;
+  background: transparent !important;
+  /* layout.css 给 .home-page 设了 max-width + 居中，这里放开，宽度交给父容器 */
+  max-width: none !important;
+  width: 100% !important;
+  margin: 0 !important;
+  min-height: 0 !important;
+}
+
+.hv-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 318px;
+  gap: 14px;
+  align-items: start;
+}
+
+.hv-main {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+/* ---------- 卡片基底 ---------- */
+.hv-hero,
+.hv-tool,
+.hv-recent,
+.hv-card {
+  background: rgba(255, 255, 255, .6);
+  border: 1px solid rgba(255, 255, 255, .82);
+  border-radius: 22px;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, .95) inset,
+    0 30px 60px -46px rgba(18, 44, 30, .55);
+}
+
+/* 只有最大的那块用模糊，其余半透明白即可（性能） */
+.hv-hero {
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  backdrop-filter: blur(40px) saturate(180%);
+  padding: 26px 30px 24px;
+  background: rgba(255, 255, 255, .68);
+  border-color: rgba(255, 255, 255, .95);
+  box-shadow:
+    0 1.5px 0 rgba(255, 255, 255, 1) inset,
+    0 34px 66px -48px rgba(18, 44, 30, .6);
+}
+
+/* ---------- hero ---------- */
+.hv-date {
+  margin: 0 0 14px;
+  font-size: 11px;
+  letter-spacing: .02em;
+  color: var(--ink-3);
+}
+
+.hv-hero h1 {
+  margin: 0;
+  font-family: inherit;
+  font-size: 33px;
+  line-height: 1.3;
+  font-weight: 600;
+  letter-spacing: -.035em;
+  color: var(--ink-1);
+}
+
+.hv-lede {
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--ink-2);
+}
+
+.hv-compose {
+  margin-top: 20px;
+  padding: 13px 14px 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, .78);
+  border: 1px solid rgba(255, 255, 255, .95);
+  box-shadow: 0 1px 2px rgba(20, 44, 32, .05), 0 1px 0 rgba(255, 255, 255, .95) inset;
+}
+
+.hv-compose textarea {
+  width: 100%;
+  height: 46px;
+  border: 0 !important;
+  outline: none;
+  resize: none;
+  background: transparent !important;
+  box-shadow: none !important;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--ink-1);
+}
+
+.hv-compose textarea::placeholder {
+  color: #9FAAA2;
+}
+
+.hv-compose-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+}
+
+.hv-chips {
+  display: flex;
+  gap: 6px;
+}
+
+.hv-chip {
+  height: 26px;
+  padding: 0 11px;
+  border-radius: 999px;
+  border: 1px solid rgba(30, 45, 36, .12);
+  background: rgba(255, 255, 255, .7);
+  color: var(--ink-2);
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+}
+
+.hv-chip:hover {
+  background: #fff;
+  color: var(--ink-1);
+}
+
+.hv-chip.is-on {
+  background: var(--g-100);
+  border-color: rgba(62, 141, 107, .3);
+  color: var(--g-700);
+  font-weight: 500;
+}
+
+.hv-go {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0 15px;
+  border-radius: 999px;
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 500;
+  color: #fff;
+  background: linear-gradient(180deg, #6FC49A, #3E8D6B);
+  box-shadow: 0 8px 18px -10px rgba(46, 110, 84, .95), 0 1px 0 rgba(255, 255, 255, .4) inset;
+}
+
+.hv-go svg {
+  width: 13px;
+  height: 13px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ---------- 工具卡 ---------- */
+.hv-tools {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.hv-tool {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 118px;
+  padding: 15px 16px;
+  text-decoration: none;
+  color: inherit;
+  transition: background .18s, box-shadow .18s;
+}
+
+.hv-tool:hover {
+  background: rgba(255, 255, 255, .82);
+  box-shadow: 0 1px 0 #fff inset, 0 20px 40px -32px rgba(18, 44, 30, .55);
+}
+
+.hv-tool .ic {
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, .78);
+}
+
+.hv-tool .ic svg {
+  width: 15px;
+  height: 15px;
+  stroke: var(--g-600);
+  fill: none;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.hv-tool b {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  color: var(--ink-1);
+}
+
+.hv-tool p {
+  margin: 0;
+  font-size: 10.5px;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+
+.hv-tool .meta {
+  margin-top: auto;
+  font-size: 10px;
+  color: var(--ink-3);
+}
+
+/* ---------- 继续 ---------- */
+.hv-recent {
+  padding: 16px 18px 10px;
+}
+
+.hv-sec-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.hv-sec-head h3 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-1);
+}
+
+.hv-sec-head a {
+  font-size: 10.5px;
+  color: var(--ink-3);
+  text-decoration: none;
+}
+
+.hv-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 10px;
+  border-radius: 12px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.hv-row:hover {
+  background: rgba(255, 255, 255, .6);
+}
+
+.hv-row .thumb {
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: 9px;
+  background: linear-gradient(160deg, #EAF3EC, #CFE6D8);
+  border: 1px solid rgba(255, 255, 255, .8);
+}
+
+.hv-row .txt {
+  min-width: 0;
+  flex: 1;
+}
+
+.hv-row .txt b {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ink-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hv-row .txt span {
+  display: block;
+  margin-top: 2px;
+  font-size: 10.5px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.hv-row .st {
+  flex: none;
+  font-size: 10px;
+  color: var(--g-700);
+  background: var(--g-100);
+  border-radius: 6px;
+  padding: 3px 7px;
+}
+
+.hv-row .arw {
+  flex: none;
+  color: #A8B2AA;
+  font-size: 14px;
+}
+
+.hv-row.is-new .thumb {
+  background: transparent;
+  border: 1px dashed rgba(62, 141, 107, .45);
+  display: grid;
+  place-items: center;
+  color: var(--g-600);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.hv-row.is-new .txt b {
+  color: var(--g-700);
+}
+
+/* ---------- 右栏 ---------- */
+.hv-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.hv-card {
+  padding: 15px 16px;
+}
+
+.hv-card h4 {
+  margin: 0 0 11px;
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--ink-3);
+}
+
+.hv-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.hv-stats > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.hv-stats .k {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+
+.hv-stats b {
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -.03em;
+  color: var(--ink-1);
+  font-variant-numeric: tabular-nums;
+}
+
+.hv-stats span {
+  font-size: 10.5px;
+  color: var(--ink-3);
+}
+
+.hv-stats i {
+  font-style: normal;
+  font-size: 9.5px;
+  color: var(--g-700);
+  font-variant-numeric: tabular-nums;
+}
+
+.hv-skill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--hairline-soft);
+  text-decoration: none;
+  color: inherit;
+}
+
+.hv-skill:last-child {
+  border-bottom: 0;
+  padding-bottom: 2px;
+}
+
+.hv-skill .dot {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, .8);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--g-700);
+}
+
+.hv-skill .n {
+  min-width: 0;
+  flex: 1;
+}
+
+.hv-skill .n b {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--ink-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hv-skill .n span {
+  display: block;
+  margin-top: 1px;
+  font-size: 9.5px;
+  color: var(--ink-3);
+}
+
+.hv-skill .p {
+  flex: none;
+  font-size: 10px;
+  color: #B6A26A;
+  font-variant-numeric: tabular-nums;
+}
+
+.hv-book {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.hv-book .cover {
+  width: 38px;
+  height: 50px;
+  flex: none;
+  border-radius: 5px;
+  background: linear-gradient(150deg, #5FB98E, #2F7256);
+  box-shadow: 0 6px 14px -8px rgba(46, 110, 84, .9), 0 0 0 1px rgba(255, 255, 255, .35) inset;
+}
+
+.hv-book b {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--ink-1);
+}
+
+.hv-book span {
+  display: block;
+  margin-top: 3px;
+  font-size: 9.5px;
+  color: var(--ink-3);
+}

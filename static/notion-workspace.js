@@ -13,18 +13,21 @@
     const open = header.classList.toggle('nav-open'); menu.setAttribute('aria-expanded', String(open));
   });
   const groups = [
-    ['工作空间', ['home']],
-    ['内容创作', ['workbench','xiaohongshu','tie-tu','morning']],
-    ['分析与复核', ['diagnose','hit-detector']],
+    ['内容创作', ['workbench','one-click-writing','xiaohongshu','tie-tu','morning']],
+    ['分析', ['diagnose','hit-detector']],
   ];
   for (const [label, ids] of groups) {
     const caption = document.createElement('div'); caption.className='nav-group-label'; caption.textContent=label;
     nav.append(caption);
-    for (const id of ids) nav.append(nav.querySelector(`[data-view="${id}"]`));
+    for (const id of ids) { const el = nav.querySelector(`[data-view="${id}"]`); if (el) nav.append(el); }
   }
-  const libraries = [...nav.querySelectorAll('[data-library-link]')];
+  const libraries = [...nav.querySelectorAll('[data-library-link]')]
+    .sort((a, b) => {
+      const order = ['/market', '/bookshelf'];
+      return order.indexOf(a.getAttribute('href')) - order.indexOf(b.getAttribute('href'));
+    });
   if (libraries.length) {
-    const caption = document.createElement('div'); caption.className = 'nav-group-label'; caption.textContent = '学习与收藏';
+    const caption = document.createElement('div'); caption.className = 'nav-group-label'; caption.textContent = '资源';
     nav.append(caption, ...libraries);
   }
   nav.querySelector('[data-view=diagnose] span').textContent='账号诊断';

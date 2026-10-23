@@ -1,0 +1,439 @@
+/* ==========================================================================
+   skill-v2.css — 小红书 / 贴图号 / 早安祝福（三页同一骨架）
+   依赖 theme-glass.css。只覆盖外观，不动任何表单 id 与提交逻辑。
+   ========================================================================== */
+
+/* 撑满内容列（layout.css 给这些页设了 max-width + 居中） */
+body.atelier section.skill-page {
+  max-width: none !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 16px 22px 26px !important;
+  background: transparent !important;
+}
+
+body.atelier .skill-page .v3-meta {
+  display: none !important;
+}
+
+/* ---------- 两栏 ---------- */
+body.atelier .skill-page .skill-shell {
+  display: grid;
+  grid-template-columns: 384px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+/* ---------- 左：表单卡 ---------- */
+body.atelier .skill-page .skill-form-col {
+  padding: 22px 22px 24px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, .62);
+  border: 1px solid rgba(255, 255, 255, .86);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, .95) inset,
+    0 30px 60px -48px rgba(18, 44, 30, .55);
+  -webkit-backdrop-filter: blur(28px) saturate(170%);
+  backdrop-filter: blur(28px) saturate(170%);
+}
+
+body.atelier .skill-page .micro-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  letter-spacing: .14em;
+  color: var(--ink-3) !important;
+}
+
+body.atelier .skill-page .micro-label .line {
+  width: 18px;
+  height: 1px;
+  background: var(--g-300);
+}
+
+body.atelier .skill-page .skill-form-col h1 {
+  margin: 12px 0 0;
+  font-family: inherit;
+  font-size: 25px;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: -.03em;
+  color: var(--ink-1);
+}
+
+body.atelier .skill-page .skill-form-col h1 .serif {
+  font-family: inherit;
+  font-style: normal;
+}
+
+body.atelier .skill-page .skill-form-col h1 .blue {
+  color: var(--g-600) !important;
+}
+
+body.atelier .skill-page .skill-form-col > p {
+  margin: 10px 0 0;
+  font-size: 11.5px;
+  line-height: 1.75;
+  color: var(--ink-2);
+}
+
+/* ---------- 表单块 ---------- */
+body.atelier .skill-page .skill-form {
+  margin-top: 18px;
+}
+
+body.atelier .skill-page .form-section + .form-section {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--hairline);
+}
+
+body.atelier .skill-page .form-section .head {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  margin-bottom: 10px;
+}
+
+body.atelier .skill-page .form-section .head .num {
+  font-size: 9.5px;
+  color: var(--g-600);
+  font-variant-numeric: tabular-nums;
+}
+
+body.atelier .skill-page .form-section .head strong {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-1);
+}
+
+body.atelier .skill-page .form-section .head small {
+  display: block;
+  margin-top: 3px;
+  font-size: 10px;
+  color: var(--ink-3);
+}
+
+body.atelier .skill-page .skill-form label {
+  display: block;
+  margin-top: 11px;
+  font-size: 11px;
+  color: var(--ink-2);
+}
+
+body.atelier .skill-page .skill-form input,
+body.atelier .skill-page .skill-form select,
+body.atelier .skill-page .skill-form textarea {
+  width: 100%;
+  margin-top: 5px;
+  padding: 9px 11px;
+  border-radius: 10px;
+  border: 1px solid rgba(30, 45, 36, .12);
+  background: rgba(255, 255, 255, .84);
+  font-family: inherit;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--ink-1);
+  outline: none;
+  resize: vertical;
+}
+
+body.atelier .skill-page .skill-form input:focus,
+body.atelier .skill-page .skill-form select:focus,
+body.atelier .skill-page .skill-form textarea:focus {
+  border-color: var(--g-600) !important;
+  box-shadow: 0 0 0 3px rgba(62, 141, 107, .12) !important;
+}
+
+body.atelier .skill-page .skill-form input::placeholder,
+body.atelier .skill-page .skill-form textarea::placeholder {
+  color: #9FAAA2;
+}
+
+body.atelier .skill-page .field-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+body.atelier .skill-page .skill-form .compact-area {
+  min-height: 74px;
+}
+
+body.atelier .skill-page .skill-primary {
+  width: 100%;
+  height: 40px;
+  margin-top: 18px;
+  border: 0;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #6FC49A, #3E8D6B);
+  color: #fff;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: .01em;
+  cursor: pointer;
+  box-shadow:
+    0 12px 24px -16px rgba(46, 110, 84, .95),
+    0 1px 0 rgba(255, 255, 255, .4) inset;
+}
+
+body.atelier .skill-page .skill-primary:disabled {
+  opacity: .55;
+  cursor: default;
+}
+
+/* ---------- 右：输出卡 ---------- */
+body.atelier .skill-page .skill-output-col {
+  padding: 22px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, .62);
+  border: 1px solid rgba(255, 255, 255, .86);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, .95) inset,
+    0 30px 60px -48px rgba(18, 44, 30, .55);
+  min-height: calc(100vh - 120px);
+}
+
+body.atelier .skill-page .skill-empty .empty-head h2 {
+  margin: 8px 0 0;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -.025em;
+  color: var(--ink-1);
+}
+
+body.atelier .skill-page .skill-empty .empty-head .tag {
+  font-size: 10px;
+  letter-spacing: .14em;
+  color: var(--ink-3);
+}
+
+body.atelier .skill-page .skill-empty .empty-head p {
+  margin: 8px 0 0;
+  font-size: 11.5px;
+  line-height: 1.75;
+  color: var(--ink-2);
+}
+
+body.atelier .skill-page .empty-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+body.atelier .skill-page .empty-preview {
+  padding: 14px 15px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, .7);
+  border: 1px solid rgba(255, 255, 255, .9);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .95) inset;
+}
+
+body.atelier .skill-page .empty-preview header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+body.atelier .skill-page .ep-tag {
+  font-size: 10px;
+  letter-spacing: .1em;
+  color: var(--g-700);
+}
+
+body.atelier .skill-page .ep-meta {
+  font-style: normal;
+  font-size: 9.5px;
+  color: var(--ink-3);
+}
+
+body.atelier .skill-page .empty-preview ol,
+body.atelier .skill-page .empty-preview ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+body.atelier .skill-page .empty-preview li {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding: 6px 0;
+  border-top: 1px solid var(--hairline-soft);
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+
+body.atelier .skill-page .empty-preview li:first-child {
+  border-top: 0;
+}
+
+body.atelier .skill-page .ep-num {
+  font-size: 9px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+
+body.atelier .skill-page .empty-preview strong {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-1);
+}
+
+body.atelier .skill-page .empty-preview p {
+  margin: 3px 0 0;
+  font-size: 10.5px;
+  color: var(--ink-3);
+  line-height: 1.6;
+}
+
+/* 输出结果区（生成后由 JS 插入的卡片） */
+body.atelier .skill-page .skill-output-col > section,
+body.atelier .skill-page .skill-output-col .result-block {
+  padding: 14px 15px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, .8);
+  border: 1px solid rgba(255, 255, 255, .95);
+  margin-top: 12px;
+}
+
+
+/* ---------- 输出区占位卡：把旧配色收进绿阶 ---------- */
+body.atelier .skill-page .ep-cover-frame {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .9);
+}
+
+body.atelier .skill-page .ep-cover-bg {
+  background: linear-gradient(160deg, #5FB98E, #2F7256) !important;
+}
+
+body.atelier .skill-page .ep-cover-title {
+  color: #F2F9F5 !important;
+  font-weight: 600 !important;
+}
+
+body.atelier .skill-page .ep-cover-sub {
+  color: rgba(255, 255, 255, .78) !important;
+}
+
+body.atelier .skill-page .empty-preview .ph,
+body.atelier .skill-page .empty-preview .line,
+body.atelier .skill-page .empty-preview .bar {
+  background: rgba(62, 141, 107, .18) !important;
+  border-radius: 4px;
+}
+
+body.atelier .skill-page .empty-preview p,
+body.atelier .skill-page .empty-preview li {
+  color: var(--ink-2) !important;
+}
+
+body.atelier .skill-page .empty-preview strong,
+body.atelier .skill-page .empty-preview b {
+  color: var(--ink-1) !important;
+}
+
+/* 表单块编号：旧样式是深绿方块，改成细字序号 */
+body.atelier .skill-page .form-section .head .num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  height: auto;
+  min-width: 0;
+  padding: 0;
+  border-radius: 0;
+  background: transparent !important;
+  color: var(--g-600) !important;
+  font-size: 9.5px;
+  letter-spacing: .06em;
+}
+
+
+/* ---------- 输出区骨架条 / 置顶评论：把旧蓝灰换成绿阶 ---------- */
+body.atelier .skill-page .empty-preview-body .ep-body-lines i {
+  background: linear-gradient(90deg, rgba(62, 141, 107, .10), rgba(62, 141, 107, .30)) !important;
+}
+
+body.atelier .skill-page .empty-preview-pin .ep-pin {
+  background: rgba(62, 141, 107, .08) !important;
+  border: 1px solid rgba(62, 141, 107, .20) !important;
+  border-radius: 12px !important;
+}
+
+body.atelier .skill-page .empty-preview-pin .ep-pin strong {
+  color: var(--g-700) !important;
+  font-weight: 600 !important;
+}
+
+body.atelier .skill-page .empty-preview-pin .ep-pin p {
+  color: var(--ink-2) !important;
+}
+
+/* 贴图号分镜卡、早安祝福预览：统一白底 + 发丝线 */
+body.atelier .skill-page .empty-preview-tietu .tietu-board > *,
+body.atelier .skill-page .empty-preview-morning > * {
+  background: #fff !important;
+  border: 1px solid var(--hairline-soft) !important;
+  border-radius: 10px !important;
+}
+
+/* 输出列里的蓝色强调一律收成品牌绿 */
+body.atelier .skill-page .skill-output-col .ep-tag,
+body.atelier .skill-page .skill-output-col strong {
+  color: var(--g-700);
+}
+
+
+/* ---------- 输出区网格防挤压 ---------- */
+body.atelier .skill-page .skill-output-col .empty-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 12px !important;
+}
+
+body.atelier .skill-page .skill-output-col .empty-grid > * {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow-wrap: anywhere;
+}
+
+body.atelier .skill-page .skill-output-col .empty-preview li,
+body.atelier .skill-page .skill-output-col .empty-preview p,
+body.atelier .skill-page .skill-output-col .empty-preview span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- 贴图号：人物模式一行文字被挤成一字一行 ---------- */
+body.atelier .skill-page .empty-preview .portrait-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+body.atelier .skill-page .empty-preview .portrait-row strong {
+  flex: none;
+  white-space: nowrap;
+}
+
+body.atelier .skill-page .empty-preview .portrait-row p {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+
+body.atelier .skill-page .empty-preview .tip-list li small {
+  display: block;
+  min-width: 0;
+}

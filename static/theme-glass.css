@@ -1,0 +1,621 @@
+/* ==========================================================================
+   theme-glass.css — 薄荷玻璃外壳层
+   --------------------------------------------------------------------------
+   只覆盖外壳（背景、侧栏、顶栏、导航、品牌）与通用原子，不改任何业务模块。
+   加载顺序必须位于 atelier.css 之后。删除本文件的一行 <link> 即可全站回滚。
+   ========================================================================== */
+
+body.atelier {
+  /* 绿阶 */
+  --g-50: #EFF8F2;
+  --g-100: #DFF1E6;
+  --g-200: #B9E3C9;
+  --g-300: #A9DEBF;
+  --g-500: #5FB98E;
+  --g-600: #3E8D6B;
+  --g-700: #2F7256;
+  --g-900: #14392B;
+
+  /* 中性 */
+  --ink-1: #1A1E1B;
+  --ink-2: #4F5751;
+  --ink-3: #828B84;
+  --hairline: rgba(30, 45, 36, .10);
+  --hairline-soft: rgba(30, 45, 36, .07);
+
+  /* 玻璃 */
+  --glass-hi: rgba(255, 255, 255, .54);
+  --glass-lo: rgba(255, 255, 255, .32);
+  --glass-edge: rgba(255, 255, 255, .82);
+
+  /* 圆角 */
+  --r-xl: 26px;
+  --r-lg: 22px;
+  --r-md: 14px;
+  --r-sm: 9px;
+}
+
+/* ---------- 环境光（玻璃需要有东西可折射） ---------- */
+body.atelier {
+  background:
+    radial-gradient(700px 580px at 0% -16%, #A9DCC0 0%, rgba(169, 220, 192, 0) 58%),
+    radial-gradient(720px 620px at 100% 0%, #F6E9DA 0%, rgba(246, 233, 218, 0) 56%),
+    radial-gradient(900px 700px at 78% 112%, #DDE9D6 0%, rgba(221, 233, 214, 0) 62%),
+    linear-gradient(178deg, #FBFAF6 0%, #F1F2EA 54%, #EAEEE6 100%) !important;
+  background-attachment: fixed !important;
+}
+
+body.atelier .app-shell {
+  background: transparent !important;
+}
+
+/* ---------- 侧栏：玻璃 ---------- */
+body.atelier .app-shell > .v3-topbar,
+body.atelier .v3-topbar.shell-nav {
+  width: 238px !important;
+  background: linear-gradient(180deg, var(--glass-hi), var(--glass-lo)) !important;
+  -webkit-backdrop-filter: blur(56px) saturate(200%);
+  backdrop-filter: blur(56px) saturate(200%);
+  border: 1px solid var(--glass-edge) !important;
+  border-radius: var(--r-xl) !important;
+  margin: 14px 0 14px 14px !important;
+  padding: 16px 12px 14px !important;
+  box-shadow:
+    0 1.5px 0 rgba(255, 255, 255, .95) inset,
+    0 -1px 0 rgba(255, 255, 255, .5) inset,
+    0 40px 80px -48px rgba(18, 44, 30, .45) !important;
+  display: flex;
+  flex-direction: column;
+  gap: 0 !important;
+  overflow: hidden;
+}
+
+/* 侧栏顶部的镜面高光 */
+body.atelier .app-shell > .v3-topbar::before,
+body.atelier .v3-topbar.shell-nav::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 42%;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .5), rgba(255, 255, 255, 0));
+  z-index: 0;
+}
+
+body.atelier .app-shell > .v3-topbar > *,
+body.atelier .v3-topbar.shell-nav > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ---------- 品牌 ---------- */
+body.atelier .v3-topbar .brand a {
+  gap: 9px !important;
+  padding: 2px 8px 14px !important;
+  align-items: center;
+}
+
+body.atelier .v3-topbar .brand .mark {
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 8px !important;
+  background: linear-gradient(160deg, #4E9B77, #2C6750) !important;
+  box-shadow: 0 6px 12px -6px rgba(46, 110, 84, .85), 0 1px 0 rgba(255, 255, 255, .5) inset !important;
+  display: grid !important;
+  place-items: center !important;
+  overflow: hidden;
+}
+
+/* 关掉旧的「宇」字伪元素 */
+body.atelier .v3-topbar .brand .mark::after {
+  content: none !important;
+  display: none !important;
+}
+
+body.atelier .v3-topbar .brand .mark svg {
+  width: 19px;
+  height: 19px;
+  display: block;
+}
+
+body.atelier .v3-topbar .brand .name {
+  font-family: var(--sans, -apple-system, "PingFang SC", "Noto Sans SC", sans-serif) !important;
+  font-size: 13.5px !important;
+  font-weight: 600 !important;
+  letter-spacing: -.01em !important;
+  color: var(--ink-1) !important;
+  line-height: 1.25 !important;
+}
+
+body.atelier .v3-topbar .brand .name::after {
+  content: "Creator OS";
+  display: block;
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: .01em;
+  color: var(--ink-3);
+  margin-top: 2px;
+}
+
+body.atelier .v3-topbar .brand .ver {
+  display: none !important;
+}
+
+/* ---------- 分组标签 ---------- */
+body.atelier .nav-group-label {
+  font-size: 10.5px !important;
+  font-weight: 500 !important;
+  color: var(--ink-3) !important;
+  letter-spacing: 0 !important;
+  padding: 12px 12px 5px !important;
+}
+
+/* ---------- 导航行 ---------- */
+body.atelier .v3-topbar .app-tabs {
+  display: flex !important;
+  flex-direction: column;
+  gap: 1px !important;
+  margin-top: 2px;
+}
+
+body.atelier .v3-topbar .app-tabs a {
+  height: 36px !important;
+  border-radius: 12px !important;
+  padding: 0 12px !important;
+  gap: 11px !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  color: var(--ink-2) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  transition: background .18s, color .18s;
+}
+
+body.atelier .v3-topbar .app-tabs a:hover {
+  background: rgba(255, 255, 255, .5) !important;
+  color: var(--ink-1) !important;
+}
+
+body.atelier .v3-topbar .app-tabs a.active {
+  background: rgba(255, 255, 255, .84) !important;
+  color: var(--ink-1) !important;
+  font-weight: 500 !important;
+  box-shadow:
+    0 1px 2px rgba(20, 44, 32, .10),
+    0 8px 20px -14px rgba(20, 44, 32, .45),
+    0 1px 0 rgba(255, 255, 255, .9) inset !important;
+}
+
+body.atelier .v3-topbar .app-tabs a .tab-icon {
+  width: 17px !important;
+  height: 17px !important;
+  stroke-width: 1.6 !important;
+  opacity: .82;
+}
+
+body.atelier .v3-topbar .app-tabs a.active .tab-icon {
+  stroke: var(--g-600) !important;
+  opacity: 1;
+}
+
+body.atelier .v3-topbar .app-tabs a span {
+  font-size: 13px !important;
+}
+
+/* 顶栏右侧（积分 / 头像） */
+body.atelier .v3-topbar > .right {
+  margin-top: auto;
+  padding: 12px 8px 2px !important;
+  border-top: 1px solid var(--hairline);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+body.atelier .v3-topbar > .right .stat {
+  font-size: 10.5px !important;
+  color: var(--ink-3) !important;
+}
+
+body.atelier .v3-topbar > .right .avatar {
+  width: 28px;
+  height: 28px;
+  font-size: 11.5px;
+}
+
+/* ==========================================================================
+   焦点环
+   --------------------------------------------------------------------------
+   旧深色主题在 style.css:814 用 :where(...):focus-visible 挂了 #e7bf7a 的金色
+   描边（同文件 722 行还把边框染成金色）。文本输入框在鼠标点击时也会命中
+   :focus-visible，所以点一下就出现金色线圈。这里用更高特异度覆盖回品牌绿。
+   ========================================================================== */
+
+body.atelier :where(button, a, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--g-600) !important;
+  outline-offset: 2px !important;
+}
+
+body.atelier :where(input, textarea):focus-visible {
+  outline-offset: 1px !important;
+}
+
+/* 金色描边一并收回 */
+body.atelier .entry-form input:focus,
+body.atelier .entry-form select:focus,
+body.atelier .skill-form input:focus,
+body.atelier .skill-form select:focus,
+body.atelier .skill-form textarea:focus {
+  border-color: rgba(62, 141, 107, .55) !important;
+  box-shadow: 0 0 0 3px rgba(62, 141, 107, .10) !important;
+}
+
+/* 鼠标点击不显示焦点环，只有键盘操作显示（可访问性保留） */
+body.atelier :where(button, a, summary, [tabindex]):focus:not(:focus-visible) {
+  outline: none !important;
+}
+
+/* ==========================================================================
+   旧金色残留清理
+   --------------------------------------------------------------------------
+   style.css 里 --glass-gold (#e7bf7a) 用于导航高亮、eyebrow 小标题、
+   表单分组序号等。进入浅绿体系后统一换成品牌绿。
+   ========================================================================== */
+
+body.atelier {
+  --glass-gold: #3E8D6B;
+}
+
+body.atelier .micro-label,
+body.atelier .skill-kicker,
+body.atelier .entry-panel h1 em {
+  color: var(--g-700) !important;
+}
+
+body.atelier .form-section-title > span {
+  color: var(--g-700) !important;
+  background: var(--g-50) !important;
+}
+
+body.atelier .nav-links a.active {
+  color: var(--g-700) !important;
+  background: var(--g-50) !important;
+  border-color: rgba(62, 141, 107, .24) !important;
+  box-shadow: inset 2px 0 var(--g-500) !important;
+}
+
+body.atelier .nav-links a.active svg {
+  color: var(--g-600) !important;
+}
+
+body.atelier .nav-links a.active small {
+  color: var(--ink-3) !important;
+}
+
+body.atelier .api-live-dot {
+  background: var(--g-500) !important;
+  box-shadow: 0 0 12px rgba(95, 185, 142, .55) !important;
+}
+
+
+/* ==========================================================================
+   独立页（/market、/bookshelf）用的固定侧栏
+   ========================================================================== */
+
+body.atelier .v3-topbar.shell-nav {
+  position: fixed !important;
+  top: 14px;
+  left: 14px;
+  bottom: 14px;
+  height: auto !important;
+  margin: 0 !important;
+  padding: 16px 12px 14px !important;
+  z-index: 40;
+}
+
+
+/* ==========================================================================
+   独立页侧栏内部（atelier 的导航样式都挂在 .app-shell 下，这里补一套）
+   ========================================================================== */
+
+body.atelier .v3-topbar.shell-nav .brand a,
+body.atelier .v3-topbar.shell-nav .app-tabs a {
+  display: flex !important;
+  align-items: center;
+  gap: 11px;
+  text-decoration: none !important;
+  color: var(--ink-2) !important;
+}
+
+body.atelier .v3-topbar.shell-nav .brand a {
+  height: auto !important;
+  padding: 2px 8px 14px !important;
+  color: var(--ink-1) !important;
+}
+
+body.atelier .v3-topbar.shell-nav .app-tabs a {
+  height: 36px !important;
+  padding: 0 12px !important;
+  border-radius: 12px !important;
+  font-size: 13px !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+body.atelier .v3-topbar.shell-nav .app-tabs a:hover {
+  background: rgba(255, 255, 255, .5) !important;
+  color: var(--ink-1) !important;
+}
+
+body.atelier .v3-topbar.shell-nav .app-tabs a.active {
+  background: rgba(255, 255, 255, .84) !important;
+  color: var(--ink-1) !important;
+  font-weight: 500 !important;
+  box-shadow:
+    0 1px 2px rgba(20, 44, 32, .10),
+    0 8px 20px -14px rgba(20, 44, 32, .45),
+    0 1px 0 rgba(255, 255, 255, .9) inset !important;
+}
+
+body.atelier .v3-topbar.shell-nav .app-tabs a.active .tab-icon {
+  stroke: var(--g-600) !important;
+}
+
+body.atelier .v3-topbar.shell-nav .app-tabs .tab-icon {
+  width: 17px !important;
+  height: 17px !important;
+  flex: none;
+  opacity: .82;
+}
+
+body.atelier .v3-topbar.shell-nav .brand .name::after {
+  content: "Creator OS";
+  display: block;
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: .01em;
+  color: var(--ink-3);
+  margin-top: 2px;
+}
+
+body.atelier .v3-topbar.shell-nav .brand .ver {
+  display: none !important;
+}
+
+body.atelier .v3-topbar.shell-nav > .right {
+  margin-top: auto !important;
+  padding: 12px 8px 2px !important;
+  border-top: 1px solid var(--hairline);
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+body.atelier .v3-topbar.shell-nav > .right .stat {
+  font-size: 10.5px !important;
+  color: var(--ink-3) !important;
+}
+
+body.atelier .v3-topbar.shell-nav > .right .avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  color: var(--g-900);
+  background: var(--g-300);
+}
+
+
+/* ---------- AI 书架：字号对齐工作台 ---------- */
+body.atelier.library-body .library-heading h1 {
+  font-size: 30px !important;
+  font-weight: 600 !important;
+  letter-spacing: -.03em !important;
+}
+
+body.atelier.library-body .library-eyebrow {
+  font-size: 10px !important;
+  letter-spacing: .16em !important;
+  color: var(--ink-3) !important;
+}
+
+body.atelier.library-body .library-heading {
+  margin-bottom: 24px !important;
+}
+
+
+/* AI 书架：旧侧栏底部的引导块已被统一账户区取代 */
+body.atelier.library-body .library-nav-footer {
+  display: none !important;
+}
+
+/* ==========================================================================
+   响应式：1280 / 1024 / 760 三档
+   纯 CSS，不依赖 JS，不改变 DOM 结构。
+   ========================================================================== */
+
+/* ---------- ≤1280：侧栏收成图标栏 ---------- */
+@media (max-width: 1280px) {
+  body.atelier .app-shell > .v3-topbar,
+  body.atelier .v3-topbar.shell-nav {
+    width: 78px !important;
+    padding: 14px 8px !important;
+  }
+
+  body.atelier .v3-topbar .brand a {
+    justify-content: center;
+    padding: 2px 0 12px !important;
+  }
+
+  body.atelier .v3-topbar .brand .name,
+  body.atelier .v3-topbar .brand .name::after,
+  body.atelier .v3-topbar .nav-group-label,
+  body.atelier .v3-topbar .app-tabs a span,
+  body.atelier .v3-topbar > .right .stat {
+    display: none !important;
+  }
+
+  body.atelier .v3-topbar .app-tabs a {
+    justify-content: center;
+    padding: 0 !important;
+    height: 40px !important;
+  }
+
+  body.atelier .v3-topbar > .right {
+    justify-content: center;
+  }
+
+  /* 内容列让位 */
+  body.atelier .app-shell > section,
+  body.atelier .app-shell > main,
+  body.atelier #home.home-v2,
+  body.atelier.market-body .market-page,
+  body.atelier.qihaoshou .studio-header,
+  body.atelier.qihaoshou #q-login,
+  body.atelier.qihaoshou .studio {
+    margin-left: 92px !important;
+    width: calc(100% - 92px) !important;
+  }
+
+  body.atelier.qihaoshou .studio {
+    grid-template-columns: 280px minmax(0, 1fr);
+  }
+
+  body.atelier.qihaoshou .studio .editor {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ---------- ≤1024：两栏收窄 ---------- */
+@media (max-width: 1024px) {
+  body.atelier .home-v2 .hv-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  body.atelier .home-v2 .hv-rail {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  body.atelier .home-v2 .hv-rail > * {
+    flex: 1 1 220px;
+  }
+
+  body.atelier .skill-page .skill-shell,
+  body.atelier .diagnose-page .diagnose-shell,
+  body.atelier #hit-detector .skill-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  body.atelier .diagnose-page .v3-hero-r {
+    margin-top: 0;
+  }
+
+  body.atelier .home-v2 .hv-tools {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ---------- ≤760：侧栏变底部横条 ---------- */
+@media (max-width: 760px) {
+  body.atelier {
+    padding-bottom: 64px;
+  }
+
+  body.atelier .app-shell > .v3-topbar,
+  body.atelier .v3-topbar.shell-nav {
+    top: auto !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    height: 60px !important;
+    margin: 0 !important;
+    padding: 6px 10px !important;
+    border-radius: 18px 18px 0 0 !important;
+    flex-direction: row !important;
+    align-items: center;
+    gap: 4px !important;
+    overflow-x: auto;
+  }
+
+  body.atelier .v3-topbar .brand,
+  body.atelier .v3-topbar > .right {
+    display: none !important;
+  }
+
+  body.atelier .v3-topbar .app-tabs {
+    flex-direction: row !important;
+    gap: 2px !important;
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  body.atelier .v3-topbar .app-tabs a {
+    height: 44px !important;
+    min-width: 44px;
+    padding: 0 8px !important;
+  }
+
+  body.atelier .app-shell > section,
+  body.atelier .app-shell > main,
+  body.atelier #home.home-v2,
+  body.atelier.market-body .market-page,
+  body.atelier.qihaoshou .studio-header,
+  body.atelier.qihaoshou #q-login,
+  body.atelier.qihaoshou .studio {
+    margin-left: 0 !important;
+    width: 100% !important;
+  }
+
+  body.atelier #home.home-v2,
+  body.atelier section.skill-page,
+  body.atelier section.diagnose-page,
+  body.atelier.qihaoshou .studio {
+    padding: 12px 12px 88px !important;
+  }
+
+  body.atelier.market-body .market-page {
+    padding-bottom: 88px !important;
+  }
+
+  body.atelier .home-v2 .hv-tools {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  body.atelier .home-v2 .hv-hero {
+    padding: 20px 18px 18px;
+  }
+
+  body.atelier .home-v2 .hv-hero h1 {
+    font-size: 26px;
+  }
+
+  body.atelier .home-v2 .hv-compose-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  body.atelier .home-v2 .hv-go {
+    justify-content: center;
+  }
+
+  body.atelier .skill-page .field-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  body.atelier .qihaoshou .studio {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  body.atelier .market-body .market-layout {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 18px !important;
+  }
+}
