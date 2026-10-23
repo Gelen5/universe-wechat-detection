@@ -589,3 +589,66 @@ body.atelier.library-body .library-nav-footer {
     gap: 18px !important;
   }
 }
+
+
+/* ==========================================================================
+   手机端收口：底部图标栏统一 + 玻璃更透 + 一键成文不溢出
+   ========================================================================== */
+@media (max-width: 760px) {
+  /* 干掉旧的「菜单」按钮，让 app-tabs 自己露出来 */
+  body.atelier .workspace-menu-toggle {
+    display: none !important;
+  }
+
+  body.atelier .v3-topbar .app-tabs {
+    display: flex !important;
+    flex-direction: row !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    height: auto !important;
+  }
+
+  body.atelier .v3-topbar .app-tabs a {
+    display: flex !important;
+    flex: 1 1 0;
+    justify-content: center;
+  }
+
+  /* 底部条本身加厚玻璃 */
+  body.atelier .v3-topbar.shell-nav,
+  body.atelier .app-shell > .v3-topbar {
+    background: linear-gradient(180deg, rgba(255, 255, 255, .62), rgba(255, 255, 255, .44)) !important;
+    -webkit-backdrop-filter: blur(48px) saturate(220%) !important;
+    backdrop-filter: blur(48px) saturate(220%) !important;
+    border-color: rgba(255, 255, 255, .85) !important;
+  }
+
+  /* 卡片在手机上更透，才能看出玻璃 */
+  body.atelier .skill-page .skill-form-col,
+  body.atelier .skill-page .skill-output-col,
+  body.atelier .diagnose-page .v3-hero-l,
+  body.atelier .diagnose-page .v3-hero-r,
+  body.atelier .hv-hero,
+  body.atelier .hv-tool,
+  body.atelier .hv-card,
+  body.atelier .hv-recent {
+    background: linear-gradient(180deg, rgba(255, 255, 255, .40), rgba(255, 255, 255, .22)) !important;
+    -webkit-backdrop-filter: blur(48px) saturate(200%) !important;
+    backdrop-filter: blur(48px) saturate(200%) !important;
+    border-color: rgba(255, 255, 255, .72) !important;
+  }
+
+  /* 一键成文：别超出视口 */
+  body.atelier.qihaoshou .studio,
+  body.atelier.qihaoshou .studio .panel,
+  body.atelier.qihaoshou #q-editor,
+  body.atelier.qihaoshou .delivery {
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  body.atelier.qihaoshou #q-toolbar {
+    flex-wrap: wrap !important;
+    overflow: hidden;
+  }
+}
