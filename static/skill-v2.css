@@ -594,3 +594,56 @@ body.atelier .topic-row > i:first-child {
   color: var(--g-600) !important;
   font-weight: 500 !important;
 }
+
+
+/* ==========================================================================
+   候选标题 v2：把热度/涨幅那行做成醒目的数据条
+   ========================================================================== */
+
+/* 标题更重、更大 */
+body.atelier .topic-row strong,
+body.atelier .topic-row b,
+body.atelier .topic-row .title {
+  font-size: 13.5px !important;
+  font-weight: 650 !important;
+  line-height: 1.5 !important;
+  color: #14180F !important;
+}
+
+/* 任何位于标题之后的块级/行内说明，统一收进绿色数据条 */
+body.atelier .topic-row p,
+body.atelier .topic-row small,
+body.atelier .topic-row > div > span,
+body.atelier .topic-row > div > em,
+body.atelier .topic-row > div > i {
+  display: inline-block !important;
+  margin-top: 7px !important;
+  padding: 4px 9px !important;
+  border-radius: 7px !important;
+  background: rgba(62, 141, 107, .08) !important;
+  color: #3C5B4C !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  font-style: normal !important;
+  letter-spacing: .01em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.5 !important;
+}
+
+/* 序号做成绿色小徽标 */
+body.atelier .topic-row > span:first-child,
+body.atelier .topic-row > i:first-child,
+body.atelier .topic-row > b:first-child {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px !important;
+  border-radius: 7px !important;
+  background: rgba(62, 141, 107, .12) !important;
+  color: #2F7256 !important;
+  font-size: 10.5px !important;
+  font-weight: 600 !important;
+  font-variant-numeric: tabular-nums;
+}
