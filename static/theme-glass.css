@@ -652,3 +652,27 @@ body.atelier.library-body .library-nav-footer {
     overflow: hidden;
   }
 }
+
+
+/* 手机：提高特异度压过「抽屉关闭时隐藏 nav」的规则 */
+@media (max-width: 760px) {
+  body.atelier .app-shell .v3-topbar .app-tabs,
+  body.atelier .app-shell .v3-topbar:not(.nav-open) .app-tabs,
+  body.atelier .v3-topbar.shell-nav .app-tabs {
+    display: flex !important;
+    flex-direction: row !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    max-height: none !important;
+    height: auto !important;
+    overflow: visible !important;
+    transform: none !important;
+  }
+
+  body.atelier .app-shell .v3-topbar .app-tabs .tab-icon,
+  body.atelier .v3-topbar.shell-nav .app-tabs .tab-icon {
+    display: block !important;
+    width: 20px !important;
+    height: 20px !important;
+  }
+}
