@@ -69,11 +69,42 @@ def resolve_tools(skill_id: str, *, registry: SkillRegistry | None = None,
     return resolved
 
 
+def build_intent_service() -> ModelService | None:
+    """Optional fast model for stage routing.
+
+    Set ``WECHAT_INTENT_MODEL`` (and optionally ``WECHAT_INTENT_API_BASE_URL``)
+    to run the tiny classification call on a cheaper/faster endpoint than the
+    writing model. Routing uses the plain chat endpoint by default because
+    relay stations are much faster there than on /responses.
+    """
+    model = os.getenv("WECHAT_INTENT_MODEL", "").strip()
+    if not model:
+        return None
+    stored = accounts.provider_settings(include_secrets=True)
+    text_key = _configured("WECHAT_TEXT_API_KEY", stored, "text_api_key")
+    base = (os.getenv("WECHAT_INTENT_API_BASE_URL", "").strip()
+            or _configured("WECHAT_TEXT_API_BASE_URL", stored, "https://api.openai.com/v1"))
+    if not os.getenv("WECHAT_INTENT_API_BASE_URL") and base.rstrip("/").endswith("/responses"):
+        base = base.rstrip("/")[: -len("/responses")]
+    provider = OpenAICompatibleProvider(
+        api_key=text_key, base_url=base, text_model=model,
+        verify_ssl=os.getenv("WECHAT_API_VERIFY_SSL", "true").lower() not in {"0", "false", "no", "off"},
+    )
+
+    def record_usage(values):
+        payload = dict(values)
+        conversation_repository.record_provider_call(
+            payload.pop("run_id"), payload.pop("user_id"), **payload)
+
+    return ModelService(provider, usage_recorder=record_usage)
+
+
 def build_orchestrator() -> AgentOrchestrator:
     registry = get_registry()
     model_service = build_model_service()
     return AgentOrchestrator(
         registry=registry, model_service=model_service,
+        intent_service=build_intent_service(),
         tool_resolver=lambda skill_id, run_id, user_id: resolve_tools(
             skill_id, registry=registry, model_service=model_service,
             run_id=run_id, user_id=user_id),

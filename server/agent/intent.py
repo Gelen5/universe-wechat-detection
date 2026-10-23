@@ -1,4 +1,4 @@
-﻿"""Model-driven intent routing for the WeChat workbench.
+"""Model-driven intent routing for the WeChat workbench.
 
 The composer must not guess a stage from keywords: "我准备写一篇关于 AI 的文章，
 给我下选题" contains 写一篇 but means 选题. One small structured call reads the
@@ -11,6 +11,7 @@ falls back to the stage the user is currently looking at.
 from __future__ import annotations
 
 import json
+import os
 import re
 from dataclasses import dataclass, field
 from typing import Any
@@ -24,7 +25,7 @@ STAGE_LABELS = {
 }
 RUNNABLE = tuple(STAGE_LABELS)
 MIN_CONFIDENCE = 0.55
-ROUTER_TIMEOUT = 25
+ROUTER_TIMEOUT = int(os.getenv("WECHAT_INTENT_TIMEOUT", "60") or 60)
 
 _ALIASES = {
     "选题": "topic", "方向": "topic", "topics": "topic", "title": "topic",

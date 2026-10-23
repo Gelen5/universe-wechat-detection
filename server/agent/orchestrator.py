@@ -63,9 +63,13 @@ def stage_contract(stage: str, tool: str, content_json: dict) -> str:
 
 class AgentOrchestrator:
     def __init__(self, *, registry: SkillRegistry, model_service: ModelService,
-                 tool_resolver: Callable[[str, str, str], dict[str, ExecutableTool]]):
+                 tool_resolver: Callable[[str, str, str], dict[str, ExecutableTool]],
+                 intent_service: ModelService | None = None):
         self.registry = registry
         self.model_service = model_service
+        # Routing is a tiny classification call: a faster/cheaper model can be
+        # configured for it without changing the writing model.
+        self.intent_service = intent_service or model_service
         self.tool_resolver = tool_resolver
 
     @staticmethod
@@ -174,7 +178,7 @@ class AgentOrchestrator:
             # The tab is a hint, not a decision: one model call reads the message
             # and the workbench state, then tells us which stage (if any) to run.
             intent = resolve_intent(
-                model_service=self.model_service,
+                model_service=self.intent_service,
                 text=trigger,
                 stage_hint=hint,
                 artifacts=conversation_repository.list_artifacts(conversation["id"], user_id),

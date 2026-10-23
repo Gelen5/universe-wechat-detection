@@ -9,6 +9,16 @@ import requests
 from .base import ModelProvider, ProviderRequestError, ProviderResponse, ToolInvocation
 
 
+# Upstream gateways behind relay stations answer with prose, not error codes.
+# Treat those as retryable so a flaky upstream does not become a failed run.
+TRANSIENT_MARKERS = (
+    "overload", "try again later", "timed out", "timeout", "rate limit",
+    "an error occurred while processing your request", "internal server error",
+    "bad gateway", "service unavailable", "gateway timeout", "temporarily",
+    "upstream", "please retry", "please try again", "server error",
+)
+
+
 class OpenAICompatibleProvider(ModelProvider):
     def __init__(self, *, api_key: str, base_url: str, text_model: str,
                  image_api_key: str | None = None, image_base_url: str | None = None,
@@ -102,8 +112,14 @@ class OpenAICompatibleProvider(ModelProvider):
                 elif event.get("type") in {"response.failed", "response.incomplete", "error"}:
                     detail = event.get("response") or event
                     message = self._error(detail) or "provider stream failed"
-                    transient = any(marker in message.lower() for marker in
-                                    ("overload", "try again later", "timed out", "rate limit"))
+                    reason = str(((detail.get("incomplete_details") or {}).get("reason")
+                                  if isinstance(detail, dict) else "") or "")
+                    if event.get("type") == "response.incomplete" and reason == "max_output_tokens":
+                        # The model hit our own output cap: retrying the same request
+                        # would truncate again, so report it as a hard error.
+                        raise ProviderRequestError(message or "output truncated",
+                                                   code="output_truncated", transient=False)
+                    transient = any(marker in message.lower() for marker in TRANSIENT_MARKERS)
                     raise ProviderRequestError(message, code="provider_unavailable" if transient else "invalid_response",
                                                transient=transient)
         except requests.RequestException as exc:

@@ -1,4 +1,4 @@
-"""HTTP adapter for the installed wechat-publisher-ultimate Skill.
+﻿"""HTTP adapter for the installed wechat-publisher-ultimate Skill.
 
 Text generation and image generation deliberately use separate credentials.
 The browser never receives either key. The installed Skill still owns
@@ -417,9 +417,9 @@ weChat-autoCreate Skill 热点脚本真实返回（status={hotspot_status}）：
 搜索：{json.dumps(research,ensure_ascii=False)}
 历史：{json.dumps(history,ensure_ascii=False)}
 不得与最近历史相似。若热点脚本结果为空，必须明确没有获得实时热点，不得伪装成基于实时热搜。热度只是估计，不是平台数据。只输出指定JSON。
-你是微信公众号资深选题编辑。围绕用户方向「{seed}」，为「{persona}」写作人格生成10个（至少{minimum}个）差异明显、可以真正展开的中文选题。
+你是微信公众号资深选题编辑。围绕用户方向「{seed}」，为「{persona}」写作人格生成8个（至少{minimum}个）差异明显、可以真正展开的中文选题。
 要求：避免编造热点数据；不承诺够用一年、必然成功、收益倍增等无证据结果；标题要具体、自然、有读者收益；覆盖观点、教程、故事、对比、清单、案例、趋势、复盘等类型。
-只返回合法JSON，不要Markdown：{{"topics":[{{"title":"...","type":"观点","reason":"推荐理由","heat":8,"fan_score":82,"competition":"中"}}]}}。topics为{minimum}-10项，能写满就写10项。heat为1-10的模型估计热度，fan_score为0-100的模型估计涨粉潜力；两者都不是平台真实统计，必须根据搜索信号、受众匹配和可传播性解释，不能伪装成真实粉丝数据。""")
+只返回合法JSON，不要Markdown：{{"topics":[{{"title":"...","type":"观点","reason":"推荐理由","heat":8,"fan_score":82,"competition":"中"}}]}}。topics为{minimum}-8项，能写满就写8项。heat为1-10的模型估计热度，fan_score为0-100的模型估计涨粉潜力；两者都不是平台真实统计，必须根据搜索信号、受众匹配和可传播性解释，不能伪装成真实粉丝数据。""")
     except Exception as exc:
         _record_skill(session, 1, '选题 Skill：方向生成', manifest, ['fetch_hotspots.py'], 'blocked', str(exc))
         raise
