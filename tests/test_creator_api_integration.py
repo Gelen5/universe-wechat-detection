@@ -93,6 +93,9 @@ class CreatorApiIntegrationTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        cls._env_backup = {key: os.environ.get(key) for key in (
+            "WECHAT_TEXT_API_KEY", "WECHAT_IMAGE_API_KEY", "WECHAT_TEXT_API_BASE_URL",
+            "WECHAT_IMAGE_API_BASE_URL", "WECHAT_TEXT_MODEL", "WECHAT_IMAGE_MODEL")}
         os.environ.update({
             "WECHAT_TEXT_API_KEY": SERVER["text_key"],
             "WECHAT_IMAGE_API_KEY": SERVER["image_key"],
@@ -115,6 +118,14 @@ class CreatorApiIntegrationTests(unittest.TestCase):
             "note": "接口测试积分",
         })
         assert response.status_code == 200, response.text
+
+    @classmethod
+    def tearDownClass(cls):
+        for key, value in (getattr(cls, "_env_backup", {}) or {}).items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
 
     def assert_shared_settings(self, captured):
         self.assertEqual(captured, SERVER)
@@ -235,7 +246,7 @@ class CreatorApiIntegrationTests(unittest.TestCase):
         self.assertIn("确认框架，生成初稿", script)
         self.assertIn("打开预览并复制", script)
         self.assertNotIn("shared-use-real", html)
-        self.assertEqual(html.count("data-view="), 7)
+        self.assertEqual(html.count("data-view="), 8)
 
 
 if __name__ == "__main__":

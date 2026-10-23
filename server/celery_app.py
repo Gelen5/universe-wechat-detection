@@ -4,6 +4,7 @@ from __future__ import annotations
 import os
 
 from celery import Celery
+from celery.schedules import crontab
 
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
@@ -21,6 +22,7 @@ celery_app.conf.update(
         "workflow.recover_stale": {"queue": "workflow"},
         "agent.run": {"queue": "chat"},
         "agent.recover_stale": {"queue": "chat"},
+        "market.sync": {"queue": "text"},
     },
     worker_concurrency=max(1, int(os.getenv("CELERY_WORKER_CONCURRENCY", "4"))),
     beat_schedule={
@@ -29,6 +31,9 @@ celery_app.conf.update(
         },
         "recover-stale-agent-runs": {
             "task": "agent.recover_stale", "schedule": 60.0,
+        },
+        "market-sync-daily": {
+            "task": "market.sync", "schedule": crontab(hour=4, minute=10),
         },
     },
 )
