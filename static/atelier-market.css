@@ -33,6 +33,14 @@ body.atelier.market-body .market-topbar {
   -webkit-backdrop-filter: none;
 }
 
+body.market-body.embedded .market-topbar {
+  display: none !important;
+}
+
+body.market-body.embedded .market-hero {
+  padding-top: 30px;
+}
+
 body.atelier.market-body .market-topbar .market-wrap {
   height: 64px;
   max-width: 1440px;

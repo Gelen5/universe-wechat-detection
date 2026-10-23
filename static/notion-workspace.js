@@ -22,10 +22,10 @@
     nav.append(caption);
     for (const id of ids) nav.append(nav.querySelector(`[data-view="${id}"]`));
   }
-  const library = nav.querySelector('[data-library-link]');
-  if (library) {
+  const libraries = [...nav.querySelectorAll('[data-library-link]')];
+  if (libraries.length) {
     const caption = document.createElement('div'); caption.className = 'nav-group-label'; caption.textContent = '学习与收藏';
-    nav.append(caption, library);
+    nav.append(caption, ...libraries);
   }
   nav.querySelector('[data-view=diagnose] span').textContent='账号诊断';
   nav.querySelector('[data-view=hit-detector] span').textContent='发布前复核';

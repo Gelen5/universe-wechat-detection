@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="/static/bookshelf.css?v=1">
 <script src="/static/bookshelf.js?v=1" defer></script>
 </head><body class="library-body">
+<script>if (new URLSearchParams(location.search).get('embed') === '1') document.body.classList.add('embedded');</script>
 <a class="library-skip" href="#library-main">跳到书架</a>
 <div class="app-shell">
 <header class="v3-topbar">

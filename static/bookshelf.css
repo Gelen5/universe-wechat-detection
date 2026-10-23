@@ -147,3 +147,9 @@ html body.library-body, body.library-body .app-shell { background:var(--lib-pape
   .library-back { margin-bottom:25px; }
 }
 @media(prefers-reduced-motion:reduce) { .library-body * { transition:none !important; animation:none !important; } }
+
+/* Embedded inside the app's library overlay: the outer shell already names the place. */
+body.library-body.embedded .v3-topbar { display: none !important; }
+body.library-body.embedded .app-shell { margin-left: 0 !important; padding-top: 0 !important; }
+body.library-body.embedded .library-main { padding-top: 26px; }
+

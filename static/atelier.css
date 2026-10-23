@@ -1467,7 +1467,79 @@ body.atelier .recent-line {
   background: transparent;
 }
 
+/* ---------- library overlay ---------- */
+body.library-open {
+  overflow: hidden;
+}
+
+.library-overlay {
+  position: fixed;
+  inset: 0 0 0 232px;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  background: var(--a-stone);
+}
+
+.library-overlay[hidden] {
+  display: none;
+}
+
+.library-overlay-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 54px;
+  padding: 0 22px;
+  border-bottom: 1px solid var(--a-line);
+  background: var(--a-paper);
+}
+
+.library-overlay-bar strong {
+  color: var(--a-ink);
+  font-family: var(--a-serif);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.library-overlay-bar button {
+  min-height: 28px;
+  padding: 4px 10px;
+  border: 1px solid var(--a-line);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--a-ink-soft);
+  font-family: var(--a-sans);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.library-overlay-bar button:hover {
+  border-color: var(--a-control);
+  background: var(--a-stone-soft);
+}
+
+.library-overlay iframe {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  border: 0;
+  background: var(--a-stone);
+}
+
 /* ---------- responsive ---------- */
+@media (min-width: 761px) and (max-width: 1150px) {
+  .library-overlay {
+    left: 190px;
+  }
+}
+
+@media (max-width: 760px) {
+  .library-overlay {
+    left: 0;
+  }
+}
+
 @media (max-width: 1150px) and (min-width: 981px) {
   body.atelier #workbench .conversation-workbench-layout {
     grid-template-columns: minmax(0, 1fr) 330px;
