@@ -92,6 +92,8 @@ def describe(exc: BaseException) -> dict[str, Any]:
 
 
 def _stage_of(run: dict[str, Any], user_id: str) -> str | None:
+    if run.get("stage"):
+        return str(run["stage"])
     message = conversation_repository.get_message(
         run["conversation_id"], user_id, run["trigger_message_id"])
     if not message:

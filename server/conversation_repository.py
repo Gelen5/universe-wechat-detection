@@ -402,6 +402,22 @@ def bind_run_skill(run_id: str, user_id: str, skill_id: str, *, task_id: str | N
         return _run_view(row)
 
 
+def set_run_stage(run_id: str, user_id: str, stage: str | None, *,
+                  task_id: str | None = None) -> dict[str, Any]:
+    """Persist the stage this run resolved to (model routing, not the tab hint)."""
+    with session_scope() as db:
+        row = db.scalar(select(AgentRun).where(
+            AgentRun.id == run_id, AgentRun.user_id == user_id,
+        ).with_for_update())
+        if not row:
+            raise KeyError("run not found")
+        if task_id is not None and row.celery_task_id != task_id:
+            raise RuntimeError("run execution lease changed")
+        row.stage = stage
+        row.updated_at = _now()
+        return _run_view(row)
+
+
 def run_lease_owned(run_id: str, task_id: str) -> bool:
     with session_scope() as db:
         return bool(db.scalar(select(AgentRun.id).where(
@@ -782,6 +798,7 @@ def _run_view(row: AgentRun) -> dict[str, Any]:
             "cost_points": row.cost_points, "provider_cost_micros": row.provider_cost_micros,
             "celery_task_id": row.celery_task_id, "attempt": row.attempt,
             "heartbeat_at": row.heartbeat_at.isoformat() if row.heartbeat_at else None,
+            "stage": row.stage,
             "error_kind": error_kind, "error_code": row.error_code}
 
 

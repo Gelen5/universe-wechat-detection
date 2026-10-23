@@ -201,6 +201,8 @@ class AgentRun(Base):
     skill_id: Mapped[str | None] = mapped_column(String(120), nullable=True, index=True)
     idempotency_key: Mapped[str] = mapped_column(String(160))
     status: Mapped[str] = mapped_column(String(24), default="queued", index=True)
+    # The stage this run actually executed (model-routed, not the tab hint).
+    stage: Mapped[str | None] = mapped_column(String(24), nullable=True)
     error_code: Mapped[str | None] = mapped_column(String(80), nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     cost_points: Mapped[int] = mapped_column(Integer, default=0)

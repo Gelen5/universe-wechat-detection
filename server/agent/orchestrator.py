@@ -13,7 +13,9 @@ from ..skills.registry import SkillRegistry
 from ..skills.runtime import load_instructions
 from ..skills.tool_result import ArtifactOutput, ToolResult
 from ..storage.image_ingest import ingest_generated_image
-from .context import conversation_messages
+from .context import conversation_messages, stage_messages
+from .failures import fail_run
+from .intent import resolve_intent
 from .router import SkillRouter
 from .tool_loop import ExecutableTool, run_tool_loop
 
@@ -158,6 +160,47 @@ class AgentOrchestrator:
         })
         notify(run_id)
         instructions, _ = load_instructions(decision.skill_id, registry=self.registry)
+        content_json = (trigger_message.get("content_json") or {}) if isinstance(
+            trigger_message.get("content_json"), dict) else {}
+        hint = content_json.get("workflow_stage")
+        # Only the workbench is stage-based. Anything else (auto chat, other
+        # callers) keeps the original free-form behaviour: all tools available.
+        workbench = isinstance(hint, str) and hint in WECHAT_STAGE_TO_TOOL
+        intent = None
+        stage = None
+        direction = ""
+        selected_topic = ""
+        if workbench:
+            # The tab is a hint, not a decision: one model call reads the message
+            # and the workbench state, then tells us which stage (if any) to run.
+            intent = resolve_intent(
+                model_service=self.model_service,
+                text=trigger,
+                stage_hint=hint,
+                artifacts=conversation_repository.list_artifacts(conversation["id"], user_id),
+                recent=history,
+                run_id=run_id, user_id=user_id,
+                explicit_stage=hint if content_json.get("stage_explicit") else None,
+            )
+            stage = intent.stage
+            direction = str(content_json.get("topic_direction") or intent.direction or "")
+            selected_topic = str(content_json.get("selected_topic") or intent.selected_topic or "")
+            conversation_repository.set_run_stage(run_id, user_id, stage, task_id=task_id)
+            if intent.source != "explicit":
+                # Explicit clicks already know their stage; only announce model decisions.
+                conversation_repository.record_run_event(run_id, user_id, "stage.resolved", {
+                    "stage": stage, "reason": intent.reason, "source": intent.source,
+                    "confidence": round(intent.confidence, 3),
+                    "direction": direction, "selected_topic": selected_topic,
+                })
+                if stage != hint:
+                    # Make the reasoning durable: the thread keeps "已理解…" even
+                    # after a refresh, so a tab switch is never unexplained.
+                    conversation_repository.add_message(
+                        conversation["id"], user_id, "assistant",
+                        f"已理解：{intent.reason}",
+                        content_json={"kind": "stage_note", "stage": stage})
+                notify(run_id)
         if run["status"] == "queued":
             conversation_repository.transition_run(run_id, user_id, "running", task_id=task_id)
         try:
@@ -194,20 +237,25 @@ class AgentOrchestrator:
                 answer = result.text
             else:
                 tools = self.tool_resolver(decision.skill_id, run_id, user_id)
-                content_json = (trigger_message or {}).get("content_json") or {}
-                stage = content_json.get("workflow_stage") if isinstance(content_json, dict) else None
                 required_tool = (WECHAT_STAGE_TO_TOOL.get(stage)
-                                 if decision.skill_id == "wechat_writer" and isinstance(stage, str) else None)
-                if required_tool:
-                    if required_tool not in tools:
-                        raise RuntimeError(f"Skill stage tool unavailable: {required_tool}")
-                    tools = {required_tool: tools[required_tool]}
-                    history.insert(0, {"role": "system", "content":
-                                       stage_contract(stage, required_tool, content_json)})
-                if any(phrase in trigger for phrase in (
-                    "只生成文字", "不要生成图片", "不要生成配图", "不需要配图", "无需配图",
-                )):
-                    tools.pop("generate_image", None)
+                                 if workbench and decision.skill_id == "wechat_writer"
+                                 and stage in WECHAT_STAGE_TO_TOOL else None)
+                if workbench:
+                    # Only the resolved stage's inputs are sent (server/agent/context.py).
+                    history = stage_messages(conversation["id"], user_id, stage=stage)
+                    if stage is None:
+                        # The user asked a question instead of asking for a stage:
+                        # answer it, do not run a tool or mint an artifact.
+                        tools = {}
+                    elif required_tool:
+                        if required_tool not in tools:
+                            raise RuntimeError(f"Skill stage tool unavailable: {required_tool}")
+                        tools = {required_tool: tools[required_tool]}
+                        history.insert(0, {"role": "system", "content":
+                                           stage_contract(stage, required_tool, {
+                                               "topic_direction": direction,
+                                               "selected_topic": selected_topic,
+                                           })})
                 answer = run_tool_loop(
                     model_service=self.model_service,
                     messages=[{"role": "system", "content": instructions}, *history],
@@ -220,11 +268,17 @@ class AgentOrchestrator:
                     on_tool_result=persist_result,
                     required_tool=required_tool,
                 )
+                if workbench and stage is None and not answer.strip():
+                    answer = "我没看懂这句话要做什么。可以点上面五个阶段之一，或直接说「给我选题」「开始写正文」「排版」。"
             if task_id and not conversation_repository.heartbeat_run(run_id, task_id):
                 raise RuntimeError("run execution lease changed")
-            message = conversation_repository.add_message(conversation["id"], user_id, "assistant", answer)
+            message = conversation_repository.add_message(
+                conversation["id"], user_id, "assistant", answer,
+                content_json={"kind": "answer"} if workbench and stage is None else None)
             if tool_artifacts:
                 artifact = tool_artifacts[-1]
+            elif workbench and stage is None:
+                artifact = None
             else:
                 artifact_type = str(manifest.runtime.get("default_artifact") or "article")
                 artifact = conversation_repository.create_artifact(
@@ -233,7 +287,8 @@ class AgentOrchestrator:
                     source_key=f"{run_id}:final",
                 )
             conversation_repository.record_run_event(run_id, user_id, "assistant.completed", {
-                "message_id": message["id"], "artifact_id": artifact["id"],
+                "message_id": message["id"],
+                "artifact_id": artifact["id"] if artifact else None,
             })
             conversation_repository.transition_run(run_id, user_id, "completed", task_id=task_id)
             notify(run_id)

@@ -240,20 +240,32 @@ class AgentOrchestratorTests(unittest.TestCase):
         artifacts = conversation_repository.list_artifacts(conversation["id"], "user-a")
         self.assertEqual(["这是完成的文章"], [item["content"] for item in artifacts])
 
-    def test_explicit_text_only_request_cannot_invoke_image_tool(self):
-        _, run = self.make_run(content="写一篇公众号文章，只生成文字，不要生成图片")
+    def test_stage_restriction_replaces_keyword_tool_blocking(self):
+        # 不再按"不要图片"这类关键词屏蔽工具：阶段白名单本身就不含 generate_image。
+        conversation = conversation_repository.create_conversation(
+            "user-a", mode="manual", skill_id="wechat_writer")
+        message = conversation_repository.add_message(
+            conversation["id"], "user-a", "user", "写一篇公众号文章，只生成文字",
+            content_json={"workflow_stage": "topic"})
+        run, _ = conversation_repository.create_run(
+            conversation["id"], "user-a", message["id"], "img-" + message["id"])
         image_tool = ExecutableTool(
             {"name": "generate_image", "description": "image", "parameters": {"type": "object"}},
             lambda args: self.fail("image generation must be disabled"),
         )
+        topic_tool = ExecutableTool(
+            {"name": "search_topics", "description": "topics", "parameters": {"type": "object"}},
+            lambda args: {"topics": []},
+        )
         orchestrator = AgentOrchestrator(
             registry=self.registry,
             model_service=ModelService(SequenceProvider([ProviderResponse(text="纯文字完成")])),
-            tool_resolver=lambda *_: {"generate_image": image_tool},
+            tool_resolver=lambda *_: {"generate_image": image_tool, "search_topics": topic_tool},
         )
         with patch("server.agent.orchestrator.run_tool_loop", return_value="纯文字完成") as loop:
             orchestrator.execute(run["id"], "user-a")
         self.assertNotIn("generate_image", loop.call_args.kwargs["tools"])
+        self.assertEqual(["search_topics"], list(loop.call_args.kwargs["tools"]))
 
     def test_orchestrator_persists_tool_output_as_idempotent_artifact(self):
         conversation, run = self.make_run()

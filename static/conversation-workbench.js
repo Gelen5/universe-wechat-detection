@@ -52,7 +52,6 @@
     deai: '做一次去 AI 和事实复核',
     typeset: '把最新正文排版成公众号 HTML',
   };
-  const regeneratePattern = /换一批|换一个|换个方向|换方向|再来一批|重新生成|换几个|再来几个|再换/;
   let conversation = null;
   let activeRun = null;
   let source = null;
@@ -248,6 +247,15 @@
     stageKicker.textContent = `${String(index + 1).padStart(2, '0')} / 05`;
     stageTitle.textContent = stage.label;
     stageHint.textContent = stale ? '上游作品已修改，请更新本阶段结果。' : stage.hint;
+    // 输入框永远说明"现在这一步要什么"，而不是让用户猜。
+    const placeholders = {
+      topic: '想写什么方向？写给谁、解决什么问题，一句话就够',
+      outline: '对结构有什么要求？几段、先讲什么后讲什么',
+      writing: '篇幅、语气、给谁看；有素材也可以贴在这里',
+      deai: '复核重点：事实、口吻、还是某一段太长',
+      typeset: '排版风格，例如极简白 / 科技卡片绿 / 极简优雅',
+    };
+    if (placeholders[stage.id]) input.placeholder = placeholders[stage.id];
     stageNav.innerHTML = stages.map((entry, position) => {
       const done = Boolean(stageArtifact(entry.id));
       const state = isStale(entry.id) ? '需更新' : done ? '已完成' : position === index ? '当前阶段' : '待开始';
@@ -310,29 +318,8 @@
     return last && messageMeta(last).kind === 'run_failed' ? last : null;
   }
 
-  // 输入框是聊天，不是"阶段参数框"：先识别意图，再决定执行哪一步。
-  function resolveStage(text) {
-    const value = String(text || '');
-    const hasTopic = Boolean(stageArtifact('topic'));
-    const hasOutline = Boolean(stageArtifact('outline'));
-    const hasArticle = Boolean(stageArtifact('writing') || stageArtifact('deai'));
-    const rules = [
-      [/排版|生成\s*html|转\s*html|重新排|出\s*html/i, 'typeset', hasArticle],
-      [/去\s*ai|去ai味|降\s*ai|审校|复核|事实核查/i, 'deai', hasArticle],
-      [/大纲|框架|结构/i, 'outline', hasTopic],
-      [/正文|写一?篇|开始写|写作|续写|成稿/i, 'writing', hasOutline],
-      [/选题|方向|标题|热点|写什么/i, 'topic', true],
-    ];
-    for (const [pattern, stage, ready] of rules) {
-      if (pattern.test(value) && ready) return stage;
-    }
-    const missing = firstMissingStage();
-    if (missing) return missing;
-    if (stageArtifact('topic') && !selectedTopic) return 'topic';
-    // 五个阶段都完成了，而这句话没有指向任何一个阶段：不要瞎猜着重跑排版。
-    return '';
-  }
-
+  // 阶段不再由前端按关键词猜：一句话交给后端的意图调度（server/agent/intent.py），
+  // 由模型结合当前进度判断；按钮/标签点击才是显式指定阶段。
   function renderActionCard() {
     thread.querySelector('#workbench-action-card')?.remove();
     const card = document.createElement('article');
@@ -447,18 +434,6 @@
     renderMessages(messages.messages || []); renderArtifacts(artifacts.artifacts || []);
   }
 
-  // 阶段说明由后端拼（server/agent/orchestrator.py:stage_contract），
-  // 前端只发用户真正说的话，避免"输入框里的字被偷偷改写成模板"。
-  function directionFor(text, stage) {
-    const value = String(text || '').trim();
-    if (stage !== 'topic') return direction;
-    if (!value) return direction;
-    // 「再换一批」「重试」这类不是新方向：沿用上一次真正的方向，别把它覆盖掉。
-    if (Object.values(defaultPrompt).includes(value)) return direction || value;
-    if (regeneratePattern.test(value) && direction) return direction;
-    return value;
-  }
-
   async function saveArtifactEdit(sequence, artifact, content) {
     try {
       const data = await api(`/api/artifacts/${encodeURIComponent(artifact.id)}/versions`, {
@@ -526,11 +501,26 @@
     setBusy(true, `正在生成${stages.find(item => item.id === activeStage)?.label || '当前成果'}`);
     source = new EventSource(`/api/runs/${encodeURIComponent(runId)}/events`);
     const types = ['run.created', 'run.queued', 'run.started', 'run.running', 'run.waiting_input',
-      'skill.selected', 'tool.started', 'tool.completed', 'tool.failed', 'artifact.created',
-      'artifact.updated', 'assistant.completed', 'run.completed', 'run.failed', 'run.cancelled'];
+      'skill.selected', 'stage.resolved', 'tool.started', 'tool.completed', 'tool.failed',
+      'artifact.created', 'artifact.updated', 'assistant.completed', 'run.completed',
+      'run.failed', 'run.cancelled'];
     types.forEach(type => source.addEventListener(type, async event => {
       let payload = {};
       try { payload = JSON.parse(event.data || '{}').payload || {}; } catch { /* non-fatal */ }
+      if (type === 'stage.resolved') {
+        // 模型决定了这一步做什么：切到对应标签并解释原因，避免"莫名跳 tab"。
+        if (payload.stage && stages.some(item => item.id === payload.stage)) {
+          if (payload.direction) direction = String(payload.direction);
+          if (payload.selected_topic) selectedTopic = String(payload.selected_topic);
+          // 重新出选题时旧的"已选方向"作废，避免拿旧标题去写大纲。
+          if (payload.stage === 'topic' && payload.source === 'model') selectedTopic = '';
+          selectStage(payload.stage);
+        }
+        const reason = payload.reason || (payload.stage ? stageLabel(payload.stage) : '这是提问');
+        appendProgress(`已理解：${reason}`, event.lastEventId);
+        status.textContent = `已理解：${reason}`;
+        return;
+      }
       appendProgress(eventText(type, payload), event.lastEventId); status.textContent = eventText(type, payload);
       if (['run.completed', 'run.failed', 'run.cancelled', 'run.waiting_input'].includes(type)) {
         closeEvents(); activeRun = null; localStorage.removeItem(keyRun); setBusy(false);
@@ -552,24 +542,30 @@
     };
   }
 
-  async function submit(content = input.value.trim(), stage = activeStage) {
+  async function submit(content = input.value.trim(), stage = activeStage, options = {}) {
     if (!content || send.disabled || submitting) return;
     submitting = true;
-    direction = directionFor(content, stage);
+    const explicit = options.explicit === true;
+    // 只有用户在选题里真的写了方向才更新；按钮用的固定句、模型判定都不覆盖。
+    const canned = Object.values(defaultPrompt).includes(content);
+    if (stage === 'topic' && !options.keepDirection && !canned && (explicit || !direction)) {
+      direction = content;
+    }
     if (conversation) {
       if (direction) localStorage.setItem(directionKey(conversation.id), direction);
       else localStorage.removeItem(directionKey(conversation.id));
     }
-    const contentJson = { workflow_stage: stage };
-    if (stage === 'topic') contentJson.topic_direction = direction || content;
+    const contentJson = { workflow_stage: stage, stage_explicit: explicit };
+    if (stage === 'topic' && direction) contentJson.topic_direction = direction;
     if (selectedTopic) contentJson.selected_topic = selectedTopic;
-    setBusy(true, `正在执行：${stageLabel(stage)}`);
+    if (options.intent) contentJson.intent = options.intent;
+    setBusy(true, explicit ? `正在执行：${stageLabel(stage)}` : '正在理解你的要求');
     const idempotencyKey = uuid();
     const draftInput = input.value;
     try {
       await ensureConversation();
       input.value = '';
-      appendProgress(`正在执行：${stageLabel(stage)}`);
+      appendProgress(explicit ? `正在执行：${stageLabel(stage)}` : '正在理解你的要求');
       const data = await api(`/api/conversations/${encodeURIComponent(conversation.id)}/messages`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey },
         body: JSON.stringify({ content, content_json: contentJson }),
@@ -584,17 +580,15 @@
     }
   }
 
-  function runStage(stage, extra = '') {
-    if (stage === 'outline' && !selectedTopic) {
-      selectStage('topic'); status.textContent = '请先选择一个选题方向'; return;
-    }
-    if (stage === 'topic' && stageArtifact('topic')) {
+  // 按钮/标签驱动：阶段是用户明确点的，不再走模型判断（省一次调用，也保证确定性）。
+  function runStage(stage, extra = '', options = {}) {
+    if (stage === 'topic' && stageArtifact('topic') && !options.keepTopic) {
       selectedTopic = '';
       if (conversation) localStorage.removeItem(`universe.conversation.topic.${conversation.id}`);
     }
     const text = String(extra || '').trim() || defaultPrompt[stage] || '继续这一步';
     selectStage(stage);
-    submit(text, stage);
+    submit(text, stage, { ...options, explicit: true });
   }
 
   async function restore() {
@@ -637,12 +631,8 @@
   captureClick('#start-workbench', () => {
     const value = input.value.trim();
     if (!value) { input.focus(); return; }
-    const target = resolveStage(value);
-    if (!target) {
-      status.textContent = '没识别出要执行哪一步：可以点上面的按钮，或说「重新排版」「换个方向」';
-      return;
-    }
-    runStage(target, value);
+    // 交给模型判断这一步要做什么；当前标签只作为上下文提示。
+    submit(value, activeStage, { explicit: false });
   });
   captureClick('[data-workbench-stage]', button => selectStage(button.dataset.workbenchStage));
   captureClick('[data-topic-choice]', button => {
@@ -691,7 +681,8 @@
     // 「换一批方向」要真的换一批：先切回选题阶段，再沿用原方向重跑。
     selectStage('topic');
     if (!direction && !stageArtifact('topic')) { input.focus(); status.textContent = '先告诉我你想写什么方向'; return; }
-    runStage('topic', '再换一批方向，角度更具体，别和上一批重复');
+    runStage('topic', '再换一批方向，角度更具体，别和上一批重复',
+             { keepTopic: true, keepDirection: true });
   });
   captureClick('.mode-option', button => {
     if (conversation || activeRun) return;
@@ -744,12 +735,7 @@
     event.preventDefault(); event.stopImmediatePropagation();
     const value = input.value.trim();
     if (!value) { input.focus(); return; }
-    const target = resolveStage(value);
-    if (!target) {
-      status.textContent = '没识别出要执行哪一步：可以点上面的按钮，或说「重新排版」「换个方向」';
-      return;
-    }
-    runStage(target, value);
+    submit(value, activeStage, { explicit: false });
   }, true);
   editor.addEventListener('input', () => {
     if (!currentArtifact || editor.readOnly || editor.value === (currentArtifact.content || '')) return;
