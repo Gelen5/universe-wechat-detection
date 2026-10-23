@@ -21,14 +21,16 @@
     nav.append(caption);
     for (const id of ids) { const el = nav.querySelector(`[data-view="${id}"]`); if (el) nav.append(el); }
   }
+  const libOrder = ['/market', '/bookshelf'];
   const libraries = [...nav.querySelectorAll('[data-library-link]')]
-    .sort((a, b) => {
-      const order = ['/market', '/bookshelf'];
-      return order.indexOf(a.getAttribute('href')) - order.indexOf(b.getAttribute('href'));
-    });
+    .sort((a, b) => libOrder.indexOf(a.getAttribute('href')) - libOrder.indexOf(b.getAttribute('href')));
   if (libraries.length) {
     const caption = document.createElement('div'); caption.className = 'nav-group-label'; caption.textContent = '资源';
-    nav.append(caption, ...libraries);
+    nav.append(caption);
+    libOrder.forEach((href) => {
+      const el = nav.querySelector(`[data-library-link][href="${href}"]`);
+      if (el) nav.append(el);
+    });
   }
   nav.querySelector('[data-view=diagnose] span').textContent='账号诊断';
   nav.querySelector('[data-view=hit-detector] span').textContent='发布前复核';

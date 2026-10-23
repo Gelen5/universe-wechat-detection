@@ -474,3 +474,88 @@ body.atelier #home.home-v2 {
   font-size: 9.5px;
   color: var(--ink-3);
 }
+
+
+/* ==========================================================================
+   v3：桌面布局收窄 + 玻璃加透 + 模块紧凑
+   ========================================================================== */
+
+/* 内容不要拉满 1440，读者视线跑不动 */
+body.atelier #home.home-v2 {
+  padding: 20px 28px 30px !important;
+}
+
+body.atelier #home.home-v2 .hv-body {
+  max-width: 1240px;
+  margin: 0 auto;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 16px;
+}
+
+/* 玻璃：真正透出背景光，而不是一块白 */
+body.atelier .hv-hero {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .46), rgba(255, 255, 255, .26)) !important;
+  border-color: rgba(255, 255, 255, .72) !important;
+  -webkit-backdrop-filter: blur(64px) saturate(200%) !important;
+  backdrop-filter: blur(64px) saturate(200%) !important;
+  box-shadow:
+    0 1.5px 0 rgba(255, 255, 255, .95) inset,
+    0 0 0 1px rgba(255, 255, 255, .32),
+    0 40px 80px -52px rgba(18, 44, 30, .55) !important;
+}
+
+body.atelier .hv-tool,
+body.atelier .hv-recent,
+body.atelier .hv-card {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .52), rgba(255, 255, 255, .34)) !important;
+  border-color: rgba(255, 255, 255, .78) !important;
+  -webkit-backdrop-filter: blur(40px) saturate(180%) !important;
+  backdrop-filter: blur(40px) saturate(180%) !important;
+}
+
+/* hero 文案不要横跨整卡 */
+body.atelier .hv-hero h1 {
+  max-width: 15em;
+}
+
+body.atelier .hv-lede {
+  max-width: 40ch;
+}
+
+/* 工具卡压扁：图标与标题同排 */
+body.atelier .hv-tools {
+  gap: 12px;
+}
+
+body.atelier .hv-tool {
+  min-height: 96px !important;
+  padding: 14px 16px !important;
+  gap: 4px;
+}
+
+body.atelier .hv-tool .ic {
+  width: 24px;
+  height: 24px;
+  margin-bottom: 2px;
+}
+
+body.atelier .hv-tool p {
+  font-size: 10.5px;
+  line-height: 1.5;
+}
+
+/* 继续：行更紧，卡片更矮 */
+body.atelier .hv-row {
+  padding: 9px 10px !important;
+}
+
+body.atelier .hv-recent {
+  padding: 14px 16px 8px !important;
+}
+
+/* 右栏数字收紧 */
+body.atelier .hv-stats b {
+  font-size: 17px;
+}
+
+/* 平板档删掉：只保留手机与桌面两档 */

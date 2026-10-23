@@ -53,8 +53,8 @@ body.atelier .app-shell {
 body.atelier .app-shell > .v3-topbar,
 body.atelier .v3-topbar.shell-nav {
   width: 238px !important;
-  background: linear-gradient(180deg, var(--glass-hi), var(--glass-lo)) !important;
-  -webkit-backdrop-filter: blur(56px) saturate(200%);
+  background: linear-gradient(180deg, rgba(255, 255, 255, .46), rgba(255, 255, 255, .26)) !important;
+  -webkit-backdrop-filter: blur(64px) saturate(210%);
   backdrop-filter: blur(56px) saturate(200%);
   border: 1px solid var(--glass-edge) !important;
   border-radius: var(--r-xl) !important;
@@ -492,36 +492,6 @@ body.atelier.library-body .library-nav-footer {
 }
 
 /* ---------- ≤1024：两栏收窄 ---------- */
-@media (max-width: 1024px) {
-  body.atelier .home-v2 .hv-body {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  body.atelier .home-v2 .hv-rail {
-    flex-direction: row;
-    flex-wrap: wrap;
-  }
-
-  body.atelier .home-v2 .hv-rail > * {
-    flex: 1 1 220px;
-  }
-
-  body.atelier .skill-page .skill-shell,
-  body.atelier .diagnose-page .diagnose-shell,
-  body.atelier #hit-detector .skill-shell {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  body.atelier .diagnose-page .v3-hero-r {
-    margin-top: 0;
-  }
-
-  body.atelier .home-v2 .hv-tools {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-/* ---------- ≤760：侧栏变底部横条 ---------- */
 @media (max-width: 760px) {
   body.atelier {
     padding-bottom: 64px;
