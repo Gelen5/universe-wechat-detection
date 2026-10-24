@@ -1,0 +1,546 @@
+/*
+ * folio.css — 「素笺 FOLIO」落地层 · 仅公众号创作页（#workbench）
+ * ────────────────────────────────────────────────────────────────
+ * 设计原则（来自 ui-v5.html 定稿）：
+ *   模块化的骨：对话 452 ｜ 产物 弹性，中间一条竖发丝线，改稿闭环最短。
+ *   静墨的皮：两栏不是两张卡片，是同一张纸被一条 1px 线分开的两个区域。
+ *             无边框、无投影、无渐变、圆角 ≤2px，全页只有一个墨点。
+ *   空态即引导：首次进入只有一个大输入框 + 三条起点（folio.js 注入）。
+ *
+ * 挂载顺序必须在 design-parity → liquid-glass → type-system 之后，
+ * 同权重后加载者胜。所有规则限定在 #workbench / 激活顶栏，
+ * 不污染其它 tab。本层只出「纸白 Day」一个主题。
+ * ──────────────────────────────────────────────────────────────── */
+
+/* =========================================================
+   01 令牌 —— 纸白
+   ========================================================= */
+body.atelier #workbench{
+  --fp-paper:#FAF9F7;
+  --fp-ink:#171614;
+  --fp-ink2:#56524A;
+  --fp-ink3:#94907F;
+  --fp-ink4:#BCB7AA;
+  --fp-hair:#E8E5DE;
+  --fp-hair2:#F0EEE8;
+  --fp-live:#C6482E;
+  --fp-serif:"Source Han Serif SC","Noto Serif SC","Songti SC","STSong","SimSun",Georgia,serif;
+  --fp-mono:"SF Mono","JetBrains Mono","Roboto Mono",Consolas,"Courier New",monospace;
+}
+
+/* =========================================================
+   02 主区容器 —— 一张纸，不是一摞卡
+   ========================================================= */
+body.atelier #workbench.workbench-page{
+  padding:0 30px !important;
+  /* 素笺是一张纸：盖掉 liquid-glass 的绿色环境光渐变；铺满视口高 */
+  background:var(--fp-paper) !important;
+  min-height:100dvh !important;
+}
+
+body.atelier #workbench .conversation-workbench-layout{
+  gap:0 !important;
+  border-top:1px solid var(--fp-hair);
+  background:none !important;
+}
+
+/* =========================================================
+   03 页头：衬线标题 + 副标题（空态时由 folio.js 隐藏）
+   ========================================================= */
+body.atelier #workbench .studio-heading{
+  padding:22px 0 0 !important;
+  margin:0 !important;
+  border:0 !important;
+  background:none !important;
+}
+body.atelier #workbench .studio-heading::before{
+  font-family:var(--fp-mono) !important;
+  font-size:9px !important;
+  letter-spacing:.22em !important;
+  color:var(--fp-ink3) !important;
+  opacity:1 !important;
+}
+body.atelier #workbench .studio-heading h1{
+  font-family:var(--fp-serif) !important;
+  font-size:26px !important;
+  font-weight:600 !important;
+  letter-spacing:-.015em !important;
+  line-height:1.3 !important;
+  color:var(--fp-ink) !important;
+  margin-top:10px !important;
+}
+body.atelier #workbench .studio-heading p{
+  font-size:12px !important;
+  color:var(--fp-ink3) !important;
+  margin-top:6px !important;
+}
+body.atelier #workbench .pd-pageact{
+  align-self:center;
+}
+body.atelier #workbench .pd-pageact .pd-pill{
+  font-family:var(--fp-mono) !important;
+  font-size:10.5px !important;
+  color:var(--fp-ink3) !important;
+  background:none !important;
+  border:0 !important;
+  box-shadow:none !important;
+  padding:0 !important;
+}
+body.atelier #workbench .pd-pageact .pd-ghost,
+body.atelier #workbench .pd-pageact #new-workbench-chat{
+  background:none !important;
+  border:0 !important;
+  border-bottom:1px solid var(--fp-ink) !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+  color:var(--fp-ink) !important;
+  font-size:11px !important;
+  height:auto !important;
+  min-height:0 !important;
+  padding:2px 0 3px !important;
+}
+
+/* =========================================================
+   04 章节行 —— 章节名 + 墨点 + 已完成划线（不是进度条）
+   ========================================================= */
+body.atelier #workbench #workbench-stage-nav{
+  gap:26px !important;
+  padding:16px 0 12px !important;
+  margin:0 !important;
+  border:0 !important;
+  border-bottom:1px solid var(--fp-hair) !important;
+  background:none !important;
+}
+body.atelier #workbench #workbench-stage-nav button{
+  background:none !important;
+  border:0 !important;
+  box-shadow:none !important;
+  border-radius:0 !important;
+  min-height:0 !important;
+  height:auto !important;
+  padding:0 !important;
+  opacity:1 !important;
+  display:flex !important;
+  align-items:baseline !important;
+  gap:7px !important;
+}
+body.atelier #workbench #workbench-stage-nav button > span{
+  display:inline-flex !important;
+  align-items:baseline !important;
+  gap:6px !important;
+  overflow:visible !important;
+}
+/* 序号：纯等宽数字，去圆点 */
+body.atelier #workbench #workbench-stage-nav .pd-step-d{
+  font-family:var(--fp-mono) !important;
+  font-style:normal !important;
+  font-size:9px !important;
+  width:auto !important;
+  height:auto !important;
+  min-width:0 !important;
+  border:0 !important;
+  background:none !important;
+  border-radius:0 !important;
+  color:var(--fp-ink4) !important;
+  display:inline !important;
+  line-height:1 !important;
+  box-shadow:none !important;
+  transform:none !important;
+}
+body.atelier #workbench #workbench-stage-nav .pd-step-t{
+  font-size:11.5px !important;
+  color:var(--fp-ink4) !important;
+  letter-spacing:.03em !important;
+}
+body.atelier #workbench #workbench-stage-nav button[data-done] .nm,
+body.atelier #workbench #workbench-stage-nav button[data-done] .pd-step-t{
+  color:var(--fp-ink3) !important;
+  text-decoration:line-through !important;
+  text-decoration-thickness:1px !important;
+  text-decoration-color:var(--fp-ink4) !important;
+}
+body.atelier #workbench #workbench-stage-nav button[data-done] .pd-step-d{ color:var(--fp-ink3) !important; }
+body.atelier #workbench #workbench-stage-nav button[data-current] .pd-step-t{
+  color:var(--fp-ink) !important;
+  font-weight:600 !important;
+}
+body.atelier #workbench #workbench-stage-nav button[data-current] .pd-step-d{ color:var(--fp-ink) !important; }
+/* 当前的墨点 */
+body.atelier #workbench #workbench-stage-nav button[data-current]{ position:relative; }
+body.atelier #workbench #workbench-stage-nav button[data-current]::before{
+  content:"";
+  width:5px;height:5px;border-radius:50%;
+  background:var(--fp-ink);
+  align-self:center;
+  margin-right:2px;
+  flex:none;
+}
+body.atelier #workbench #workbench-stage-nav button small{ display:none !important; }
+
+/* STEP 说明行：一条左竖线 */
+body.atelier #workbench .pd-phline{
+  padding:10px 0 14px 13px !important;
+  margin:0 !important;
+  border-left:2px solid var(--fp-hair) !important;
+  border-bottom:0 !important;
+  background:none !important;
+  max-width:none !important;
+  width:100% !important;
+}
+body.atelier #workbench .pd-phline .pd-k{
+  font-family:var(--fp-mono) !important;
+  font-size:9px !important;
+  letter-spacing:.16em !important;
+  color:var(--fp-ink3) !important;
+}
+body.atelier #workbench .pd-phline .pd-v{
+  font-size:11.5px !important;
+  color:var(--fp-ink2) !important;
+}
+body.atelier #workbench .pd-phline .pd-v b{ color:var(--fp-ink) !important; font-weight:600; }
+body.atelier #workbench .pd-phline .pd-mk{ display:none !important; }
+
+/* =========================================================
+   05 对话栏 —— 无卡片，右缘一条竖发丝线
+   ========================================================= */
+body.atelier #workbench #creation-assistant{
+  background:none !important;
+  background-image:none !important;
+  border:0 !important;
+  border-right:1px solid var(--fp-hair) !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+  -webkit-backdrop-filter:none !important;
+  backdrop-filter:none !important;
+}
+body.atelier #workbench .conversation-panel-head{
+  height:44px !important;
+  min-height:44px !important;
+  padding:0 24px !important;
+  margin:0 !important;
+  border:0 !important;
+  border-bottom:1px solid var(--fp-hair) !important;
+  background:none !important;
+  align-items:center !important;
+}
+body.atelier #workbench .conversation-panel-head .assistant-mark{ display:none !important; }
+body.atelier #workbench .conversation-panel-head .conversation-identity{ align-items:baseline !important; gap:12px !important; }
+body.atelier #workbench .conversation-panel-head .conversation-identity strong{
+  font-family:var(--fp-mono) !important;
+  font-size:9px !important;
+  font-weight:500 !important;
+  letter-spacing:.2em !important;
+  color:var(--fp-ink3) !important;
+}
+body.atelier #workbench .conversation-panel-head .conversation-identity small{
+  font-size:10.5px !important;
+  color:var(--fp-ink4) !important;
+}
+body.atelier #workbench .conversation-panel-head .pd-pageact{ display:none !important; }
+
+/* 消息流：从顶部开始，不居中 */
+body.atelier #workbench .chat-thread{
+  justify-content:flex-start !important;
+  padding:22px 24px 14px !important;
+}
+body.atelier #workbench .chat-message{ margin-bottom:22px !important; }
+/* 助手消息：无边框 */
+body.atelier #workbench .chat-message.from-ai{
+  background:none !important;
+  border:0 !important;
+  box-shadow:none !important;
+  border-radius:0 !important;
+  padding:0 !important;
+}
+body.atelier #workbench .chat-message.from-ai p,
+body.atelier #workbench .chat-message p{
+  font-size:13px !important;
+  line-height:1.95 !important;
+  color:var(--fp-ink2) !important;
+  background:none !important;
+}
+body.atelier #workbench .chat-message p strong{ color:var(--fp-ink) !important; font-weight:600 !important; }
+/* 用户消息：衬线引号，右对齐 */
+body.atelier #workbench .chat-message.from-user,
+body.atelier #workbench .chat-message.from-me{
+  background:none !important;
+  border:0 !important;
+  display:flex !important;
+  flex-direction:column !important;
+  align-items:flex-end !important;
+}
+body.atelier #workbench .chat-message.from-user p,
+body.atelier #workbench .chat-message.from-me p{
+  font-family:var(--fp-serif) !important;
+  font-size:14px !important;
+  line-height:1.8 !important;
+  color:var(--fp-ink) !important;
+  max-width:94% !important;
+  background:none !important;
+  border:0 !important;
+  padding:0 !important;
+  text-align:left !important;
+}
+body.atelier #workbench .chat-message.from-user p::before{ content:"「"; color:var(--fp-ink4); }
+body.atelier #workbench .chat-message.from-user p::after{ content:"」"; color:var(--fp-ink4); }
+/* 角度列表 / 行动卡 */
+body.atelier #workbench .chat-action-card{
+  background:none !important;
+  border:0 !important;
+  border-top:1px solid var(--fp-hair) !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+  padding:10px 0 0 !important;
+}
+body.atelier #workbench .chat-choice-list{ padding:0 !important; }
+body.atelier #workbench .chat-choice-list button{
+  background:none !important;
+  border:0 !important;
+  border-bottom:1px solid var(--fp-hair2) !important;
+  border-radius:0 !important;
+  color:var(--fp-ink2) !important;
+  font-size:12.5px !important;
+  text-align:left !important;
+  padding:10px 2px !important;
+  min-height:0 !important;
+}
+body.atelier #workbench .chat-choice-list button:hover{ color:var(--fp-ink) !important; }
+
+/* 输入条：只有一条底线 */
+body.atelier #workbench .composer-shell{
+  background:none !important;
+  background-image:none !important;
+  border:0 !important;
+  border-top:1px solid var(--fp-hair) !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+  -webkit-backdrop-filter:none !important;
+  backdrop-filter:none !important;
+  padding:12px 24px 14px !important;
+  margin:0 !important;
+}
+body.atelier #workbench .composer-shell > label{
+  font-family:var(--fp-mono) !important;
+  font-size:8.5px !important;
+  letter-spacing:.2em !important;
+  color:var(--fp-ink4) !important;
+  margin-bottom:8px !important;
+  display:block !important;
+}
+body.atelier #workbench .composer-shell textarea,
+body.atelier #workbench #workbench-topic{
+  background:none !important;
+  border:0 !important;
+  border-bottom:1px solid var(--fp-ink4) !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+  color:var(--fp-ink) !important;
+  font-size:13.5px !important;
+  line-height:1.7 !important;
+  padding:6px 0 9px !important;
+  min-height:0 !important;
+  resize:none !important;
+}
+body.atelier #workbench #workbench-topic::placeholder{ color:var(--fp-ink4) !important; font-family:var(--fp-serif) !important; }
+body.atelier #workbench #workbench-topic:focus{ border-bottom-color:var(--fp-ink) !important; outline:none !important; }
+body.atelier #workbench .composer-actions{ gap:14px !important; }
+body.atelier #workbench .composer-text-action{
+  background:none !important;
+  border:0 !important;
+  color:var(--fp-ink3) !important;
+  font-size:11px !important;
+  min-height:0 !important;
+  height:auto !important;
+  padding:2px 0 !important;
+}
+body.atelier #workbench .composer-text-action:hover{ color:var(--fp-ink) !important; }
+body.atelier #workbench .composer-hint{ font-size:10px !important; color:var(--fp-ink4) !important; }
+body.atelier #workbench .composer-send{
+  background:none !important;
+  border:0 !important;
+  box-shadow:none !important;
+  border-radius:0 !important;
+  color:var(--fp-ink) !important;
+  width:auto !important;
+  height:auto !important;
+  min-height:0 !important;
+  padding:4px 0 !important;
+}
+body.atelier #workbench .composer-send svg{ width:16px !important; height:16px !important; }
+body.atelier #workbench .composer-send:hover{ opacity:.6 !important; }
+
+/* =========================================================
+   06 产物栏 —— 无卡片，文档即纸面
+   ========================================================= */
+body.atelier #workbench #workbench-result,
+body.atelier #workbench .article-canvas{
+  background:none !important;
+  background-image:none !important;
+  border:0 !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+  -webkit-backdrop-filter:none !important;
+  backdrop-filter:none !important;
+}
+body.atelier #workbench .article-canvas{ padding:0 !important; }
+
+/* 产物头部行：kicker + 标题 + 下一步 */
+body.atelier #workbench .workbench-stage-head{
+  height:44px !important;
+  min-height:44px !important;
+  align-items:center !important;
+  padding:0 30px !important;
+  margin:0 !important;
+  border:0 !important;
+  border-bottom:1px solid var(--fp-hair) !important;
+  background:none !important;
+  flex-wrap:nowrap !important;
+}
+body.atelier #workbench .workbench-stage-head > div:first-child{ align-items:baseline !important; gap:12px !important; min-width:0 !important; }
+body.atelier #workbench #workbench-stage-kicker{
+  font-family:var(--fp-mono) !important;
+  font-size:9px !important;
+  letter-spacing:.2em !important;
+  color:var(--fp-ink3) !important;
+}
+body.atelier #workbench #workbench-stage-title{
+  font-family:var(--fp-serif) !important;
+  font-size:14px !important;
+  font-weight:600 !important;
+  color:var(--fp-ink) !important;
+}
+body.atelier #workbench #workbench-stage-hint{ display:none !important; }
+body.atelier #workbench #workbench-stage-next,
+body.atelier #workbench .workbench-stage-actions button{
+  background:none !important;
+  border:0 !important;
+  border-bottom:1px solid var(--fp-ink) !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+  color:var(--fp-ink) !important;
+  font-size:11px !important;
+  min-height:0 !important;
+  height:auto !important;
+  padding:2px 0 3px !important;
+}
+body.atelier #workbench #workbench-stage-next:hover,
+body.atelier #workbench .workbench-stage-actions button:hover{ opacity:.6 !important; }
+
+/* 文档头 + 正文版心 */
+body.atelier #workbench .article-canvas-head{
+  max-width:640px !important;
+  margin:0 auto !important;
+  width:100% !important;
+  padding:30px 36px 0 !important;
+  border-bottom:0 !important;
+  text-align:left !important;
+  align-items:flex-start !important;
+  justify-content:space-between !important;
+  flex:0 0 auto !important;
+}
+body.atelier #workbench #result-title{
+  font-family:var(--fp-serif) !important;
+  font-size:24px !important;
+  font-weight:600 !important;
+  line-height:1.55 !important;
+  letter-spacing:-.01em !important;
+  color:var(--fp-ink) !important;
+  max-width:100% !important;
+}
+body.atelier #workbench #result-title::before{ display:none !important; }
+body.atelier #workbench #article-save-state,
+body.atelier #workbench .article-canvas-head p{
+  font-size:11px !important;
+  color:var(--fp-ink3) !important;
+  margin-top:12px !important;
+  max-width:none !important;
+}
+body.atelier #workbench .article-canvas-head p i{ display:none !important; }
+
+/* 正文滚动区整体收进 640 版心 */
+body.atelier #workbench #studio-stage-output{
+  padding:0 36px 34px !important;
+}
+body.atelier #workbench #studio-stage-output > *{
+  max-width:640px !important;
+  margin-left:auto !important;
+  margin-right:auto !important;
+}
+body.atelier #workbench .version-strip{
+  max-width:640px !important;
+  margin:0 auto !important;
+  width:100% !important;
+  background:none !important;
+  border:0 !important;
+  border-bottom:1px solid var(--fp-hair2) !important;
+  font-family:var(--fp-mono) !important;
+  font-size:9.5px !important;
+}
+body.atelier #workbench .article-canvas-foot{
+  max-width:640px !important;
+  margin:0 auto !important;
+  width:100% !important;
+  background:none !important;
+  border-top:1px solid var(--fp-hair2) !important;
+  font-size:10.5px !important;
+}
+body.atelier #workbench .canvas-actions{ display:none !important; }
+
+/* =========================================================
+   07 空态 landing（folio.js 注入）
+   ========================================================= */
+body.atelier #workbench .folio-landing{
+  flex:1;min-height:0;overflow:auto;
+  display:flex;flex-direction:column;
+}
+body.atelier #workbench .fl-inner{ max-width:680px;margin:0 auto;width:100%;padding:6vh 0 40px; }
+body.atelier #workbench .fl-inner h1{
+  font-family:var(--fp-serif);font-size:38px;font-weight:600;line-height:1.25;letter-spacing:-.015em;color:var(--fp-ink);
+}
+body.atelier #workbench .fl-sub{ margin-top:11px;font-size:13px;color:var(--fp-ink3);line-height:1.8; }
+body.atelier #workbench .fl-ask{ margin-top:36px; }
+body.atelier #workbench .fl-ask textarea{
+  width:100%;min-height:88px;background:none;border:0;outline:none;resize:none;
+  border-bottom:1px solid var(--fp-ink4);
+  font-family:var(--fp-serif);font-size:19px;line-height:1.8;color:var(--fp-ink);padding:0 0 13px;
+}
+body.atelier #workbench .fl-ask textarea::placeholder{ color:var(--fp-ink4); }
+body.atelier #workbench .fl-ask textarea:focus{ border-bottom-color:var(--fp-ink); }
+body.atelier #workbench .fl-ask-row{ display:flex;justify-content:flex-end;gap:16px;align-items:center;margin-top:8px; }
+body.atelier #workbench .fl-tip{ font-size:11px;color:var(--fp-ink4); }
+body.atelier #workbench .fl-send{
+  background:none;border:0;font-family:inherit;font-size:12px;color:var(--fp-ink);
+  cursor:pointer;padding:4px 0;letter-spacing:.03em;
+}
+body.atelier #workbench .fl-send:hover{ opacity:.6; }
+body.atelier #workbench .fl-starts{ margin-top:34px; }
+body.atelier #workbench .fl-lbl{
+  font-family:var(--fp-mono);font-size:9px;letter-spacing:.24em;color:var(--fp-ink4);margin-bottom:12px;
+}
+body.atelier #workbench .fl-starts a{
+  display:flex;gap:12px;align-items:baseline;padding:9px 0;cursor:pointer;
+  font-size:13px;color:var(--fp-ink2);text-decoration:none;border-bottom:1px solid var(--fp-hair2);
+}
+body.atelier #workbench .fl-starts a:hover{ color:var(--fp-ink); }
+body.atelier #workbench .fl-starts a:hover .fl-t{ text-decoration:underline;text-underline-offset:3px; }
+body.atelier #workbench .fl-starts .fl-n{ font-family:var(--fp-mono);font-size:10px;color:var(--fp-ink4);flex:none; }
+body.atelier #workbench .fl-starts .fl-tag{ margin-left:auto;font-size:10.5px;color:var(--fp-ink4); }
+body.atelier #workbench .fl-recent{ margin-top:30px; }
+body.atelier #workbench .fl-recent p{
+  font-family:var(--fp-mono);font-size:9px;letter-spacing:.24em;color:var(--fp-ink4);margin-bottom:10px;
+}
+body.atelier #workbench .fl-recent a{
+  display:block;font-size:12.5px;color:var(--fp-ink3);padding:6px 0;cursor:pointer;text-decoration:none;
+}
+body.atelier #workbench .fl-recent a:hover{ color:var(--fp-ink); }
+body.atelier #workbench .fl-recent a span{
+  font-family:var(--fp-mono);font-size:10px;color:var(--fp-ink4);margin-right:12px;
+}
+/* 空态时藏工作态专属块（含 layout 外的步骤导航 / 阶段说明） */
+body.atelier #workbench[data-folio-empty="1"] .conversation-workbench-layout{ display:none !important; }
+body.atelier #workbench[data-folio-empty="1"] .studio-heading{ visibility:hidden !important; }
+body.atelier #workbench[data-folio-empty="1"] #workbench-stage-nav,
+body.atelier #workbench[data-folio-empty="1"] #workflow-steps,
+body.atelier #workbench[data-folio-empty="1"] .pd-phline,
+body.atelier #workbench[data-folio-empty="1"] .studio-switch,
+body.atelier #workbench[data-folio-empty="1"] .conversation-output-actions{ display:none !important; }
