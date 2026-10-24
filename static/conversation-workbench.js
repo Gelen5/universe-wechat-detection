@@ -433,7 +433,7 @@
     activeStage = stage;
     if (conversation) localStorage.setItem(stageKey(conversation.id), stage);
     renderStage();
-    if (window.matchMedia('(max-width: 980px)').matches && stageArtifact(stage)) setOutputOpen(true);
+    if (window.matchMedia('(max-width: 1100px)').matches && stageArtifact(stage)) setOutputOpen(true);
   }
 
   function renderStage() {
@@ -761,7 +761,7 @@
       if (['run.completed', 'run.failed', 'run.cancelled', 'run.waiting_input'].includes(type)) {
         closeEvents(); activeRun = null; localStorage.removeItem(keyRun); setBusy(false);
         await refresh().catch(error => appendNotice(error.message));
-        if (type === 'run.completed' && window.matchMedia('(max-width: 980px)').matches) setOutputOpen(true);
+        if (type === 'run.completed' && window.matchMedia('(max-width: 1100px)').matches) setOutputOpen(true);
       }
     }));
     source.onerror = async () => {
@@ -889,7 +889,7 @@
   captureClick('[data-next-stage]', button => runStage(button.dataset.nextStage || activeStage));
   captureClick('[data-workbench-view-toggle]', () => setOutputOpen(true));
   captureClick('[data-focus-topics]', () => {
-    const narrow = window.matchMedia?.('(max-width: 980px)').matches;
+    const narrow = window.matchMedia?.('(max-width: 1100px)').matches;
     if (narrow) {
       setOutputOpen(true);
       window.setTimeout(() => {

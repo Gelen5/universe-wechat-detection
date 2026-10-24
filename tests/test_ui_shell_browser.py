@@ -196,3 +196,31 @@ def test_more_menu_can_open_a_secondary_module(ui):
     expect(page.get_by_role('dialog', name='全部功能')).not_to_be_visible()
     expect(page.locator('#hit-detector .creator-conversation textarea')).to_be_visible()
     expect(page.get_by_role('button', name='更多', exact=True)).to_have_class('shell-mobile-more active')
+
+@pytest.mark.parametrize('width', [1920,1280,1101,1100,390])
+def test_centered_workbench_preserves_dom_and_folds_at_1100(ui, width):
+    page, _ = ui
+    page.set_viewport_size({'width':width,'height':1000})
+    page.goto('http://ui.test/workbench')
+    expect(page.locator('#workbench-topic')).to_be_visible()
+    assert page.locator('.conversation-workbench-layout').evaluate('(el)=>[...el.children].filter(x=>["studio-details","creation-assistant","workbench-result"].includes(x.id)).map(x=>x.id)') == ['creation-assistant','workbench-result','studio-details']
+    assert page.evaluate('document.documentElement.scrollWidth <= innerWidth+1')
+    if width > 1100:
+        structure=page.locator('#studio-details').bounding_box()
+        chat=page.locator('#creation-assistant').bounding_box()
+        canvas=page.locator('#workbench-result').bounding_box()
+        assert structure['x'] < chat['x'] < canvas['x']
+        assert abs(structure['width']-292)<1
+        assert abs(canvas['width']-372)<1
+        assert chat['height']>=790
+        nav=page.locator('.app-shell > .v3-topbar').bounding_box()
+        assert abs(nav['width']-248)<1
+        control=page.locator('#workbench-topic')
+        assert control.evaluate('(el)=>getComputedStyle(el).fontSize')=='13.5px'
+        assert abs(control.bounding_box()['height']-76)<1
+    else:
+        expect(page.locator('#studio-details')).to_be_hidden()
+        expect(page.locator('#workbench-result')).to_be_hidden()
+        page.locator('#workbench').evaluate('(el)=>el.dataset.outputOpen="true"')
+        expect(page.locator('#workbench-result')).to_be_visible()
+        expect(page.locator('#creation-assistant')).to_be_hidden()

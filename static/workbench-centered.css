@@ -1,0 +1,46 @@
+/* Three-pane creation workspace. Visual order only; the DOM stays unchanged. */
+body.atelier #workbench.normalized-conversation .conversation-workbench-layout {
+  display:grid;
+  grid-template-columns:292px minmax(0,1fr) 372px;
+  width:100%;max-width:none;
+  height:auto;min-height:calc(100vh - 210px);
+  align-items:stretch;
+  margin:0;
+}
+body.atelier #workbench.normalized-conversation .conversation-workbench-layout > :is(#studio-details,#creation-assistant,#workbench-result) {
+  grid-column:auto;grid-row:auto;
+  min-width:0;width:auto;height:auto;
+}
+body.atelier #workbench.normalized-conversation #studio-details {
+  display:block !important;order:0;position:static;inset:auto;max-width:none;
+  padding:20px;overflow-wrap:anywhere;
+}
+body.atelier #workbench.normalized-conversation #creation-assistant {
+  order:1;min-height:calc(100vh - 210px);
+  border-left:1px solid var(--a-line);border-right:1px solid var(--a-line);
+}
+body.atelier #workbench.normalized-conversation #workbench-result {order:2;padding:24px;}
+body.atelier #workbench.normalized-conversation .flow-actionbar {order:3;grid-column:1 / -1;}
+body.atelier #workbench.normalized-conversation #workbench-topic {
+  height:76px;min-height:76px;max-height:240px;
+  font-size:13.5px;border-radius:12px;
+}
+body.atelier #workbench.normalized-conversation :is(#article-editor,.editor-wrap,#studio-stage-output,.workbench-html-preview) {
+  width:100%;max-width:720px;margin-inline:auto;line-height:1.95;
+}
+body.atelier #workbench.normalized-conversation .conversation-panel-head {flex-wrap:wrap;gap:8px;}
+body.atelier #workbench.normalized-conversation .conversation-panel-tools {flex-wrap:wrap;min-width:0;}
+body.atelier #workbench.normalized-conversation .composer-actions {flex-wrap:wrap;}
+body.atelier #workbench.normalized-conversation :is(.article-canvas-head,.workbench-stage-head) {flex-wrap:wrap;}
+body.atelier #workbench.normalized-conversation .chat-message {overflow-wrap:anywhere;min-width:0;}
+@media (max-width:1100px) {
+  body.atelier #workbench.normalized-conversation .conversation-workbench-layout {
+    display:block;height:auto;min-height:calc(100vh - 210px);
+  }
+  body.atelier #workbench.normalized-conversation #studio-details {display:none !important;}
+  body.atelier #workbench.normalized-conversation #creation-assistant {display:flex !important;width:100%;border:0;}
+  body.atelier #workbench.normalized-conversation #workbench-result {display:none !important;width:100%;}
+  body.atelier #workbench.normalized-conversation[data-output-open="true"] #creation-assistant {display:none !important;}
+  body.atelier #workbench.normalized-conversation[data-output-open="true"] #workbench-result {display:flex !important;}
+  body.atelier #workbench .conversation-output-actions {display:flex !important;justify-content:flex-end;padding:6px 0;}
+}
