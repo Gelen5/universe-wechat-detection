@@ -1623,6 +1623,10 @@ body.atelier #morning-generator .morning-intro > .skill-form {
   grid-column: 1 !important;
   align-self: stretch !important;
   margin: 12px 0 0 !important;
+  /* style.css 给 .skill-form 压了 max-width:720，
+     于是列宽 764 而卡片只画到 720，右边多出一条 60px 的空气缝 */
+  width: 100% !important;
+  max-width: none !important;
   padding: 18px 18px 16px !important;
   border: 1px solid rgba(15, 45, 32, .09) !important;
   border-radius: var(--pd-r-panel) !important;
