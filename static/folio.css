@@ -970,15 +970,19 @@ body.atelier #workbench #workbench-result .article-canvas-head p{
 }
 /* 字段标签与内容留出呼吸 */
 body.atelier #workbench .folio-doc .fdoc-k{
-  margin:0 10px 0 0 !important;
+  margin:0 12px 0 0 !important;
   vertical-align:baseline !important;
-  letter-spacing:.12em !important;
+  letter-spacing:.1em !important;
+  font-size:10.5px !important;
+  color:var(--fp-ink3) !important;
 }
 body.atelier #workbench .folio-doc .fdoc-body p{
   margin:0 0 10px !important;
 }
 body.atelier #workbench .folio-doc .fdoc-item:last-child{ border-bottom:0 !important; }
-/* 引用块：只留左边线，去掉旧灰底与内边距 */
+/* 引用块：只留左边线，去掉旧灰底与内边距。
+   注意 style.css 有一条裸 `blockquote{max-width:275px}` —— 不显式清掉，
+   引用会被压到 275px 宽，三行就换行，看着像装了个窄盒子。 */
 body.atelier #workbench .folio-doc blockquote,
 body.atelier #workbench #studio-stage-output blockquote{
   background:none !important;
@@ -987,8 +991,19 @@ body.atelier #workbench #studio-stage-output blockquote{
   box-shadow:none !important;
   padding:2px 0 2px 20px !important;
   margin:26px 0 !important;
+  max-width:none !important; width:auto !important;
   font-style:normal !important;
+  font-family:var(--fp-serif) !important;
+  font-size:16.5px !important; line-height:1.95 !important;
   color:var(--fp-ink2) !important;
+}
+body.atelier #workbench .folio-doc blockquote p,
+body.atelier #workbench #studio-stage-output blockquote p{
+  font-family:var(--fp-serif) !important;
+  font-size:16.5px !important; line-height:1.95 !important;
+  color:var(--fp-ink2) !important;
+  margin:0 0 10px !important;
+  max-width:none !important;
 }
 
 /* 铁律：旧样式用 `#workbench-result:not(:has(#studio-stage-output > *))`
