@@ -113,6 +113,11 @@ body.atelier #library-main #library-shelf {
 /* 工作台原本用 14px 内边距，统一到 22px */
 body.atelier #workbench .studio-heading,
 body.atelier #workbench #workbench-stage-nav,
+/* .pd-phline 是 design-parity.js 插进去的 STEP 说明行。
+   它一度漏在这条规则外面，于是页头 / 阶段条 / 面板都在 578 起，
+   只有它在 298 起、宽度还吃掉整条 2240 —— 宽屏下会看到
+   一行字孤零零挂在内容列左边外面。 */
+body.atelier #workbench .pd-phline,
 body.atelier #workbench .conversation-workbench-layout {
   width: 100% !important;
   max-width: var(--pd-col) !important;
