@@ -814,15 +814,15 @@ body.atelier #workbench .folio-doc .fdoc-n{
   font-family:var(--fp-mono); font-size:12px; color:var(--fp-ink4); line-height:2.2;
 }
 body.atelier #workbench .folio-doc .fdoc-h{
-  display:block; font-family:var(--fp-serif); font-size:17.5px; font-weight:600;
-  line-height:1.75; color:var(--fp-ink); margin-bottom:8px;
+  display:inline-block; font-family:var(--fp-serif); font-size:18px; font-weight:600;
+  line-height:1.75; color:var(--fp-ink); margin-bottom:8px; vertical-align:baseline;
 }
 body.atelier #workbench .folio-doc .fdoc-k{
   display:inline-block; font-family:var(--fp-mono); font-size:10px;
   letter-spacing:.18em; color:var(--fp-ink4); margin:0 0 6px;
 }
 body.atelier #workbench .folio-doc .fdoc-body p{
-  font-size:16.5px; line-height:1.95; margin:0 0 12px; color:var(--fp-ink2);
+  font-size:17px; line-height:1.95; margin:0 0 12px; color:var(--fp-ink2);
 }
 body.atelier #workbench .folio-doc .fdoc-empty{
   font-size:15px; line-height:1.9; color:var(--fp-ink4);
@@ -945,6 +945,11 @@ body.atelier #workbench .workbench-html-preview{
 body.atelier #workbench #workbench-html-preview{
   height:min(76vh, 880px) !important; min-height:520px !important;
 }
+/* 没到排版阶段时 iframe 带 hidden，上面写了 display:block !important，
+   会把隐藏的预览变成一大块白板 —— 必须让 hidden 仍然说了算 */
+body.atelier #workbench #workbench-html-preview[hidden]{
+  display:none !important;
+}
 
 /* 标题与状态行强制左对齐、字号到位（旧规则用 #workbench-result 提了权重） */
 body.atelier #workbench #workbench-result .article-canvas-head,
@@ -1016,6 +1021,17 @@ body.atelier #workbench #workbench-result:has(#article-editor) .article-canvas-h
   width:100% !important; max-width:100% !important;
   align-items:flex-start !important; text-align:left !important;
 }
+/* 有正文时头部必须是横排：旧的空态规则把 head 改成 column 居中，
+   图标组会被挤到标题下面单独一行，看着像掉出来的东西。
+   特异性要比 `:not(:has(#studio-stage-output > *)) .article-canvas-head`（3 ID）更高。 */
+body.atelier #workbench[data-folio-doc="1"] #workbench-result:has(#article-editor) .article-canvas-head{
+  flex-direction:row !important;
+  align-items:flex-start !important;
+  justify-content:space-between !important;
+}
+body.atelier #workbench[data-folio-doc="1"] #workbench-result:has(#article-editor) .article-canvas-head > div:first-child{
+  flex:1 1 auto !important; min-width:0 !important;
+}
 
 /* =========================================================
    13 阅读栏统一 —— 一条 720 版心贯穿始终
@@ -1051,10 +1067,14 @@ body.atelier #workbench #workbench-result .article-canvas-head > div:first-child
   max-width:100% !important;
 }
 /* 右上角图标组：贴到 720 版心的右边缘，不再撑成白盒 */
-body.atelier #workbench #workbench-result .canvas-actions{
+body.atelier #workbench #workbench-result .canvas-actions,
+body.atelier #workbench #workbench-result:has(#article-editor) .article-canvas-head > .canvas-actions{
   display:flex !important; align-items:center !important;
   gap:0 !important; padding:2px 0 0 !important;
   margin-left:auto !important; flex:0 0 auto !important;
+  align-self:flex-start !important;
+  width:auto !important; max-width:48% !important;
+  justify-content:flex-end !important;
   background:none !important; border:0 !important;
 }
 body.atelier #workbench #workbench-result .canvas-actions .icon-action{
@@ -1077,7 +1097,50 @@ body.atelier #workbench #workbench-result .workbench-stage-head{
   padding:0 0 12px !important;
   border-bottom:1px solid var(--fp-hair) !important;
   margin-bottom:0 !important;
+  display:flex !important; align-items:flex-start !important;
+  justify-content:space-between !important; gap:24px !important;
 }
+/* 阶段标题：kicker 与标题同一基线，说明行独占一行 */
+body.atelier #workbench #workbench-result .workbench-stage-head > div:first-child{
+  display:flex !important; flex-wrap:wrap !important;
+  align-items:baseline !important; gap:2px 10px !important;
+  min-width:0 !important; flex:1 1 auto !important;
+}
+body.atelier #workbench #workbench-stage-kicker{
+  font-family:var(--fp-mono) !important; font-size:10px !important;
+  letter-spacing:.16em !important; color:var(--fp-ink4) !important;
+  line-height:1.6 !important;
+}
+body.atelier #workbench #workbench-stage-title{
+  font-family:var(--fp-serif) !important; font-size:15px !important; font-weight:600 !important;
+  letter-spacing:-.01em !important; color:var(--fp-ink) !important;
+  line-height:1.6 !important; margin:0 !important;
+}
+body.atelier #workbench #workbench-stage-hint{
+  flex:1 1 100% !important;
+  font-family:var(--fp-sans) !important; font-size:11.5px !important;
+  color:var(--fp-ink3) !important; line-height:1.7 !important;
+  margin:5px 0 0 !important;
+}
+/* 阶段操作：文字按钮，不用白盒 */
+body.atelier #workbench .workbench-stage-actions{
+  display:flex !important; align-items:center !important;
+  gap:16px !important; flex:0 0 auto !important; padding-top:1px !important;
+}
+body.atelier #workbench .workbench-stage-actions button{
+  background:none !important; border:0 !important; border-radius:0 !important;
+  box-shadow:none !important; padding:2px 0 !important;
+  min-height:0 !important; height:auto !important; width:auto !important;
+  font-family:var(--fp-mono) !important; font-size:11px !important;
+  letter-spacing:.04em !important; color:var(--fp-ink3) !important;
+  border-bottom:1px solid var(--fp-hair) !important; cursor:pointer;
+}
+body.atelier #workbench .workbench-stage-actions button:hover:not(:disabled){
+  color:var(--fp-ink) !important; border-bottom-color:var(--fp-ink) !important;
+}
+body.atelier #workbench .workbench-stage-actions button:disabled{ opacity:.3 !important; }
+/* 读文档时不需要「当前输出 / 可直接编辑」这行说明，编辑态才出现 */
+body.atelier #workbench .editor-wrap:not(.is-editing) .editor-head{ display:none !important; }
 /* 编辑器容器：与头部同一左边缘，内容不再二次居中 */
 body.atelier #workbench #workbench-result .editor-wrap{
   padding:0 !important;
@@ -1173,4 +1236,72 @@ body.atelier #workbench #workbench-result .article-canvas-foot{
 }
 body.atelier #workbench #workbench-result .score-report{
   padding:18px 0 !important; border:0 !important; background:none !important;
+}
+/* 页脚字数 / 阅读时长 */
+body.atelier #workbench #workbench-result .article-canvas-foot{ gap:14px !important; }
+body.atelier #workbench #workbench-result .folio-meta{
+  margin-right:auto !important;
+  font-family:var(--fp-mono) !important; font-size:10.5px !important;
+  letter-spacing:.06em !important; color:var(--fp-ink4) !important;
+}
+
+/* =========================================================
+   15 文档内的 Markdown 元素（正文是 Markdown，不是纯文本）
+   ---------------------------------------------------------
+   线上正文长这样：`# 文章标题` / `## 小标题` / `> 引用` / `- 列表`。
+   标题层级已经由画布头部承担，正文里只保留二三级。
+   ========================================================= */
+body.atelier #workbench .folio-doc h4{
+  font-family:var(--fp-serif); font-size:16.5px; font-weight:600;
+  line-height:1.7; color:var(--fp-ink2); margin:24px 0 10px;
+}
+body.atelier #workbench .folio-doc ul,
+body.atelier #workbench .folio-doc ol{
+  list-style:none; margin:0 0 24px; padding:0;
+}
+body.atelier #workbench .folio-doc li{
+  position:relative;
+  padding-left:22px; margin:0 0 7px;
+  font-family:var(--fp-serif); font-size:17px; line-height:2; color:var(--fp-ink);
+}
+body.atelier #workbench .folio-doc ul > li::before{
+  content:""; position:absolute; left:3px; top:1.02em;
+  width:7px; height:1px; background:var(--fp-ink4);
+}
+body.atelier #workbench .folio-doc ol{ counter-reset:fdocli; }
+body.atelier #workbench .folio-doc ol > li{ counter-increment:fdocli; }
+body.atelier #workbench .folio-doc ol > li::before{
+  content:counter(fdocli) "."; position:absolute; left:0; top:0;
+  font-family:var(--fp-mono); font-size:12px; line-height:2.83;
+  color:var(--fp-ink4);
+}
+body.atelier #workbench .folio-doc blockquote p{
+  font-size:16.5px; line-height:1.95; margin:0 0 10px;
+}
+body.atelier #workbench .folio-doc blockquote p:last-child{ margin-bottom:0 !important; }
+body.atelier #workbench .folio-doc strong{ font-weight:600; }
+body.atelier #workbench .folio-doc code{
+  font-family:var(--fp-mono); font-size:.88em;
+  background:var(--fp-hair2); border-radius:3px; padding:1px 5px;
+}
+body.atelier #workbench .folio-doc a{
+  color:var(--fp-ink); text-decoration:none;
+  border-bottom:1px solid var(--fp-hair);
+}
+body.atelier #workbench .folio-doc a:hover{ border-bottom-color:var(--fp-ink); }
+body.atelier #workbench .folio-doc hr{
+  border:0; border-top:1px solid var(--fp-hair2); margin:34px 0;
+}
+/* 大纲结构标签 S / C / Q / A */
+body.atelier #workbench .folio-doc .fdoc-tag{
+  display:inline-block; margin:0 9px 0 0; vertical-align:3px;
+  padding:1px 6px; border-radius:3px;
+  background:var(--fp-hair2);
+  font-family:var(--fp-mono); font-size:10px; letter-spacing:.1em;
+  color:var(--fp-ink3);
+}
+/* 大纲里的「标题草案：…」这类附注 */
+body.atelier #workbench .folio-doc .fdoc-note{
+  margin:0 0 12px !important;
+  font-size:16px !important; line-height:1.9 !important; color:var(--fp-ink2) !important;
 }
