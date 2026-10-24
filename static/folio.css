@@ -985,3 +985,18 @@ body.atelier #workbench #studio-stage-output blockquote{
   font-style:normal !important;
   color:var(--fp-ink2) !important;
 }
+
+/* 铁律：旧样式用 `#workbench-result:not(:has(#studio-stage-output > *))`
+   （4 个 ID 权重）把「空产物」时的标题压成 13.5px 居中。
+   但大纲/正文阶段内容在 textarea 里，studio-stage-output 本来就是空的，
+   于是正文标题一直被当成空态。这里用同等权重、更准确的语义压回去：
+   只要有编辑器，标题就是文档标题。 */
+body.atelier #workbench #workbench-result:has(#article-editor) #result-title{
+  font-size:26px !important;
+  line-height:1.48 !important;
+  text-align:left !important;
+  letter-spacing:-.012em !important;
+  color:var(--fp-ink) !important;
+  margin:0 !important;
+  max-width:100% !important;
+}
