@@ -818,8 +818,8 @@ body.atelier #workbench .folio-doc .fdoc-h{
   line-height:1.75; color:var(--fp-ink); margin-bottom:8px; vertical-align:baseline;
 }
 body.atelier #workbench .folio-doc .fdoc-k{
-  display:inline-block; font-family:var(--fp-mono); font-size:10px;
-  letter-spacing:.18em; color:var(--fp-ink4); margin:0 0 6px;
+  display:inline-block; font-family:var(--fp-mono); font-size:11.5px;
+  letter-spacing:.08em; color:#8A8375; margin:0 12px 0 0;
 }
 body.atelier #workbench .folio-doc .fdoc-body p{
   font-size:17px; line-height:1.95; margin:0 0 12px; color:var(--fp-ink2);
@@ -973,9 +973,9 @@ body.atelier #workbench #workbench-result .article-canvas-head p{
 body.atelier #workbench .folio-doc .fdoc-k{
   margin:0 12px 0 0 !important;
   vertical-align:baseline !important;
-  letter-spacing:.1em !important;
-  font-size:10.5px !important;
-  color:var(--fp-ink3) !important;
+  letter-spacing:.06em !important;
+  font-size:11.5px !important;
+  color:#8A8375 !important;
 }
 body.atelier #workbench .folio-doc .fdoc-body p{
   margin:0 0 10px !important;
