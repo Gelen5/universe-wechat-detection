@@ -146,11 +146,41 @@
     });
   }
 
+  /* ---------- 05 早安祝福：给对话栏配一块产物位 ----------
+     这一页的 morning-intro 里只有「页头 + 对话表单」，
+     右半栏整块留白。这里补一张空态产物卡进去，
+     位置在表单之后，由 CSS 的网格放到第二列。
+     有真实产出时 creator-chat-output 在表单内部渲染，这张卡自动让位。 */
+  function buildMorningRail() {
+    var intro = $('#morning-generator .morning-intro');
+    if (!intro) return;
+    var form = intro.querySelector('.skill-form');
+    if (!form) return;
+
+    var rail = $('.pd-mrail', intro);
+    if (!rail) {
+      rail = document.createElement('aside');
+      rail.className = 'pd-mrail';
+      rail.innerHTML =
+        '<span class="pd-mrail-ico" aria-hidden="true"></span>' +
+        '<strong>早安图 + 祝福文案</strong>' +
+        '<p>在左侧说清楚主题和风格，生成的图文会出现在这里，可预览、复制、下载。</p>' +
+        '<div class="pd-mrail-skel" aria-hidden="true"></div>';
+      form.parentNode.insertBefore(rail, form.nextSibling);
+    }
+
+    // 有产出就撤掉空态卡，避免和真实结果并存
+    var out = $('.creator-chat-output', form);
+    var hasOut = !!(out && out.children.length);
+    rail.hidden = hasOut;
+  }
+
   function runAll() {
     try { splitSteps(); } catch (e) { }
     try { ensurePhaseLine(); } catch (e) { }
     try { buildPageActions(); } catch (e) { }
     try { wrapPoints(); } catch (e) { }
+    try { buildMorningRail(); } catch (e) { }
   }
 
   function boot() {
