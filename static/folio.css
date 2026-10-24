@@ -906,3 +906,42 @@ body.atelier #workbench .selection-actions{
 }
 body.atelier #workbench .selection-actions button{ width:auto !important; flex:none !important; }
 body.atelier #workbench .selection-actions button::before{ content:none !important; }
+
+/* =========================================================
+   12 产物区通用排版（阶段输出 / 选题理由）+ 排版预览
+   ========================================================= */
+body.atelier #workbench #studio-stage-output{
+  font-family:var(--fp-serif) !important;
+  font-size:15.5px !important; line-height:1.95 !important; color:var(--fp-ink) !important;
+}
+body.atelier #workbench #studio-stage-output p{
+  font-size:15.5px !important; line-height:1.95 !important; margin:0 0 16px !important;
+}
+body.atelier #workbench #studio-stage-output h3,
+body.atelier #workbench #studio-stage-output h4{
+  font-family:var(--fp-serif) !important; font-weight:600 !important; color:var(--fp-ink) !important;
+  font-size:17px !important; line-height:1.7 !important; margin:24px 0 10px !important;
+}
+body.atelier #workbench #studio-stage-output li{
+  font-size:15px !important; line-height:1.95 !important; margin:0 0 8px !important;
+}
+/* 选题理由 / 证据块 */
+body.atelier #workbench .topic-evidence,
+body.atelier #workbench .topic-board .topic-evidence{
+  border:0 !important; border-left:2px solid var(--fp-hair) !important;
+  background:none !important; border-radius:0 !important;
+  padding:2px 0 2px 18px !important; margin:18px 0 !important;
+  font-size:14.5px !important; line-height:1.9 !important; color:var(--fp-ink2) !important;
+}
+body.atelier #workbench .topic-evidence *{ font-size:14.5px !important; line-height:1.9 !important; }
+/* 排版预览：白纸铺满右栏 */
+body.atelier #workbench .workbench-html-preview{
+  width:100% !important; max-width:100% !important;
+  border:0 !important; border-radius:0 !important;
+  background:#fff !important; display:block !important;
+}
+/* iframe 是 sandbox=""（无 allow-same-origin），父页读不到 contentDocument，
+   无法自动量高，这里给一个稳定的可视高度，内部滚动 */
+body.atelier #workbench #workbench-html-preview{
+  height:min(76vh, 880px) !important; min-height:520px !important;
+}
