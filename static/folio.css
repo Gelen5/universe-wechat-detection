@@ -1010,9 +1010,167 @@ body.atelier #workbench #workbench-result:has(#article-editor) .article-canvas-h
   flex:0 0 auto !important;
   height:auto !important;
   min-height:0 !important;
-  padding:24px 36px 8px !important;
+  padding:24px 0 8px !important;
 }
 body.atelier #workbench #workbench-result:has(#article-editor) .article-canvas-head > div{
   width:100% !important; max-width:100% !important;
   align-items:flex-start !important; text-align:left !important;
+}
+
+/* =========================================================
+   13 阅读栏统一 —— 一条 720 版心贯穿始终
+   ---------------------------------------------------------
+   问题根源：atelier.css 里
+     `#workbench .article-canvas > * { max-width:720px; margin:auto }`
+   已经把每个直接子块居中到 720，但头部又额外加了 36px 水平内边距，
+   于是标题左边缘比正文缩进 36px —— 视觉上像两套版心，正文被"推进去"。
+   这里把水平内边距归零，所有块回到同一条左边缘；
+   选题板（#workbench-stage-choices）保持满栏，它需要横向铺开。
+   ========================================================= */
+body.atelier #workbench #workbench-result > *{
+  max-width:720px !important;
+  width:100% !important;
+  margin-left:auto !important;
+  margin-right:auto !important;
+  flex-shrink:0 !important;
+}
+/* 选题板例外：占满右栏 */
+body.atelier #workbench #workbench-result > #workbench-stage-choices{
+  max-width:none !important;
+  width:auto !important;
+  margin-left:0 !important;
+  margin-right:0 !important;
+}
+/* 头部：水平内边距全部归零，标题与正文同一左边缘 */
+body.atelier #workbench #workbench-result .article-canvas-head{
+  padding:24px 0 9px !important;
+  gap:16px !important;
+}
+body.atelier #workbench #workbench-result .article-canvas-head > div:first-child{
+  flex:1 1 auto !important; min-width:0 !important;
+  max-width:100% !important;
+}
+/* 右上角图标组：贴到 720 版心的右边缘，不再撑成白盒 */
+body.atelier #workbench #workbench-result .canvas-actions{
+  display:flex !important; align-items:center !important;
+  gap:0 !important; padding:2px 0 0 !important;
+  margin-left:auto !important; flex:0 0 auto !important;
+  background:none !important; border:0 !important;
+}
+body.atelier #workbench #workbench-result .canvas-actions .icon-action{
+  width:26px !important; height:26px !important; min-height:0 !important;
+  border:0 !important; border-radius:5px !important;
+  background:transparent !important; box-shadow:none !important;
+  color:var(--fp-ink4) !important;
+}
+body.atelier #workbench #workbench-result .canvas-actions .icon-action:hover:not(:disabled){
+  background:var(--fp-hair2) !important; color:var(--fp-ink) !important;
+}
+body.atelier #workbench #workbench-result .canvas-actions .icon-action:disabled{
+  opacity:.28 !important;
+}
+body.atelier #workbench #workbench-result .canvas-actions .icon-action svg{
+  width:15px !important; height:15px !important; stroke-width:1.6 !important;
+}
+/* 阶段行（01/05 大纲 + 右侧按钮）也收进同一条版心 */
+body.atelier #workbench #workbench-result .workbench-stage-head{
+  padding:0 0 12px !important;
+  border-bottom:1px solid var(--fp-hair) !important;
+  margin-bottom:0 !important;
+}
+/* 编辑器容器：与头部同一左边缘，内容不再二次居中 */
+body.atelier #workbench #workbench-result .editor-wrap{
+  padding:0 !important;
+  margin:16px auto 0 !important;
+  max-width:720px !important;
+  overflow:visible !important;
+  background:none !important;
+  border:0 !important;
+}
+body.atelier #workbench #workbench-result .editor-wrap[hidden]{ display:none !important; }
+body.atelier #workbench #workbench-result .editor-head,
+body.atelier #workbench #workbench-result .selection-actions,
+body.atelier #workbench #workbench-result .folio-doc{
+  max-width:100% !important;
+  margin-left:0 !important; margin-right:0 !important;
+}
+body.atelier #workbench #workbench-result #workbench-html-preview{
+  max-width:720px !important; width:100% !important;
+  margin:8px auto 0 !important;
+}
+
+/* =========================================================
+   14 分阶段专项：大纲骨架 / 复核报告 / 排版预览
+   ========================================================= */
+/* 大纲骨架（workbench-studio.js 生成的 <ol>）：doc 层有内容时它只是重复，收起 */
+body.atelier #workbench .studio-framework{
+  padding:2px 0 18px !important;
+  border:0 !important; background:none !important;
+}
+body.atelier #workbench[data-folio-doc="1"] .studio-framework{ display:none !important; }
+body.atelier #workbench .studio-framework h3{
+  font-family:var(--fp-serif) !important; font-size:17.5px !important; font-weight:600 !important;
+  line-height:1.6 !important; color:var(--fp-ink) !important;
+  margin:0 0 16px !important; letter-spacing:-.01em !important;
+}
+body.atelier #workbench .studio-framework ol{
+  list-style:none !important; margin:0 !important; padding:0 !important;
+  counter-reset:fw !important;
+}
+body.atelier #workbench .studio-framework li{
+  position:relative !important;
+  padding:0 0 0 34px !important;
+  margin:0 0 14px !important;
+  counter-increment:fw !important;
+  font-family:var(--fp-serif) !important; font-size:15.5px !important;
+  line-height:1.95 !important; color:var(--fp-ink2) !important;
+}
+body.atelier #workbench .studio-framework li::before{
+  content:counter(fw, decimal-leading-zero) !important;
+  position:absolute !important; left:0 !important; top:3px !important;
+  font-family:var(--fp-mono) !important; font-size:11px !important;
+  color:var(--fp-ink4) !important; letter-spacing:.04em !important;
+}
+/* 去 AI 阶段的复核报告：<details><pre> 原本是白盒 + 等宽小字 */
+body.atelier #workbench #studio-stage-output details{
+  margin:18px 0 4px !important;
+  border:0 !important; border-top:1px solid var(--fp-hair2) !important;
+  border-radius:0 !important; background:none !important;
+  padding:0 !important;
+}
+body.atelier #workbench #studio-stage-output summary{
+  list-style:none !important; cursor:pointer !important;
+  padding:12px 0 10px !important;
+  font-family:var(--fp-mono) !important; font-size:11px !important;
+  letter-spacing:.1em !important; color:var(--fp-ink3) !important;
+}
+body.atelier #workbench #studio-stage-output summary::-webkit-details-marker{ display:none !important; }
+body.atelier #workbench #studio-stage-output summary:hover{ color:var(--fp-ink) !important; }
+body.atelier #workbench #studio-stage-output summary::after{
+  content:"＋" !important; margin-left:8px !important; color:var(--fp-ink4) !important;
+}
+body.atelier #workbench #studio-stage-output details[open] summary::after{ content:"－" !important; }
+body.atelier #workbench #studio-stage-output details pre{
+  margin:0 0 8px !important;
+  padding:16px 18px !important;
+  background:var(--fp-hair2) !important;
+  border:0 !important; border-radius:6px !important;
+  font-family:var(--fp-mono) !important;
+  font-size:11.5px !important; line-height:1.75 !important;
+  color:var(--fp-ink2) !important;
+  white-space:pre-wrap !important; word-break:break-word !important;
+  max-height:360px !important; overflow:auto !important;
+}
+/* 排版阶段：产物标题行与预览之间的呼吸 */
+body.atelier #workbench[data-folio-doc="1"] #studio-stage-output:empty{ display:none !important; }
+/* 页脚与评分报告同样收进版心 */
+body.atelier #workbench #workbench-result .article-canvas-foot{
+  padding:16px 0 22px !important; margin:0 auto !important;
+  border-top:1px solid var(--fp-hair2) !important;
+  font-family:var(--fp-mono) !important; font-size:10.5px !important;
+  letter-spacing:.06em !important; color:var(--fp-ink4) !important;
+  display:flex !important; align-items:center !important; justify-content:space-between !important;
+}
+body.atelier #workbench #workbench-result .score-report{
+  padding:18px 0 !important; border:0 !important; background:none !important;
 }
