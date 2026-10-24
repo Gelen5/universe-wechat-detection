@@ -113,6 +113,24 @@
     return true;
   }
 
+  /* 选题阶段收起空态占位：
+     atelier.css 用 `#workbench-result:not(:has(#studio-stage-output > *))`
+     强行把「作品会在这里出现」显示出来（3 个 ID 权重），CSS 层压不过，
+     这里用内联 !important 处理（内联 !important 优先级最高）。 */
+  var PICK_HIDE = ['.article-canvas-head', '.version-strip', '.editor-wrap', '#workbench-decision'];
+  var pickState = null;
+
+  function setPick(on) {
+    if (pickState === on) return;
+    pickState = on;
+    PICK_HIDE.forEach(function (sel) {
+      Array.prototype.forEach.call(document.querySelectorAll('#workbench ' + sel), function (el) {
+        if (on) el.style.setProperty('display', 'none', 'important');
+        else el.style.removeProperty('display');
+      });
+    });
+  }
+
   function sync() {
     if (!wb || !landing) return;
     var empty = isEmpty();
@@ -124,6 +142,14 @@
       wb.removeAttribute('data-folio-empty');
       landing.style.display = 'none';
     }
+    // 选题已出、还没有作品：收起右栏的空态标题与空编辑器，让选题板直接顶上
+    var hasTopics = !!document.querySelector('#workbench .topic-row');
+    var t = document.getElementById('result-title');
+    var noArtifact = !t || /作品会在这里出现/.test(t.textContent || '');
+    var pick = hasTopics && noArtifact;
+    if (pick) wb.setAttribute('data-folio-pick', '1');
+    else wb.removeAttribute('data-folio-pick');
+    setPick(pick);
   }
 
   /* 发送：把 landing 输入桥接到真实表单 #workbench-topic + #start-workbench */
