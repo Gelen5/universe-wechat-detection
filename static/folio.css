@@ -521,7 +521,7 @@ body.atelier #workbench .fl-ask textarea{
   display:block;width:100%;min-height:96px;background:none !important;
   border:0 !important;border-bottom:1px solid var(--fp-ink4) !important;
   border-radius:0 !important;box-shadow:none !important;
-  outline:none !important;
+  outline:none !important;resize:none !important;
   font-family:var(--fp-serif);font-size:clamp(18px, 1.4vw, 22px);line-height:1.75;color:var(--fp-ink);padding:0 0 14px;
 }
 body.atelier #workbench .fl-ask textarea::placeholder{ color:var(--fp-ink4); }
