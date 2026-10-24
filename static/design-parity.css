@@ -1,0 +1,1288 @@
+/*
+ * design-parity.css — 与设计稿对齐的布局骨架层
+ * ────────────────────────────────────────────────────────────────
+ * 定位：这是全站唯一有权决定「内容列宽 / 栏比例 / 面片圆角 / 页头语法」的地方。
+ *       以后加新页面、新模块，先读本文件，直接引用这里的 --pd-* 令牌。
+ *
+ * 为什么需要这一层，而不是去改 atelier.css / workbench-v2.css：
+ *   那两套文件里同一个选择器被 !important 覆盖过 3~5 轮，
+ *   再往里面加规则只会让后人分不清哪条生效。这里另起一层，
+ *   用 #id 级权重一次性定死，并保持每条规则都可以被「后加载」覆盖。
+ *
+ * 设计稿口径（1440 画布，1:1 不缩放）：
+ *   侧栏 232~248px，圆角 20px
+ *   内容列 1120px，左右 22px 内边距
+ *   页头：面包屑 11px → 标题 26px 宋体 → 副标题 12.5px
+ *   面片：圆角 16px，头部内边距 13px 16px，发丝线 rgba(15,45,32,.05)
+ *   两栏比例：主区 1fr + 副区 396px，间距 14px
+ * ────────────────────────────────────────────────────────────────
+ */
+
+/* =========================================================
+   00 令牌 —— 取自设计稿
+   ========================================================= */
+body.atelier {
+  /* 墨阶：设计稿比线上更冷更沉，正文对比度更高 */
+  --ink-1: #0E1512;
+  --ink-2: #33403A;
+  --ink-3: #57655F;
+  --ink-4: #7C8B85;
+
+  /* 发丝线：设计稿用墨绿透明白，不用纯黑透明，边界才不脏 */
+  --hairline: rgba(15, 45, 32, .085);
+  --hairline-soft: rgba(15, 45, 32, .05);
+  --pd-hair: rgba(15, 45, 32, .085);
+  --pd-hair-2: rgba(15, 45, 32, .05);
+
+  /* 品牌绿：设计稿的森林绿，比线上的 #3E8D6B 深，字号小时更清楚 */
+  --g-500: #1B7A58;
+  --g-600: #14684A;
+  --g-700: #0F5132;
+  --g-900: #0A3B26;
+  --g-300: #A6DCC1;
+  --g-200: #C9E9DA;
+  --g-100: #E2F3EA;
+  --g-50: #F3FAF6;
+
+  /* 尺寸令牌 */
+  --pd-col: 1120px;       /* 统一内容列宽 */
+  --pd-pad: 22px;         /* 内容列左右内边距 */
+  --pd-r-panel: 16px;     /* 面片圆角 */
+  --pd-r-card: 12px;
+  --pd-r-chip: 999px;
+  --pd-gap: 14px;
+  --pd-rail: 396px;       /* 副区宽度（设计稿 396） */
+}
+
+/* =========================================================
+   01 内容列对齐 —— 所有页面共用同一列
+   ---------------------------------------------------------
+   改之前每页的列宽都不一样：首页 946、工作台 1136、技能页 1120、
+   书架 1049。切换 tab 时内容左右边界会跳，这是「不协调」最直接的来源。
+   ========================================================= */
+body.atelier .app-shell > :is(section, main) {
+  padding-left: var(--pd-pad) !important;
+  padding-right: var(--pd-pad) !important;
+  box-sizing: border-box !important;
+}
+
+/* 工作台自己有 padding 规则（#workbench.workbench-page），权重更高，单独覆盖 */
+body.atelier #workbench.workbench-page {
+  padding: 14px var(--pd-pad) 0 !important;
+}
+
+/* 首页同理 */
+body.atelier #home.home-page {
+  padding: 20px var(--pd-pad) 0 !important;
+}
+
+/* 每页的内层容器都收进同一列宽，并水平居中 */
+body.atelier #home .hv-body,
+body.atelier #workbench .studio-heading,
+body.atelier #workbench #workbench-stage-nav,
+body.atelier #workbench .conversation-workbench-layout,
+body.atelier #xiaohongshu .tool-heading,
+body.atelier #xiaohongshu .skill-shell,
+body.atelier #tie-tu .tool-heading,
+body.atelier #tie-tu .skill-shell,
+body.atelier #hit-detector .tool-heading,
+body.atelier #hit-detector .skill-shell,
+body.atelier #diagnose .diagnose-shell,
+body.atelier #morning-generator .morning-shell,
+body.atelier #library-main .library-main > *,
+body.atelier #library-main #library-shelf {
+  width: 100% !important;
+  max-width: var(--pd-col) !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  box-sizing: border-box !important;
+}
+
+/* 工作台原本用 14px 内边距，统一到 22px */
+body.atelier #workbench .studio-heading,
+body.atelier #workbench #workbench-stage-nav,
+body.atelier #workbench .conversation-workbench-layout {
+  width: 100% !important;
+  max-width: var(--pd-col) !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* =========================================================
+   02 页头语法 —— 面包屑 / 26px 标题 / 12.5px 副标题
+   ========================================================= */
+body.atelier #home .hv-body,
+body.atelier #workbench .studio-heading,
+body.atelier #xiaohongshu .tool-heading,
+body.atelier #tie-tu .tool-heading,
+body.atelier #hit-detector .tool-heading {
+  position: relative;
+}
+
+/* 面包屑：用 ::before 生成，零 DOM 侵入 */
+body.atelier #workbench .studio-heading::before,
+body.atelier #xiaohongshu .tool-heading::before,
+body.atelier #tie-tu .tool-heading::before,
+body.atelier #hit-detector .tool-heading::before,
+body.atelier #home .hv-body::before {
+  display: block;
+  font-family: var(--sans);
+  font-size: 11px;
+  letter-spacing: .02em;
+  color: var(--ink-4);
+  margin-bottom: 9px;
+  font-weight: 400;
+}
+body.atelier #workbench .studio-heading::before { content: "内容创作  /  公众号创作"; }
+body.atelier #xiaohongshu .tool-heading::before  { content: "内容创作  /  小红书"; }
+body.atelier #tie-tu .tool-heading::before       { content: "内容创作  /  贴图号"; }
+body.atelier #hit-detector .tool-heading::before { content: "分析  /  发布前复核"; }
+body.atelier #home .hv-body::before              { content: "首页"; margin-bottom: 14px; grid-column: 1 / -1; }
+
+/* 标题统一 26px 宋体，副标题 12.5px */
+body.atelier #workbench .studio-heading h1,
+body.atelier #xiaohongshu .tool-heading h1,
+body.atelier #tie-tu .tool-heading h1,
+body.atelier #hit-detector .tool-heading h1 {
+  font-size: 26px !important;
+  line-height: 1.16 !important;
+  font-weight: 600 !important;
+  letter-spacing: -.03em !important;
+  margin: 0 0 6px !important;
+}
+
+body.atelier #workbench .studio-heading p,
+body.atelier #xiaohongshu .tool-heading p,
+body.atelier #tie-tu .tool-heading p,
+body.atelier #hit-detector .tool-heading p {
+  font-size: 12.5px !important;
+  line-height: 1.6 !important;
+  color: var(--ink-3) !important;
+  letter-spacing: -.004em !important;
+  margin: 0 !important;
+  max-width: 62ch;
+}
+
+/* 页头整体节奏：上 20px，下 14px */
+body.atelier #workbench .studio-heading {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  column-gap: 20px !important;
+  align-items: end !important;
+}
+
+body.atelier #workbench .studio-heading::before {
+  grid-column: 1 / -1;
+}
+
+body.atelier #workbench .studio-heading > div:first-of-type {
+  grid-column: 1;
+  min-width: 0;
+}
+
+/* 页头右侧：积分胶囊 + 新对话 */
+body.atelier .pd-pageact {
+  grid-column: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 1px;
+}
+
+body.atelier .pd-pill {
+  height: 30px;
+  padding: 0 11px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--g-700);
+  background: rgba(255, 255, 255, .66);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .85), 0 2px 6px -4px rgba(10, 40, 26, .3);
+  white-space: nowrap;
+}
+
+body.atelier #new-workbench-chat.pd-ghost {
+  height: 30px !important;
+  padding: 0 12px !important;
+  border-radius: 8px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  color: var(--ink-2) !important;
+  background: rgba(255, 255, 255, .6) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .9), 0 2px 6px -4px rgba(10, 40, 26, .26) !important;
+  border: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  min-height: 0 !important;
+  white-space: nowrap;
+}
+
+body.atelier #workbench .studio-heading,
+body.atelier #xiaohongshu .tool-heading,
+body.atelier #tie-tu .tool-heading,
+body.atelier #hit-detector .tool-heading {
+  padding: 20px 0 0 !important;
+  margin-bottom: 14px !important;
+  border: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+  height: auto !important;
+}
+
+/* 旧的 eyebrow / kicker 已被面包屑取代 */
+body.atelier #xiaohongshu .micro-label,
+body.atelier #tie-tu .micro-label,
+body.atelier #hit-detector .micro-label,
+body.atelier #morning-generator .kicker {
+  display: none !important;
+}
+
+/* =========================================================
+   03 面片统一 —— 圆角 16 / 头部 13px / 发丝线
+   ========================================================= */
+body.atelier #workbench .conversation-panel,
+body.atelier #workbench .article-canvas,
+body.atelier #xiaohongshu .skill-form-col,
+body.atelier #xiaohongshu .skill-output-col,
+body.atelier #tie-tu .skill-form-col,
+body.atelier #tie-tu .skill-output-col,
+body.atelier #hit-detector .skill-form-col,
+body.atelier #hit-detector .skill-output-col,
+body.atelier .hv-hero,
+body.atelier .hv-card {
+  border-radius: var(--pd-r-panel) !important;
+}
+
+/* =========================================================
+   04 工作台 —— 两栏 1fr / 396，去掉第三栏
+   ---------------------------------------------------------
+   线上是三栏 220 / 428 / 460，三个数字互相都不成比例，
+   助手区被挤到中间最窄的位置——这是最难看的地方。
+   设计稿是两栏：助手 1fr + 产物 396。
+   「本轮成果」（当前文章结构 + 版本记录）在设计稿里没有独立栏位，
+   它的信息在产物栏的版本条和页脚里已经有了，这里隐藏但保留 DOM。
+   ========================================================= */
+body.atelier #workbench.workbench-page .conversation-workbench-layout {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) var(--pd-rail) !important;
+  grid-template-rows: minmax(0, 1fr) !important;
+  gap: var(--pd-gap) !important;
+  align-items: stretch !important;
+  height: clamp(540px, calc(100dvh - 272px), 840px) !important;
+  min-height: 0 !important;
+}
+
+/* 定位必须用 ID 级权重：workbench-v2.css 里写的是
+     body.atelier #workbench #creation-assistant { grid-column: 2 }
+     body.atelier #workbench #workbench-result    { grid-column: 3 }
+   两条都是 (2,1,1)，用类选择器（1,2,1）压不住 —— ID 数量优先于类数量。
+   这里加 .workbench-page 提到 (2,2,1)，才真正生效。 */
+body.atelier #workbench.workbench-page #studio-details {
+  display: none !important;
+}
+
+body.atelier #workbench.workbench-page #creation-assistant {
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+  border: 1px solid rgba(255, 255, 255, .72) !important;
+  overflow: hidden !important;
+}
+
+body.atelier #workbench.workbench-page #workbench-result {
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+  padding: 0 !important;
+  border: 1px solid rgba(255, 255, 255, .72) !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* ---------- 阶段条：设计稿是「圆点 + 文字 + 细线」，不是卡片 ---------- */
+body.atelier #workbench #workbench-stage-nav {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0 !important;
+  padding: 0 0 14px !important;
+  margin-bottom: 0 !important;
+  border-bottom: 1px solid var(--pd-hair) !important;
+  background: none !important;
+  box-shadow: none !important;
+}
+
+body.atelier #workbench #workbench-stage-nav button {
+  display: flex !important;
+  align-items: center !important;
+  gap: 7px !important;
+  flex: none !important;
+  height: 22px !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+  color: var(--ink-4) !important;
+}
+
+/* 步骤之间的连接线 */
+body.atelier #workbench #workbench-stage-nav button:not(:last-child)::after {
+  content: "";
+  width: 26px;
+  height: 1px;
+  margin: 0 9px 0 16px;
+  background: var(--pd-hair);
+  flex: none;
+}
+
+body.atelier #workbench #workbench-stage-nav button > span {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 7px !important;
+  overflow: visible !important;
+  width: auto !important;
+  height: auto !important;
+  max-width: none !important;
+  font-size: 12px !important;
+  font-weight: inherit !important;
+  text-overflow: clip !important;
+}
+
+/* 圆点里的序号（DOM 由 design-parity.js 拆出来） */
+body.atelier #workbench #workbench-stage-nav .pd-step-d {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-family: var(--sans);
+  font-size: 9.5px;
+  font-weight: 600;
+  font-style: normal;
+  color: var(--ink-4);
+  box-shadow: inset 0 0 0 1px var(--pd-hair);
+  flex: none;
+  letter-spacing: 0;
+}
+
+body.atelier #workbench #workbench-stage-nav .pd-step-t {
+  font-family: var(--sans);
+  font-size: 12px;
+  font-style: normal;
+  letter-spacing: -.004em;
+  white-space: nowrap;
+}
+
+/* 已完成的步骤 / 当前步骤 */
+body.atelier #workbench #workbench-stage-nav button[data-done="1"] .pd-step-d {
+  background: var(--g-200);
+  box-shadow: none;
+  color: var(--g-700);
+}
+body.atelier #workbench #workbench-stage-nav button[data-done="1"] .pd-step-t {
+  color: var(--ink-3);
+}
+body.atelier #workbench #workbench-stage-nav button[aria-current="true"] .pd-step-d,
+body.atelier #workbench #workbench-stage-nav button[data-current="1"] .pd-step-d {
+  background: linear-gradient(158deg, #1B7A58, #0F5132);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .3);
+  color: #fff;
+}
+body.atelier #workbench #workbench-stage-nav button[aria-current="true"] .pd-step-t,
+body.atelier #workbench #workbench-stage-nav button[data-current="1"] .pd-step-t {
+  color: var(--g-700);
+  font-weight: 600;
+}
+
+/* 设计稿阶段条不带副标签，隐藏 */
+body.atelier #workbench #workbench-stage-nav button small {
+  display: none !important;
+}
+
+/* ---------- STEP 说明行（由 JS 插入 .pd-phline） ---------- */
+body.atelier #workbench .pd-phline {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 0 0;
+  margin-bottom: 14px;
+}
+body.atelier #workbench .pd-phline .pd-mk {
+  width: 2px;
+  height: 22px;
+  border-radius: 2px;
+  flex: none;
+  background: linear-gradient(180deg, var(--g-300), var(--g-600));
+}
+body.atelier #workbench .pd-phline .pd-k {
+  font-family: var(--sans);
+  font-size: 9.5px;
+  color: var(--g-600);
+  letter-spacing: .09em;
+  font-weight: 500;
+}
+body.atelier #workbench .pd-phline .pd-v {
+  font-size: 12px;
+  color: var(--ink-2);
+  letter-spacing: -.004em;
+  margin-top: 2px;
+}
+body.atelier #workbench .pd-phline .pd-v b {
+  font-weight: 600;
+  color: var(--ink-1);
+}
+
+/* ---------- 助手面板头 ---------- */
+body.atelier #workbench .conversation-panel-head {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 13px 16px !important;
+  border-bottom: 1px solid var(--pd-hair-2) !important;
+  background: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  height: auto !important;
+}
+
+body.atelier #workbench .conversation-identity {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  min-width: 0 !important;
+}
+
+body.atelier #workbench .assistant-mark {
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 8px !important;
+  flex: none !important;
+  display: grid !important;
+  place-items: center !important;
+  color: var(--g-700) !important;
+  background: rgba(201, 233, 218, .55) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .85) !important;
+}
+
+body.atelier #workbench .conversation-identity strong {
+  font-family: var(--serif) !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  letter-spacing: -.012em !important;
+  color: var(--ink-1) !important;
+  display: block !important;
+  line-height: 1.3 !important;
+}
+
+body.atelier #workbench .conversation-identity small {
+  font-size: 11px !important;
+  color: var(--ink-4) !important;
+  letter-spacing: .005em !important;
+  display: block !important;
+  margin-top: 2px !important;
+  line-height: 1.3 !important;
+}
+
+body.atelier #workbench .conversation-panel-tools {
+  margin-left: auto !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+body.atelier #workbench .work-status {
+  font-size: 10.5px !important;
+  color: var(--ink-4) !important;
+  letter-spacing: .01em !important;
+}
+
+body.atelier #workbench .new-chat-button {
+  height: 26px !important;
+  min-height: 0 !important;
+  padding: 0 9px !important;
+  border-radius: 7px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  font-size: 11px !important;
+  color: var(--ink-3) !important;
+  background: rgba(255, 255, 255, .45) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .85) !important;
+  border: 0 !important;
+}
+
+/* ---------- 对话区 ---------- */
+body.atelier #workbench .chat-thread {
+  padding: 22px 20px 8px !important;
+  gap: 18px !important;
+  border: 0 !important;
+  background: none !important;
+}
+
+body.atelier #workbench .chat-thread {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+}
+body.atelier #workbench .chat-thread:has(article:nth-of-type(3)) {
+  justify-content: flex-start !important;
+}
+
+body.atelier #workbench .chat-thread .chat-message.from-ai p {
+  font-size: 13px !important;
+  line-height: 1.75 !important;
+  color: var(--ink-2) !important;
+  letter-spacing: -.003em !important;
+  max-width: 52ch;
+}
+
+body.atelier #workbench .chat-message.from-ai > span {
+  font-size: 10.5px !important;
+  color: var(--ink-4) !important;
+  letter-spacing: .02em !important;
+  margin-bottom: 6px !important;
+  display: block;
+}
+
+/* 「先告诉我你想写什么」卡片 → 设计稿是一段话 + 一排 chip，不是卡片 */
+body.atelier #workbench .chat-action-card {
+  background: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+body.atelier #workbench .chat-action-card strong {
+  font-family: var(--serif) !important;
+  font-size: 13.5px !important;
+  font-weight: 600 !important;
+  letter-spacing: -.012em !important;
+  color: var(--ink-1) !important;
+  display: block;
+  margin-bottom: 4px;
+}
+body.atelier #workbench .chat-action-card p {
+  font-size: 13px !important;
+  line-height: 1.75 !important;
+  color: var(--ink-2) !important;
+  max-width: 52ch;
+}
+
+/* 方向 chip */
+body.atelier #workbench .chat-choice-list,
+body.atelier #workbench .workbench-stage-choices {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 6px !important;
+  margin-top: 13px !important;
+  height: auto !important;
+}
+body.atelier #workbench .chat-choice-list button,
+body.atelier #workbench .chat-choice-list .chip,
+body.atelier #workbench .workbench-stage-choices button {
+  height: 27px !important;
+  min-height: 0 !important;
+  padding: 0 11px !important;
+  border-radius: var(--pd-r-chip) !important;
+  font-size: 11.5px !important;
+  color: var(--ink-2) !important;
+  background: rgba(255, 255, 255, .5) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .9) !important;
+  border: 0 !important;
+}
+
+/* ---------- 输入区 ---------- */
+body.atelier #workbench .composer-shell {
+  margin: 0 14px 14px !important;
+  padding: 11px 12px 9px !important;
+  border-radius: 13px !important;
+  background: rgba(255, 255, 255, .72) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .95), 0 6px 20px -14px rgba(10, 40, 26, .4) !important;
+  border: 0 !important;
+  backdrop-filter: none !important;
+}
+body.atelier #workbench .composer-shell:focus-within {
+  box-shadow: inset 0 0 0 1px rgba(166, 220, 193, .95), 0 0 0 3px rgba(20, 104, 74, .08) !important;
+}
+
+body.atelier #workbench .composer-shell > label {
+  font-size: 10px !important;
+  color: var(--ink-4) !important;
+  letter-spacing: .02em !important;
+  margin-bottom: 4px !important;
+  display: block !important;
+}
+
+body.atelier #workbench #workbench-topic {
+  font-size: 12.5px !important;
+  line-height: 1.6 !important;
+  color: var(--ink-1) !important;
+  min-height: 34px !important;
+  border: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+body.atelier #workbench .composer-actions {
+  margin-top: 5px !important;
+  gap: 7px !important;
+  align-items: center !important;
+}
+
+body.atelier #workbench .composer-text-action {
+  height: 26px !important;
+  min-height: 0 !important;
+  padding: 0 9px !important;
+  border-radius: 6px !important;
+  font-size: 11px !important;
+  color: var(--g-700) !important;
+  background: rgba(201, 233, 218, .5) !important;
+  box-shadow: inset 0 0 0 1px rgba(201, 233, 218, .9) !important;
+  border: 0 !important;
+}
+
+body.atelier #workbench .composer-hint {
+  font-size: 10px !important;
+  color: var(--ink-4) !important;
+  letter-spacing: .02em !important;
+}
+
+body.atelier #workbench .composer-send {
+  width: 28px !important;
+  height: 28px !important;
+  min-height: 0 !important;
+  border-radius: 8px !important;
+  display: grid !important;
+  place-items: center !important;
+  color: #fff !important;
+  background: linear-gradient(158deg, #1F8560, #0D4A2E) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .26), 0 3px 8px -3px rgba(15, 81, 50, .6) !important;
+  border: 0 !important;
+}
+
+/* ---------- 产物栏头 ---------- */
+body.atelier #workbench .workbench-stage-head {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 13px 15px !important;
+  border-bottom: 1px solid var(--pd-hair-2) !important;
+  background: none !important;
+  height: auto !important;
+  margin: 0 !important;
+}
+
+body.atelier #workbench #workbench-stage-kicker {
+  font-family: var(--sans) !important;
+  font-size: 9.5px !important;
+  color: var(--ink-4) !important;
+  letter-spacing: .09em !important;
+  display: block !important;
+  line-height: 1.2 !important;
+}
+
+body.atelier #workbench #workbench-stage-title {
+  font-family: var(--serif) !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  letter-spacing: -.012em !important;
+  margin: 3px 0 0 !important;
+  line-height: 1.2 !important;
+  color: var(--ink-1) !important;
+}
+
+body.atelier #workbench #workbench-stage-next {
+  height: 28px !important;
+  min-height: 0 !important;
+  padding: 0 11px !important;
+  border-radius: 7px !important;
+  font-size: 11.5px !important;
+  font-weight: 600 !important;
+  color: #fff !important;
+  background: linear-gradient(158deg, #1F8560, #0D4A2E) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .22), 0 4px 10px -5px rgba(15, 81, 50, .6) !important;
+  border: 0 !important;
+  margin-left: auto !important;
+}
+
+/* 产物栏内部各块的内边距（因为面板本身 padding:0） */
+body.atelier #workbench .article-canvas-head {
+  padding: 15px 15px 12px !important;
+  border-bottom: 1px solid var(--pd-hair-2) !important;
+  margin: 0 !important;
+  gap: 10px !important;
+}
+body.atelier #workbench #result-title {
+  font-family: var(--serif) !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  letter-spacing: -.012em !important;
+  line-height: 1.4 !important;
+  margin: 0 !important;
+}
+body.atelier #workbench #article-save-state,
+body.atelier #workbench .article-canvas-head p {
+  font-size: 11.5px !important;
+  color: var(--ink-4) !important;
+  line-height: 1.7 !important;
+  margin: 4px 0 0 !important;
+}
+body.atelier #workbench .canvas-actions .icon-action {
+  width: 26px !important;
+  height: 26px !important;
+  min-height: 0 !important;
+  border-radius: 7px !important;
+}
+body.atelier #workbench .version-strip {
+  padding: 8px 15px !important;
+  margin: 0 !important;
+  border-bottom: 1px solid var(--pd-hair-2) !important;
+  background: none !important;
+  font-size: 10.5px !important;
+  color: var(--ink-4) !important;
+  letter-spacing: .01em !important;
+}
+body.atelier #workbench #studio-stage-output {
+  flex: 1 !important;
+  min-height: 0 !important;
+  overflow: auto !important;
+  padding: 0 !important;
+}
+body.atelier #workbench .workbench-stage-choices {
+  padding: 0 15px 12px !important;
+}
+body.atelier #workbench .article-canvas-foot {
+  padding: 10px 15px !important;
+  margin: 0 !important;
+  border-top: 1px solid var(--pd-hair-2) !important;
+  background: none !important;
+  font-size: 10.5px !important;
+  color: var(--ink-4) !important;
+  letter-spacing: .01em !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+}
+
+/* ---------- 空态：设计稿是「图标 + 标题 + 说明 + 三条骨架」居中 ---------- */
+body.atelier #workbench #workbench-result:not(:has(#studio-stage-output > *)) {
+  justify-content: center !important;
+}
+body.atelier #workbench #workbench-result:not(:has(#studio-stage-output > *)) .article-canvas-foot {
+  margin-top: auto !important;
+}
+body.atelier #workbench #workbench-result:not(:has(#studio-stage-output > *)) #studio-stage-output {
+  flex: 0 0 auto !important;
+  overflow: visible !important;
+}
+body.atelier #workbench #workbench-result:not(:has(#studio-stage-output > *)) .article-canvas-head {
+  flex: 0 0 auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  padding: 26px 30px !important;
+  border-bottom: 0 !important;
+}
+body.atelier #workbench #workbench-result:not(:has(#studio-stage-output > *)) .article-canvas-head > div:first-child {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+}
+
+/* 图标 */
+body.atelier #workbench #workbench-result:not(:has(#studio-stage-output > *)) #result-title::before {
+  content: "";
+  display: block;
+  width: 44px;
+  height: 44px;
+  margin: 0 auto 12px;
+  border-radius: 12px;
+  background-color: rgba(255, 255, 255, .6);
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='19' height='19' viewBox='0 0 24 24' fill='none' stroke='%2314684A' stroke-width='1.5' stroke-linecap='round'%3E%3Cpath d='M4 6h16M4 12h10M4 18h7'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .9);
+}
+
+body.atelier #workbench #workbench-result:not(:has(#studio-stage-output > *)) #result-title {
+  font-size: 13.5px !important;
+  letter-spacing: -.014em !important;
+  text-align: center !important;
+}
+body.atelier #workbench #workbench-result:not(:has(#studio-stage-output > *)) #article-save-state,
+body.atelier #workbench #workbench-result:not(:has(#studio-stage-output > *)) .article-canvas-head > div:first-child > p {
+  max-width: 216px;
+  margin: 6px auto 0 !important;
+  font-size: 11.5px !important;
+  line-height: 1.75 !important;
+  text-align: center !important;
+}
+
+/* 三条骨架 */
+body.atelier #workbench #workbench-result:not(:has(#studio-stage-output > *)) #studio-stage-output::before {
+  content: "";
+  display: block;
+  width: 170px;
+  height: 30px;
+  margin: 16px auto 0;
+  background-image:
+    linear-gradient(#000, #000), linear-gradient(#000, #000), linear-gradient(#000, #000);
+  background-size: 100% 6px, 82% 6px, 58% 6px;
+  background-position: center 0, center 12px, center 24px;
+  background-repeat: no-repeat;
+  border-radius: 3px;
+  opacity: .055;
+  background-color: transparent;
+  /* 用 --ink-1 的实色做遮罩效果 */
+  -webkit-mask-image: none;
+}
+
+body.atelier #workbench #workbench-result:not(:has(#studio-stage-output > *)) .version-strip,
+body.atelier #workbench #workbench-result:not(:has(#studio-stage-output > *)) .canvas-actions {
+  display: none !important;
+}
+
+/* =========================================================
+   05 技能页（小红书 / 贴图号 / 发布前复核）
+   ---------------------------------------------------------
+   线上是 384 / 720，中间 34px 空隙，左边表单被压得只剩 336 可用。
+   收到 16px 间距，左栏 360，右栏吃满剩余。
+   ========================================================= */
+body.atelier #xiaohongshu .skill-shell,
+body.atelier #tie-tu .skill-shell,
+body.atelier #hit-detector .skill-shell {
+  display: grid !important;
+  grid-template-columns: 360px minmax(0, 1fr) !important;
+  gap: 16px !important;
+  align-items: start !important;
+  padding: 0 !important;
+  margin-top: 6px !important;
+}
+
+body.atelier #xiaohongshu .skill-form-col,
+body.atelier #tie-tu .skill-form-col,
+body.atelier #hit-detector .skill-form-col {
+  padding: 18px 16px !important;
+  border: 1px solid rgba(255, 255, 255, .72) !important;
+  min-height: 0 !important;
+}
+
+body.atelier #xiaohongshu .skill-output-col,
+body.atelier #tie-tu .skill-output-col,
+body.atelier #hit-detector .skill-output-col {
+  padding: 0 !important;
+  border: 1px solid rgba(255, 255, 255, .72) !important;
+  min-height: 520px !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* 技能页空态：图标 + 标题 + 说明，居中 */
+body.atelier .skill-empty {
+  flex: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  padding: 40px 32px !important;
+  gap: 8px !important;
+  border: 0 !important;
+  background: none !important;
+}
+body.atelier .skill-empty h2 {
+  font-size: 14px !important;
+  letter-spacing: -.014em !important;
+  margin: 0 !important;
+}
+body.atelier .skill-empty p {
+  font-size: 11.5px !important;
+  line-height: 1.75 !important;
+  color: var(--ink-4) !important;
+  max-width: 320px !important;
+  margin: 0 !important;
+}
+
+/* 左栏表单控件统一 */
+body.atelier .skill-form label {
+  font-size: 10.5px !important;
+  color: var(--ink-3) !important;
+  letter-spacing: .01em !important;
+  margin-bottom: 5px !important;
+  display: block !important;
+}
+body.atelier .skill-form textarea,
+body.atelier .skill-form input,
+body.atelier .entry-form input {
+  font-size: 12.5px !important;
+  line-height: 1.65 !important;
+  border-radius: 9px !important;
+  border: 1px solid rgba(15, 45, 32, .1) !important;
+  background: rgba(255, 255, 255, .72) !important;
+  box-shadow: none !important;
+}
+body.atelier .skill-form textarea:focus,
+body.atelier .skill-form input:focus {
+  border-color: rgba(20, 104, 74, .45) !important;
+  box-shadow: 0 0 0 3px rgba(20, 104, 74, .09) !important;
+}
+body.atelier .skill-form .primary-action,
+body.atelier .skill-form .skill-primary,
+body.atelier .entry-form .primary-action {
+  height: 38px !important;
+  min-height: 0 !important;
+  border-radius: 9px !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  color: #fff !important;
+  background: linear-gradient(158deg, #1F8560, #0D4A2E) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .22), 0 4px 10px -5px rgba(15, 81, 50, .55) !important;
+  border: 0 !important;
+}
+body.atelier .skill-form .secondary-action {
+  height: 34px !important;
+  min-height: 0 !important;
+  border-radius: 9px !important;
+  font-size: 12px !important;
+  color: var(--g-700) !important;
+  background: rgba(201, 233, 218, .55) !important;
+  box-shadow: inset 0 0 0 1px rgba(166, 220, 193, .7) !important;
+  border: 0 !important;
+}
+
+/* 「表单模式」折叠条 */
+body.atelier .creator-form-mode summary {
+  font-size: 11px !important;
+  color: var(--ink-3) !important;
+  padding: 8px 0 !important;
+  letter-spacing: .01em !important;
+}
+
+/* =========================================================
+   06 诊断页
+   ========================================================= */
+body.atelier #diagnose .diagnose-shell {
+  display: grid !important;
+  grid-template-columns: 400px minmax(0, 1fr) !important;
+  gap: 16px !important;
+  align-items: start !important;
+  padding: 20px 0 0 !important;
+}
+
+body.atelier #diagnose .v3-hero-l {
+  padding: 22px 20px !important;
+  border: 1px solid rgba(255, 255, 255, .72) !important;
+}
+body.atelier #diagnose .v3-hero-l h1 {
+  font-size: 26px !important;
+  line-height: 1.2 !important;
+  letter-spacing: -.03em !important;
+  margin: 0 0 8px !important;
+}
+body.atelier #diagnose .v3-hero-l .lede {
+  font-size: 12.5px !important;
+  line-height: 1.7 !important;
+  color: var(--ink-3) !important;
+  margin: 0 0 16px !important;
+}
+body.atelier #diagnose .v3-hero-r {
+  padding: 0 !important;
+}
+body.atelier #diagnose .v3-hero-r .frame {
+  border-radius: var(--pd-r-panel) !important;
+}
+
+/* =========================================================
+   07 早安祝福
+   ========================================================= */
+body.atelier #morning-generator .morning-intro {
+  padding: 20px 0 0 !important;
+}
+body.atelier #morning-generator .morning-intro h1 {
+  font-size: 26px !important;
+  letter-spacing: -.03em !important;
+  line-height: 1.16 !important;
+  margin: 0 0 6px !important;
+}
+body.atelier #morning-generator .morning-intro > p {
+  font-size: 12.5px !important;
+  color: var(--ink-3) !important;
+  margin: 0 0 16px !important;
+}
+body.atelier #morning-generator .morning-intro .skill-form {
+  max-width: 720px !important;
+}
+
+/* =========================================================
+   08 首页 —— 木块比例
+   ---------------------------------------------------------
+   线上内容列只有 946px（左右各空 109px），主区 630 : 侧栏 300 = 2.1 : 1，
+   而在 1120 的列宽下，主区应该吃到 780 左右。
+   扩大之后 hero 宽 740，33px 的标题一行放得下（原来 630 宽只能折两行）。
+   ========================================================= */
+body.atelier #home.home-v2 {
+  padding-top: 20px !important;
+}
+
+body.atelier #home .hv-body {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 320px !important;
+  gap: 16px !important;
+  align-items: start !important;
+  padding: 0 !important;
+}
+
+body.atelier #home .hv-main {
+  min-width: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 16px !important;
+}
+
+body.atelier #home .hv-hero {
+  padding: 24px 26px 22px !important;
+}
+
+body.atelier #home .hv-hero h1 {
+  font-size: 32px !important;
+  line-height: 1.24 !important;
+  letter-spacing: -.03em !important;
+  margin: 8px 0 10px !important;
+}
+
+body.atelier #home .hv-date {
+  font-size: 10.5px !important;
+  color: var(--ink-4) !important;
+  letter-spacing: .04em !important;
+  margin: 0 0 10px !important;
+}
+
+body.atelier #home .hv-lede {
+  font-size: 12.5px !important;
+  color: var(--ink-3) !important;
+  margin: 0 0 18px !important;
+}
+
+body.atelier #home .hv-compose {
+  padding: 12px 13px 10px !important;
+  border-radius: 13px !important;
+}
+body.atelier #home .hv-compose textarea {
+  font-size: 13px !important;
+}
+body.atelier #home .hv-go {
+  height: 32px !important;
+  min-height: 0 !important;
+  padding: 0 14px !important;
+  border-radius: 8px !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+}
+
+body.atelier #home .hv-tools {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 12px !important;
+}
+body.atelier #home .hv-tool {
+  padding: 15px 15px 14px !important;
+  min-height: 0 !important;
+}
+body.atelier #home .hv-tool b {
+  font-family: var(--serif) !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  letter-spacing: -.012em !important;
+}
+body.atelier #home .hv-tool p {
+  font-size: 11.5px !important;
+  line-height: 1.6 !important;
+  color: var(--ink-3) !important;
+  margin: 4px 0 0 !important;
+}
+body.atelier #home .hv-tool .meta {
+  font-size: 10px !important;
+  color: var(--ink-4) !important;
+  margin-top: 8px !important;
+}
+
+body.atelier #home .hv-recent {
+  padding: 16px 18px !important;
+}
+body.atelier #home .hv-sec-head h3 {
+  font-family: var(--serif) !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  letter-spacing: -.012em !important;
+}
+
+body.atelier #home .hv-rail {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+}
+body.atelier #home .hv-card {
+  padding: 15px 16px !important;
+}
+body.atelier #home .hv-card h4 {
+  font-family: var(--serif) !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  letter-spacing: -.01em !important;
+  margin: 0 0 8px !important;
+}
+
+/* =========================================================
+   09 侧栏 —— 积分卡 + 用户行（设计稿底部那一块）
+   ========================================================= */
+body.atelier .app-shell > .v3-topbar,
+body.atelier .v3-topbar.shell-nav {
+  border-radius: 20px !important;
+}
+
+body.atelier .v3-topbar > .right,
+body.atelier .v3-topbar.shell-nav > .right {
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 8px !important;
+  padding: 12px 4px 2px !important;
+}
+
+body.atelier .v3-topbar > .right .stat,
+body.atelier .v3-topbar.shell-nav > .right .stat {
+  display: block !important;
+  padding: 11px 12px !important;
+  border-radius: 12px !important;
+  background: rgba(255, 255, 255, .55) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .75) !important;
+  font-size: 10.5px !important;
+  color: var(--ink-3) !important;
+}
+
+body.atelier .v3-topbar > .right .stat b,
+body.atelier .v3-topbar.shell-nav > .right .stat b {
+  display: block !important;
+  font-family: var(--sans) !important;
+  font-size: 16.5px !important;
+  font-weight: 600 !important;
+  letter-spacing: -.022em !important;
+  color: var(--ink-1) !important;
+  margin-top: 4px !important;
+  font-variant-numeric: tabular-nums;
+}
+
+body.atelier .v3-topbar > .right .avatar,
+body.atelier .v3-topbar.shell-nav > .right .avatar {
+  width: 28px !important;
+  height: 28px !important;
+  flex: none !important;
+}
+
+/* =========================================================
+   10 小屏降级
+   ========================================================= */
+@media (max-width: 1180px) {
+  body.atelier #workbench.workbench-page .conversation-workbench-layout {
+    grid-template-columns: minmax(0, 1fr) 340px !important;
+  }
+  body.atelier #home .hv-body {
+    grid-template-columns: minmax(0, 1fr) 280px !important;
+  }
+}
+
+@media (max-width: 1020px) {
+  body.atelier #home .hv-body,
+  body.atelier #diagnose .diagnose-shell,
+  body.atelier #xiaohongshu .skill-shell,
+  body.atelier #tie-tu .skill-shell,
+  body.atelier #hit-detector .skill-shell {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  body.atelier #workbench.workbench-page .conversation-workbench-layout {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: minmax(320px, 1fr) minmax(320px, 1fr) !important;
+    height: auto !important;
+  }
+  body.atelier #workbench.workbench-page #workbench-result {
+    grid-column: 1 !important;
+    grid-row: 2 !important;
+  }
+  body.atelier #home .hv-tools {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+/* 侧栏积分卡：小标签用黑体，数字用 16.5px 半粗，对齐设计稿 */
+body.atelier .v3-topbar > .right .stat .pd-pl,
+body.atelier .v3-topbar.shell-nav > .right .stat .pd-pl {
+  display: block;
+  font-size: 10.5px;
+  color: var(--ink-4);
+  letter-spacing: .02em;
+  font-weight: 400;
+  margin-bottom: 2px;
+}
+
+/* ---------- 诊断页 / 早安祝福 也补上面包屑 ---------- */
+body.atelier #diagnose .v3-hero-l::before,
+body.atelier #morning-generator .morning-intro::before {
+  display: block;
+  font-family: var(--sans);
+  font-size: 11px;
+  letter-spacing: .02em;
+  color: var(--ink-4);
+  margin-bottom: 9px;
+  font-weight: 400;
+}
+body.atelier #diagnose .v3-hero-l::before { content: "分析  /  账号诊断"; }
+body.atelier #morning-generator .morning-intro::before { content: "内容创作  /  早安祝福"; }
+
+/* ---------- 技能页空态：补图标，和产物栏空态同构 ---------- */
+body.atelier .skill-empty::before {
+  content: "";
+  display: block;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 4px;
+  border-radius: 12px;
+  background-color: rgba(255, 255, 255, .6);
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='19' height='19' viewBox='0 0 24 24' fill='none' stroke='%2314684A' stroke-width='1.5' stroke-linecap='round'%3E%3Crect x='3' y='4' width='18' height='16' rx='2'/%3E%3Cpath d='M7 9h10M7 13h7'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .9);
+}
+
+/* 技能页空态标题用宋体，和全站标题一致 */
+body.atelier .skill-empty h2 {
+  font-family: var(--serif) !important;
+}
+
+/* =========================================================
+   11 技能页两栏的边界
+   ---------------------------------------------------------
+   白色描边（rgba(255,255,255,.72)）在浅色背景上等于隐形，
+   两栏会读成一整块白。这里换成墨绿发丝边，边界才立得住。
+   ========================================================= */
+body.atelier #xiaohongshu .skill-form-col,
+body.atelier #xiaohongshu .skill-output-col,
+body.atelier #tie-tu .skill-form-col,
+body.atelier #tie-tu .skill-output-col,
+body.atelier #hit-detector .skill-form-col,
+body.atelier #hit-detector .skill-output-col {
+  border-color: rgba(15, 45, 32, .075) !important;
+  border-left-width: 1px !important;
+  border-top-width: 1px !important;
+}
+
+/* 诊断页左卡同理 */
+body.atelier #diagnose .v3-hero-l {
+  border-color: rgba(15, 45, 32, .075) !important;
+}
