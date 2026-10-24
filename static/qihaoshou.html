@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>公众号一键成文 · 宇宙创作台</title>
-    <link rel="stylesheet" href="/static/qihaoshou.css?v=20261023-embedded" />
+    <link rel="stylesheet" href="/static/qihaoshou.css?v=20261024-panel" />
 <link rel="stylesheet" href="/static/tokens.css" />
 <link rel="stylesheet" href="/static/theme-glass.css?v=20261024-shell-1" />
 <link rel="stylesheet" href="/static/qihaoshou-v2.css?v=20261024-shell-1" />
@@ -68,6 +68,7 @@
     </div>
     <main id="q-studio" class="studio" hidden>
       <aside class="settings panel">
+        <div class="settings-content">
         <div class="panel-title">
           <span class="eyebrow">01 / 创作设定</span>
           <h2>这次，想写什么？</h2>
@@ -99,9 +100,45 @@
             </select></label
           >
         </div>
-        <label>排版主题<select id="q-theme"></select></label
-        ><button id="q-layout" type="button">将主题应用到正文</button>
-        <details>
+        <div id="q-style-buttons" class="style-choices" aria-label="写作风格"></div>
+        <p id="q-style-description" class="hint"></p>
+        <label>排版主题<select id="q-theme"></select></label>
+        <button id="q-theme-preview" type="button">预览主题</button>
+        <button id="q-layout" type="button">将主题应用到正文</button>
+        <div class="selection-panel">
+          <div class="selection-tabs" role="tablist" aria-label="选题方式">
+            <button type="button" role="tab" id="q-tab-ai" data-mode="ai" aria-controls="q-panel-ai" aria-selected="false">AI 选题</button>
+            <button type="button" role="tab" id="q-tab-hot" data-mode="hot" aria-controls="q-panel-hot" aria-selected="false">实时热点</button>
+            <button type="button" role="tab" id="q-tab-custom" data-mode="custom" aria-controls="q-panel-custom" aria-selected="true">自定义</button>
+            <button type="button" role="tab" id="q-tab-rewrite" data-mode="rewrite" aria-controls="q-panel-rewrite" aria-selected="false">文章仿写</button>
+          </div>
+          <input id="q-mode" type="hidden" value="custom">
+          <textarea id="q-source_notes" hidden></textarea>
+          <div id="q-panel-ai" role="tabpanel" aria-labelledby="q-tab-ai" hidden>
+            <label>选题方向<input id="q-topic-direction" maxlength="300" placeholder="例如：AI工具如何帮助普通创作者"></label>
+            <label class="checkbox-label"><input id="q-topic-research" type="checkbox" checked>结合公开检索线索</label>
+            <button id="q-topics-refresh" type="button">生成选题 · 3积分</button>
+            <p id="q-topics-notice" class="hint" role="status">生成后可选择一项用于写作。</p>
+            <div id="q-topic-cards" class="topic-cards"></div>
+          </div>
+          <div id="q-panel-hot" role="tabpanel" aria-labelledby="q-tab-hot" hidden>
+            <label>资讯分类<select id="q-hot-category"><option>综合</option><option>科技</option><option>职场</option><option>生活</option><option>教育</option><option>财经</option></select></label>
+            <label>关注方向<input id="q-hot-direction" maxlength="300" placeholder="例如：人工智能、职场、家庭教育"></label>
+            <button id="q-hot-refresh" type="button">刷新近期资讯 · 免费</button>
+            <p id="q-hot-notice" class="hint" role="status">显示近72小时有时间标记的公开资讯，不是平台热搜榜。</p>
+            <div id="q-hot-cards" class="topic-cards"></div>
+          </div>
+          <div id="q-panel-custom" role="tabpanel" aria-labelledby="q-tab-custom">
+            <p class="hint">在上方填写文章主题，再补充角度与大纲。</p>
+          </div>
+          <div id="q-panel-rewrite" role="tabpanel" aria-labelledby="q-tab-rewrite" hidden>
+            <p class="hint">在下方填写参考链接或粘贴原文，再填写你的文章主题。借鉴议题与结构，重新组织表达。</p>
+          </div>
+          <label>切入角度<input id="q-angle" maxlength="1000" placeholder="这篇文章具体想回答什么？"></label>
+          <label>建议大纲<textarea id="q-outline" rows="3" maxlength="3000" placeholder="可选：按顺序写下要讲的几个要点"></textarea></label>
+          <p id="q-selection-note" class="hint" role="status"></p>
+        </div>
+        <details id="q-reference-details">
           <summary>参考文章与写作要求</summary>
           <label
             >参考文章链接<input
@@ -126,8 +163,11 @@
         </details>
         <div id="q-provider" class="capabilities"></div>
         <p id="q-cost" class="hint"></p>
+        </div>
+        <div class="settings-actions">
         <button id="q-generate" class="primary" type="button">开始写作</button
         ><button id="q-stop" type="button" hidden>停止生成，保留原稿</button>
+        </div>
       </aside>
       <section class="conversation panel">
         <div class="panel-title">
@@ -225,6 +265,11 @@
         </footer>
       </section>
     </main>
-    <script type="module" src="/static/qihaoshou.js?v=1"></script>
+    <dialog id="q-preview-dialog" aria-labelledby="q-preview-title">
+      <div class="preview-heading"><h2 id="q-preview-title">排版主题预览</h2><button id="q-preview-close" type="button">关闭预览</button></div>
+      <iframe id="q-theme-preview-frame" sandbox="" title="排版主题预览"></iframe>
+      <p class="hint">预览使用示例正文。点击“将主题应用到正文”才会更新文章排版。</p>
+    </dialog>
+    <script type="module" src="/static/qihaoshou.js?v=20261024-panel"></script>
   </body>
 </html>

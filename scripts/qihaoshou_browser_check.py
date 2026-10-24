@@ -34,6 +34,7 @@ with sync_playwright() as p:
  before=page.request.get('http://127.0.0.1:8894/api/wallet').json()['wallet']['balance']
  prior=editor.locator('body').inner_html()
  page.locator('#q-generate').click()
+ expect(page.locator('#q-stop')).to_be_visible(timeout=15000)
  expect(page.locator('#q-stream')).to_contain_text('从一段记录',timeout=15000)
  page.locator('#q-stop').click()
  expect(page.locator('#q-status')).to_contain_text('停止请求已发送',timeout=10000)

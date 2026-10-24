@@ -401,3 +401,32 @@ summary {
 
 body.embedded .studio-header .back { display: none; }
 body.embedded .studio-header { position: static; }
+/* Selection tools reuse the studio palette and remain readable in embedded mode. */
+.style-choices {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:8px 0;}
+.style-choices button {padding:7px 4px;font-size:12px;min-height:40px;}
+.style-choices button[aria-pressed="true"],.selection-tabs button[aria-selected="true"] {background:#16654f;color:#fff;border-color:#16654f;}
+.selection-panel {border-top:1px solid var(--line,#dce8e0);margin-top:16px;padding-top:16px;}
+.selection-tabs {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;margin-bottom:12px;}
+.selection-tabs button {padding:7px 2px;font-size:12px;min-width:0;}
+.checkbox-label {display:flex;align-items:center;gap:8px;}
+.checkbox-label input {width:auto;min-height:20px;}
+.topic-cards {display:grid;gap:10px;max-height:440px;overflow:auto;margin:10px 0;}
+.topic-card {border:1px solid var(--line,#dce8e0);border-radius:10px;padding:12px;background:#fff;}
+.topic-card.selected {border:2px solid #16654f;}
+.topic-card h4 {margin:0 0 8px;font-size:14px;line-height:1.6;}
+.topic-card p {font-size:12px;white-space:pre-line;color:#47594f;overflow-wrap:anywhere;}
+.topic-card a {display:block;font-size:12px;margin:6px 0;color:#16654f;overflow-wrap:anywhere;}
+.topic-card button {width:100%;margin-top:8px;}
+#q-preview-dialog {width:min(720px,94vw);max-height:90dvh;border:1px solid #dce8e0;border-radius:16px;padding:20px;}
+#q-preview-dialog::backdrop {background:rgb(12 30 22 / 45%);}
+.preview-heading {display:flex;justify-content:space-between;gap:12px;align-items:center;}
+#q-theme-preview-frame {display:block;width:100%;height:60dvh;border:1px solid #dce8e0;background:white;}
+button:focus-visible,[role="tab"]:focus-visible {outline:3px solid #328766;outline-offset:2px;}
+body.atelier.qihaoshou .studio .checkbox-label {display:flex;align-items:center;gap:8px;}
+body.atelier.qihaoshou .studio .checkbox-label input {margin:0;}
+@media (min-width:761px) {
+  body.atelier.qihaoshou .studio .settings {height:calc(100dvh - 120px);display:flex;flex-direction:column;}
+  body.atelier.qihaoshou .settings-content {overflow-y:auto;min-height:0;flex:1;scrollbar-width:thin;padding-right:4px;}
+  body.atelier.qihaoshou .settings-actions {flex-shrink:0;padding-top:12px;}
+
+}

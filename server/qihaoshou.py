@@ -29,9 +29,21 @@ ROOT = Path(__file__).resolve().parent.parent
 OUTPUT = ROOT / 'output' / 'qihaoshou'
 GENERATION_SLOTS = threading.BoundedSemaphore(4)
 STYLES = {'professional':'专业深度', 'casual':'轻松口语', 'story':'故事叙述',
-          'sharp':'理性锐评', 'work':'职场经验', 'tech':'技术实践', 'warm':'温暖治愈'}
+          'sharp':'毒舌犀利', 'work':'职场老炮', 'tech':'技术老炮', 'warm':'温暖治愈'}
 THEMES = {'green':('清新绿','#128263','#edf8f2'), 'ink':('简洁墨色','#334155','#f1f5f9'),
           'amber':('暖杏色','#98611b','#fff6e8'), 'blue':('专业蓝','#2563a7','#eff6ff')}
+STYLE_GUIDES = {
+    'professional':'结论先行，交代证据、条件和适用范围；未知数据留白，不用夸张情绪。',
+    'casual':'像向朋友解释一件具体事情，用自然口语，少术语，不刻意塞网络梗。',
+    'story':'围绕材料里真实人物的行动与转折展开；没有故事材料时不虚构亲历或对白。',
+    'sharp':'观点鲜明，拆解问题与利益关系，批评有依据，不人身攻击，不用辱骂代替论证。',
+    'work':'以职场实际问题、成本、选择和操作建议组织内容；不虚构从业经历。',
+    'tech':'解释实现、约束、步骤和失败条件；未实测必须说清，不冒充测评。',
+    'warm':'先理解具体处境，再温和解释与建议，不说空泛鸡汤，不替人保证结果。',
+}
+THEMES.update({'gold':('鎏金雅致','#956817','#fcf8ec'), 'purple':('淡紫手记','#7650a3','#f6f0fc'),
+               'forest':('森系纸页','#44683e','#f1f6ed'), 'rose':('玫瑰随笔','#a04e6b','#fff2f6'),
+               'minimal':('极简正文','#222222','#f7f7f7'), 'auto':('智能配色','#128263','#edf8f2')})
 SAFE_TAGS = {'section','div','p','br','h1','h2','h3','h4','h5','h6','strong','b','em','i','u','s',
              'blockquote','ul','ol','li','a','img','hr','pre','code','table','thead','tbody','tr','th','td','span'}
 CSS = {'color','background-color','font-size','font-weight','font-style','font-family','line-height',
@@ -45,7 +57,11 @@ class Draft(BaseModel):
     topic: str = Field(default='', max_length=1000)
     audience: str = Field(default='公众号读者', max_length=200)
     style: str = Field(default='casual', pattern='^(professional|casual|story|sharp|work|tech|warm)$')
-    theme: str = Field(default='green', pattern='^(green|ink|amber|blue)$')
+    theme: str = Field(default='green', pattern='^(green|ink|amber|blue|gold|purple|forest|rose|minimal|auto)$')
+    angle: str = Field(default='', max_length=1000)
+    outline: str = Field(default='', max_length=3000)
+    source_notes: str = Field(default='', max_length=6000)
+    mode: str = Field(default='custom', pattern='^(ai|hot|custom|rewrite)$')
     length: int = Field(default=1200, ge=200, le=5000)
     reference: str = Field(default='', max_length=30000)
     reference_url: str = Field(default='', max_length=2000)
@@ -99,6 +115,9 @@ def clean_html(value: str, session_id: str = '') -> str:
 def render(value: str, theme: str, session_id: str = '', *, html: bool = False) -> str:
     fragment = clean_html(value if html else markdown.markdown(value, extensions=['tables','fenced_code']), session_id)
     soup = BeautifulSoup(fragment,'html.parser')
+    if theme == 'auto':
+        options = ['green','ink','amber','blue','gold','purple','forest','rose']
+        theme = options[int(hashlib.sha256(soup.get_text(' ',strip=True).encode()).hexdigest()[:8],16) % len(options)]
     _, color, pale = THEMES[theme]
     for tag in soup.find_all(True):
         styles = {'h1':f'font-size:26px;line-height:1.4;margin:20px 0;color:{color}',
@@ -112,6 +131,8 @@ def render(value: str, theme: str, session_id: str = '', *, html: bool = False) 
                   'th':f'border:1px solid #d1d5db;padding:8px;background-color:{pale}'}
         if tag.name in styles:
             tag['style'] = styles[tag.name]
+        if theme == 'minimal' and tag.name in {'h2','blockquote'}:
+            tag['style'] = f'font-size:{20 if tag.name == "h2" else 16}px;line-height:1.9;margin:20px 0;color:{color}'
     return '<section style="font-family:Microsoft YaHei,sans-serif;font-size:16px;line-height:1.9;max-width:680px;margin:0 auto;padding:20px">'+str(soup)+'</section>'
 
 
@@ -225,6 +246,8 @@ def text_stream(prompt: str, cancel: threading.Event):
 
 def draft_prompt(data):
     reference=data['reference']
+    if data.get('mode') == 'rewrite' and not reference.strip() and not data['reference_url'].strip():
+        raise workbench.ProviderError('文章仿写需要参考正文或文章链接')
     if data['reference_url'] and not reference.strip():
         source=workbench_research.fetch_source({'url':data['reference_url']})
         if not source.get('content'):
@@ -233,6 +256,10 @@ def draft_prompt(data):
     return f'''围绕主题写一篇完整中文公众号文章，不要输出写作过程或说明。
 主题：{data['topic']}
 读者：{data['audience']}；语气：{STYLES[data['style']]}；目标约{data['length']}字。
+风格执行要求：{STYLE_GUIDES[data['style']]}
+写作模式：{data.get('mode','custom')}；rewrite模式只借鉴议题和结构，独立组织表达，不复制独特措辞、不编造案例。
+切入角度：{data.get('angle','')}；建议大纲：{data.get('outline','')}
+来源线索（标题和摘要不等于已核实事实，不补写其未提供的事件细节）：<source_notes>{data.get('source_notes','')}</source_notes>
 用户要求：{data['instructions']}
 参考来源：{data['reference_url'] or '用户粘贴材料'}
 <reference_material>{reference or '未提供材料；避免具体未核实数字和新闻断言。'}</reference_material>
@@ -254,7 +281,7 @@ def capabilities(request: Request):
     return {'text':status['text_configured'],'image':status['image_configured'],
             'wechat':wechat and user['role']=='admin' and user['email'].lower()==accounts.OWNER_EMAIL,
             'themes':[{'id':k,'name':v[0],'color':v[1]} for k,v in THEMES.items()],
-            'styles':[{'id':k,'name':v} for k,v in STYLES.items()],
+            'styles':[{'id':k,'name':v,'description':STYLE_GUIDES[k]} for k,v in STYLES.items()],
             'pricing':[x for x in accounts.list_pricing() if x['path'].startswith('/api/qihaoshou/')]}
 
 
@@ -519,3 +546,44 @@ def publish(payload: Operation,request: Request):
         except HTTPException:raise
         except Exception as exc:
             raise HTTPException(502,'微信草稿同步未确认成功，请检查权限及后台草稿箱后再重试') from exc
+
+
+class TopicRequest(BaseModel):
+    direction: str = Field(default='', max_length=300)
+    audience: str = Field(default='公众号读者', max_length=200)
+    style: str = Field(default='casual', pattern='^(professional|casual|story|sharp|work|tech|warm)$')
+    research: bool = True
+
+
+@router.post('/api/qihaoshou/topics')
+def suggest_topics(payload: TopicRequest, request: Request):
+    accounts.require_user(request); provider_ready()
+    from .qihaoshou_topics import generate_topics
+    try:
+        with workbench.provider_overrides():
+            return generate_topics(payload.model_dump(), workbench._json_text)
+    except (workbench.ProviderError, ValueError) as exc:
+        raise HTTPException(502, '选题生成未成功，积分退回，请重试') from exc
+
+
+@router.get('/api/qihaoshou/hotspots')
+def hotspots(request: Request, direction: str = '', category: str = '综合'):
+    accounts.require_user(request)
+    if len(direction)>300 or category not in {'综合','科技','职场','生活','教育','财经'}:
+        raise HTTPException(400, '热点筛选参数无效')
+    from .qihaoshou_topics import recent_news
+    result = recent_news((category + ' ' + direction).strip())
+    if not result['items']:
+        raise HTTPException(503, '暂未获取到近72小时有明确时间的资讯，请换方向或稍后重试')
+    return result
+
+
+class ThemePreview(BaseModel):
+    theme: str = Field(max_length=30)
+
+
+@router.post('/api/qihaoshou/themes/preview')
+def theme_preview(payload: ThemePreview, request: Request):
+    accounts.require_user(request)
+    if payload.theme not in THEMES: raise HTTPException(400, '排版主题不存在')
+    return {'html':render('# 一篇文章，先把一件事说明白\n\n这是一段主题预览。主题只改变排版，不修改你的正文。\n\n## 从一个具体问题开始\n\n**重点内容**可以加粗，段落留白便于手机阅读。\n\n> 把事实说清楚，把表达交给自己。',payload.theme)}

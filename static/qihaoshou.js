@@ -1,5 +1,7 @@
+import { setupSelection } from "./qihaoshou-selection.js?v=20261024-panel";
 import { readSSE } from "./qihaoshou-stream.js";
 const $ = (id) => document.getElementById(id);
+let syncSelection = () => {};
 let current = null,
   capabilities = null,
   busy = false,
@@ -17,6 +19,10 @@ const fields = [
   "length",
   "reference",
   "instructions",
+  "mode",
+  "angle",
+  "outline",
+  "source_notes",
 ];
 const body = () => frame.contentDocument?.body;
 const op = () => ({
@@ -65,6 +71,7 @@ function fill(data) {
   $("q-source-url").value = data.reference_url || "";
   if (body()) body().innerHTML = data.html || "";
   $("q-save-state").textContent = "已保存 · 版本 " + data.revision;
+  syncSelection();
   dirty = false;
 }
 function draft() {
@@ -98,6 +105,7 @@ function controls() {
   if (!busy && capabilities) {
     $("q-generate").disabled = !capabilities.text;
     $("q-titles").disabled = !capabilities.text;
+    $("q-topics-refresh").disabled = !capabilities.text;
     $("q-deai").disabled = !capabilities.text;
     $("q-image").disabled = !capabilities.image;
     $("q-publish").disabled = !capabilities.wechat;
@@ -265,6 +273,7 @@ $("q-generate").onclick = () =>
       !confirm("生成成功后将替换当前正文，失败时保留原稿。继续？")
     )
       return;
+    if ($("q-mode").value === "rewrite" && !$("q-reference").value.trim() && !$("q-source-url").value.trim()) throw new Error("文章仿写需要参考链接或正文");
     await save();
     controller = new AbortController();
     controls();
@@ -471,6 +480,8 @@ async function initialize() {
     ...capabilities.themes.map((x) => new Option(x.name, x.id)),
   );
   $("q-style").value = "casual";
+  syncSelection = setupSelection({ $, api, task, backup, capabilities });
+  syncSelection();
   $("q-login").hidden = true;
   $("q-studio").hidden = false;
   $("q-provider").textContent =

@@ -30,7 +30,8 @@ class Provider(BaseHTTPRequestHandler):
   if self.path.endswith('/images/generations'):
    self.send_header('Content-Type','application/json');self.end_headers();self.wfile.write(json.dumps({'data':[{'b64_json':encoded}]}).encode());return
   prompt=(data.get('messages') or data.get('input'))[-1]['content']
-  if '拟5个' in prompt:result={'titles':['从一段记录开始写作','把素材整理成自己的文章','先把一件事情说明白']}
+  if '为公众号生成5个' in prompt:result={'items':[{'title':'把记录写成文章'+str(i),'angle':'从真实素材开始','outline':'记录；核实；组织','reason':'创作者可直接实践','source_ids':['0']} for i in range(3)]}
+  elif '拟5个' in prompt:result={'titles':['从一段记录开始写作','把素材整理成自己的文章','先把一件事情说明白']}
   elif '你是独立校对编辑' in prompt:result=dict(facts_preserved=True,stance_preserved=True,conditions_preserved=True,no_invention=True,readable=True,issues=[])
   elif '你是中文深度编辑' in prompt:
    blocks=json.loads(prompt.split('材料：',1)[1])
@@ -43,7 +44,7 @@ class Provider(BaseHTTPRequestHandler):
    try:
     for i in range(0,len(text),14):
      event={'type':'response.output_text.delta','delta':text[i:i+14]} if self.path.endswith('/responses') else {'choices':[{'delta':{'content':text[i:i+14]}}]}
-     self.wfile.write(('data: '+json.dumps(event,ensure_ascii=False)+'\n\n').encode());self.wfile.flush();time.sleep(.05)
+     self.wfile.write(('data: '+json.dumps(event,ensure_ascii=False)+'\n\n').encode());self.wfile.flush();time.sleep(.12)
     final={'type':'response.completed','response':{'status':'completed','output':[{'type':'message','content':[{'type':'output_text','text':text}]}]}} if self.path.endswith('/responses') else {'choices':[{'delta':{},'finish_reason':'stop'}]}
     self.wfile.write(('data: '+json.dumps(final,ensure_ascii=False)+'\n\n'+('' if self.path.endswith('/responses') else 'data: [DONE]\n\n')).encode());self.wfile.flush()
    except (BrokenPipeError,ConnectionResetError):pass
@@ -51,7 +52,9 @@ class Provider(BaseHTTPRequestHandler):
   self.send_header('Content-Type','application/json');self.end_headers();self.wfile.write(json.dumps({'choices':[{'message':{'content':text}}]},ensure_ascii=False).encode())
 threading.Thread(target=ThreadingHTTPServer(('127.0.0.1',8895),Provider).serve_forever,daemon=True).start()
 from server.main import app
-from server import accounts,qihaoshou
+from server import accounts,qihaoshou,qihaoshou_topics
+from datetime import datetime,timezone
+qihaoshou_topics.source_search=lambda query: {"checked_at":datetime.now(timezone.utc).isoformat(),"sources":[{"title":"近期创作工具资讯样本","url":"https://example.com/news","excerpt":"本地测试资讯摘要。","published_at":datetime.now(timezone.utc).isoformat(),"provider":"local-fixture"}]}
 qihaoshou.OUTPUT=Path(folder.name)/'images'
 owner=accounts.authenticate('writer-test@example.com','writer-test-123')
 accounts.recharge(owner['id'],owner['id'],500,'trial','local fixture')
