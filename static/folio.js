@@ -150,9 +150,133 @@
     if (pick) wb.setAttribute('data-folio-pick', '1');
     else wb.removeAttribute('data-folio-pick');
     setPick(pick);
+
+    // 文档阅读层：textarea 有值就渲染成排版好的只读文档（编辑态时不动）
+    ensureDoc();
+    var wrap = document.querySelector('#workbench .editor-wrap');
+    if (!wrap || !wrap.classList.contains('is-editing')) renderDoc();
+    // 有正文时收起提示卡，头部也不再留空态占位
+    var ta = document.getElementById('article-editor');
+    var hasDoc = !!(ta && (ta.value || '').trim().length > 20);
+    if (hasDoc) wb.setAttribute('data-folio-doc', '1');
+    else wb.removeAttribute('data-folio-doc');
   }
 
-  /* 发送：把 landing 输入桥接到真实表单 #workbench-topic + #start-workbench */
+  /* ── 文档阅读层 ──────────────────────────────────────────────
+     大纲/正文/去 AI 的内容都塞在 #article-editor 这个 textarea 里，
+     纯文本没有任何层级，字号再大也是一团。这里做一个只读渲染层：
+     段落、编号小标题、引用各自成块；要改的时候点「编辑」切回 textarea。
+     只改视觉，textarea 的值和保存流程完全不动。 */
+  var docLayer = null, docBtn = null, docText = null;
+
+  function esc(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  /* 「[观点] xxx；[事实边界] yyy」这类中括号标记 → 小标签 + 正文 */
+  function tagify(s) {
+    var out = [], re = /\[([^\]]{2,10})\]\s*([^；;]*[；;]?)/g, m;
+    while ((m = re.exec(s))) {
+      var body = m[2].trim();
+      if (!body) continue;
+      out.push('<p><span class="fdoc-k">' + esc(m[1]) + '</span>' + esc(body) + '</p>');
+    }
+    if (out.length) return out.join('');
+    return '<p>' + esc(s) + '</p>';
+  }
+
+  /* 一条大纲项：「小标题｜正文」或「小标题：X 核心论点：Y」 */
+  function fmtItem(raw) {
+    var t = String(raw).trim();
+    var head = '', body = '';
+    var parts = t.split(/[｜|]/);
+    if (parts.length > 1) {
+      head = parts.shift().trim();
+      body = parts.join('｜').trim();
+    } else {
+      var m = t.match(/^小标题[:：]\s*([\s\S]*?)核心论点[:：]\s*([\s\S]*)$/);
+      if (m) {
+        head = m[1].trim();
+        body = m[2].trim();
+      } else if (/^小标题[:：]/.test(t)) {
+        head = t.replace(/^小标题[:：]\s*/, '').trim();
+      } else if (t.length <= 24 && !/[。；;]/.test(t)) {
+        head = t;
+      } else {
+        body = t;
+      }
+    }
+    var html = '';
+    if (head) html += '<strong class="fdoc-h">' + esc(head) + '</strong>';
+    if (body) html += tagify(body);
+    return html || '<p>' + esc(t) + '</p>';
+  }
+
+  function pad2(n) { return ('0' + n).slice(-2); }
+
+  /* 大纲/正文多为「单换行」分段，编号还有重复（1. 1. 开篇｜…），这里统一处理 */
+  function toDoc(text) {
+    var lines = String(text).split(/\r?\n/);
+    var out = [], buf = [];
+    function flush() {
+      if (!buf.length) return;
+      out.push('<p>' + esc(buf.join(' ')).replace(/&lt;br&gt;/g, '<br>') + '</p>');
+      buf = [];
+    }
+    for (var i = 0; i < lines.length; i++) {
+      var l = lines[i].trim();
+      if (!l) { flush(); continue; }
+      var num = l.match(/^(\d{1,2})[.、)）]\s*(.*)$/);
+      if (num) {
+        flush();
+        var rest = num[2].replace(/^\d{1,2}[.、)）]\s*/, '');   // 去掉重复编号
+        out.push('<div class="fdoc-item"><span class="fdoc-n">' + pad2(num[1]) +
+                 '</span><div class="fdoc-body">' + fmtItem(rest) + '</div></div>');
+        continue;
+      }
+      if (/^《[^》]{2,60}》$/.test(l)) { flush(); out.push('<h2 class="fdoc-title">' + esc(l) + '</h2>'); continue; }
+      if (/^#{1,3}\s+/.test(l)) { flush(); out.push('<h3>' + esc(l.replace(/^#+\s*/, '')) + '</h3>'); continue; }
+      if (/^[「“"]/.test(l) && l.length < 220) { flush(); out.push('<blockquote>' + esc(l) + '</blockquote>'); continue; }
+      buf.push(l);
+    }
+    flush();
+    return out.join('');
+  }
+
+  function ensureDoc() {
+    var ta = document.getElementById('article-editor');
+    if (!ta || !ta.parentNode) return;
+    var wrap = ta.closest('.editor-wrap');
+    if (!wrap) return;
+    if (!docLayer) {
+      docLayer = document.createElement('div');
+      docLayer.className = 'folio-doc';
+      ta.parentNode.insertBefore(docLayer, ta.nextSibling);
+      docBtn = document.createElement('button');
+      docBtn.type = 'button';
+      docBtn.className = 'folio-doc-edit';
+      docBtn.textContent = '编辑';
+      wrap.appendChild(docBtn);
+      docBtn.addEventListener('click', function () {
+        var on = wrap.classList.toggle('is-editing');
+        docBtn.textContent = on ? '完成' : '编辑';
+        if (on) ta.focus(); else renderDoc();
+      });
+    }
+  }
+
+  function renderDoc() {
+    var ta = document.getElementById('article-editor');
+    if (!ta || !docLayer) return;
+    var text = (ta.value || '').trim();
+    if (text === docText) return;
+    docText = text;
+    docLayer.innerHTML = text
+      ? toDoc(text)
+      : '<p class="fdoc-empty">这一步还没有正文。在左边说一句想怎么写，我来出稿。</p>';
+  }
+
+
   function send() {
     var box = $('#folio-ask', landing);
     if (!box) return;
