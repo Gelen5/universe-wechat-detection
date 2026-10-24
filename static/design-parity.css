@@ -1286,3 +1286,81 @@ body.atelier #hit-detector .skill-output-col {
 body.atelier #diagnose .v3-hero-l {
   border-color: rgba(15, 45, 32, .075) !important;
 }
+
+/* =========================================================
+   12 技能页：左表单「平」、右产物「透」
+   ---------------------------------------------------------
+   两栏都上玻璃，结果两栏一样白，中间那条缝读不出来。
+   设计稿的层级逻辑是：容器可以透，操作区必须实。
+   所以左表单压成磨砂平片，右产物保留玻璃。
+   ========================================================= */
+body.atelier #xiaohongshu .skill-form-col,
+body.atelier #tie-tu .skill-form-col,
+body.atelier #hit-detector .skill-form-col {
+  background-color: rgba(255, 255, 255, .58) !important;
+  background-image: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .9) !important;
+  border-color: rgba(15, 45, 32, .085) !important;
+}
+
+body.atelier #xiaohongshu .skill-output-col,
+body.atelier #tie-tu .skill-output-col,
+body.atelier #hit-detector .skill-output-col {
+  border-color: rgba(15, 45, 32, .07) !important;
+}
+
+/* 主按钮：设计稿是 34px 一个薄片，不是大绿块 */
+body.atelier .skill-form .primary-action,
+body.atelier .entry-form .primary-action,
+body.atelier #xiaohongshu .skill-form .primary-action,
+body.atelier #tie-tu .skill-form .primary-action,
+body.atelier #hit-detector .skill-form .primary-action {
+  height: 34px !important;
+  max-height: 34px !important;
+  min-height: 0 !important;
+  padding: 0 16px !important;
+  border-radius: 8px !important;
+  font-size: 12px !important;
+}
+body.atelier .skill-form .secondary-action {
+  height: 32px !important;
+  max-height: 32px !important;
+}
+
+/* =========================================================
+   13 首页微调：hero 与工具卡的体量关系
+   ========================================================= */
+body.atelier #home .hv-hero {
+  padding: 26px 28px 24px !important;
+}
+body.atelier #home .hv-tool {
+  min-height: 132px !important;
+}
+body.atelier #home .hv-recent {
+  padding: 18px 20px !important;
+}
+
+/* =========================================================
+   14 AI 书架（独立页）
+   ========================================================= */
+body.atelier #library-main.library-main {
+  padding: 22px var(--pd-pad) 0 !important;
+}
+body.atelier #library-main #library-shelf,
+body.atelier #library-main .library-heading {
+  width: 100% !important;
+  max-width: var(--pd-col) !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+body.atelier #library-main .library-heading h1 {
+  font-size: 26px !important;
+  letter-spacing: -.03em !important;
+  line-height: 1.16 !important;
+}
+body.atelier #library-main .library-heading p {
+  font-size: 12.5px !important;
+  color: var(--ink-3) !important;
+}
