@@ -50,6 +50,24 @@ class ConversationRepositoryTests(unittest.TestCase):
         with self.assertRaises(KeyError):
             repo.list_messages(conversation["id"], "user-b")
 
+    def test_long_history_returns_latest_window_in_chronological_order(self):
+        from server.agent.context import conversation_messages, stage_messages
+
+        conversation = repo.create_conversation("user-a")
+        for index in range(205):
+            repo.add_message(conversation["id"], "user-a", "user", f"message-{index}")
+        history = repo.list_messages(conversation["id"], "user-a", limit=3)
+        self.assertEqual([f"message-{index}" for index in range(202, 205)],
+                         [item["content"] for item in history])
+        generic = conversation_messages(conversation["id"], "user-a")
+        self.assertEqual("message-204", generic[-1]["content"])
+        self.assertEqual("message-165", generic[0]["content"])
+        staged = stage_messages(conversation["id"], "user-a", stage="writing")
+        self.assertEqual("message-204", staged[-1]["content"])
+        self.assertEqual("message-193", staged[1]["content"])
+        with self.assertRaises(KeyError):
+            repo.list_messages(conversation["id"], "user-b", limit=3)
+
     def test_run_creation_is_idempotent_per_user(self):
         conversation = repo.create_conversation("user-a", skill_id="wechat_writer", mode="manual")
         message = repo.add_message(conversation["id"], "user-a", "user", "写文章")

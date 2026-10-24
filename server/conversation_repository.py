@@ -191,8 +191,9 @@ def list_messages(conversation_id: str, user_id: str, *, limit: int = 200) -> li
             raise KeyError("conversation not found")
         rows = db.scalars(select(ConversationMessage).where(
             ConversationMessage.conversation_id == conversation_id,
-        ).order_by(ConversationMessage.created_at, ConversationMessage.id).limit(min(max(limit, 1), 500))).all()
-        return [_message_view(row) for row in rows]
+        ).order_by(ConversationMessage.created_at.desc(), ConversationMessage.id.desc())
+          .limit(min(max(limit, 1), 500))).all()
+        return [_message_view(row) for row in reversed(rows)]
 
 
 def get_message(conversation_id: str, user_id: str, message_id: str) -> dict[str, Any] | None:

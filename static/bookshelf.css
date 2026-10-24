@@ -129,7 +129,7 @@ html body.library-body, body.library-body .app-shell { background:var(--lib-pape
   .library-subtitle { font-size:13px; margin-top:12px; }
   .library-search-toggle { padding:10px; margin-top:25px; border:0; }
   .library-search-toggle span { display:none; }
-  .library-categories { margin-right:-24px; padding-right:24px; }
+  .library-categories { margin-right:0; padding-right:24px; }
   .library-categories button { min-height:44px; padding:10px 16px; }
   .library-collection-heading { margin:24px 0; }
   .cover-name { font-size:clamp(22px,5.7vw,34px); }

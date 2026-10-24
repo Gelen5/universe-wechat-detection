@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-23T15:20:25+00:00",
+  "updatedAt": "2026-10-24T15:05:24+00:00",
   "books": [
     {
       "id": "hermes",
@@ -406,6 +406,397 @@
       "readFormat": "PDF",
       "readUrlHttpStatus": null,
       "verifiedRawUrl": "https://raw.githubusercontent.com/alchaincyf/agent-skills-orange-book/main/Agent-Skills-Complete-Guide-zh-v260411.pdf"
+    },
+    {
+      "id": "cook",
+      "title": "程序员做饭指南",
+      "subtitle": "把菜谱写成清晰步骤",
+      "author": "Anduin2017 与社区贡献者",
+      "authorUrl": "https://github.com/Anduin2017",
+      "series": "生活与成长指南",
+      "description": "以食材、工具和步骤整理家常菜与厨房技巧，适合想开始自己做饭、减少临场猜测的读者。",
+      "category": "生活技能",
+      "tags": [
+        "做饭",
+        "菜谱",
+        "厨房"
+      ],
+      "cover": {
+        "type": "css",
+        "theme": "hermes",
+        "title": "程序员\n做饭指南",
+        "series": "开放阅读 · OPEN GUIDE"
+      },
+      "githubUrl": "https://github.com/Anduin2017/HowToCook",
+      "readUrl": "https://howtocook.aiursoft.com/",
+      "stars": 103022,
+      "starsUpdatedAt": "2026-10-24T15:05:24+00:00",
+      "license": {
+        "name": "Unlicense",
+        "url": "https://github.com/Anduin2017/HowToCook/blob/master/LICENSE",
+        "note": "许可范围及第三方材料声明请以原仓库为准；本站提供书目介绍与官方阅读入口。"
+      },
+      "readingMode": "official",
+      "featured": false,
+      "copyright": "原文及相关材料版权归原作者或相应权利人所有。",
+      "sourceReadme": "https://github.com/Anduin2017/HowToCook/blob/master/README.md",
+      "verifiedAt": "2026-10-24T15:05:24+00:00",
+      "linkStatus": "reachable",
+      "linkCheckedAt": "2026-10-24T15:05:24+00:00",
+      "readFormat": "Web",
+      "readUrlHttpStatus": 200
+    },
+    {
+      "id": "life-level-up",
+      "title": "人生进阶指南",
+      "subtitle": "AI 时代的终身学习实践",
+      "author": "韩先凯（离谱）与贡献者",
+      "authorUrl": "https://github.com/byoungd",
+      "series": "生活与成长指南",
+      "description": "从英语训练、AI 协作到真实项目与创业验证，围绕小步行动、实践记录和复盘建立持续学习的方法。",
+      "category": "个人成长",
+      "tags": [
+        "AI 学习",
+        "英语",
+        "创业实践"
+      ],
+      "cover": {
+        "type": "css",
+        "theme": "loop",
+        "title": "人生\n进阶指南",
+        "series": "开放阅读 · OPEN GUIDE"
+      },
+      "githubUrl": "https://github.com/byoungd/up",
+      "readUrl": "https://byoungd.github.io/up/",
+      "stars": 69295,
+      "starsUpdatedAt": "2026-10-24T15:05:24+00:00",
+      "license": {
+        "name": "正文 CC BY-NC 4.0；代码 MIT",
+        "url": "https://github.com/byoungd/up/blob/main/LICENSE.md",
+        "note": "许可范围及第三方材料声明请以原仓库为准；本站提供书目介绍与官方阅读入口。"
+      },
+      "readingMode": "official",
+      "featured": false,
+      "copyright": "原文及相关材料版权归原作者或相应权利人所有。",
+      "sourceReadme": "https://github.com/byoungd/up/blob/main/README.md",
+      "verifiedAt": "2026-10-24T15:05:24+00:00",
+      "linkStatus": "reachable",
+      "linkCheckedAt": "2026-10-24T15:05:24+00:00",
+      "readFormat": "Web",
+      "readUrlHttpStatus": 200
+    },
+    {
+      "id": "live-better",
+      "title": "高性价比人生指南",
+      "subtitle": "健康、金钱与生活避坑",
+      "author": "eternity4719 与贡献者",
+      "authorUrl": "https://github.com/eternity4719",
+      "series": "生活与成长指南",
+      "description": "按生活场景整理健康、急救、省钱、社保与法律常识，并提供成本、收益和证据来源，方便按问题查阅。",
+      "category": "生活技能",
+      "tags": [
+        "健康",
+        "金钱",
+        "法律",
+        "生活避坑"
+      ],
+      "cover": {
+        "type": "css",
+        "theme": "obsidian",
+        "title": "高性价比\n人生指南",
+        "series": "开放阅读 · OPEN GUIDE"
+      },
+      "githubUrl": "https://github.com/eternity4719/HowToLiveBetter",
+      "readUrl": "https://eternity4719.github.io/HowToLiveBetter/",
+      "stars": 68568,
+      "starsUpdatedAt": "2026-10-24T15:05:24+00:00",
+      "license": {
+        "name": "正文 CC BY 4.0；代码 MIT",
+        "url": "https://github.com/eternity4719/HowToLiveBetter/blob/main/LICENSE",
+        "note": "许可范围及第三方材料声明请以原仓库为准；本站提供书目介绍与官方阅读入口。"
+      },
+      "readingMode": "official",
+      "featured": false,
+      "copyright": "原文及相关材料版权归原作者或相应权利人所有。",
+      "sourceReadme": "https://github.com/eternity4719/HowToLiveBetter/blob/main/README.md",
+      "verifiedAt": "2026-10-24T15:05:24+00:00",
+      "linkStatus": "reachable",
+      "linkCheckedAt": "2026-10-24T15:05:24+00:00",
+      "readFormat": "Web",
+      "readUrlHttpStatus": 200,
+      "riskNote": "健康内容不能替代诊疗；法律、医保和社保政策请以当地主管部门的现行口径为准。"
+    },
+    {
+      "id": "everyone-english",
+      "title": "人人都能用英语",
+      "subtitle": "英语学习与自我训练",
+      "author": "李笑来 / ZuodaoTech 与贡献者",
+      "authorUrl": "https://github.com/ZuodaoTech",
+      "series": "生活与成长指南",
+      "description": "李笑来关于英语学习与自学方法的开放书稿，包含口语、语音、朗读、词典、语法与精读等章节。主阅读入口直达原书目录。",
+      "category": "英语学习",
+      "tags": [
+        "英语",
+        "自学",
+        "语言训练"
+      ],
+      "cover": {
+        "type": "css",
+        "theme": "deepseek",
+        "title": "人人都能\n用英语",
+        "series": "开放阅读 · OPEN GUIDE"
+      },
+      "githubUrl": "https://github.com/ZuodaoTech/everyone-can-use-english",
+      "readUrl": "https://github.com/ZuodaoTech/everyone-can-use-english/blob/main/book/README.md",
+      "stars": 39225,
+      "starsUpdatedAt": "2026-10-24T15:05:24+00:00",
+      "license": {
+        "name": "仓库 GPL-3.0；书稿声明以原文为准",
+        "url": "https://github.com/ZuodaoTech/everyone-can-use-english/blob/main/LICENSE",
+        "note": "许可范围及第三方材料声明请以原仓库为准；本站提供书目介绍与官方阅读入口。"
+      },
+      "readingMode": "official",
+      "featured": false,
+      "copyright": "原文及相关材料版权归原作者或相应权利人所有。",
+      "sourceReadme": "https://github.com/ZuodaoTech/everyone-can-use-english/blob/main/README.md",
+      "verifiedAt": "2026-10-24T15:05:24+00:00",
+      "linkStatus": "unverified",
+      "linkCheckedAt": "2026-10-24T15:05:24+00:00",
+      "readFormat": "Web"
+    },
+    {
+      "id": "smart-questions",
+      "title": "提问的智慧",
+      "subtitle": "把问题讲清楚",
+      "author": "Eric S. Raymond、Rick Moen；Ryan Wu 等译",
+      "authorUrl": "https://github.com/ryanhanwu",
+      "series": "生活与成长指南",
+      "description": "介绍技术求助前的准备、信息组织、问题描述与反馈方式，帮助读者提出更容易被理解和回答的问题。",
+      "category": "沟通表达",
+      "tags": [
+        "沟通",
+        "提问",
+        "问题解决"
+      ],
+      "cover": {
+        "type": "css",
+        "theme": "source",
+        "title": "提问的\n智慧",
+        "series": "开放阅读 · OPEN GUIDE"
+      },
+      "githubUrl": "https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way",
+      "readUrl": "https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way/blob/main/README.md",
+      "stars": 35960,
+      "starsUpdatedAt": "2026-10-24T15:05:24+00:00",
+      "license": {
+        "name": "仓库 MIT；原文及翻译版权另见 README",
+        "url": "https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way/blob/main/LICENSE",
+        "note": "许可范围及第三方材料声明请以原仓库为准；本站提供书目介绍与官方阅读入口。"
+      },
+      "readingMode": "official",
+      "featured": false,
+      "copyright": "原文及相关材料版权归原作者或相应权利人所有。",
+      "sourceReadme": "https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way/blob/main/README.md",
+      "verifiedAt": "2026-10-24T15:05:24+00:00",
+      "linkStatus": "unverified",
+      "linkCheckedAt": "2026-10-24T15:05:24+00:00",
+      "readFormat": "Web"
+    },
+    {
+      "id": "live-longer",
+      "title": "程序员延寿指南",
+      "subtitle": "健康生活方式与研究索引",
+      "author": "geekan 与贡献者",
+      "authorUrl": "https://github.com/geekan",
+      "series": "生活与成长指南",
+      "description": "汇集饮食、运动、睡眠和日常习惯相关研究摘要及原始资料，供读者建立健康生活的阅读索引。",
+      "category": "健康生活",
+      "tags": [
+        "健康",
+        "长寿",
+        "生活方式"
+      ],
+      "cover": {
+        "type": "css",
+        "theme": "harness",
+        "title": "程序员\n延寿指南",
+        "series": "开放阅读 · OPEN GUIDE"
+      },
+      "githubUrl": "https://github.com/geekan/HowToLiveLonger",
+      "readUrl": "https://geekan.github.io/HowToLiveLonger/",
+      "stars": 35831,
+      "starsUpdatedAt": "2026-10-24T15:05:24+00:00",
+      "license": {
+        "name": "Unlicense",
+        "url": "https://github.com/geekan/HowToLiveLonger/blob/main/LICENSE",
+        "note": "许可范围及第三方材料声明请以原仓库为准；本站提供书目介绍与官方阅读入口。"
+      },
+      "readingMode": "official",
+      "featured": false,
+      "copyright": "原文及相关材料版权归原作者或相应权利人所有。",
+      "sourceReadme": "https://github.com/geekan/HowToLiveLonger/blob/main/README.md",
+      "verifiedAt": "2026-10-24T15:05:24+00:00",
+      "linkStatus": "reachable",
+      "linkCheckedAt": "2026-10-24T15:05:24+00:00",
+      "readFormat": "Web",
+      "readUrlHttpStatus": 200,
+      "riskNote": "这是研究资料与科普整理，不构成诊断或治疗建议，也不代表特定做法能够保证延寿。"
+    },
+    {
+      "id": "human-system",
+      "title": "人体系统调优指南",
+      "subtitle": "睡眠、运动与专注",
+      "author": "zijie0",
+      "authorUrl": "https://github.com/zijie0",
+      "series": "生活与成长指南",
+      "description": "从睡眠、饮食、运动和注意力出发，整理作者对相关播客、研究与个人实践的学习笔记。",
+      "category": "健康生活",
+      "tags": [
+        "睡眠",
+        "运动",
+        "专注",
+        "健康"
+      ],
+      "cover": {
+        "type": "css",
+        "theme": "vibe",
+        "title": "人体系统\n调优指南",
+        "series": "开放阅读 · OPEN GUIDE"
+      },
+      "githubUrl": "https://github.com/zijie0/HumanSystemOptimization",
+      "readUrl": "https://github.com/zijie0/HumanSystemOptimization/blob/main/README.md",
+      "stars": 21906,
+      "starsUpdatedAt": "2026-10-24T15:05:24+00:00",
+      "license": {
+        "name": "未发现独立许可证",
+        "url": "https://github.com/zijie0/HumanSystemOptimization/blob/main/README.md",
+        "note": "许可范围及第三方材料声明请以原仓库为准；本站提供书目介绍与官方阅读入口。"
+      },
+      "readingMode": "official",
+      "featured": false,
+      "copyright": "原文及相关材料版权归原作者或相应权利人所有。",
+      "sourceReadme": "https://github.com/zijie0/HumanSystemOptimization/blob/main/README.md",
+      "verifiedAt": "2026-10-24T15:05:24+00:00",
+      "linkStatus": "unverified",
+      "linkCheckedAt": "2026-10-24T15:05:24+00:00",
+      "readFormat": "Web",
+      "riskNote": "内容包含作者个人实践与二手研究解读，不能替代医生建议；药物与补充剂请先咨询专业人士。"
+    },
+    {
+      "id": "side-income",
+      "title": "程序员如何优雅地挣零花钱",
+      "subtitle": "副业探索与小生意实践",
+      "author": "Easy（easychen）",
+      "authorUrl": "https://github.com/easychen",
+      "series": "生活与成长指南",
+      "description": "围绕程序员可以尝试的产品、服务与内容收入，梳理副业方向、资产思路和实践路径。部分案例有年代背景，需结合当下环境判断。",
+      "category": "副业商业",
+      "tags": [
+        "副业",
+        "商业",
+        "互联网赚钱"
+      ],
+      "cover": {
+        "type": "css",
+        "theme": "claude",
+        "title": "优雅地挣\n零花钱",
+        "series": "开放阅读 · OPEN GUIDE"
+      },
+      "githubUrl": "https://github.com/easychen/howto-make-more-money",
+      "readUrl": "https://easychen.github.io/howto-make-more-money/",
+      "stars": 18692,
+      "starsUpdatedAt": "2026-10-24T15:05:24+00:00",
+      "license": {
+        "name": "未发现本书独立许可证",
+        "url": "https://github.com/easychen/howto-make-more-money/blob/master/README.md",
+        "note": "许可范围及第三方材料声明请以原仓库为准；本站提供书目介绍与官方阅读入口。"
+      },
+      "readingMode": "official",
+      "featured": false,
+      "copyright": "原文及相关材料版权归原作者或相应权利人所有。",
+      "sourceReadme": "https://github.com/easychen/howto-make-more-money/blob/master/README.md",
+      "verifiedAt": "2026-10-24T15:05:24+00:00",
+      "linkStatus": "reachable",
+      "linkCheckedAt": "2026-10-24T15:05:24+00:00",
+      "readFormat": "Web",
+      "readUrlHttpStatus": 200
+    },
+    {
+      "id": "selfteaching",
+      "title": "自学是门手艺",
+      "subtitle": "以编程练习自学能力",
+      "author": "李笑来",
+      "authorUrl": "https://github.com/xiaolai",
+      "series": "生活与成长指南",
+      "description": "以 Python 与编程练习为入口，讨论阅读、练习、耐心与自学方法，附有可运行的 Jupyter Notebook 内容。",
+      "category": "个人成长",
+      "tags": [
+        "自学",
+        "成长",
+        "编程入门"
+      ],
+      "cover": {
+        "type": "css",
+        "theme": "openclaw",
+        "title": "自学是\n门手艺",
+        "series": "开放阅读 · OPEN GUIDE"
+      },
+      "githubUrl": "https://github.com/xiaolai/the-craft-of-selfteaching",
+      "readUrl": "https://github.com/xiaolai/the-craft-of-selfteaching/blob/master/README.md",
+      "stars": 17915,
+      "starsUpdatedAt": "2026-10-24T15:05:24+00:00",
+      "license": {
+        "name": "CC BY-NC-ND 3.0",
+        "url": "https://github.com/xiaolai/the-craft-of-selfteaching/blob/master/README.md",
+        "note": "许可范围及第三方材料声明请以原仓库为准；本站提供书目介绍与官方阅读入口。"
+      },
+      "readingMode": "official",
+      "featured": false,
+      "copyright": "原文及相关材料版权归原作者或相应权利人所有。",
+      "sourceReadme": "https://github.com/xiaolai/the-craft-of-selfteaching/blob/master/README.md",
+      "verifiedAt": "2026-10-24T15:05:24+00:00",
+      "linkStatus": "unverified",
+      "linkCheckedAt": "2026-10-24T15:05:24+00:00",
+      "readFormat": "Web"
+    },
+    {
+      "id": "regular-investing",
+      "title": "定投改变命运",
+      "subtitle": "投资理念与长期主义",
+      "author": "李笑来",
+      "authorUrl": "https://github.com/xiaolai",
+      "series": "生活与成长指南",
+      "description": "围绕定期投入、长期持有与投资决策讨论作者的理念。书中包含特定资产及数字资产案例，应结合成书时间与个人风险承受能力阅读。",
+      "category": "投资认知",
+      "tags": [
+        "投资",
+        "定投",
+        "长期主义"
+      ],
+      "cover": {
+        "type": "css",
+        "theme": "skills",
+        "title": "定投\n改变命运",
+        "series": "开放阅读 · OPEN GUIDE"
+      },
+      "githubUrl": "https://github.com/xiaolai/regular-investing-in-box",
+      "readUrl": "https://github.com/xiaolai/regular-investing-in-box/blob/master/README.md",
+      "stars": 6432,
+      "starsUpdatedAt": "2026-10-24T15:05:24+00:00",
+      "license": {
+        "name": "CC BY-NC-ND 3.0",
+        "url": "https://github.com/xiaolai/regular-investing-in-box/blob/master/README.md",
+        "note": "许可范围及第三方材料声明请以原仓库为准；本站提供书目介绍与官方阅读入口。"
+      },
+      "readingMode": "official",
+      "featured": false,
+      "copyright": "原文及相关材料版权归原作者或相应权利人所有。",
+      "sourceReadme": "https://github.com/xiaolai/regular-investing-in-box/blob/master/README.md",
+      "verifiedAt": "2026-10-24T15:05:24+00:00",
+      "linkStatus": "unverified",
+      "linkCheckedAt": "2026-10-24T15:05:24+00:00",
+      "readFormat": "Web",
+      "riskNote": "仅供了解作者投资观点，不构成投资建议或收益承诺。定投同样可能亏损，书中特定资产与数字资产案例存在较高风险。"
     }
   ]
 }

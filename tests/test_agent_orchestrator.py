@@ -81,6 +81,27 @@ class AgentOrchestratorTests(unittest.TestCase):
         self.assertTrue(decision.needs_confirmation)
         self.assertIsNone(decision.skill_id)
 
+    def test_malformed_router_shapes_request_confirmation(self):
+        responses = ['[]', 'null', '42', '{"skill_id": [], "confidence": 0.9}',
+                     '{"skill_id": "wechat_writer", "confidence": "high"}',
+                     '{"skill_id": "wechat_writer", "confidence": true}',
+                     '{"skill_id": "wechat_writer", "confidence": NaN}',
+                     '{"skill_id": "wechat_writer", "confidence": Infinity}',
+                     '{"skill_id": "wechat_writer", "confidence": 2}']
+        for response in responses:
+            with self.subTest(response=response):
+                service = ModelService(SequenceProvider([ProviderResponse(text=response)]))
+                decision = SkillRouter(self.registry, service).route("帮我处理一下", mode="auto")
+                self.assertTrue(decision.needs_confirmation)
+                self.assertIsNone(decision.skill_id)
+
+    def test_valid_model_route_is_preserved(self):
+        service = ModelService(SequenceProvider([ProviderResponse(
+            text='{"skill_id": "wechat_writer", "confidence": 0.8}')]))
+        decision = SkillRouter(self.registry, service).route("帮我处理一下", mode="auto")
+        self.assertEqual("wechat_writer", decision.skill_id)
+        self.assertFalse(decision.needs_confirmation)
+
     def test_tool_loop_records_call_and_returns_final_answer(self):
         _, run = self.make_run()
         provider = SequenceProvider([

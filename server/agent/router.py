@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import dataclass
 
 from ..providers import ModelService
@@ -43,10 +44,18 @@ class SkillRouter:
         ], timeout=30, run_id=run_id, user_id=user_id)
         try:
             data = json.loads(response.text)
-        except json.JSONDecodeError:
+            if not isinstance(data, dict):
+                raise ValueError("route must be an object")
+            skill_id = data.get("skill_id")
+            confidence = data.get("confidence", 0)
+            if skill_id is not None and not isinstance(skill_id, str):
+                raise ValueError("skill_id must be text or null")
+            if isinstance(confidence, bool) or not isinstance(confidence, (int, float)):
+                raise ValueError("confidence must be numeric")
+            if not math.isfinite(confidence) or not 0 <= confidence <= 1:
+                raise ValueError("confidence must be finite and between zero and one")
+        except (ValueError, TypeError, OverflowError):
             return RouteDecision(None, 0.0, "router returned invalid response", True)
-        skill_id = data.get("skill_id")
-        confidence = max(0.0, min(1.0, float(data.get("confidence") or 0)))
         if skill_id not in {item["id"] for item in catalog} or confidence < 0.55:
             return RouteDecision(None, confidence, str(data.get("reason") or "uncertain"), True)
         return RouteDecision(skill_id, confidence, str(data.get("reason") or "model route"))

@@ -2,9 +2,11 @@
 import argparse
 import json
 import os
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.request import Request, urlopen
+from urllib.parse import urlparse
 
 CATALOG = Path(__file__).resolve().parents[1] / 'static/bookshelf-data.json'
 
@@ -26,8 +28,11 @@ def main():
     stamp = now.isoformat(timespec='seconds')
     try:
         for book in catalog['books']:
-            owner_repo = book['githubUrl'].removeprefix('https://github.com/')
-            if not owner_repo.startswith('alchaincyf/') or len(owner_repo.split('/')) != 2:
+            parsed = urlparse(book['githubUrl'])
+            owner_repo = parsed.path.strip('/')
+            if (parsed.scheme != 'https' or parsed.netloc != 'github.com'
+                    or parsed.query or parsed.fragment
+                    or not re.fullmatch(r'[A-Za-z0-9-]+/[A-Za-z0-9_.-]+', owner_repo)):
                 raise ValueError('Unexpected repository; review the curated record first')
             request = Request('https://api.github.com/repos/' + owner_repo, headers=headers)
             with urlopen(request, timeout=20) as response:

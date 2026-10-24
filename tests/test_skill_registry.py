@@ -4,6 +4,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from server.skills.loader import SkillManifestError, load_manifest
 from server.skills.registry import DEFAULT_ROOT, SkillRegistry
@@ -11,6 +12,22 @@ from server.skills.runtime import load_instructions
 
 
 class SkillRegistryTests(unittest.TestCase):
+    def test_empty_source_env_does_not_load_working_directory(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            skill = root / "skill"
+            skill.mkdir()
+            (skill / "SKILL.md").write_text("# correct", encoding="utf-8")
+            path = skill / "skill.json"
+            path.write_text(json.dumps({"id": "test_skill", "name": "Test",
+                "version": "1", "description": "test", "source_env": "TEST_SKILL_ROOT"}),
+                encoding="utf-8")
+            for value in ("", "   "):
+                with self.subTest(value=value), patch.dict("os.environ", {"TEST_SKILL_ROOT": value}):
+                    self.assertEqual(skill.resolve(), load_manifest(path).root)
+            with patch.dict("os.environ", {}, clear=True):
+                self.assertEqual(skill.resolve(), load_manifest(path).root)
+
     def test_discovers_all_current_skills(self):
         registry = SkillRegistry((DEFAULT_ROOT,)).reload()
         ids = {item.id for item in registry.list()}

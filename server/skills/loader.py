@@ -29,9 +29,8 @@ def load_manifest(path: Path) -> SkillManifest:
         raise SkillManifestError(f"cannot read Skill manifest {path}: {exc}") from exc
     _validate(data, path)
     configured_root = str(data.get("source_env") or "").strip()
-    effective_root = Path(os.getenv(configured_root, "")).expanduser() if configured_root else path.parent
-    if configured_root and not str(effective_root):
-        effective_root = path.parent
+    source_value = os.getenv(configured_root, "").strip() if configured_root else ""
+    effective_root = Path(source_value).expanduser() if source_value else path.parent
     if not (effective_root / "SKILL.md").is_file():
         fallback = path.parent
         if (fallback / "SKILL.md").is_file():
