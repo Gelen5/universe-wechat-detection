@@ -944,6 +944,7 @@ body.atelier #workbench .workbench-html-preview{
    无法自动量高，这里给一个稳定的可视高度，内部滚动 */
 body.atelier #workbench #workbench-html-preview{
   height:min(76vh, 880px) !important; min-height:520px !important;
+  box-shadow:0 0 0 1px var(--fp-hair) !important;
 }
 /* 没到排版阶段时 iframe 带 hidden，上面写了 display:block !important，
    会把隐藏的预览变成一大块白板 —— 必须让 hidden 仍然说了算 */
@@ -986,10 +987,10 @@ body.atelier #workbench .folio-doc .fdoc-item:last-child{ border-bottom:0 !impor
 body.atelier #workbench .folio-doc blockquote,
 body.atelier #workbench #studio-stage-output blockquote{
   background:none !important;
-  border:0 !important; border-left:2px solid var(--fp-hair) !important;
+  border:0 !important; border-left:2px solid #D8D2C4 !important;
   border-radius:0 !important;
   box-shadow:none !important;
-  padding:2px 0 2px 20px !important;
+  padding:2px 0 2px 22px !important;
   margin:26px 0 !important;
   max-width:none !important; width:auto !important;
   font-style:normal !important;
