@@ -157,7 +157,7 @@ body.atelier #workbench .workbench-stage-nav::after {
 @media (min-width: 981px) {
 
   body.atelier #workbench .conversation-workbench-layout {
-    grid-template-columns: 252px minmax(0, 1fr) 440px !important;
+    grid-template-columns: 220px minmax(0, 1fr) 400px !important;
     grid-template-rows: minmax(0, 1fr) auto !important;
     align-items: stretch !important;
   }
@@ -239,5 +239,36 @@ body.atelier #workbench .workbench-stage-nav::after {
     border: 1px solid rgba(255, 255, 255, .9) !important;
     border-radius: 12px !important;
     padding: 11px 13px !important;
+  }
+}
+
+
+/* 左栏撑满高度，内部段落铺开 */
+@media (min-width: 981px) {
+  body.atelier #workbench #studio-details {
+    height: 100% !important;
+    justify-content: flex-start !important;
+  }
+
+  body.atelier #workbench #studio-details > section {
+    flex: 1 1 auto !important;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  body.atelier #workbench #studio-details > section:last-of-type {
+    flex: 0 0 auto !important;
+    border-top: 1px solid rgba(28, 44, 34, .07);
+  }
+
+  body.atelier #workbench #studio-details section > * {
+    min-width: 0;
+  }
+
+  /* 标题区更紧凑 */
+  body.atelier #workbench #studio-details > header {
+    flex: none;
+    border-bottom: 1px solid rgba(28, 44, 34, .07);
   }
 }
