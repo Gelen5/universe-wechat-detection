@@ -173,7 +173,11 @@
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
-  /* 「[观点] xxx；[事实边界] yyy」这类中括号标记 → 小标签 + 正文 */
+  /* 「[观点] xxx；[事实边界] yyy」这类中括号标记 → 小标签 + 正文；
+     没有中括号时，再按「标题草案：/写作目的：/关键论点：」这类字段拆行，
+     否则大纲每一条都会连成一大坨。 */
+  var FIELDS = /(?=(?:标题草案|写作目的|关键论点|案例或证据位置|待核验素材|素材位置|衔接|结构安排|风险)[:：])/;
+
   function tagify(s) {
     var out = [], re = /\[([^\]]{2,10})\]\s*([^；;]*[；;]?)/g, m;
     while ((m = re.exec(s))) {
@@ -182,10 +186,23 @@
       out.push('<p><span class="fdoc-k">' + esc(m[1]) + '</span>' + esc(body) + '</p>');
     }
     if (out.length) return out.join('');
+
+    var parts = String(s).split(FIELDS).filter(function (x) { return x.trim(); });
+    if (parts.length > 1) {
+      return parts.map(function (seg) {
+        var mm = seg.match(/^([^:：]{2,8})[:：]\s*([\s\S]*)$/);
+        if (mm) {
+          var val = mm[2].trim();
+          if (!val) return '';
+          return '<p><span class="fdoc-k">' + esc(mm[1]) + '</span>' + esc(val) + '</p>';
+        }
+        return '<p>' + esc(seg.trim()) + '</p>';
+      }).join('');
+    }
     return '<p>' + esc(s) + '</p>';
   }
 
-  /* 一条大纲项：「小标题｜正文」或「小标题：X 核心论点：Y」 */
+  /* 一条大纲项：「小标题｜正文」「【小标题】正文」或「小标题：X 核心论点：Y」 */
   function fmtItem(raw) {
     var t = String(raw).trim();
     var head = '', body = '';
@@ -194,8 +211,12 @@
       head = parts.shift().trim();
       body = parts.join('｜').trim();
     } else {
+      var bm = t.match(/^【([^】]{2,26})】\s*([\s\S]*)$/);
       var m = t.match(/^小标题[:：]\s*([\s\S]*?)核心论点[:：]\s*([\s\S]*)$/);
-      if (m) {
+      if (bm) {
+        head = bm[1].trim();
+        body = bm[2].trim();
+      } else if (m) {
         head = m[1].trim();
         body = m[2].trim();
       } else if (/^小标题[:：]/.test(t)) {
@@ -206,6 +227,8 @@
         body = t;
       }
     }
+    // 清掉模型输出里残留的 「】 【S】」 这类碎片
+    body = body.replace(/】\s*【[^】]{0,6}】\s*/g, ' ').replace(/\s{2,}/g, ' ').trim();
     var html = '';
     if (head) html += '<strong class="fdoc-h">' + esc(head) + '</strong>';
     if (body) html += tagify(body);
