@@ -282,9 +282,8 @@ body.atelier #workbench .workbench-stage-nav::after {
   /* 右栏随视口放宽，1280 时 400，1440 时 460 */
   body.atelier #workbench .conversation-workbench-layout {
     grid-template-columns: 220px minmax(0, 1fr) clamp(400px, 32vw, 460px) !important;
-    height: auto !important;
+    height: clamp(380px, calc(100dvh - 168px), 920px) !important;
     min-height: 0 !important;
-    max-height: calc(100dvh - 168px) !important;
     align-items: stretch !important;
   }
 
@@ -292,9 +291,8 @@ body.atelier #workbench .workbench-stage-nav::after {
   body.atelier #workbench #studio-details,
   body.atelier #workbench #creation-assistant,
   body.atelier #workbench #workbench-result {
-    height: auto !important;
+    height: clamp(380px, calc(100dvh - 168px), 920px) !important;
     min-height: 0 !important;
-    max-height: calc(100dvh - 168px) !important;
   }
 
   /* 对话区：内容多时自己滚，输入框钉底 */
@@ -324,5 +322,18 @@ body.atelier #workbench .workbench-stage-nav::after {
   /* 空状态：把居中的大标题收小，降低“模板感” */
   body.atelier #workbench #workbench-result #result-title {
     font-size: 19px !important;
+  }
+}
+
+
+@media (min-width: 981px) {
+  body.atelier #workbench .conversation-workbench-layout {
+    height: clamp(380px, calc(100dvh - 168px), 920px) !important;
+    max-height: none !important;
+  }
+  body.atelier #workbench #studio-details,
+  body.atelier #workbench #creation-assistant,
+  body.atelier #workbench #workbench-result {
+    height: 100% !important;
   }
 }
