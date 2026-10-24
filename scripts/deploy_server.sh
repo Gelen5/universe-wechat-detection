@@ -201,4 +201,7 @@ docker ps --format '{{.Names}} | {{.Status}}' | grep "$PROJECT" || true
 
 log "完成"
 echo "  线上: $SHORT  ($REL)"
-[ -n "$PREV_SHORT" ] && [ "$PREV_SHORT" != "$SHORT" ] && echo "  回滚: sudo bash $0 --rollback $PREV_SHORT"
+if [ -n "$PREV_SHORT" ] && [ "$PREV_SHORT" != "$SHORT" ]; then
+  echo "  回滚: sudo bash $0 --rollback $PREV_SHORT"
+fi
+exit 0
