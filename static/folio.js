@@ -274,6 +274,7 @@
     docLayer.innerHTML = text
       ? toDoc(text)
       : '<p class="fdoc-empty">这一步还没有正文。在左边说一句想怎么写，我来出稿。</p>';
+    if (docBtn) docBtn.style.display = text ? '' : 'none';
   }
 
 
