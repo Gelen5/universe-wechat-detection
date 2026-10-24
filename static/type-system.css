@@ -77,8 +77,68 @@ html body :is(h1, h2),
 .auth-card .auth-copy h1 {
   font-family: var(--serif) !important;
   font-style: normal !important;
-  /* 宋体不接受负字距：负值会把笔画挤到一起，这里统一改成正的微松 */
-  letter-spacing: .012em !important;
+  /* 默认零字距。真正的松紧由下面 01b 按字号分档决定——
+     一行 .012em 管全站是不对的，56px 的标题和 20px 的卡片名
+     需要的字距根本不是同一个量级。 */
+  letter-spacing: 0 !important;
+}
+
+/* =========================================================
+   01b 字距按字号分档
+   ---------------------------------------------------------
+   实测数据（改之前的原始值）：
+     .entry-panel h1        clamp(42–78px)  letter-spacing -.075em
+     .v3-diag-l h1          56px            -.035em
+     .wb-intro h1           48px            -.035em
+     .morning-intro h1      48px            -.035em
+     .detector-hero h2      44px            -.03em
+     .hv-hero h1            33px            -.035em
+     .v3-hero-l h1          30–32px         -.035em
+   也就是说，这套设计里凡是 30px 以上的标题，原本都是负字距。
+   上一版把它们统一改成 +.012em，等于把 display 级标题全部撑松，
+   看起来「散」就是这个原因 —— 不是字体的问题。
+
+   宋体在大字号下的行为和无衬线不同：笔画本身有粗细对比，
+   字面又比无衬线窄，适当收紧反而更贵气；但收到 -.075em
+   这种拉丁文数值就会把 CJK 的字间距压到贴死。
+   所以分三档，越小的字越松，越大的字越紧。
+   ========================================================= */
+
+/* T2 · 中大标题（30–47px）：轻微收紧 */
+html body :is(
+  .hv-hero h1,
+  .v3-hero-l h1,
+  .report-hero h1,
+  .report-hero h2,
+  .skill-page-head h1,
+  .library-heading h1,
+  .detector-hero h2,
+  .conversation-workbench-head h1,
+  .v3-section .head h2,
+  .auth-card .auth-copy h1
+) {
+  letter-spacing: -.018em !important;
+}
+
+/* 市场页大标题：market-v2.css 用
+     body.atelier.market-body .market-v2 .market-hero h1 { font-family: inherit !important }
+   权重 (0,3,2)，把标题继承回了 body 的黑体。
+   必须写出同等权重才压得住，光靠 html body :is(h1,h2) 的 (0,0,3) 是不够的。 */
+body.atelier.market-body .market-hero h1,
+body.atelier.market-body .market-v2 .market-hero h1 {
+  font-family: var(--serif) !important;
+  font-style: normal !important;
+  letter-spacing: -.022em !important;
+}
+
+/* T1 · 巨型 display（≥48px）：收紧到能看出「排过版」 */
+html body :is(
+  .v3-diag-l h1,
+  .wb-intro h1,
+  .morning-intro h1,
+  .entry-panel h1
+) {
+  letter-spacing: -.032em !important;
 }
 
 /* 标题里的强调块：原本是「衬线 italic」，中文没有真 italic，斜体是浏览器合成的歪，
@@ -90,8 +150,21 @@ html body :is(h1, h2) :is(em, i, span, strong, b, a) {
 
 /* =========================================================
    02 例外：小于 18px 的标题回到黑体
+   ---------------------------------------------------------
+   在线实测查出来的「小字号 h1/h2」，它们本来就不是标题级元素，
+   是品牌名、栏目标签、面板小标题一类的东西，被写成了 h1/h2。
+   宋体在 10–17px 会糊成一片灰，必须退回黑体。
    ========================================================= */
-html body :is(.morning-topbar h1, .shell-menu h2, .v3-topbar h1, .brand h1) {
+html body :is(
+  .morning-topbar h1,
+  .shell-menu h2,
+  .v3-topbar h1,
+  .brand h1,
+  .market-rail h2,
+  .studio-header h1,
+  #q-studio .panel-title h2,
+  #studio-details > section > h3
+) {
   font-family: var(--sans) !important;
   letter-spacing: -.01em !important;
 }
@@ -168,6 +241,6 @@ body.morning-iframe :is(h1, h2) {
    否则访客机器上没装 Noto Serif SC 会掉到宋体/SimSun */
 body.atelier #workbench .article-canvas h2#result-title {
   font-family: var(--serif) !important;
-  letter-spacing: .012em !important;
+  letter-spacing: -.012em !important;
 }
 
