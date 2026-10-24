@@ -209,12 +209,19 @@ TECH_HINTS = ("ai", "人工智能", "大模型", "模型", "算法", "编程", "
 AI_FEEDS = {"infoq-cn", "techcrunch", "hnrss"}
 
 
+def _hint_hit(haystack, hint):
+    """英文提示词要按词边界匹配，否则 Alzheimer 里的 ai 也算命中。"""
+    if hint.isascii():
+        return re.search(rf"\b{re.escape(hint)}\b", haystack) is not None
+    return hint in haystack
+
+
 def _feed_relevance(entry, tokens, provider=""):
     """topic=和主题有词面交集；tech=垂类科技动态；None=八卦/财经/无关，直接丢掉。"""
     haystack = f"{entry.get('title', '')} {entry.get('excerpt', '')}".lower()
     if sum(1 for token in tokens if token in haystack) >= 2:
         return 'topic'
-    if provider in AI_FEEDS and any(hint in haystack for hint in TECH_HINTS):
+    if provider in AI_FEEDS and any(_hint_hit(haystack, hint) for hint in TECH_HINTS):
         return 'tech'
     return None
 
