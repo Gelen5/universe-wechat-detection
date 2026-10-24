@@ -160,6 +160,13 @@
     var hasDoc = !!(ta && (ta.value || '').trim().length > 20);
     if (hasDoc) wb.setAttribute('data-folio-doc', '1');
     else wb.removeAttribute('data-folio-doc');
+    /* 兜底：workbench-studio.js 用 `session.article` 判断编辑器显隐，
+       而大纲阶段正文还没生成、内容却已经在 textarea 里 ——
+       它会把装着大纲的编辑器一起 hidden 掉。这里只要编辑器有字就强制显示。 */
+    if (wrap) {
+      if (hasDoc) wrap.style.setProperty('display', 'block', 'important');
+      else wrap.style.removeProperty('display');
+    }
   }
 
   /* ── 文档阅读层 ──────────────────────────────────────────────
@@ -271,6 +278,15 @@
     if (!ta || !ta.parentNode) return;
     var wrap = ta.closest('.editor-wrap');
     if (!wrap) return;
+    /* 正文一落库就立刻重排（否则要等 1.2s 轮询，长文看着像卡住） */
+    if (!ta.dataset.folioBound) {
+      ta.dataset.folioBound = '1';
+      ta.addEventListener('input', function () {
+        docText = null;
+        if (!wrap.classList.contains('is-editing')) renderDoc();
+        sync();
+      });
+    }
     if (!docLayer) {
       docLayer = document.createElement('div');
       docLayer.className = 'folio-doc';
