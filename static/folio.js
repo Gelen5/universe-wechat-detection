@@ -40,17 +40,28 @@
 
     landing.innerHTML =
       '<div class="fl-inner">' +
-        '<h1>公众号创作</h1>' +
-        '<p class="fl-sub">从一个主题开始，其余的交给我 —— 选题、大纲、正文、去 AI、排版，一共五步。左边聊，右边出稿。</p>' +
-        '<div class="fl-ask">' +
-          '<textarea id="folio-ask" placeholder="你想写点什么？比如：写一篇让 50 岁以上读者心里发紧的情感文"></textarea>' +
-          '<div class="fl-ask-row">' +
-            '<span class="fl-tip">回车发送 · 会调用完整 Skill</span>' +
-            '<button class="fl-send" id="folio-send" type="button">发送 →</button>' +
+        '<div class="fl-main">' +
+          '<h1>公众号创作</h1>' +
+          '<p class="fl-sub">从一个主题开始，其余的交给我 —— 选题、大纲、正文、去 AI、排版，一共五步。左边聊，右边出稿。</p>' +
+          '<div class="fl-ask">' +
+            '<textarea id="folio-ask" placeholder="你想写点什么？比如：写一篇让 50 岁以上读者心里发紧的情感文"></textarea>' +
+            '<div class="fl-ask-row">' +
+              '<span class="fl-tip">回车发送 · 会调用完整 Skill</span>' +
+              '<button class="fl-send" id="folio-send" type="button">发送 →</button>' +
+            '</div>' +
           '</div>' +
+          '<div class="fl-starts"><p class="fl-lbl">或者从这里开始</p>' + starts + '</div>' +
         '</div>' +
-        '<div class="fl-starts"><p class="fl-lbl">或者从这里开始</p>' + starts + '</div>' +
-        '<div class="fl-recent" id="folio-recent" hidden><p>最近创作</p></div>' +
+        '<aside class="fl-side">' +
+          '<div class="fl-recent" id="folio-recent" hidden><p>最近创作</p></div>' +
+          '<div class="fl-flow"><p>五步到可交付</p><ol>' +
+            '<li><i>01</i><b>选题</b><em>先确认值得写的角度</em></li>' +
+            '<li><i>02</i><b>大纲</b><em>把角度拆成可写的骨架</em></li>' +
+            '<li><i>03</i><b>写作</b><em>按大纲写正文</em></li>' +
+            '<li><i>04</i><b>去 AI</b><em>去掉机器腔和套话</em></li>' +
+            '<li><i>05</i><b>排版</b><em>交一份可粘贴的样式</em></li>' +
+          '</ol></div>' +
+        '</aside>' +
       '</div>';
 
     wb.insertBefore(landing, layout);
