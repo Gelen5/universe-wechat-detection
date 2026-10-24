@@ -201,8 +201,9 @@ def _tokens(seeds):
     return {token for token in tokens if token not in STOP_TOKENS}
 
 
-TECH_HINTS = ("ai", "人工智能", "大模型", "模型", "算法", "编程", "开发者", "程序员", "芯片",
-              "算力", "开源", "llm", "agent", "智能体", "软件", "科技", "云计算", "gpu", "代码")
+TECH_HINTS = ("ai", "agi", "openai", "chatgpt", "gpt", "claude", "gemini", "llm", "agent",
+              "anthropic", "deepmind", "人工智能", "大模型", "模型", "算法", "编程", "开发者",
+              "程序员", "芯片", "算力", "开源", "智能体", "软件", "科技", "云计算", "gpu", "代码")
 
 
 # 只有这几家是 AI/技术垂类，允许"和主题无关但属于科技动态"的条目
