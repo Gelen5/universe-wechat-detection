@@ -147,3 +147,97 @@ body.atelier #workbench .workbench-stage-nav button[aria-current="step"] {
 body.atelier #workbench .workbench-stage-nav::after {
   display: none !important;
 }
+
+
+/* ==========================================================================
+   三栏：成果(252) · 对话(1fr) · 成稿(440)
+   实测子节点顺序：ASIDE#creation-assistant, SECTION#workbench-result,
+                   ASIDE#studio-details, DIV(底部动作条)
+   ========================================================================== */
+@media (min-width: 981px) {
+
+  body.atelier #workbench .conversation-workbench-layout {
+    grid-template-columns: 252px minmax(0, 1fr) 440px !important;
+    grid-template-rows: minmax(0, 1fr) auto !important;
+    align-items: stretch !important;
+  }
+
+  /* 左：本轮成果 */
+  body.atelier #workbench #studio-details {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 1px solid rgba(255, 255, 255, .82) !important;
+    border-radius: 22px !important;
+    background: linear-gradient(180deg, rgba(255, 255, 255, .54), rgba(255, 255, 255, .32)) !important;
+    -webkit-backdrop-filter: blur(54px) saturate(200%);
+    backdrop-filter: blur(54px) saturate(200%);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, .95) inset, 0 30px 60px -50px rgba(18, 44, 30, .5) !important;
+    overflow-y: auto !important;
+  }
+
+  /* 中：对话 */
+  body.atelier #workbench #creation-assistant {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+  }
+
+  /* 右：成稿 */
+  body.atelier #workbench #workbench-result {
+    grid-column: 3 !important;
+    grid-row: 1 !important;
+  }
+
+  /* 底部动作条跨三列 */
+  body.atelier #workbench .conversation-workbench-layout > .flow-actionbar,
+  body.atelier #workbench .conversation-workbench-layout > div:last-child:not(.conversation-panel):not(.article-canvas) {
+    grid-column: 1 / -1 !important;
+    grid-row: 2 !important;
+  }
+
+  /* 左栏内部排版收紧 */
+  body.atelier #workbench #studio-details > header,
+  body.atelier #workbench #studio-details section {
+    padding: 12px 16px !important;
+  }
+
+  body.atelier #workbench #studio-details h3 {
+    font-size: 10px !important;
+    color: var(--ink-3, #8A948C) !important;
+    letter-spacing: .04em;
+    margin-bottom: 8px !important;
+  }
+
+  body.atelier #workbench #studio-details .outline-list li {
+    font-size: 11.5px !important;
+    line-height: 1.7 !important;
+    border-bottom: 1px solid rgba(28, 44, 34, .06);
+    padding: 6px 0 !important;
+  }
+
+  body.atelier #workbench #studio-details .outline-list li span {
+    font-family: "IBM Plex Mono", Consolas, monospace;
+    font-size: 9px !important;
+    color: var(--g-600, #3E8D6B) !important;
+  }
+
+  /* 对话区内部：输入框外框跟随玻璃，不再压住提示文字 */
+  body.atelier #workbench #creation-assistant .composer-shell {
+    padding: 12px 16px 14px !important;
+    border-top: 1px solid rgba(28, 44, 34, .07) !important;
+    background: transparent !important;
+  }
+
+  body.atelier #workbench #workbench-topic {
+    height: 88px !important;
+    min-height: 88px !important;
+    background: rgba(255, 255, 255, .72) !important;
+    border: 1px solid rgba(255, 255, 255, .9) !important;
+    border-radius: 12px !important;
+    padding: 11px 13px !important;
+  }
+}
