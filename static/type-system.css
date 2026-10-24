@@ -1,0 +1,173 @@
+/*
+ * type-system.css — 字体系统 A ·「宋黑对照」
+ * ────────────────────────────────────────────────────────────────
+ * 分工：
+ *   标题（h1 / h2 / 卡片名）  → 思源宋体，有笔锋，负责气质
+ *   正文                     → 思源黑体，干净，负责可读
+ *   数字与标签               → Inter + tabular-nums，负责精度
+ *   代码                     → 真等宽（SF Mono / Consolas）
+ *
+ * 加载顺序：必须最后加载（tokens.css 定族，本文件定用法）。
+ * 三个字体族在 tokens.css 里定义：--sans / --serif / --mono / --code。
+ * 字体文件由 fonts.css 以 unicode-range 切片自托管，浏览器只取用到的分片。
+ *
+ * 注意：宋体只在 18px 以上出现。低于这个字号，宋体的笔锋会糊成一团，
+ *      反而不如黑体清楚——这是本文件把 .morning-topbar h1(17px)、
+ *      .shell-menu h2(18px) 排除在外的原因。
+ * ────────────────────────────────────────────────────────────────
+ */
+
+/* =========================================================
+   00 字体族 —— 必须在这里再声明一次
+   ---------------------------------------------------------
+   为什么不在 tokens.css 里定义就够了：
+     · notion-workspace.css  :root{ --sans:'Segoe UI','Microsoft YaHei'; --serif: var(--sans) }
+       它把「衬线」直接等于「无衬线」，这正是标题永远没笔锋的原因
+     · atelier.css           :root{ --sans:"IBM Plex Sans" } + body.atelier{ --sans:... }
+       元素+类选择器 (0,1,1) 的权重高于 :root (0,1,0)，order 再靠后也压不住
+   本文件最后加载，且用同样高权重的选择器写一遍，才能稳定生效。
+   ========================================================= */
+:root,
+body,
+body.atelier,
+body.notion-workspace,
+html body {
+  --sans: "UW Inter", "UW Sans SC", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --serif: "UW Serif SC", "Noto Serif SC", "Source Han Serif SC", "Songti SC", "STSong", Georgia, serif;
+  --mono: "UW Inter", "UW Sans SC", "SF Mono", Menlo, Consolas, monospace;
+  --code: "SF Mono", "JetBrains Mono", Menlo, Consolas, "UW Sans SC", monospace;
+  /* 下游主题的别名变量，一并对齐，否则 atelier / market 页面还是旧字体 */
+  --a-sans: var(--sans);
+  --a-serif: var(--serif);
+  --a-mono: var(--mono);
+  --m-sans: var(--sans);
+  --m-mono: var(--mono);
+  --font-sans: var(--sans);
+}
+
+/* =========================================================
+   01 显示级标题 → 宋体
+   ---------------------------------------------------------
+   选择器必须写成 html body :is(h1,h2)，权重 (0,0,3)，
+   刚好压过 notion-workspace.css:13 的
+     body :is(…,h1,h2,h3,h4,p,…){ font-family:var(--sans) !important }  权重 (0,0,2)
+   只写 h1,h2 (0,0,1) 是压不住的，这也是弹窗里的 h2 一直是黑体的原因。
+   ========================================================= */
+html body :is(h1, h2),
+.mod .name,
+.v3-hero-l h1,
+.v3-diag-l h1,
+.v3-section .head h2,
+.wb-intro h1,
+.skill-form-col h1,
+.skill-output-col h1,
+.skill-empty h2,
+.skill-page-head h1,
+.output-head h2,
+.output-empty h2,
+.morning-intro h1,
+.detector-hero h2,
+.diagnosis-hero h1,
+.hv-hero h1,
+.diagnose-shell h1,
+.entry-panel h1,
+.conversation-workbench-head h1,
+.report-hero h1,
+.report-hero h2,
+.auth-card .auth-copy h1 {
+  font-family: var(--serif) !important;
+  font-style: normal !important;
+  /* 宋体不接受负字距：负值会把笔画挤到一起，这里统一改成正的微松 */
+  letter-spacing: .012em !important;
+}
+
+/* 标题里的强调块：原本是「衬线 italic」，中文没有真 italic，斜体是浏览器合成的歪，
+   放在宋体上会显得脏，这里一律拉正 */
+html body :is(h1, h2) :is(em, i, span, strong, b, a) {
+  font-family: inherit !important;
+  font-style: normal !important;
+}
+
+/* =========================================================
+   02 例外：小于 18px 的标题回到黑体
+   ========================================================= */
+html body :is(.morning-topbar h1, .shell-menu h2, .v3-topbar h1, .brand h1) {
+  font-family: var(--sans) !important;
+  letter-spacing: -.01em !important;
+}
+
+/* =========================================================
+   03 数字：等宽数字，保证纵向对齐
+   ========================================================= */
+body {
+  font-variant-numeric: tabular-nums;
+}
+
+/* =========================================================
+   04 代码：只有这里用真等宽
+   ========================================================= */
+pre,
+code,
+kbd,
+samp {
+  font-family: var(--code) !important;
+  font-variant-ligatures: none;
+}
+
+/* =========================================================
+   05 小字标签：去掉等宽后补一点字距，避免字母粘在一起
+   ========================================================= */
+.v3-meta .r,
+.v3-topbar .brand .ver,
+.v3-topbar .right .ver,
+.mod .num,
+.mod .stat,
+.ditem .k,
+.brow .v,
+.signal-list .sitem .k,
+.lens-list .lens .i,
+.route-list .ritem .i,
+.bm-list .bitem .i {
+  font-family: var(--mono) !important;
+  letter-spacing: .06em;
+}
+
+/* =========================================================
+   06 打穿作用域内的硬编码字体
+   ---------------------------------------------------------
+   workbench-studio.css / morning-studio.css 里各有一条：
+     #workbench :is(h1,h2,h3,p,span,…){ font-family:…'Microsoft YaHei'… !important }
+     body.morning-iframe :is(…){ font-family:'Segoe UI','Microsoft YaHei'… !important }
+   一条 :is() 把整块区域的文字全部钉死成微软雅黑，
+   权重 (1,1,0) + !important，比任何 token 都硬。
+   这里用同样权重的选择器重写一遍，才能让自托管字体真正显示出来。
+   ========================================================= */
+#workbench :is(h1, h2, h3, p, span, strong, em, b, button, textarea, label, a) {
+  font-family: var(--sans) !important;
+}
+
+#workbench :is(h1, h2) {
+  font-family: var(--serif) !important;
+}
+
+/* 标题内部的强调节点跟随标题，不要退回黑体 */
+#workbench :is(h1, h2) :is(span, strong, em, b, a, i) {
+  font-family: inherit !important;
+}
+
+body.morning-iframe,
+body.morning-iframe :is(h1, h2, h3, p, span, strong, em, b, button, textarea, label, select, input) {
+  font-family: var(--sans) !important;
+}
+
+body.morning-iframe :is(h1, h2) {
+  font-family: var(--serif) !important;
+}
+
+/* 成稿标题：workbench-v2.css 里写死了 "Noto Serif SC"，换成自托管族，
+   否则访客机器上没装 Noto Serif SC 会掉到宋体/SimSun */
+body.atelier #workbench .article-canvas h2#result-title {
+  font-family: var(--serif) !important;
+  letter-spacing: .012em !important;
+}
+

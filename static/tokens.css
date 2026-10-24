@@ -38,10 +38,15 @@
   --bad: #d70015;
   --warn: #b25000;
 
-  /* 字体栈：SF Pro 优先，零外部字体依赖 */
-  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "PingFang SC", "Segoe UI", "Microsoft YaHei", "Noto Sans SC", sans-serif;
-  --serif: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Segoe UI", "Microsoft YaHei", sans-serif; /* 关闭衬线，标题走无衬线 */
-  --mono: "SF Mono", "JetBrains Mono", "Roboto Mono", Menlo, Consolas, monospace;
+  /* 字体栈：自托管字体（见 fonts.css），不依赖境外 CDN，也不依赖用户机器装没装
+     --sans  → 拉丁 Inter / 中文 Noto Sans SC
+     --serif → 标题用真宋体（思源宋体），这是「宋黑对照」的骨架
+     --mono  → 界面标签、编号、数字走 Inter + tabular，不再用 Consolas（等宽是最重的机器味来源）
+     --code  → 只有真正的代码块才用等宽 */
+  --sans: "UW Inter", "UW Sans SC", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --serif: "UW Serif SC", "Noto Serif SC", "Source Han Serif SC", "Songti SC", "STSong", Georgia, serif;
+  --mono: "UW Inter", "UW Sans SC", "SF Mono", Menlo, Consolas, monospace;
+  --code: "SF Mono", "JetBrains Mono", Menlo, Consolas, "UW Sans SC", monospace;
 
   /* 圆角 */
   --r-sm: 10px;

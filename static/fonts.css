@@ -1,0 +1,854 @@
+/* 宇宙第一工作台 · 自托管字体
+   来源 Google Fonts（Inter / Noto Sans SC / Noto Serif SC），按 unicode-range 切片。
+   同源托管，不依赖境外 CDN；浏览器只下载页面实际用到的分片。 */
+
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/000.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/001.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/002.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/003.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/004.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/005.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/006.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/007.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/008.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/009.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/010.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/011.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/012.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/013.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/014.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/015.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/016.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/017.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/018.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/019.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/020.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/021.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/022.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/023.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/024.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/025.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/026.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/027.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/028.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/029.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/030.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/031.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/032.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/033.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/034.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/035.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/036.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/037.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/038.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/039.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/040.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/041.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/042.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/043.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/044.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/045.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/046.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/047.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/048.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/049.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/050.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/051.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/052.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/053.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/054.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/055.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/056.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/057.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/058.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/059.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/060.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/061.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/062.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/063.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/064.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/065.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/066.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/067.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/068.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/069.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/070.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/071.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/072.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/073.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/074.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/075.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/076.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/077.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/078.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/079.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/080.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/081.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/082.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/083.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/084.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/085.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/086.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/087.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/088.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/089.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/090.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/091.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/092.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/093.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/094.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/095.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/096.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/097.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/098.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/099.woff2') format('woff2');
+}
+@font-face{font-family:'UW Serif SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/serif/100.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/000.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/001.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/002.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/003.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/004.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/005.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/006.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/007.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/008.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/009.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/010.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/011.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/012.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/013.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/014.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/015.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/016.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/017.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/018.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/019.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/020.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/021.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/022.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/023.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/024.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/025.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/026.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/027.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/028.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/029.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/030.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/031.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/032.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/033.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/034.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/035.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/036.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/037.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/038.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/039.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/040.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/041.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/042.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/043.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/044.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/045.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/046.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/047.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/048.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/049.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/050.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/051.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/052.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/053.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/054.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/055.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/056.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/057.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/058.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/059.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/060.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/061.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/062.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/063.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/064.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/065.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/066.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/067.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/068.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/069.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/070.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/071.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/072.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/073.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/074.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/075.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/076.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/077.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/078.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/079.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/080.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/081.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/082.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/083.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/084.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/085.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/086.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/087.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/088.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/089.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/090.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/091.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/092.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/093.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/094.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/095.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/096.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/097.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/098.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/099.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/100.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/101.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/102.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/103.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/104.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/105.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/106.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/107.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/108.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/109.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/110.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/111.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/112.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/113.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/114.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/115.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/116.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/117.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/118.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/119.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/120.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/121.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/122.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/123.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/124.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/125.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/126.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/127.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/128.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/129.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/130.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/131.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/132.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/133.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/134.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/135.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/136.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/137.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/138.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/139.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/140.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/141.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/142.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/143.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/144.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/145.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/146.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/147.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/148.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/149.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/150.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/151.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/152.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/153.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/154.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/155.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/156.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/157.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/158.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/159.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/160.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/161.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/162.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/163.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/164.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/165.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/166.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/167.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/168.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/169.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/170.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/171.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/172.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/173.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/174.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/175.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/176.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/177.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/178.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/179.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/180.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/181.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/182.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/183.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/184.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/185.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/186.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/187.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/188.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/189.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/190.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/191.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/192.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/193.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/194.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/195.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/196.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/197.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/198.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/199.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/200.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/201.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/202.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/203.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/204.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/205.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/206.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/207.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/208.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/209.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/210.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/211.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/212.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/213.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/214.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/215.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/216.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/217.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/218.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/219.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/220.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/221.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/222.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/223.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/224.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/225.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/226.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/227.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/228.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/229.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/230.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/231.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/232.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/233.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/234.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/235.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/236.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/237.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/238.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/239.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/240.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/241.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/242.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/243.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/244.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/245.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/246.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/247.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/248.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/249.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/250.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/251.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/252.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/253.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/254.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/255.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/256.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/257.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/258.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/259.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/260.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/261.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/262.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/263.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/264.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/265.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/266.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/267.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/268.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/269.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/270.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/271.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/272.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/273.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/274.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/275.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/276.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/277.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/278.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/279.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/280.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/281.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/282.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/283.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/284.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/285.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/286.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/287.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/288.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/289.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/290.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/291.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/292.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/293.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/294.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/295.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/296.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/297.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/298.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/299.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/300.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/301.woff2') format('woff2');
+}
+@font-face{font-family:'UW Sans SC';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/sans/302.woff2') format('woff2');
+}
+@font-face{font-family:'UW Inter';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/inter/000.woff2') format('woff2');
+}
+@font-face{font-family:'UW Inter';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/inter/001.woff2') format('woff2');
+}
+@font-face{font-family:'UW Inter';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/inter/002.woff2') format('woff2');
+}
+@font-face{font-family:'UW Inter';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/inter/003.woff2') format('woff2');
+}
+@font-face{font-family:'UW Inter';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/inter/004.woff2') format('woff2');
+}
+@font-face{font-family:'UW Inter';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/inter/005.woff2') format('woff2');
+}
+@font-face{font-family:'UW Inter';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/inter/006.woff2') format('woff2');
+}
+@font-face{font-family:'UW Inter';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/inter/007.woff2') format('woff2');
+}
+@font-face{font-family:'UW Inter';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/inter/008.woff2') format('woff2');
+}
+@font-face{font-family:'UW Inter';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/inter/009.woff2') format('woff2');
+}
+@font-face{font-family:'UW Inter';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/inter/010.woff2') format('woff2');
+}
+@font-face{font-family:'UW Inter';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/inter/011.woff2') format('woff2');
+}
+@font-face{font-family:'UW Inter';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/inter/012.woff2') format('woff2');
+}
+@font-face{font-family:'UW Inter';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/inter/013.woff2') format('woff2');
+}
+@font-face{font-family:'UW Inter';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/inter/014.woff2') format('woff2');
+}
+@font-face{font-family:'UW Inter';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/inter/015.woff2') format('woff2');
+}
+@font-face{font-family:'UW Inter';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/inter/016.woff2') format('woff2');
+}
+@font-face{font-family:'UW Inter';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/inter/017.woff2') format('woff2');
+}
+@font-face{font-family:'UW Inter';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/inter/018.woff2') format('woff2');
+}
+@font-face{font-family:'UW Inter';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/inter/019.woff2') format('woff2');
+}
+@font-face{font-family:'UW Inter';font-style:normal;font-weight:400;font-display:swap;src:url('/static/vendor/fonts/inter/020.woff2') format('woff2');
+}
