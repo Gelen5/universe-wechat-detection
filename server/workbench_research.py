@@ -260,8 +260,11 @@ def search(query, *, fetch: bool = False, queries=None, max_sources: int = 30,
 
     tokens = _tokens(seeds)
     by_url = {}
-    for run in runs:  # 检索结果优先：它们和查询直接相关
+    for run in runs:  # 检索结果优先，但同样要过主题相关性（Bing 对长查询会返回跑题结果）
         for entry in run['entries']:
+            haystack = f"{entry.get('title', '')} {entry.get('excerpt', '')}".lower()
+            if not any(token in haystack for token in tokens):
+                continue
             by_url.setdefault(_norm(entry['url']), entry)
     for run in feed_runs:  # 行业 RSS：只留命中的，没命中就留最新一条保时效
         picked = []
