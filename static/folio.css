@@ -1000,3 +1000,19 @@ body.atelier #workbench #workbench-result:has(#article-editor) #result-title{
   margin:0 !important;
   max-width:100% !important;
 }
+
+/* 头部还在被 `#workbench-result:not(:has(...))` 拉成居中 + 撑高，
+   这里用同等（3 ID）权重把「有编辑器时」的头部固定成文档头：左对齐、高度自适应 */
+body.atelier #workbench #workbench-result:has(#article-editor) .article-canvas-head{
+  justify-content:flex-start !important;
+  align-items:flex-start !important;
+  text-align:left !important;
+  flex:0 0 auto !important;
+  height:auto !important;
+  min-height:0 !important;
+  padding:24px 36px 8px !important;
+}
+body.atelier #workbench #workbench-result:has(#article-editor) .article-canvas-head > div{
+  width:100% !important; max-width:100% !important;
+  align-items:flex-start !important; text-align:left !important;
+}
