@@ -1,0 +1,231 @@
+/*
+ * liquid-glass.css — 液态玻璃材质层
+ * ────────────────────────────────────────────────────────────────
+ * 定位：只换「材质」，不动布局、不动字号、不动业务模块结构。
+ * 加载顺序：theme-glass.css 之后、type-system.css 之前（字体层永远最后）。
+ * 回滚：删掉 HTML 里那一行 <link href="/static/liquid-glass.css"> 即可。
+ *
+ * 为什么需要这一层：
+ *   原 theme-glass.css 的玻璃是「半透明白 + 大模糊 + 亮白描边」，
+ *   但没有斜向高光，边框又太白（.82），结果读起来像塑料卡片——
+ *   这就是「太 AI」的第二层原因：材质廉价，而不是配色问题。
+ *
+ * 配方三件套（缺一不可）：
+ *   ① background-image 里的斜向高光
+ *      —— 高光必须走 background-image，绝不能挂 ::after。
+ *         绝对定位的伪元素画在文字之上，会把正文洗灰（第一版就栽在这）。
+ *   ② background-color 打底
+ *      —— 白度不够，模糊再重也是毛玻璃糊；
+ *         白度太高，又变成不透明卡片。.73 是实测最像真玻璃的值。
+ *   ③ backdrop-filter: blur(24px) saturate(165%)
+ *      —— 24px 而不是 34/54/64px。过重的模糊会吃掉背景色场，
+ *         玻璃就变成灰色块。saturate 165% 才是「玻璃透色」的关键。
+ *
+ * 分级用材（重要）：
+ *   不是所有卡片都该是玻璃。全站玻璃 = 全站没有重点 = 回到「太 AI」。
+ *   A 级 真玻璃：侧栏、页面主面片、弹窗 —— 有厚度、有折射
+ *   B 级 磨砂片：小卡片、输入框、列表 —— 无模糊，只有白度和发丝边
+ *   背景必须有色差，玻璃才有东西可折射，所以 00 节先加强环境光。
+ * ────────────────────────────────────────────────────────────────
+ */
+
+/* =========================================================
+   00 环境光 —— 玻璃需要有东西可折射
+   ---------------------------------------------------------
+   原来的色场太淡（alpha .26 级别），玻璃后面几乎是纯白，
+   模糊出来还是纯白，看起来就是「没效果」。
+   这里把色团浓度提上去，并且把色团挪到面板实际压住的位置。
+   ========================================================= */
+body.atelier {
+  background:
+    radial-gradient(760px 600px at 4% -14%, rgba(150, 214, 182, .52) 0%, rgba(150, 214, 182, 0) 62%),
+    radial-gradient(720px 600px at 103% 0%, rgba(246, 226, 202, .56) 0%, rgba(246, 226, 202, 0) 60%),
+    radial-gradient(880px 660px at 72% 110%, rgba(178, 219, 190, .46) 0%, rgba(178, 219, 190, 0) 64%),
+    radial-gradient(640px 460px at 36% 42%, rgba(203, 232, 216, .22) 0%, rgba(203, 232, 216, 0) 72%),
+    linear-gradient(178deg, #FAFBF7 0%, #F0F3EC 52%, #E8EEE6 100%) !important;
+  background-attachment: fixed !important;
+}
+
+/* =========================================================
+   01 材质令牌
+   ========================================================= */
+body.atelier {
+  /* A 级：真玻璃 */
+  --lg-fill: rgba(255, 255, 255, .73);
+  /* 两层高光：
+     ① 左上角光晕 —— 「液态」的关键特征。真玻璃被环境光打到时，
+        靠近光源的那只角会整片提亮，而不是均匀泛白。
+     ② 148° 斜向带 —— 从左上白到中段透明、右下再回一点白，
+        模拟玻璃板的厚度折射。必须走 background-image。 */
+  --lg-hi:
+    radial-gradient(128% 92% at 6% -14%,
+      rgba(255, 255, 255, .58) 0%,
+      rgba(255, 255, 255, .18) 32%,
+      rgba(255, 255, 255, 0) 52%),
+    linear-gradient(148deg,
+      rgba(255, 255, 255, .55) 0%,
+      rgba(255, 255, 255, .08) 26%,
+      rgba(255, 255, 255, 0) 50%,
+      rgba(255, 255, 255, 0) 68%,
+      rgba(255, 255, 255, .22) 100%);
+  --lg-edge: rgba(255, 255, 255, .72);
+  --lg-blur: blur(24px) saturate(165%);
+  --lg-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 -1px 1px rgba(255, 255, 255, .5),
+    0 1px 1.5px rgba(12, 45, 30, .028),
+    0 18px 40px -26px rgba(12, 45, 30, .26);
+
+  /* B 级：磨砂片（不模糊，靠白度与发丝边） */
+  --frost-fill: rgba(255, 255, 255, .78);
+  --frost-edge: rgba(15, 45, 32, .06);
+  --frost-shadow:
+    0 1px 2px rgba(12, 45, 30, .032),
+    0 8px 20px -18px rgba(12, 45, 30, .2);
+
+  /* 发丝线比 theme-glass 的 .10 更轻，去掉「画框感」 */
+  --hairline: rgba(15, 45, 32, .085);
+  --hairline-soft: rgba(15, 45, 32, .05);
+}
+
+/* =========================================================
+   02 A 级 · 真玻璃
+   ---------------------------------------------------------
+   每一组都写成和原文件同等特异度 + !important，
+   靠「后加载」取胜，不改任何一条原有选择器的形状。
+   ========================================================= */
+body.atelier .app-shell > .v3-topbar,
+body.atelier .v3-topbar.shell-nav,
+body.atelier.market-body .market-topbar,
+body.atelier .hv-hero,
+body.atelier #workbench .conversation-panel,
+body.atelier #workbench .article-canvas,
+body.atelier #workbench #studio-details,
+body.atelier .skill-page .skill-form-col,
+body.atelier .skill-page .skill-output-col,
+body.atelier .diagnose-page .v3-hero-l,
+body.atelier .diagnose-page .v3-diag-l,
+body.atelier.qihaoshou .studio-header,
+body.atelier.qihaoshou .login-panel,
+body.atelier .account-modal,
+body.atelier .api-settings-modal {
+  background-color: var(--lg-fill) !important;
+  background-image: var(--lg-hi) !important;
+  -webkit-backdrop-filter: var(--lg-blur) !important;
+  backdrop-filter: var(--lg-blur) !important;
+  border: 1px solid var(--lg-edge) !important;
+  box-shadow: var(--lg-shadow) !important;
+}
+
+/* 侧栏原有的「上半截白色镜面」伪元素要撤掉，
+   否则和 background-image 的斜向高光叠成两道光，反而脏 */
+body.atelier .app-shell > .v3-topbar::before,
+body.atelier .v3-topbar.shell-nav::before {
+  content: none !important;
+  display: none !important;
+}
+
+/* 导航选中态：白度降一档、靠内阴影立起来，不再用发光 */
+body.atelier .v3-topbar .app-tabs a.active,
+body.atelier .v3-topbar.shell-nav .app-tabs a.active {
+  background: rgba(255, 255, 255, .62) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .95),
+    0 1px 2px rgba(20, 44, 32, .07) !important;
+}
+
+body.atelier .v3-topbar .app-tabs a:hover,
+body.atelier .v3-topbar.shell-nav .app-tabs a:hover {
+  background: rgba(255, 255, 255, .42) !important;
+}
+
+/* =========================================================
+   03 B 级 · 磨砂片
+   ---------------------------------------------------------
+   小卡片一律不模糊。全部玻璃会让页面失去主次，
+   这一层的作用只是「比背景白一点」，建立 Z 轴但不抢戏。
+   ========================================================= */
+body.atelier .hv-tool,
+body.atelier .hv-card,
+body.atelier .hv-recent,
+body.atelier .hv-compose,
+body.atelier .hv-chip,
+body.atelier .hv-tool .ic,
+body.atelier .hv-row .txt,
+body.atelier #workbench .conversation-panel-head,
+body.atelier #workbench .composer-shell,
+body.atelier .wallet-card,
+body.atelier .preview-card {
+  background-color: var(--frost-fill) !important;
+  background-image: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  border: 1px solid var(--frost-edge) !important;
+  box-shadow: var(--frost-shadow) !important;
+}
+
+/* hover 只提白度，不加位移、不加发光 */
+body.atelier .hv-tool:hover,
+body.atelier .hv-card:hover,
+body.atelier .hv-row:hover {
+  background-color: rgba(255, 255, 255, .92) !important;
+  box-shadow:
+    0 1px 2px rgba(12, 45, 30, .04),
+    0 12px 26px -20px rgba(12, 45, 30, .26) !important;
+}
+
+/* 输入区：内陷而不是凸起，用极淡的内阴影做出「凹槽」 */
+body.atelier .hv-compose:focus-within,
+body.atelier #workbench .composer-shell:focus-within {
+  background-color: rgba(255, 255, 255, .96) !important;
+  border-color: rgba(47, 125, 79, .34) !important;
+  box-shadow:
+    inset 0 1px 2px rgba(12, 45, 30, .05),
+    0 0 0 3px rgba(47, 125, 79, .09) !important;
+}
+
+/* =========================================================
+   04 回退：不支持 backdrop-filter 时退回实色
+   ========================================================= */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  body.atelier .app-shell > .v3-topbar,
+  body.atelier .v3-topbar.shell-nav,
+  body.atelier.market-body .market-topbar,
+  body.atelier .hv-hero,
+  body.atelier #workbench .conversation-panel,
+  body.atelier #workbench .article-canvas,
+  body.atelier #workbench #studio-details,
+  body.atelier .skill-page .skill-form-col,
+  body.atelier .skill-page .skill-output-col,
+  body.atelier .diagnose-page .v3-hero-l,
+  body.atelier.qihaoshou .studio-header,
+  body.atelier.qihaoshou .login-panel,
+  body.atelier .account-modal,
+  body.atelier .api-settings-modal {
+    background-color: #FCFDFB !important;
+    background-image: none !important;
+  }
+}
+
+/* 系统级「降低透明度」偏好：整站回实色，可访问性兜底 */
+@media (prefers-reduced-transparency: reduce) {
+  body.atelier .app-shell > .v3-topbar,
+  body.atelier .v3-topbar.shell-nav,
+  body.atelier.market-body .market-topbar,
+  body.atelier .hv-hero,
+  body.atelier #workbench .conversation-panel,
+  body.atelier #workbench .article-canvas,
+  body.atelier #workbench #studio-details,
+  body.atelier .skill-page .skill-form-col,
+  body.atelier .skill-page .skill-output-col,
+  body.atelier .diagnose-page .v3-hero-l,
+  body.atelier.qihaoshou .studio-header,
+  body.atelier.qihaoshou .login-panel,
+  body.atelier .account-modal,
+  body.atelier .api-settings-modal {
+    background-color: #FCFDFB !important;
+    background-image: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
