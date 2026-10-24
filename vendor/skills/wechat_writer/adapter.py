@@ -43,7 +43,7 @@ def create_tools():
                 "url": source.get("url", ""),
                 "published_at": source.get("published_at", ""),
                 "verification": "search_excerpt_only",
-            } for source in (research.get("sources") or [])[:10] if source.get("url", "").startswith("https://")],
+            } for source in (research.get("sources") or [])[:20] if source.get("url", "").startswith("https://")],
             "platform_hotspots": [{
                 "title": item.get("title", ""), "platforms": item.get("sources") or [],
             } for item in (session.get("skill_hotspots") or [])[:10] if item.get("title")],

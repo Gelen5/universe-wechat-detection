@@ -247,7 +247,20 @@ def search(query, *, fetch: bool = False, queries=None, max_sources: int = 30,
         picked = matched or run['entries'][:1]
         for entry in picked:
             by_url.setdefault(_norm(entry['url']), entry)
-    sources = list(by_url.values())[:max_sources]
+    # 按来源轮转取前 N 条：否则检索结果会把行业 RSS 全挤掉，证据又只剩两三个源
+    groups = {}
+    for entry in by_url.values():
+        groups.setdefault(entry["provider"], []).append(entry)
+    preferred = [name for name, _, _ in SEARCH_ENDPOINTS] + [SOGOU_WEIXIN[0]] + [name for name, _ in FEEDS]
+    order = [name for name in preferred if name in groups] + [name for name in groups if name not in preferred]
+    sources, index = [], 0
+    while len(sources) < max_sources and any(len(groups[name]) > index for name in order):
+        for name in order:
+            if len(sources) >= max_sources:
+                break
+            if len(groups[name]) > index:
+                sources.append(groups[name][index])
+        index += 1
 
     fetched = []
     if fetch and sources:
