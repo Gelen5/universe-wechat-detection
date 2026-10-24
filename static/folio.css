@@ -758,3 +758,151 @@ body.atelier #workbench .workbench-stage-choices .topic-row-index{
   min-width:0 !important;
   justify-content:flex-start !important;
 }
+
+/* =========================================================
+   10 文档排版层（大纲 / 正文 / 去 AI）
+   ---------------------------------------------------------
+   这些阶段的内容原本全塞在 #article-editor 这个 textarea 里，
+   纯文本没有层级，字号再大也是一团。folio.js 现在渲染一层只读文档，
+   这里给它定义版式：正文衬线 17/2.0、编号小标题、引用左边线。
+   点「编辑」仍回到原生 textarea，值不变、保存流程不变。
+   ========================================================= */
+body.atelier #workbench .editor-wrap{ position:relative !important; }
+body.atelier #workbench .editor-wrap:not(.is-editing) #article-editor{ display:none !important; }
+body.atelier #workbench .editor-wrap.is-editing .folio-doc{ display:none !important; }
+body.atelier #workbench .editor-wrap.is-editing #article-editor{
+  display:block !important; width:100% !important;
+  min-height:520px !important; padding:10px 0 !important;
+  background:none !important; border:0 !important;
+  font-family:var(--fp-serif) !important; font-size:16.5px !important; line-height:1.95 !important;
+  color:var(--fp-ink) !important; resize:vertical !important;
+}
+
+body.atelier #workbench .folio-doc{
+  max-width:720px; margin:0 auto; padding:6px 0 48px;
+}
+body.atelier #workbench .folio-doc p{
+  font-family:var(--fp-serif);
+  font-size:17px; line-height:2; color:var(--fp-ink);
+  margin:0 0 22px;
+}
+body.atelier #workbench .folio-doc .fdoc-title{
+  font-family:var(--fp-serif); font-size:26px; font-weight:600;
+  line-height:1.5; letter-spacing:-.012em; color:var(--fp-ink);
+  margin:4px 0 28px;
+}
+body.atelier #workbench .folio-doc h2{
+  font-family:var(--fp-serif); font-size:21px; font-weight:600;
+  line-height:1.6; color:var(--fp-ink); margin:36px 0 14px;
+}
+body.atelier #workbench .folio-doc h3{
+  font-family:var(--fp-serif); font-size:18px; font-weight:600;
+  line-height:1.7; color:var(--fp-ink); margin:28px 0 12px;
+}
+body.atelier #workbench .folio-doc blockquote{
+  margin:26px 0; padding:2px 0 2px 20px;
+  border-left:2px solid var(--fp-hair);
+  font-family:var(--fp-serif); font-size:16.5px; line-height:1.95;
+  color:var(--fp-ink2);
+}
+body.atelier #workbench .folio-doc .fdoc-item{
+  display:grid; grid-template-columns:44px minmax(0,1fr);
+  gap:0 12px; padding:20px 0 18px;
+  border-bottom:1px solid var(--fp-hair2);
+}
+body.atelier #workbench .folio-doc .fdoc-n{
+  font-family:var(--fp-mono); font-size:12px; color:var(--fp-ink4); line-height:2.2;
+}
+body.atelier #workbench .folio-doc .fdoc-h{
+  display:block; font-family:var(--fp-serif); font-size:17.5px; font-weight:600;
+  line-height:1.75; color:var(--fp-ink); margin-bottom:8px;
+}
+body.atelier #workbench .folio-doc .fdoc-k{
+  display:inline-block; font-family:var(--fp-mono); font-size:10px;
+  letter-spacing:.18em; color:var(--fp-ink4); margin:0 0 6px;
+}
+body.atelier #workbench .folio-doc .fdoc-body p{
+  font-size:16.5px; line-height:1.95; margin:0 0 12px; color:var(--fp-ink2);
+}
+body.atelier #workbench .folio-doc .fdoc-empty{
+  font-size:15px; line-height:1.9; color:var(--fp-ink4);
+}
+/* 编辑入口：右下角文字按钮 */
+body.atelier #workbench .folio-doc-edit{
+  position:absolute; right:0; bottom:-2px;
+  background:none; border:0; padding:4px 2px;
+  font-family:var(--fp-mono); font-size:11px; letter-spacing:.1em;
+  color:var(--fp-ink4); cursor:pointer;
+}
+body.atelier #workbench .folio-doc-edit:hover{ color:var(--fp-ink); }
+
+/* 排版预览 iframe：白纸、满宽、无边框 */
+body.atelier #workbench #workbench-html-preview{
+  display:block; width:100% !important; max-width:760px;
+  margin:0 auto !important; border:0 !important; border-radius:0 !important;
+  background:#fff !important; min-height:640px;
+}
+
+/* =========================================================
+   11 大纲 / 正文阶段的头部与工具条收口
+   ---------------------------------------------------------
+   实测：.article-canvas-head 在大纲阶段被撑到 291px（标题 + 一句状态
+   + 两块骨架灰条），下面还有大片空白；「改短一点」等按钮还是旧白盒。
+   ========================================================= */
+/* 灰骨架条一律去掉 */
+body.atelier #workbench .article-canvas-head::before,
+body.atelier #workbench .article-canvas-head::after,
+body.atelier #workbench .article-canvas-head > div:first-child::before,
+body.atelier #workbench .article-canvas-head > div:first-child::after{
+  content:none !important; display:none !important;
+}
+/* 头部高度收敛：不再固定大块留白 */
+body.atelier #workbench .article-canvas-head,
+body.atelier #workbench[data-folio-doc="1"] .article-canvas-head{
+  height:auto !important; min-height:0 !important;
+  padding:24px 36px 8px !important;
+  align-items:flex-start !important;
+  flex:0 0 auto !important;
+  text-align:left !important;
+}
+body.atelier #workbench #result-title{
+  font-size:26px !important; line-height:1.5 !important;
+  text-align:left !important; margin:0 !important;
+}
+body.atelier #workbench #article-save-state,
+body.atelier #workbench .article-canvas-head p{ margin-top:10px !important; }
+/* 有正文时收起提示卡 */
+body.atelier #workbench[data-folio-doc="1"] #workbench-decision{ display:none !important; }
+/* 当前输出工具条 */
+body.atelier #workbench .editor-head{
+  max-width:720px !important; margin:0 auto !important; width:100% !important;
+  padding:0 0 10px !important;
+  border-bottom:1px solid var(--fp-hair2) !important;
+  background:none !important;
+}
+body.atelier #workbench .editor-head span{
+  font-family:var(--fp-mono) !important; font-size:10px !important;
+  letter-spacing:.18em !important; color:var(--fp-ink4) !important;
+}
+/* 选区改写按钮：去掉白盒，改文字按钮 */
+body.atelier #workbench .selection-actions{
+  max-width:720px !important; margin:14px auto 0 !important; width:100% !important;
+  gap:18px !important; padding:0 !important; background:none !important;
+}
+body.atelier #workbench .selection-actions button{
+  background:none !important; border:0 !important; border-radius:0 !important;
+  box-shadow:none !important; padding:2px 0 !important; min-height:0 !important; height:auto !important;
+  font-family:var(--fp-mono) !important; font-size:11px !important;
+  letter-spacing:.04em !important; color:var(--fp-ink3) !important;
+  border-bottom:1px solid var(--fp-hair) !important;
+  cursor:pointer;
+}
+body.atelier #workbench .selection-actions button:hover{ color:var(--fp-ink) !important; border-bottom-color:var(--fp-ink) !important; }
+/* 选区按钮：并排、有间距（被旧样式改成了 inline 挤在一起） */
+body.atelier #workbench .selection-actions{
+  display:flex !important; flex-wrap:wrap !important;
+  align-items:center !important; justify-content:flex-start !important;
+  gap:22px !important;
+}
+body.atelier #workbench .selection-actions button{ width:auto !important; flex:none !important; }
+body.atelier #workbench .selection-actions button::before{ content:none !important; }
