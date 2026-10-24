@@ -45,13 +45,25 @@ body.atelier {
   --g-50: #F3FAF6;
 
   /* 尺寸令牌 */
-  --pd-col: 1120px;       /* 统一内容列宽 */
+  /* 内容列不写死 1120px，也不无限拉伸。
+     1120 是「1440 画布 - 276 侧栏 - 44 内边距」算出来的结果，
+     不是设计常数 —— 上一版写死它，在 2560 窗口里只占 44%，
+     整页像被缩小了。
+     但反过来放开成 100% 同样不行：2560 下会拉成 2240，
+     一行字跑 90+ 字宽，面板空得像没人用。
+     真实做法是「撑到参考版面宽就停」——1680 是 1.5 倍 1120，
+     对应 1920~2560 这一档最舒服的阅读宽度，再多就是留白。
+     宽度停住之后，字号由 §15 同步抬一档，比例才对得上。 */
+  --pd-col: min(100%, 1680px);
+  --pd-col-data: min(100%, 1680px);  /* 书架 / 超市这类数据页同宽 */
   --pd-pad: 22px;         /* 内容列左右内边距 */
   --pd-r-panel: 16px;     /* 面片圆角 */
   --pd-r-card: 12px;
   --pd-r-chip: 999px;
   --pd-gap: 14px;
-  --pd-rail: 396px;       /* 副区宽度（设计稿 396） */
+  /* 副区按比例走，不按绝对像素。稿子 396 / 724 = 35%，
+     在 1440 下算出来正好 396，在宽屏下也不会缩成一条缝。 */
+  --pd-rail: clamp(340px, 34%, 760px);
 }
 
 /* =========================================================
@@ -92,7 +104,7 @@ body.atelier #morning-generator .morning-shell,
 body.atelier #library-main .library-main > *,
 body.atelier #library-main #library-shelf {
   width: 100% !important;
-  max-width: var(--pd-col) !important;
+  max-width: var(--pd-col-data) !important;
   margin-left: auto !important;
   margin-right: auto !important;
   box-sizing: border-box !important;
@@ -272,7 +284,7 @@ body.atelier #workbench.workbench-page .conversation-workbench-layout {
   grid-template-rows: minmax(0, 1fr) !important;
   gap: var(--pd-gap) !important;
   align-items: stretch !important;
-  height: clamp(540px, calc(100dvh - 272px), 840px) !important;
+  height: clamp(540px, calc(100dvh - 272px), 1040px) !important;
   min-height: 0 !important;
 }
 
@@ -528,6 +540,8 @@ body.atelier #workbench .chat-thread {
   display: flex !important;
   flex-direction: column !important;
   justify-content: center !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
 }
 body.atelier #workbench .chat-thread:has(article:nth-of-type(3)) {
   justify-content: flex-start !important;
@@ -771,18 +785,11 @@ body.atelier #workbench .article-canvas-foot {
 }
 
 /* ---------- 空态：设计稿是「图标 + 标题 + 说明 + 三条骨架」居中 ---------- */
-body.atelier #workbench #workbench-result:not(:has(#studio-stage-output > *)) {
-  justify-content: center !important;
-}
-body.atelier #workbench #workbench-result:not(:has(#studio-stage-output > *)) .article-canvas-foot {
-  margin-top: auto !important;
-}
 body.atelier #workbench #workbench-result:not(:has(#studio-stage-output > *)) #studio-stage-output {
-  flex: 0 0 auto !important;
-  overflow: visible !important;
+  display: none !important;
 }
 body.atelier #workbench #workbench-result:not(:has(#studio-stage-output > *)) .article-canvas-head {
-  flex: 0 0 auto !important;
+  flex: 1 1 auto !important;
   display: flex !important;
   flex-direction: column !important;
   align-items: center !important;
@@ -790,11 +797,22 @@ body.atelier #workbench #workbench-result:not(:has(#studio-stage-output > *)) .a
   text-align: center !important;
   padding: 26px 30px !important;
   border-bottom: 0 !important;
+  /* workbench-v2.css 把 head 锁在 640，空态要让它铺满整栏，
+     否则图标会偏在内侧不在栏心 */
+  max-width: 100% !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
 }
 body.atelier #workbench #workbench-result:not(:has(#studio-stage-output > *)) .article-canvas-head > div:first-child {
   display: flex !important;
   flex-direction: column !important;
   align-items: center !important;
+  /* notion-workspace.css:98 给了 flex:1，在 column 方向就是「吃掉整个高度」，
+     结果内容全贴在 head 顶部，justify-content:center 形同失效。
+     这里必须把它压回 content 高度，居中才有空间可用。 */
+  flex: 0 0 auto !important;
+  width: 100% !important;
+  min-width: 0 !important;
 }
 
 /* 图标 */
@@ -827,7 +845,7 @@ body.atelier #workbench #workbench-result:not(:has(#studio-stage-output > *)) .a
 }
 
 /* 三条骨架 */
-body.atelier #workbench #workbench-result:not(:has(#studio-stage-output > *)) #studio-stage-output::before {
+body.atelier #workbench #workbench-result:not(:has(#studio-stage-output > *)) .article-canvas-head > div:first-child::after {
   content: "";
   display: block;
   width: 170px;
@@ -860,7 +878,7 @@ body.atelier #xiaohongshu .skill-shell,
 body.atelier #tie-tu .skill-shell,
 body.atelier #hit-detector .skill-shell {
   display: grid !important;
-  grid-template-columns: 360px minmax(0, 1fr) !important;
+  grid-template-columns: clamp(340px, 27%, 460px) minmax(0, 1fr) !important;
   gap: 16px !important;
   align-items: start !important;
   padding: 0 !important;
@@ -971,7 +989,7 @@ body.atelier .creator-form-mode summary {
    ========================================================= */
 body.atelier #diagnose .diagnose-shell {
   display: grid !important;
-  grid-template-columns: 400px minmax(0, 1fr) !important;
+  grid-template-columns: clamp(380px, 28%, 500px) minmax(0, 1fr) !important;
   gap: 16px !important;
   align-items: start !important;
   padding: 20px 0 0 !important;
@@ -1034,7 +1052,7 @@ body.atelier #home.home-v2 {
 
 body.atelier #home .hv-body {
   display: grid !important;
-  grid-template-columns: minmax(0, 1fr) 320px !important;
+  grid-template-columns: minmax(0, 1fr) clamp(280px, 26%, 440px) !important;
   gap: 16px !important;
   align-items: start !important;
   padding: 0 !important;
@@ -1288,6 +1306,41 @@ body.atelier #diagnose .v3-hero-l {
 }
 
 /* =========================================================
+   11b 技能页左栏：不再拉满到和右栏等高
+   ---------------------------------------------------------
+   原本左栏被拉到 683 高，而内容只有 400，
+   底部那句「填写后，右侧会按顺序生成可编辑的产出」被 margin-top:auto
+   顶到最下面，中间空出两百多像素 —— 这是「模块比例不对」的直接来源。
+   现在左栏只占内容高度，提示行紧跟按钮，右栏保持满高。
+   ========================================================= */
+body.atelier #xiaohongshu .skill-form-col,
+body.atelier #tie-tu .skill-form-col,
+body.atelier #hit-detector .skill-form-col {
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  align-self: start !important;
+  display: flex !important;
+  flex-direction: column !important;
+  /* 关键：原来这套卡片是 justify-content:space-between，
+     高度一收成内容高，剩余空间就被摊成 120px 的大缝，
+     「写作简报」和输入框之间凭空多出一块空白 */
+  justify-content: flex-start !important;
+  gap: 0 !important;
+}
+body.atelier #xiaohongshu .skill-form-col::after,
+body.atelier #tie-tu .skill-form-col::after,
+body.atelier #hit-detector .skill-form-col::after {
+  margin-top: 16px !important;
+  padding-top: 0 !important;
+}
+body.atelier #xiaohongshu .skill-form-col::before,
+body.atelier #tie-tu .skill-form-col::before,
+body.atelier #hit-detector .skill-form-col::before {
+  margin-bottom: 12px !important;
+}
+
+/* =========================================================
    12 技能页：左表单「平」、右产物「透」
    ---------------------------------------------------------
    两栏都上玻璃，结果两栏一样白，中间那条缝读不出来。
@@ -1386,4 +1439,260 @@ body.atelier #hit-detector .skill-output-col {
 
 body.atelier #diagnose .v3-hero-l {
   border-color: rgba(15, 45, 32, .11) !important;
+}
+
+/* =========================================================
+   15 宽屏字号抬一档
+   ---------------------------------------------------------
+   设计稿是 1440 口径（26px 标题 / 13px 正文）。
+   在 1920 以上的窗口里，如果字号原样不动，视觉上会显得「缩了」。
+   这里不整体 zoom（会打乱 100dvh 和固定侧栏），
+   只把人真正在读的那十几处抬一档，其余保持不变。
+   ========================================================= */
+@media (min-width: 1700px) {
+  body.atelier { --pd-rail: clamp(420px, 32%, 820px); }
+
+  body.atelier #workbench .studio-heading h1,
+  body.atelier #xiaohongshu .tool-heading h1,
+  body.atelier #tie-tu .tool-heading h1,
+  body.atelier #hit-detector .tool-heading h1,
+  body.atelier #diagnose .v3-hero-l h1,
+  body.atelier #morning-generator .morning-intro h1,
+  body.atelier #library-main .library-heading h1 {
+    font-size: 32px !important;
+  }
+
+  body.atelier #workbench .studio-heading p,
+  body.atelier #xiaohongshu .tool-heading p,
+  body.atelier #tie-tu .tool-heading p,
+  body.atelier #hit-detector .tool-heading p {
+    font-size: 14px !important;
+  }
+
+  body.atelier #workbench .studio-heading::before,
+  body.atelier #xiaohongshu .tool-heading::before,
+  body.atelier #tie-tu .tool-heading::before,
+  body.atelier #hit-detector .tool-heading::before,
+  body.atelier #diagnose .v3-hero-l::before,
+  body.atelier #morning-generator .morning-intro::before,
+  body.atelier #home .hv-body::before {
+    font-size: 12px !important;
+  }
+
+  body.atelier #workbench #workbench-stage-nav .pd-step-t { font-size: 13px !important; }
+  body.atelier #workbench #workbench-stage-nav .pd-step-d { width: 20px; height: 20px; font-size: 10.5px; }
+  body.atelier #workbench .pd-phline .pd-k { font-size: 10.5px !important; }
+  body.atelier #workbench .pd-phline .pd-v { font-size: 13px !important; }
+
+  body.atelier #workbench .conversation-identity strong { font-size: 14.5px !important; }
+  body.atelier #workbench .conversation-identity small { font-size: 12px !important; }
+  body.atelier #workbench #workbench-stage-title { font-size: 14.5px !important; }
+  body.atelier #workbench #workbench-stage-kicker { font-size: 10.5px !important; }
+  body.atelier #workbench .chat-thread .chat-message.from-ai p { font-size: 14.5px !important; }
+  body.atelier #workbench .chat-action-card strong { font-size: 15px !important; }
+  body.atelier #workbench .chat-action-card p { font-size: 14.5px !important; }
+  body.atelier #workbench .chat-choice-list button { font-size: 12.5px !important; }
+  body.atelier #workbench #workbench-topic { font-size: 13.5px !important; }
+  body.atelier #workbench .composer-shell > label { font-size: 11px !important; }
+  body.atelier #workbench #result-title { font-size: 16px !important; }
+  body.atelier #workbench #article-save-state,
+  body.atelier #workbench .article-canvas-head p { font-size: 12.5px !important; }
+  body.atelier #workbench .workbench-stage-head { padding: 15px 18px !important; }
+  body.atelier #workbench .article-canvas-head { padding: 17px 18px 13px !important; }
+
+  body.atelier .v3-topbar .app-tabs a,
+  body.atelier .v3-topbar .app-tabs a span { font-size: 14.5px !important; }
+  body.atelier .v3-topbar .brand .name { font-size: 14.5px !important; }
+  body.atelier .nav-group-label { font-size: 11px !important; }
+  body.atelier .v3-topbar .app-tabs a { height: 42px !important; }
+
+  body.atelier #home .hv-hero h1 { font-size: 38px !important; }
+  body.atelier #home .hv-lede { font-size: 13.5px !important; }
+  body.atelier #home .hv-tool b { font-size: 14.5px !important; }
+  body.atelier #home .hv-tool p { font-size: 12.5px !important; }
+  body.atelier #home .hv-tool .meta { font-size: 11px !important; }
+  body.atelier #home .hv-sec-head h3 { font-size: 14.5px !important; }
+  body.atelier #home .hv-card h4 { font-size: 14px !important; }
+  body.atelier #home .hv-compose textarea { font-size: 14px !important; }
+
+  body.atelier .skill-empty h2 { font-size: 15.5px !important; }
+  body.atelier .skill-empty p { font-size: 12.5px !important; }
+  body.atelier .skill-form label { font-size: 11.5px !important; }
+  body.atelier .skill-form textarea,
+  body.atelier .skill-form input { font-size: 13.5px !important; }
+}
+
+/* =========================================================
+   16 对话式表单：按钮不再占满整行
+   ---------------------------------------------------------
+   小红书 / 贴图号 / 发布前复核 / 账号诊断 / 早安祝福 这五个页面
+   共用同一个 creator-conversation 表单。线上把「发送」和「新对话」
+   各拉成一条 100% 宽的大色块，两块叠起来比整个表单还重，
+   设计稿里它们是并排的两个薄片。
+   这里把表单改成两列 auto 网格：文字区横跨两列，
+   两个按钮落在同一行、宽度只跟文字走。
+   ========================================================= */
+body.atelier :is(#xiaohongshu, #tie-tu, #hit-detector, #diagnose, #morning-generator)
+  :is(.skill-form, .entry-form).creator-conversation {
+  display: grid !important;
+  /* 第一列跟着「发送」的宽度，第二列吃掉剩余 —— 两列都用 max-content
+     时，横跨两行的 label 会把自己的 max-content 压成 0，整张表单只剩 260 宽 */
+  grid-template-columns: max-content minmax(0, 1fr) !important;
+  justify-content: start !important;
+  align-content: start !important;
+  align-items: center !important;
+  gap: 9px 8px !important;
+}
+
+/* 文字区 / 历史 / 产出 / 状态行一律横跨两列 */
+body.atelier :is(#xiaohongshu, #tie-tu, #hit-detector, #diagnose, #morning-generator)
+  .creator-conversation > :is(label, textarea, input, select,
+    .creator-chat-history, .creator-chat-output, progress, p[role="status"]) {
+  grid-column: 1 / -1 !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* 空的历史 / 产出占位不占位 —— 否则标题和输入框之间会空出五六十像素 */
+body.atelier :is(#xiaohongshu, #tie-tu, #hit-detector, #diagnose, #morning-generator)
+  .creator-conversation > :is(.creator-chat-history, .creator-chat-output):empty {
+  display: none !important;
+}
+
+/* 表单自己不再画一层卡片 —— 它已经在 .skill-form-col 这张卡里了，
+   两层白框套在一起是「廉价感」的主要来源之一 */
+body.atelier :is(#xiaohongshu, #tie-tu, #hit-detector) .skill-form-col .skill-form.creator-conversation,
+body.atelier #diagnose .skill-form.creator-conversation {
+  /* style.css:402 与 taste-chatgpt.css:82 给了 position:sticky; top:22/86px，
+     在网格里会把整个表单往下推 50 多像素，变成「标题和输入框之间一条大缝」 */
+  position: static !important;
+  top: auto !important;
+  inset: auto !important;
+  border: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* 输入控件一律吃满所在网格列 —— 早安页的 textarea 原本只有 200px 宽 */
+body.atelier :is(#xiaohongshu, #tie-tu, #hit-detector, #diagnose, #morning-generator)
+  .creator-conversation :is(textarea, input, select) {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* 按钮只吃自己的文字宽度 */
+body.atelier :is(#xiaohongshu, #tie-tu, #hit-detector, #diagnose, #morning-generator)
+  .creator-conversation > :is(.primary-action, .secondary-action) {
+  width: auto !important;
+  min-width: 0 !important;
+  justify-self: start !important;
+  padding: 0 18px !important;
+}
+
+/* 隐藏态必须真的隐藏：上面给了 display 级覆盖，hidden 属性会失效 */
+body.atelier :is(.creator-conversation, .skill-form, .entry-form) > [hidden] {
+  display: none !important;
+}
+
+/* =========================================================
+   17 早安祝福：给对话栏配一块产物位
+   ---------------------------------------------------------
+   这一页只有一个对话卡，右半栏整块是空的 —— 七个 tab 里最不成立的一页。
+   改成「左对话 / 右产物」两栏，和其它工具页同一套语法，
+   右栏在有产出前是一张带图标和说明的空态卡，不是白板。
+   ========================================================= */
+body.atelier #morning-generator .morning-intro {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) clamp(340px, 30%, 520px) !important;
+  padding: 0 !important;
+  column-gap: 16px !important;
+  row-gap: 0 !important;
+  align-items: start !important;
+}
+body.atelier #morning-generator .morning-intro > .kicker,
+body.atelier #morning-generator .morning-intro > h1,
+body.atelier #morning-generator .morning-intro > p {
+  grid-column: 1 / -1 !important;
+}
+
+body.atelier #morning-generator .morning-intro > .skill-form {
+  grid-column: 1 !important;
+  align-self: stretch !important;
+  margin: 12px 0 0 !important;
+  padding: 18px 18px 16px !important;
+  border: 1px solid rgba(15, 45, 32, .09) !important;
+  border-radius: var(--pd-r-panel) !important;
+  background-color: rgba(255, 255, 255, .62) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .92) !important;
+}
+
+body.atelier #morning-generator .pd-mrail {
+  grid-column: 2 !important;
+  align-self: stretch !important;
+  margin: 12px 0 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0 !important;
+  min-height: 232px !important;
+  padding: 26px 24px !important;
+  border: 1px solid rgba(15, 45, 32, .11) !important;
+  border-radius: var(--pd-r-panel) !important;
+  background-color: rgba(255, 255, 255, .86) !important;
+  background-image: none !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .95),
+    0 2px 4px rgba(12, 45, 30, .03),
+    0 20px 44px -32px rgba(12, 45, 30, .28) !important;
+  text-align: center !important;
+}
+
+/* 有真实产出时撤卡：hidden 要真的隐藏，否则会被上面的 display:flex 盖掉 */
+body.atelier #morning-generator .pd-mrail[hidden] {
+  display: none !important;
+}
+
+body.atelier #morning-generator .pd-mrail-ico {
+  display: block !important;
+  width: 44px !important;
+  height: 44px !important;
+  margin: 0 0 14px !important;
+  border-radius: 12px !important;
+  background-color: rgba(255, 255, 255, .7) !important;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='19' height='19' viewBox='0 0 24 24' fill='none' stroke='%2314684A' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='4'/%3E%3Cpath d='M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .9) !important;
+}
+
+body.atelier #morning-generator .pd-mrail strong {
+  font-family: var(--serif) !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  letter-spacing: -.012em !important;
+  color: var(--ink-1) !important;
+}
+body.atelier #morning-generator .pd-mrail p {
+  max-width: 230px !important;
+  margin: 7px auto 0 !important;
+  font-size: 11.5px !important;
+  line-height: 1.75 !important;
+  color: var(--ink-4) !important;
+}
+body.atelier #morning-generator .pd-mrail-skel {
+  width: 170px !important;
+  height: 30px !important;
+  margin: 16px auto 0 !important;
+  background-image:
+    linear-gradient(#000, #000), linear-gradient(#000, #000), linear-gradient(#000, #000) !important;
+  background-size: 100% 6px, 82% 6px, 58% 6px !important;
+  background-position: center 0, center 12px, center 24px !important;
+  background-repeat: no-repeat !important;
+  border-radius: 3px !important;
+  opacity: .055 !important;
 }
