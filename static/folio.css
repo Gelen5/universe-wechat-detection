@@ -779,7 +779,7 @@ body.atelier #workbench .editor-wrap.is-editing #article-editor{
 }
 
 body.atelier #workbench .folio-doc{
-  max-width:720px; margin:0 auto; padding:6px 0 48px;
+  max-width:720px; margin:0 auto; padding:0 0 48px;
 }
 body.atelier #workbench .folio-doc p{
   font-family:var(--fp-serif);
@@ -1168,7 +1168,7 @@ body.atelier #workbench .editor-wrap:not(.is-editing) .editor-head{ display:none
 /* 编辑器容器：与头部同一左边缘，内容不再二次居中 */
 body.atelier #workbench #workbench-result .editor-wrap{
   padding:0 !important;
-  margin:16px auto 0 !important;
+  margin:6px auto 0 !important;
   max-width:720px !important;
   overflow:visible !important;
   background:none !important;
@@ -1336,3 +1336,9 @@ body.atelier #workbench .folio-doc .fdoc-note{
   margin:0 0 12px !important;
   font-size:16px !important; line-height:1.9 !important; color:var(--fp-ink2) !important;
 }
+
+/* 首项不再额外加顶部留白（头部到文档的间距已经在 .editor-wrap 上控过） */
+body.atelier #workbench .folio-doc .fdoc-item:first-child{ padding-top:6px !important; }
+/* 大纲/正文阶段选题列表已经空了，别留一个空盒子撑高 */
+body.atelier #workbench #studio-stage-output > #topic-list:empty{ display:none !important; }
+body.atelier #workbench #studio-stage-output{ padding:0 !important; }
