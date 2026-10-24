@@ -205,12 +205,16 @@ TECH_HINTS = ("ai", "人工智能", "大模型", "模型", "算法", "编程", "
               "算力", "开源", "llm", "agent", "智能体", "软件", "科技", "云计算", "gpu", "代码")
 
 
-def _feed_relevance(entry, tokens):
-    """topic=和主题有词面交集；tech=只是科技动态；None=八卦/无关，直接丢掉。"""
+# 只有这几家是 AI/技术垂类，允许"和主题无关但属于科技动态"的条目
+AI_FEEDS = {"infoq-cn", "techcrunch", "hnrss"}
+
+
+def _feed_relevance(entry, tokens, provider=""):
+    """topic=和主题有词面交集；tech=垂类科技动态；None=八卦/财经/无关，直接丢掉。"""
     haystack = f"{entry.get('title', '')} {entry.get('excerpt', '')}".lower()
     if sum(1 for token in tokens if token in haystack) >= 2:
         return 'topic'
-    if any(hint in haystack for hint in TECH_HINTS):
+    if provider in AI_FEEDS and any(hint in haystack for hint in TECH_HINTS):
         return 'tech'
     return None
 
@@ -254,7 +258,7 @@ def search(query, *, fetch: bool = False, queries=None, max_sources: int = 30,
     for run in feed_runs:  # 行业 RSS：只留命中的，没命中就留最新一条保时效
         picked = []
         for entry in run['entries']:
-            relevance = _feed_relevance(entry, tokens)
+            relevance = _feed_relevance(entry, tokens, run['provider'])
             if relevance:
                 picked.append(dict(entry, relevance=relevance))
         for entry in picked[:2]:
@@ -280,7 +284,7 @@ def search(query, *, fetch: bool = False, queries=None, max_sources: int = 30,
         # 抓正文优先真实文章（行业 RSS），其次是新闻检索，搜狗跳转放最后
         # 抓正文的顺序：主题命中 > 科技媒体（正文质量稳定）> 新闻检索 > 其它 RSS > 搜狗跳转
         feed_names = {name for name, _ in FEEDS}
-        tech_media = {'infoq-cn', 'techcrunch', 'hnrss'}
+        tech_media = AI_FEEDS
         candidates = ([item for item in sources if item.get('relevance') == 'topic']
                       + [item for item in sources if item['provider'] in tech_media
                          and item.get('relevance') != 'topic']

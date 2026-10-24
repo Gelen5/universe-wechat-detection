@@ -146,3 +146,17 @@ class MultiSourceTests(unittest.TestCase):
         self.assertEqual({'bing', 'infoq-cn'}, providers)
         self.assertEqual(2, len(result['sources']))
         self.assertIn('infoq-cn', result['providers'])
+
+class FeedRelevanceTests(unittest.TestCase):
+    def test_off_topic_business_news_is_dropped(self):
+        entry = {"title": "美女投资人违规被罚，曾押中GPU四小龙", "excerpt": ""}
+        self.assertIsNone(research._feed_relevance(entry, set(), "tmtpost"))
+
+    def test_ai_media_may_carry_generic_tech(self):
+        entry = {"title": "智源发布 FlagOS 2.2", "excerpt": "开源 模型"}
+        self.assertEqual("tech", research._feed_relevance(entry, set(), "infoq-cn"))
+
+    def test_topic_hit_wins_for_any_feed(self):
+        entry = {"title": "程序员 岗位 变化", "excerpt": ""}
+        self.assertEqual("topic", research._feed_relevance(entry, {"程序", "岗位"}, "sina-tech"))
+
