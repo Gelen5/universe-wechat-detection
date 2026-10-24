@@ -1,0 +1,149 @@
+
+
+/* ==========================================================================
+   workbench-v2.css — 公众号创作：对话居中、成稿在右
+   只覆盖 981px 以上的桌面版式，不改 DOM、不动 JS 依赖的节点。
+   ========================================================================== */
+
+@media (min-width: 981px) {
+
+  body.atelier #workbench.workbench-page {
+    padding: 10px 14px 0 !important;
+    background: transparent !important;
+  }
+
+  /* 两栏：对话居中 1fr，成稿右侧 440 */
+  body.atelier #workbench .conversation-workbench-layout {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) 440px !important;
+    gap: 14px !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: clamp(600px, calc(100dvh - 150px), 880px) !important;
+    margin: 0 0 10px 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    overflow: visible !important;
+  }
+
+  /* 对话：左、居中、玻璃 */
+  body.atelier #workbench .conversation-panel {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 0 !important;
+    border: 1px solid rgba(255, 255, 255, .82) !important;
+    border-left: 1px solid rgba(255, 255, 255, .82) !important;
+    border-radius: 22px !important;
+    background: linear-gradient(180deg, rgba(255, 255, 255, .58), rgba(255, 255, 255, .34)) !important;
+    -webkit-backdrop-filter: blur(54px) saturate(200%);
+    backdrop-filter: blur(54px) saturate(200%);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, .95) inset,
+      0 34px 70px -50px rgba(18, 44, 30, .5) !important;
+    overflow: hidden;
+  }
+
+  /* 成稿：右、玻璃 */
+  body.atelier #workbench .article-canvas {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 0 !important;
+    padding: 18px 22px 16px !important;
+    border: 1px solid rgba(255, 255, 255, .82) !important;
+    border-radius: 22px !important;
+    background: linear-gradient(180deg, rgba(255, 255, 255, .62), rgba(255, 255, 255, .38)) !important;
+    -webkit-backdrop-filter: blur(54px) saturate(200%);
+    backdrop-filter: blur(54px) saturate(200%);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, .95) inset,
+      0 34px 70px -50px rgba(18, 44, 30, .5) !important;
+    overflow-y: auto !important;
+  }
+
+  /* 成稿正文：宋体、限宽、行距 */
+  body.atelier #workbench #article-editor,
+  body.atelier #workbench .article-canvas #article-editor {
+    max-width: 720px !important;
+    margin: 8px auto 0 !important;
+    font-family: "Noto Serif SC", "Songti SC", "SimSun", serif !important;
+    font-size: 14.5px !important;
+    line-height: 2 !important;
+    color: #3B4239 !important;
+    background: transparent !important;
+    border: 0 !important;
+  }
+
+  body.atelier #workbench .article-canvas h2#result-title {
+    font-family: "Noto Serif SC", "Songti SC", serif !important;
+    font-size: 22px !important;
+    font-weight: 600 !important;
+    line-height: 1.5 !important;
+    letter-spacing: 0 !important;
+    color: #14180F !important;
+  }
+
+  /* 输入框抬高 */
+  body.atelier #workbench .composer-shell textarea,
+  body.atelier #workbench #workbench-topic {
+    min-height: 74px !important;
+    font-size: 13.5px !important;
+    line-height: 1.7 !important;
+    border-radius: 12px !important;
+  }
+
+  body.atelier #workbench .composer-send {
+    width: 34px !important;
+    height: 34px !important;
+  }
+}
+
+/* 阶段条：紧凑、当前步实心胶囊（桌面 + 全部宽度） */
+body.atelier #workbench .workbench-stage-nav {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0 !important;
+  grid-template-columns: none !important;
+  height: 50px !important;
+  padding: 0 6px !important;
+  overflow: visible !important;
+  background: transparent !important;
+  border: 0 !important;
+}
+
+body.atelier #workbench .workbench-stage-nav button {
+  flex: none !important;
+  display: flex !important;
+  align-items: center;
+  gap: 7px;
+  height: 30px !important;
+  padding: 0 10px !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  background: transparent !important;
+  font-size: 12px !important;
+  color: var(--ink-3, #8A948C) !important;
+}
+
+body.atelier #workbench .workbench-stage-nav button em,
+body.atelier #workbench .workbench-stage-nav button i {
+  font-family: "IBM Plex Mono", Consolas, monospace;
+  font-size: 9.5px;
+  font-style: normal;
+  opacity: .8;
+}
+
+body.atelier #workbench .workbench-stage-nav button[aria-current="step"] {
+  background: rgba(255, 255, 255, .92) !important;
+  color: var(--ink-1, #191D19) !important;
+  font-weight: 600 !important;
+  box-shadow: 0 2px 8px -6px rgba(20, 44, 32, .4) !important;
+}
+
+body.atelier #workbench .workbench-stage-nav::after {
+  display: none !important;
+}
