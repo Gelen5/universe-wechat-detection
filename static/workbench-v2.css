@@ -272,3 +272,57 @@ body.atelier #workbench .workbench-stage-nav::after {
     border-bottom: 1px solid rgba(28, 44, 34, .07);
   }
 }
+
+
+/* ==========================================================================
+   收口：右栏放宽、面板别再拉满屏、去掉硬分隔线
+   ========================================================================== */
+
+@media (min-width: 981px) {
+  /* 右栏随视口放宽，1280 时 400，1440 时 460 */
+  body.atelier #workbench .conversation-workbench-layout {
+    grid-template-columns: 220px minmax(0, 1fr) clamp(400px, 32vw, 460px) !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: calc(100dvh - 168px) !important;
+    align-items: stretch !important;
+  }
+
+  /* 三块面板都不超过一屏，内容少时不会拉出大白块 */
+  body.atelier #workbench #studio-details,
+  body.atelier #workbench #creation-assistant,
+  body.atelier #workbench #workbench-result {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: calc(100dvh - 168px) !important;
+  }
+
+  /* 对话区：内容多时自己滚，输入框钉底 */
+  body.atelier #workbench #creation-assistant .chat-thread,
+  body.atelier #workbench #creation-assistant .conversation-history {
+    flex: 1 1 auto !important;
+    min-height: 120px !important;
+    overflow-y: auto !important;
+  }
+
+  /* 去掉画布左侧那条硬线，靠间距分隔 */
+  body.atelier #workbench .article-canvas {
+    border-left: 0 !important;
+  }
+
+  /* 成稿内部：限定阅读宽度并居中，别让文字贴边 */
+  body.atelier #workbench #workbench-result .article-canvas-head,
+  body.atelier #workbench #workbench-result .version-strip,
+  body.atelier #workbench #workbench-result #article-editor,
+  body.atelier #workbench #workbench-result .current-work-card {
+    max-width: 640px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    width: 100% !important;
+  }
+
+  /* 空状态：把居中的大标题收小，降低“模板感” */
+  body.atelier #workbench #workbench-result #result-title {
+    font-size: 19px !important;
+  }
+}
