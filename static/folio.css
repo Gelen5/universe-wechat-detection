@@ -1066,14 +1066,22 @@ body.atelier #workbench #workbench-result .article-canvas-head > div:first-child
   flex:1 1 auto !important; min-width:0 !important;
   max-width:100% !important;
 }
-/* 右上角图标组：贴到 720 版心的右边缘，不再撑成白盒 */
+/* 右上角图标组：贴到 720 版心的右上角。
+   旧样式一堆 align-items / flex 覆盖，横排里它会被压到底部对齐，
+   干脆脱离流做绝对定位，位置只由 top/right 决定。 */
+body.atelier #workbench #workbench-result .article-canvas-head{
+  position:relative !important;
+}
+body.atelier #workbench[data-folio-doc="1"] #workbench-result .article-canvas-head > div:first-child{
+  padding-right:150px !important;
+}
 body.atelier #workbench #workbench-result .canvas-actions,
 body.atelier #workbench #workbench-result:has(#article-editor) .article-canvas-head > .canvas-actions{
+  position:absolute !important;
+  top:24px !important; right:0 !important; left:auto !important; bottom:auto !important;
   display:flex !important; align-items:center !important;
-  gap:0 !important; padding:2px 0 0 !important;
-  margin-left:auto !important; flex:0 0 auto !important;
-  align-self:flex-start !important;
-  width:auto !important; max-width:48% !important;
+  gap:0 !important; padding:0 !important; margin:0 !important;
+  width:auto !important; max-width:none !important;
   justify-content:flex-end !important;
   background:none !important; border:0 !important;
 }
