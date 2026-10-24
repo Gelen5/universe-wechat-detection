@@ -33,6 +33,18 @@ class TopicQueryTests(unittest.TestCase):
 
 
 class SearchFanOutTests(unittest.TestCase):
+    def setUp(self):
+        # 只验证「多查询扇出 + 去重」，把新增的搜狗/行业 RSS 源隔离掉
+        empty = {'status': 'empty', 'entries': []}
+        self._sogou = patch.object(research, '_run_sogou', return_value={'provider': 'sogou-weixin', 'query': '', **empty})
+        self._feed = patch.object(research, '_run_feed', return_value={'provider': 'feed', 'query': '', **empty})
+        self._sogou.start()
+        self._feed.start()
+
+    def tearDown(self):
+        self._sogou.stop()
+        self._feed.stop()
+
     def fake_get(self, url, params=None, **kwargs):
         query = (params or {}).get("q", "q")
         slug = f"{abs(hash(query)) % 10000}"
@@ -78,3 +90,59 @@ class SearchFanOutTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+SOGOU_HTML = """<html><body>
+<div class="news-list"><ul>
+<li><h3><a href="/link?url=abc123" target="_blank">AI 大模型周报：Kimi 新版本</a></h3></li>
+<li><h3><a href="/link?url=def456" target="_blank">大模型价格战继续</a></h3></li>
+</ul></div></body></html>"""
+
+
+class TextResponse:
+    def __init__(self, body: str, status: int = 200):
+        self.content = body.encode('utf-8')
+        self.text = body
+        self.status_code = status
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            raise research.requests.HTTPError(f"status {self.status_code}")
+
+
+class MultiSourceTests(unittest.TestCase):
+    def test_sogou_parses_headlines(self):
+        with patch.object(research.requests, 'get', return_value=TextResponse(SOGOU_HTML)):
+            run = research._run_sogou(('AI 大模型', 10))
+        self.assertEqual('ok', run['status'])
+        self.assertEqual(2, len(run['entries']))
+        self.assertTrue(run['entries'][0]['url'].startswith('https://weixin.sogou.com/link?url='))
+        self.assertEqual('sogou-weixin', run['entries'][0]['provider'])
+
+    def test_sogou_block_page_is_unavailable(self):
+        with patch.object(research.requests, 'get', return_value=TextResponse('<html>请输入验证码</html>')):
+            run = research._run_sogou(('AI', 10))
+        self.assertEqual('unavailable', run['status'])
+        self.assertEqual([], run['entries'])
+
+    def test_feed_upgrades_http_links(self):
+        rss = RSS.replace('https://example.com/', 'http://example.com/')
+        with patch.object(research.requests, 'get', return_value=TextResponse(rss)):
+            run = research._run_feed(('sina-tech', 'https://rss.example', 10))
+        self.assertEqual('ok', run['status'])
+        self.assertTrue(all(entry['url'].startswith('https://') for entry in run['entries']))
+
+    def test_search_merges_feeds_with_search_results(self):
+        feed_entry = {'title': 'AI 大模型 行业动态', 'url': 'https://feed.example/1',
+                      'excerpt': '大模型 应用', 'published_at': '', 'provider': 'infoq-cn',
+                      'query': '', 'verification': 'feed_headline_only'}
+        search_entry = {'title': 'AI 大模型 热点', 'url': 'https://search.example/1',
+                        'excerpt': '', 'published_at': '', 'provider': 'bing',
+                        'query': 'AI 大模型 热点 讨论', 'verification': 'search_excerpt_only'}
+        with patch.object(research, '_run_query', return_value={'provider': 'bing', 'query': 'q', 'status': 'ok', 'entries': [search_entry]}), \
+                patch.object(research, '_run_sogou', return_value={'provider': 'sogou-weixin', 'query': 'q', 'status': 'empty', 'entries': []}), \
+                patch.object(research, '_run_feed', return_value={'provider': 'infoq-cn', 'query': '', 'status': 'ok', 'entries': [feed_entry]}):
+            result = research.search('AI 大模型', queries=['AI 大模型 热点 讨论'])
+        providers = {source['provider'] for source in result['sources']}
+        self.assertEqual({'bing', 'infoq-cn'}, providers)
+        self.assertEqual(2, len(result['sources']))
+        self.assertIn('infoq-cn', result['providers'])

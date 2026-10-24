@@ -1,4 +1,4 @@
-﻿"""Public RSS search evidence. Search snippets are never verified facts.
+"""Public RSS search evidence. Search snippets are never verified facts.
 
 The topic stage needs real signals, not one keyword lookup: several targeted
 queries (hot discussion, platform chatter, recent coverage, controversy) are
@@ -9,6 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone, timedelta
 from difflib import SequenceMatcher
 import json
+import re
 import xml.etree.ElementTree as ET
 import requests
 import ipaddress
@@ -26,11 +27,31 @@ QUERY_TEMPLATES = (
     "{topic} 争议 观点 讨论",
 )
 
-ENDPOINTS = (
+SEARCH_ENDPOINTS = (
     ("bing", "https://www.bing.com/search", {"format": "rss"}),
     ("google-news", "https://news.google.com/rss/search",
      {"hl": "zh-CN", "gl": "CN", "ceid": "CN:zh-Hans"}),
 )
+
+# 检索型补强：搜狗微信能拿到公众号文章标题与最近发布时间（实测可用）。
+# 百度资讯与知乎搜索在服务器上分别返回验证码页和 403，暂不接入（见 limitations）。
+SOGOU_WEIXIN = ("sogou-weixin", "https://weixin.sogou.com/weixin", {"type": "2"})
+
+# 行业动态：查询无关的最新条目，用来补时效性（每个源取最新几条）。
+FEEDS = (
+    ("tmtpost", "https://www.tmtpost.com/rss"),
+    ("sina-tech", "https://rss.sina.com.cn/tech/rollnews.xml"),
+    ("sspai", "https://sspai.com/feed"),
+    ("infoq-cn", "https://www.infoq.cn/feed"),
+    ("hnrss", "https://hnrss.org/frontpage"),
+    ("techcrunch", "https://techcrunch.com/feed/"),
+)
+
+HEADERS = {
+    "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                   "(KHTML, like Gecko) Chrome/122.0 Safari/537.36"),
+    "Accept-Language": "zh-CN,zh;q=0.9",
+}
 
 
 def topic_queries(topic, limit: int = 3):
@@ -91,31 +112,110 @@ def fetch_source(source):
         return result
 
 
+def _entry(name, title, url, excerpt, published, query, verification='search_excerpt_only'):
+    return {'title': title.strip(), 'url': url, 'excerpt': (excerpt or '')[:400],
+            'published_at': (published or '').strip(), 'provider': name, 'query': query,
+            'verification': verification}
+
+
 def _run_query(spec):
     name, url, base_params, query, timeout = spec
     params = dict(base_params)
     params["q"] = query
     try:
-        response = requests.get(url, params=params, timeout=timeout)
+        response = requests.get(url, params=params, headers=HEADERS, timeout=timeout)
         response.raise_for_status()
         root = ET.fromstring(response.content)
         entries = []
         for item in root.findall('.//item')[:6]:
-            link = item.findtext('link') or ''
+            link = _secure((item.findtext('link') or '').strip())
             if not link.startswith('https://'):
                 continue
-            entries.append({'title': item.findtext('title') or '', 'url': link,
-                            'excerpt': item.findtext('description') or '',
-                            'published_at': item.findtext('pubDate') or '',
-                            'provider': name, 'query': query,
-                            'verification': 'search_excerpt_only'})
+            entries.append(_entry(name, item.findtext('title') or '', link,
+                                  item.findtext('description') or '',
+                                  item.findtext('pubDate') or '', query))
         return {'provider': name, 'query': query,
                 'status': 'ok' if entries else 'empty', 'entries': entries}
     except Exception:  # best-effort fanout: any failure just means "no signal here"
         return {'provider': name, 'query': query, 'status': 'unavailable', 'entries': []}
 
 
-def search(query, *, fetch: bool = False, queries=None, max_sources: int = 12,
+def _run_sogou(spec):
+    """搜狗微信检索：只取标题/链接/时间，链接是搜狗跳转，仍标注为仅摘要。"""
+    query, timeout = spec
+    name = SOGOU_WEIXIN[0]
+    params = dict(SOGOU_WEIXIN[2])
+    params["query"] = query
+    try:
+        response = requests.get(SOGOU_WEIXIN[1], params=params, headers=HEADERS, timeout=timeout)
+        response.raise_for_status()
+        text = response.text
+        if any(marker in text for marker in ("请输入验证码", "antispider", "安全验证")):
+            raise ValueError("sogou blocked")
+        soup = BeautifulSoup(text, "html.parser")
+        entries = []
+        for node in soup.select("h3 a[href*='/link?url=']")[:6]:
+            title = node.get_text(" ", strip=True)
+            if not title:
+                continue
+            href = urljoin("https://weixin.sogou.com", node.get("href", ""))
+            entries.append(_entry(name, title, href, "", "", query))
+        return {'provider': name, 'query': query,
+                'status': 'ok' if entries else 'empty', 'entries': entries}
+    except Exception:
+        return {'provider': name, 'query': query, 'status': 'unavailable', 'entries': []}
+
+
+def _run_feed(spec):
+    """行业 RSS：与查询无关的最新条目，由调用方按关键词过滤。"""
+    name, url, timeout = spec
+    try:
+        response = requests.get(url, headers=HEADERS, timeout=timeout)
+        response.raise_for_status()
+        root = ET.fromstring(response.content)
+        entries = []
+        for item in root.findall('.//item')[:12]:
+            link = _secure((item.findtext('link') or '').strip())
+            if not link.startswith('https://'):
+                continue
+            entries.append(_entry(name, item.findtext('title') or '', link,
+                                  item.findtext('description') or '',
+                                  item.findtext('pubDate') or '', '', 'feed_headline_only'))
+        return {'provider': name, 'query': '', 'status': 'ok' if entries else 'empty',
+                'entries': entries}
+    except Exception:
+        return {'provider': name, 'query': '', 'status': 'unavailable', 'entries': []}
+
+
+STOP_TOKENS = {"热点", "讨论", "最新", "进展", "报道", "微博", "知乎", "热搜", "争议",
+               "观点", "相关", "重点", "关注", "适合", "文章", "微信", "公众", "深度"}
+
+
+def _tokens(seeds):
+    """把查询句拆成可匹配的词：英文按词，中文按二元组（去停用词）。"""
+    text = " ".join(seeds).lower()
+    tokens = set(re.findall(r"[a-z0-9]{2,}", text))
+    for block in re.findall(r"[\u4e00-\u9fff]{2,}", text):
+        for index in range(len(block) - 1):
+            tokens.add(block[index:index + 2])
+    return {token for token in tokens if token not in STOP_TOKENS}
+
+
+def _feed_matches(entry, tokens):
+    haystack = f"{entry.get('title', '')} {entry.get('excerpt', '')}".lower()
+    return sum(1 for token in tokens if token in haystack) >= 2
+
+
+def _secure(url):
+    """新浪等源的条目链接是 http，统一升到 https（安全校验只放行 https）。"""
+    return url.replace("http://", "https://", 1) if url.startswith("http://") else url
+
+
+def _norm(url):
+    return url.split("#", 1)[0].rstrip("/")
+
+
+def search(query, *, fetch: bool = False, queries=None, max_sources: int = 30,
            max_fetch: int = 3, timeout: int = 14):
     """Fan out over several queries, dedupe, and optionally fetch the top pages."""
     seeds = []
@@ -123,17 +223,30 @@ def search(query, *, fetch: bool = False, queries=None, max_sources: int = 12,
         text = str(item or "").strip()
         if text and text not in seeds:
             seeds.append(text)
-    specs = [(name, url, params, seed, timeout)
-             for seed in seeds for name, url, params in ENDPOINTS]
-    runs = []
-    if specs:
-        with ThreadPoolExecutor(max_workers=min(4, len(specs))) as pool:
-            runs = list(pool.map(_run_query, specs))
 
+    query_specs = [(name, url, params, seed, timeout)
+                   for seed in seeds for name, url, params in SEARCH_ENDPOINTS]
+    sogou_specs = [(seed, timeout) for seed in seeds]
+    feed_specs = [(name, url, timeout) for name, url in FEEDS]
+
+    runs, feed_runs = [], []
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        futures = [pool.submit(_run_query, spec) for spec in query_specs]
+        futures += [pool.submit(_run_sogou, spec) for spec in sogou_specs]
+        feed_futures = [pool.submit(_run_feed, spec) for spec in feed_specs]
+        runs = [future.result() for future in futures]
+        feed_runs = [future.result() for future in feed_futures]
+
+    tokens = _tokens(seeds)
     by_url = {}
-    for run in runs:
+    for run in runs:  # 检索结果优先：它们和查询直接相关
         for entry in run['entries']:
-            by_url.setdefault(entry['url'], entry)
+            by_url.setdefault(_norm(entry['url']), entry)
+    for run in feed_runs:  # 行业 RSS：只留命中的，没命中就留最新一条保时效
+        matched = [entry for entry in run['entries'] if _feed_matches(entry, tokens)][:3]
+        picked = matched or run['entries'][:1]
+        for entry in picked:
+            by_url.setdefault(_norm(entry['url']), entry)
     sources = list(by_url.values())[:max_sources]
 
     fetched = []
@@ -145,12 +258,14 @@ def search(query, *, fetch: bool = False, queries=None, max_sources: int = 12,
     status = 'complete' if with_content else ('partial' if sources else 'unavailable')
     return {'query': query, 'queries': seeds,
             'checked_at': datetime.now(timezone.utc).isoformat(),
-            'runs': runs, 'sources': sources, 'fetched': fetched,
+            'runs': runs + feed_runs, 'sources': sources, 'fetched': fetched,
             'fetched_count': len(with_content), 'status': status,
-            'limitations': '搜索摘要与网页正文都不是事实核验；未经原文验证的数据、案例不能当作已证实事实。'}
+            'providers': sorted({source['provider'] for source in sources}),
+            'limitations': ('搜索摘要与网页正文都不是事实核验；未经原文验证的数据、案例不能当作已证实事实。'
+                            '百度资讯与知乎搜索在本服务器被反爬拦截，未接入。')}
 
 
-def compact(research: dict, *, source_limit: int = 8, fetch_limit: int = 3,
+def compact(research: dict, *, source_limit: int = 12, fetch_limit: int = 3,
             excerpt_chars: int = 700) -> dict:
     """Prompt-sized view: keep URLs and real excerpts, drop the raw feed noise."""
     return {
