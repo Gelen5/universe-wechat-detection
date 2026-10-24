@@ -582,3 +582,179 @@ body.atelier #workbench[data-folio-empty="1"] #workflow-steps,
 body.atelier #workbench[data-folio-empty="1"] .pd-phline,
 body.atelier #workbench[data-folio-empty="1"] .studio-switch,
 body.atelier #workbench[data-folio-empty="1"] .conversation-output-actions{ display:none !important; }
+
+/* =========================================================
+   08 字号加档 + 选题行复位
+   ---------------------------------------------------------
+   ① 素笺原来按 1440 稿定尺寸，在 2K/4K 屏上整体偏小（大量 9–13px），
+      这一节把正文/标题/辅助文字统一抬一档。
+   ② design-parity §chip 规则把 `.workbench-stage-choices button`
+      强制成 height:27px + font-size:11.5px —— 那是旧版 chip 样式，
+      误伤了现在的选题行（内部有 300px 内容），导致整块塌陷重叠。
+      这里用更高特异性 + 后加载，把它复位成 grid 行。
+   ========================================================= */
+/* 页头 */
+body.atelier #workbench .studio-heading h1{ font-size:30px !important; }
+body.atelier #workbench .studio-heading p{ font-size:13.5px !important; line-height:1.7 !important; }
+/* 阶段条 / STEP 行 */
+body.atelier #workbench #workbench-stage-nav .pd-step-t{ font-size:13px !important; }
+body.atelier #workbench #workbench-stage-nav .pd-step-d{ font-size:10px !important; }
+body.atelier #workbench .pd-phline .pd-k{ font-size:10px !important; }
+body.atelier #workbench .pd-phline .pd-v{ font-size:13px !important; }
+/* 对话 */
+body.atelier #workbench .chat-message p{ font-size:16px !important; line-height:1.85 !important; }
+body.atelier #workbench .chat-message.from-user p,
+body.atelier #workbench .chat-message.from-me p{ font-size:16px !important; line-height:1.85 !important; }
+body.atelier #workbench .chat-message > span{ font-size:11px !important; }
+body.atelier #workbench .chat-action-card strong{ font-size:15px !important; }
+body.atelier #workbench .chat-action-card p{ font-size:14px !important; line-height:1.75 !important; }
+body.atelier #workbench .chat-choice-list button{ font-size:14.5px !important; padding:12px 2px !important; }
+/* 输入条 */
+body.atelier #workbench #workbench-topic,
+body.atelier #workbench .composer-shell textarea{ font-size:15.5px !important; line-height:1.7 !important; }
+body.atelier #workbench .composer-hint{ font-size:11.5px !important; }
+body.atelier #workbench .composer-text-action{ font-size:12.5px !important; }
+body.atelier #workbench .composer-shell > label{ font-size:9.5px !important; }
+/* 产物栏 */
+body.atelier #workbench #workbench-stage-kicker{ font-size:10.5px !important; }
+body.atelier #workbench #workbench-stage-title{ font-size:18px !important; }
+body.atelier #workbench .workbench-stage-actions button{ font-size:12.5px !important; }
+body.atelier #workbench #result-title{ font-size:28px !important; }
+body.atelier #workbench #article-save-state,
+body.atelier #workbench .article-canvas-head p{ font-size:12.5px !important; }
+body.atelier #workbench .version-strip{ font-size:11.5px !important; }
+body.atelier #workbench #workbench-decision strong{ font-size:15px !important; }
+body.atelier #workbench #workbench-decision p{ font-size:14px !important; line-height:1.75 !important; }
+body.atelier #workbench .article-canvas-foot{ font-size:12px !important; }
+body.atelier #workbench #article-editor{ font-size:15.5px !important; line-height:1.9 !important; }
+
+/* 选题板：放开 640 版心限制，占满右栏；标题/理由/信号全部抬档 */
+body.atelier #workbench #workbench-stage-choices{
+  max-width:none !important;
+  width:100% !important;
+  margin:18px 0 0 !important;
+  padding:0 30px !important;
+}
+body.atelier #workbench .topic-board-head strong{ font-size:21px !important; line-height:1.4 !important; }
+body.atelier #workbench .topic-board-head p{ font-size:12.5px !important; line-height:1.7 !important; }
+
+/* 选题行复位：design-parity 的 27px 高度压制在这里失效 */
+body.atelier #workbench .workbench-stage-choices button.topic-row{
+  height:auto !important;
+  min-height:0 !important;
+  padding:15px 4px 16px !important;
+  border:0 !important;
+  border-bottom:1px solid var(--fp-hair2) !important;
+  border-radius:0 !important;
+  background:none !important;
+  box-shadow:none !important;
+  display:grid !important;
+  grid-template-columns:30px minmax(0,1fr) 16px !important;
+  gap:12px !important;
+  align-items:start !important;
+  font-size:inherit !important;
+  color:var(--fp-ink) !important;
+  text-align:left !important;
+}
+body.atelier #workbench .workbench-stage-choices button.topic-row:hover{ background:none !important; }
+body.atelier #workbench .workbench-stage-choices button.topic-row:hover .topic-row-title{ text-decoration:underline !important; text-underline-offset:4px !important; text-decoration-thickness:1px !important; }
+body.atelier #workbench .workbench-stage-choices .topic-row-index{
+  font-family:var(--fp-mono) !important; font-size:12px !important; color:var(--fp-ink4) !important; line-height:1.9 !important;
+}
+body.atelier #workbench .workbench-stage-choices .topic-row-main{ gap:7px !important; }
+body.atelier #workbench .workbench-stage-choices .topic-row-title{
+  font-family:var(--fp-serif) !important; font-size:17px !important; font-weight:600 !important; line-height:1.6 !important; color:var(--fp-ink) !important;
+}
+body.atelier #workbench .workbench-stage-choices .topic-row-reason{
+  font-size:13px !important; line-height:1.8 !important; color:var(--fp-ink3) !important;
+}
+body.atelier #workbench .workbench-stage-choices .topic-row-type,
+body.atelier #workbench .workbench-stage-choices .topic-row-pick{ font-size:11px !important; line-height:1.9 !important; }
+body.atelier #workbench .workbench-stage-choices .topic-signal{ font-size:12px !important; }
+body.atelier #workbench .workbench-stage-choices .topic-signal b{ font-size:12.5px !important; color:var(--fp-ink2) !important; }
+body.atelier #workbench .workbench-stage-choices .topic-row-competition{ font-size:12px !important; }
+body.atelier #workbench .workbench-stage-choices .topic-row-state{ font-size:15px !important; }
+
+/* =========================================================
+   09 工作态修正（依据真实 DOM 实测）
+   ---------------------------------------------------------
+   ① design-parity 宽屏块里 `.chat-thread .chat-message.from-ai p`
+      比我上一节多一个类，把正文压回 14.5 —— 这里补足特异性。
+   ② 有选题后仍显示「作品会在这里出现」空态卡，把选题板推到中间，
+      这就是看起来"错位"的直接原因：有产物就收起空态卡。
+   ③ 选题标题被 nowrap+ellipsis 截断，必须允许折行。
+   ④ 右栏过窄（2560 屏仅 536px），标题折成两行还装不下 → 加宽。
+   ========================================================= */
+/* ① 对话正文：补特异性压过宽屏块 */
+body.atelier #workbench.workbench-page .chat-thread .chat-message p{
+  font-size:16.5px !important;
+  line-height:1.85 !important;
+}
+body.atelier #workbench.workbench-page .chat-thread .chat-message.from-user p,
+body.atelier #workbench.workbench-page .chat-thread .chat-message.from-me p{
+  font-size:16.5px !important;
+}
+/* ② 有选题 / 有产物时收起空态卡，让选题板顶上来 */
+body.atelier #workbench:has(.topic-row) #workbench-decision,
+body.atelier #workbench:has(#studio-stage-output > *) #workbench-decision{
+  display:none !important;
+}
+/* ③ 标题不再截断，允许折行 */
+body.atelier #workbench .workbench-stage-choices .topic-row-heading{
+  display:block !important;
+  overflow:visible !important;
+  white-space:normal !important;
+}
+body.atelier #workbench .workbench-stage-choices .topic-row-title{
+  display:block !important;
+  white-space:normal !important;
+  overflow:visible !important;
+  text-overflow:clip !important;
+  -webkit-line-clamp:unset !important;
+  font-size:17.5px !important;
+  line-height:1.65 !important;
+}
+body.atelier #workbench .workbench-stage-choices .topic-row-main{ overflow:visible !important; }
+/* 板头改纵向：标题一行、说明一行，不再挤成两列把标题折断 */
+body.atelier #workbench .topic-board-head{
+  display:block !important;
+  padding:0 0 14px !important;
+}
+body.atelier #workbench .topic-board-head p{ margin-top:6px !important; }
+/* ④ 右栏加宽：默认 34% 在宽屏太窄，改成 min 560 / 38% / 880 */
+body.atelier #workbench.workbench-page .conversation-workbench-layout{
+  grid-template-columns:minmax(0, 1fr) clamp(560px, 38%, 880px) !important;
+}
+/* ⑤ 分类标签去掉胶囊底色（素笺不用色块） */
+body.atelier #workbench .workbench-stage-choices .topic-row-type,
+body.atelier #workbench .workbench-stage-choices .topic-row-pick{
+  background:none !important;
+  border-radius:0 !important;
+  padding:0 !important;
+  color:var(--fp-ink3) !important;
+  font-family:var(--fp-mono) !important;
+  font-size:11px !important;
+  letter-spacing:.04em !important;
+}
+body.atelier #workbench .workbench-stage-choices .topic-row-pick{ color:var(--fp-live) !important; }
+/* ⑥ 选题阶段（有选题、还没有作品）：收起空态作品标题与空编辑器骨架 */
+body.atelier #workbench[data-folio-pick="1"] .article-canvas-head,
+body.atelier #workbench[data-folio-pick="1"] .version-strip,
+body.atelier #workbench[data-folio-pick="1"] .editor-wrap,
+body.atelier #workbench[data-folio-pick="1"] #workbench-decision{
+  display:none !important;
+}
+body.atelier #workbench[data-folio-pick="1"] #workbench-stage-choices{
+  margin-top:0 !important;
+  padding-top:6px !important;
+}
+/* ⑦ 序号去掉灰底方块，回到纯数字 */
+body.atelier #workbench .workbench-stage-choices .topic-row-index{
+  background:none !important;
+  border-radius:0 !important;
+  padding:0 !important;
+  box-shadow:none !important;
+  width:auto !important;
+  min-width:0 !important;
+  justify-content:flex-start !important;
+}
