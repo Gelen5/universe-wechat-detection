@@ -1218,25 +1218,32 @@ body.atelier #workbench .studio-framework li::before{
   color:var(--fp-ink4) !important; letter-spacing:.04em !important;
 }
 /* 去 AI 阶段的复核报告：<details><pre> 原本是白盒 + 等宽小字 */
-body.atelier #workbench #studio-stage-output details{
+body.atelier #workbench #studio-stage-output details,
+body.atelier #workbench #workbench-stage-choices details{
   margin:18px 0 4px !important;
   border:0 !important; border-top:1px solid var(--fp-hair2) !important;
   border-radius:0 !important; background:none !important;
   padding:0 !important;
 }
-body.atelier #workbench #studio-stage-output summary{
+body.atelier #workbench #studio-stage-output summary,
+body.atelier #workbench #workbench-stage-choices summary{
   list-style:none !important; cursor:pointer !important;
   padding:12px 0 10px !important;
   font-family:var(--fp-mono) !important; font-size:11px !important;
   letter-spacing:.1em !important; color:var(--fp-ink3) !important;
 }
-body.atelier #workbench #studio-stage-output summary::-webkit-details-marker{ display:none !important; }
-body.atelier #workbench #studio-stage-output summary:hover{ color:var(--fp-ink) !important; }
-body.atelier #workbench #studio-stage-output summary::after{
+body.atelier #workbench #studio-stage-output summary::-webkit-details-marker,
+body.atelier #workbench #workbench-stage-choices summary::-webkit-details-marker{ display:none !important; }
+body.atelier #workbench #studio-stage-output summary:hover,
+body.atelier #workbench #workbench-stage-choices summary:hover{ color:var(--fp-ink) !important; }
+body.atelier #workbench #studio-stage-output summary::after,
+body.atelier #workbench #workbench-stage-choices summary::after{
   content:"＋" !important; margin-left:8px !important; color:var(--fp-ink4) !important;
 }
-body.atelier #workbench #studio-stage-output details[open] summary::after{ content:"－" !important; }
-body.atelier #workbench #studio-stage-output details pre{
+body.atelier #workbench #studio-stage-output details[open] summary::after,
+body.atelier #workbench #workbench-stage-choices details[open] summary::after{ content:"－" !important; }
+body.atelier #workbench #studio-stage-output details pre,
+body.atelier #workbench #workbench-stage-choices details pre{
   margin:0 0 8px !important;
   padding:16px 18px !important;
   background:var(--fp-hair2) !important;
