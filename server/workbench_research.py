@@ -201,9 +201,18 @@ def _tokens(seeds):
     return {token for token in tokens if token not in STOP_TOKENS}
 
 
-def _feed_matches(entry, tokens):
+TECH_HINTS = ("ai", "人工智能", "大模型", "模型", "算法", "编程", "开发者", "程序员", "芯片",
+              "算力", "开源", "llm", "agent", "智能体", "软件", "科技", "云计算", "gpu", "代码")
+
+
+def _feed_relevance(entry, tokens):
+    """topic=和主题有词面交集；tech=只是科技动态；None=八卦/无关，直接丢掉。"""
     haystack = f"{entry.get('title', '')} {entry.get('excerpt', '')}".lower()
-    return sum(1 for token in tokens if token in haystack) >= 2
+    if sum(1 for token in tokens if token in haystack) >= 2:
+        return 'topic'
+    if any(hint in haystack for hint in TECH_HINTS):
+        return 'tech'
+    return None
 
 
 def _secure(url):
@@ -243,9 +252,12 @@ def search(query, *, fetch: bool = False, queries=None, max_sources: int = 30,
         for entry in run['entries']:
             by_url.setdefault(_norm(entry['url']), entry)
     for run in feed_runs:  # 行业 RSS：只留命中的，没命中就留最新一条保时效
-        matched = [entry for entry in run['entries'] if _feed_matches(entry, tokens)][:3]
-        picked = matched or run['entries'][:1]
-        for entry in picked:
+        picked = []
+        for entry in run['entries']:
+            relevance = _feed_relevance(entry, tokens)
+            if relevance:
+                picked.append(dict(entry, relevance=relevance))
+        for entry in picked[:2]:
             by_url.setdefault(_norm(entry['url']), entry)
     # 按来源轮转取前 N 条：否则检索结果会把行业 RSS 全挤掉，证据又只剩两三个源
     groups = {}
@@ -264,8 +276,22 @@ def search(query, *, fetch: bool = False, queries=None, max_sources: int = 30,
 
     fetched = []
     if fetch and sources:
+        # 搜狗是跳转链接，抓正文基本必失败；排到后面，先抓真实文章地址
+        # 抓正文优先真实文章（行业 RSS），其次是新闻检索，搜狗跳转放最后
+        # 抓正文的顺序：主题命中 > 科技媒体（正文质量稳定）> 新闻检索 > 其它 RSS > 搜狗跳转
+        feed_names = {name for name, _ in FEEDS}
+        tech_media = {'infoq-cn', 'techcrunch', 'hnrss'}
+        candidates = ([item for item in sources if item.get('relevance') == 'topic']
+                      + [item for item in sources if item['provider'] in tech_media
+                         and item.get('relevance') != 'topic']
+                      + [item for item in sources if item['provider'] not in feed_names
+                         and item['provider'] != SOGOU_WEIXIN[0]]
+                      + [item for item in sources if item['provider'] in feed_names
+                         and item['provider'] not in tech_media
+                         and item.get('relevance') != 'topic']
+                      + [item for item in sources if item['provider'] == SOGOU_WEIXIN[0]])
         with ThreadPoolExecutor(max_workers=3) as pool:
-            fetched = list(pool.map(fetch_source, sources[:max_fetch]))
+            fetched = list(pool.map(fetch_source, candidates[:max_fetch]))
 
     with_content = [item for item in fetched if item.get('content')]
     status = 'complete' if with_content else ('partial' if sources else 'unavailable')
