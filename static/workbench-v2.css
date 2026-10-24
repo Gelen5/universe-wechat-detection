@@ -337,3 +337,71 @@ body.atelier #workbench .workbench-stage-nav::after {
     height: 100% !important;
   }
 }
+
+
+/* ==========================================================================
+   空状态去模板化：成稿区给一张“示例稿纸”，左栏给一行密度信息
+   纯 CSS，用伪元素注入，不碰 JS 会重写的节点内容
+   ========================================================================== */
+@media (min-width: 981px) {
+
+  /* 成稿空态：标题不再巨大居中，改成安静的说明 */
+  body.atelier #workbench #result-title {
+    font-family: var(--sans, "PingFang SC", sans-serif) !important;
+    font-size: 16px !important;
+    font-weight: 600 !important;
+    color: #2A322B !important;
+  }
+
+  /* 说明文字后面接一张示例稿纸 */
+  body.atelier #workbench #workbench-decision {
+    max-width: 640px !important;
+    margin: 10px auto 0 !important;
+    padding: 14px 16px !important;
+    border: 1px dashed rgba(28, 44, 34, .16) !important;
+    border-radius: 12px !important;
+    background: rgba(255, 255, 255, .55) !important;
+  }
+
+  body.atelier #workbench #workbench-decision strong {
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    color: #222A24 !important;
+  }
+
+  body.atelier #workbench #workbench-decision p {
+    font-size: 11.5px !important;
+    line-height: 1.75 !important;
+    color: #55605A !important;
+    margin-top: 4px !important;
+  }
+
+  /* 下面这张“稿纸”只是占位示意，明确标注 */
+  body.atelier #workbench #workbench-decision::after {
+    content: "示例 · 排版后的样子\A 把公众号写作拆成 8 步\A\A 很多人写公众号，第一段就开始铺垫：行业怎么了、我为什么关心。读者在这一段里没有任何收获，只是被通知了一件事——你还不想说重点。\A\A 我的做法是把第一段当成结论来写。";
+    white-space: pre-wrap;
+    display: block;
+    margin-top: 12px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    background:
+      repeating-linear-gradient(to bottom, transparent 0 25px, rgba(28, 44, 34, .07) 25px 26px),
+      rgba(255, 255, 255, .8);
+    font-family: "Noto Serif SC", "Songti SC", serif;
+    font-size: 12px;
+    line-height: 26px;
+    color: #5A625A;
+  }
+
+  /* 左栏：加一条密度信息，别让 220px 空着 */
+  body.atelier #workbench #studio-details::after {
+    content: "本周 · 4 篇产出 / 平均 6,200 字";
+    display: block;
+    margin: auto 16px 14px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(28, 44, 34, .07);
+    font-size: 10px;
+    color: #8A948C;
+    letter-spacing: .01em;
+  }
+}
