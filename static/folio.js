@@ -180,21 +180,16 @@
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
-  /* 「[观点] xxx；[事实边界] yyy」这类中括号标记 → 小标签 + 正文；
-     没有中括号时，再按「标题草案：/写作目的：/关键论点：」这类字段拆行，
-     否则大纲每一条都会连成一大坨。 */
-  var FIELDS = /(?=(?:标题草案|写作目的|关键论点|案例或证据位置|待核验素材|素材位置|衔接|结构安排|风险)[:：])/;
+  /* 大纲里真实出现的字段名（从线上产物统计）：
+     情境 / 冲突 / 问题 / 回答 / 标题草案 / 写作目的 / 关键论点 / 案例或证据位置 /
+     衔接 / 待核验素材 / 假设场景 / 分析要点 / 反事实对照 / 交付提示 / 限制 … */
+  var FIELDS = /(?=(?:情境|冲突|问题|回答|标题草案|写作目的|关键论点|核心论点|小标题|案例或证据位置|素材位置|待核验素材|假设场景|分析要点|反事实对照|交付提示|衔接|结构安排|限制|风险|观点|事实边界|要点|正文|开篇)[:：])/;
 
-  function tagify(s) {
-    var out = [], re = /\[([^\]]{2,10})\]\s*([^；;]*[；;]?)/g, m;
-    while ((m = re.exec(s))) {
-      var body = m[2].trim();
-      if (!body) continue;
-      out.push('<p><span class="fdoc-k">' + esc(m[1]) + '</span>' + esc(body) + '</p>');
-    }
-    if (out.length) return out.join('');
-
-    var parts = String(s).split(FIELDS).filter(function (x) { return x.trim(); });
+  /* 一段没有中括号的文本 → 按「字段：值」拆成若干带小标签的段落 */
+  function fieldParas(s) {
+    var txt = String(s).trim();
+    if (!txt) return '';
+    var parts = txt.split(FIELDS).filter(function (x) { return x.trim(); });
     if (parts.length > 1) {
       return parts.map(function (seg) {
         var mm = seg.match(/^([^:：]{2,8})[:：]\s*([\s\S]*)$/);
@@ -206,46 +201,169 @@
         return '<p>' + esc(seg.trim()) + '</p>';
       }).join('');
     }
-    return '<p>' + esc(s) + '</p>';
+    return '<p>' + esc(txt) + '</p>';
   }
 
-  /* 一条大纲项：「小标题｜正文」「【小标题】正文」或「小标题：X 核心论点：Y」 */
+  /* 「…[观点] xxx；[事实边界] yyy」——中括号前的那截文字也要留住，
+     老版本直接从第一个 [ 开始匹配，把前半句整段吃掉了。 */
+  function tagify(s) {
+    var str = String(s), out = [], re = /\[([^\]]{2,10})\]\s*([^；;]*[；;]?)/g, m, last = 0;
+    while ((m = re.exec(str))) {
+      var pre = str.slice(last, m.index).trim();
+      if (pre) out.push(fieldParas(pre));
+      last = re.lastIndex;
+      var val = m[2].trim();
+      if (val) out.push('<p><span class="fdoc-k">' + esc(m[1]) + '</span>' + esc(val) + '</p>');
+    }
+    if (!out.length) return fieldParas(str);
+    var tail = str.slice(last).trim();
+    if (tail) out.push(fieldParas(tail));
+    return out.join('');
+  }
+
+  /* 一条大纲项，线上真实存在四种写法：
+       ① `S｜情境：…`                        （结构标签 + 字段）
+       ② `开篇切入｜从读者看到…`              （小标题｜正文）
+       ③ `【引言｜标题草案：…】【S】写作目的：…`（中括号标题 + 标签 + 字段）
+       ④ `1. 开篇｜先给主张：…；[观点] …`      （重复编号 + 小标题｜带标签正文）
+     统一成：编号 + 结构标签 + 小标题 + 字段段落。 */
   function fmtItem(raw) {
-    var t = String(raw).trim();
-    var head = '', body = '';
-    var parts = t.split(/[｜|]/);
-    if (parts.length > 1) {
-      head = parts.shift().trim();
-      body = parts.join('｜').trim();
-    } else {
-      var bm = t.match(/^【([^】]{2,26})】\s*([\s\S]*)$/);
-      var m = t.match(/^小标题[:：]\s*([\s\S]*?)核心论点[:：]\s*([\s\S]*)$/);
-      if (bm) {
-        head = bm[1].trim();
-        body = bm[2].trim();
-      } else if (m) {
-        head = m[1].trim();
-        body = m[2].trim();
-      } else if (/^小标题[:：]/.test(t)) {
-        head = t.replace(/^小标题[:：]\s*/, '').trim();
-      } else if (t.length <= 24 && !/[。；;]/.test(t)) {
-        head = t;
-      } else {
-        body = t;
+    var t = String(raw).trim().replace(/^\d{1,2}[.、)）]\s*/, '');
+    var head = '', tag = '', note = '', body = t;
+
+    // ① 开头的连续【…】：1~3 个字母是 S/C/Q/A 结构标签，长的才是小标题
+    var re = /^【([^】]{1,80})】\s*/, m;
+    while ((m = re.exec(body))) {
+      var c = m[1].trim();
+      body = body.slice(m[0].length);
+      if (/^[A-Za-z]{1,3}$/.test(c)) { if (!tag) tag = c.toUpperCase(); continue; }
+      if (!head) {
+        var sp = c.split(/[｜|]/);
+        head = sp[0].trim();
+        if (sp.length > 1) note = sp.slice(1).join('｜').trim();
+        continue;
+      }
+      break;
+    }
+
+    // ② 「小标题｜正文」
+    if (!head) {
+      var parts = body.split(/[｜|]/);
+      if (parts.length > 1 && parts[0].trim().length <= 28) {
+        var cand = parts.shift().trim();
+        if (/^[A-Za-z]{1,3}$/.test(cand)) { if (!tag) tag = cand.toUpperCase(); }
+        else head = cand;
+        body = parts.join('｜').trim();
       }
     }
-    // 清掉模型输出里残留的 「】 【S】」 这类碎片
+
+    // ③ 「小标题：X 核心论点：Y」
+    if (!head) {
+      var km = body.match(/^小标题[:：]\s*([\s\S]*?)核心论点[:：]\s*([\s\S]*)$/);
+      if (km) { head = km[1].trim(); body = '核心论点：' + km[2].trim(); }
+      else if (/^小标题[:：]/.test(body)) { head = body.replace(/^小标题[:：]\s*/, '').trim(); body = ''; }
+    }
+
+    // ④ 还没有小标题：把第一个「字段：」的字段名提上来当小标题
+    if (!head) {
+      var fm = body.match(/^([\u4e00-\u9fa5]{2,8})[:：]\s*/);
+      if (fm) { head = fm[1]; body = body.slice(fm[0].length); }
+    }
+
+    // ⑤ 整条就是一短语，直接当标题
+    if (!head && t.length <= 24 && !/[。；;]/.test(t)) { head = t; body = ''; }
+
+    // 清掉模型输出里残留的「】 【S】」碎片
     body = body.replace(/】\s*【[^】]{0,6}】\s*/g, ' ').replace(/\s{2,}/g, ' ').trim();
+
     var html = '';
+    if (tag) html += '<span class="fdoc-tag">' + esc(tag) + '</span>';
     if (head) html += '<strong class="fdoc-h">' + esc(head) + '</strong>';
+    if (note) {
+      var nm = note.match(/^([^:：]{1,8})[:：]\s*([\s\S]*)$/);
+      html += nm
+        ? '<p class="fdoc-note"><span class="fdoc-k">' + esc(nm[1]) + '</span>' + esc(nm[2].trim()) + '</p>'
+        : '<p class="fdoc-note">' + esc(note) + '</p>';
+    }
     if (body) html += tagify(body);
     return html || '<p>' + esc(t) + '</p>';
   }
 
   function pad2(n) { return ('0' + n).slice(-2); }
 
-  /* 大纲/正文多为「单换行」分段，编号还有重复（1. 1. 开篇｜…），这里统一处理 */
-  function toDoc(text) {
+  /* 行内格式：**加粗** / `代码` / [文字](链接) */
+  function inline(s) {
+    return esc(s)
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>');
+  }
+
+  /* 正文是 Markdown（# 标题 / ## 小标题 / > 引用 / - 列表），
+     大纲是「1. 小标题｜字段」纯文本 —— 两种形态分开渲染，
+     否则大纲的编号会被当成列表、正文的 # 会被当成普通行。 */
+  function isMarkdown(text) {
+    return /^#{1,4}\s+\S/m.test(text) ||
+           /^\s*[-*+]\s+\S/m.test(text) ||
+           /^\s*>\s?\S/m.test(text);
+  }
+
+  function toMd(text) {
+    var lines = String(text).split(/\r?\n/);
+    var out = [], buf = [], list = null, quote = [], firstH1 = -1;
+
+    function flushP() { if (buf.length) { out.push('<p>' + inline(buf.join(' ')) + '</p>'); buf = []; } }
+    function flushList() {
+      if (!list) return;
+      out.push('<' + list.tag + '>' + list.items.map(function (x) {
+        return '<li>' + inline(x) + '</li>';
+      }).join('') + '</' + list.tag + '>');
+      list = null;
+    }
+    function flushQuote() {
+      if (!quote.length) return;
+      out.push('<blockquote>' + quote.map(function (x) { return '<p>' + inline(x) + '</p>'; }).join('') + '</blockquote>');
+      quote = [];
+    }
+    function flushAll() { flushP(); flushList(); flushQuote(); }
+
+    for (var i = 0; i < lines.length; i++) {
+      var l = lines[i].trim();
+      if (!l) { flushAll(); continue; }
+      var h = l.match(/^(#{1,4})\s+(.*)$/);
+      if (h) {
+        flushAll();
+        var lv = h[1].length;
+        if (lv === 1 && i <= 2 && firstH1 < 0) {
+          // 一级标题就是文章标题，画布头部已经显示了，正文里不再重复
+          firstH1 = i; continue;
+        }
+        var tag = lv <= 2 ? 'h2' : 'h3';
+        out.push('<' + tag + '>' + inline(h[2]) + '</' + tag + '>');
+        continue;
+      }
+      if (/^>\s?/.test(l)) { flushP(); flushList(); quote.push(l.replace(/^>\s?/, '')); continue; }
+      var ul = l.match(/^[-*+]\s+(.*)$/);
+      if (ul) {
+        flushP(); flushQuote();
+        if (!list || list.tag !== 'ul') { flushList(); list = { tag: 'ul', items: [] }; }
+        list.items.push(ul[1]); continue;
+      }
+      var ol = l.match(/^\d{1,2}[.、)）]\s+(.*)$/);
+      if (ol) {
+        flushP(); flushQuote();
+        if (!list || list.tag !== 'ol') { flushList(); list = { tag: 'ol', items: [] }; }
+        list.items.push(ol[1]); continue;
+      }
+      if (/^([-*_])\1{2,}$/.test(l)) { flushAll(); out.push('<hr>'); continue; }
+      flushList(); flushQuote(); buf.push(l);
+    }
+    flushAll();
+    return out.join('');
+  }
+
+  /* 大纲多为「单换行」分段，编号还有重复（1. 1. 开篇｜…），这里统一处理 */
+  function toOutline(text) {
     var lines = String(text).split(/\r?\n/);
     var out = [], buf = [];
     function flush() {
@@ -265,12 +383,15 @@
         continue;
       }
       if (/^《[^》]{2,60}》$/.test(l)) { flush(); out.push('<h2 class="fdoc-title">' + esc(l) + '</h2>'); continue; }
-      if (/^#{1,3}\s+/.test(l)) { flush(); out.push('<h3>' + esc(l.replace(/^#+\s*/, '')) + '</h3>'); continue; }
       if (/^[「“"]/.test(l) && l.length < 220) { flush(); out.push('<blockquote>' + esc(l) + '</blockquote>'); continue; }
       buf.push(l);
     }
     flush();
     return out.join('');
+  }
+
+  function toDoc(text) {
+    return isMarkdown(text) ? toMd(text) : toOutline(text);
   }
 
   function ensureDoc() {
@@ -304,6 +425,23 @@
     }
   }
 
+  /* 页脚信息：字数 + 约读时长。中文按 400 字/分钟估。 */
+  var metaEl = null;
+  function paintMeta(text) {
+    var foot = document.querySelector('#workbench-result .article-canvas-foot');
+    if (!foot) return;
+    if (!metaEl || !foot.contains(metaEl)) {
+      metaEl = document.createElement('span');
+      metaEl.className = 'folio-meta';
+      foot.insertBefore(metaEl, foot.lastElementChild);
+    }
+    var n = String(text || '').replace(/\s/g, '').length;
+    if (n < 60) { metaEl.textContent = ''; metaEl.style.display = 'none'; return; }
+    metaEl.style.display = '';
+    metaEl.textContent = n.toLocaleString('zh-CN') + ' 字 · 约 ' +
+      Math.max(1, Math.round(n / 400)) + ' 分钟';
+  }
+
   function renderDoc() {
     var ta = document.getElementById('article-editor');
     if (!ta || !docLayer) return;
@@ -314,6 +452,7 @@
       ? toDoc(text)
       : '<p class="fdoc-empty">这一步还没有正文。在左边说一句想怎么写，我来出稿。</p>';
     if (docBtn) docBtn.style.display = text ? '' : 'none';
+    paintMeta(text);
   }
 
 
