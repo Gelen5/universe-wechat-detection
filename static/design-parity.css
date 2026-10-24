@@ -1364,3 +1364,26 @@ body.atelier #library-main .library-heading p {
   font-size: 12.5px !important;
   color: var(--ink-3) !important;
 }
+
+/* 两栏之间必须有可读的缝：靠「白度差 + 一条投影」，不靠描边 */
+body.atelier #xiaohongshu .skill-form-col,
+body.atelier #tie-tu .skill-form-col,
+body.atelier #hit-detector .skill-form-col {
+  background-color: rgba(255, 255, 255, .62) !important;
+  border-color: rgba(15, 45, 32, .11) !important;
+}
+
+body.atelier #xiaohongshu .skill-output-col,
+body.atelier #tie-tu .skill-output-col,
+body.atelier #hit-detector .skill-output-col {
+  background-color: rgba(255, 255, 255, .86) !important;
+  border-color: rgba(15, 45, 32, .11) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .95),
+    0 2px 4px rgba(12, 45, 30, .035),
+    0 20px 44px -30px rgba(12, 45, 30, .3) !important;
+}
+
+body.atelier #diagnose .v3-hero-l {
+  border-color: rgba(15, 45, 32, .11) !important;
+}
