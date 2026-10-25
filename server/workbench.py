@@ -654,6 +654,13 @@ _AI_PHRASES = ('值得注意的是', '综上所述', '在当今时代', '不难�
 _REDLINE_SUMMARY = 6
 
 
+
+def _review_budget_left() -> float | None:
+    """剩余预算秒数；未绑定 deadline 时返回 None。"""
+    from .providers import call_context          # 与 _text 一样按需导入，避免循环依赖
+    return call_context.remaining_seconds()
+
+
 def _anti_ai_redlines(text: str, *, limit: int = _REDLINE_SUMMARY) -> list[dict[str, Any]]:
     """方法论里可机械判定的红线，命中即给出可定位的 issue。
 
@@ -756,6 +763,12 @@ issues 只列两种情况：(1) 事实问题——无来源的数据、经历、
                 diagnosis['fidelity_ok'] = True
                 diagnosis['readability_ok'] = True
             audit = _anti_ai_audit(article, candidate, session)
+            # 第一轮永远跑完（否则等于没复核）；之后的轮次先看预算，
+            # 不够就把当前稿和待办交出去，别让整篇任务耗在中转上。
+            left = _review_budget_left()
+            if attempt > 0 and left is not None and left < 45:
+                session['review_run']['budget_exhausted'] = True
+                break
             records.append({'round':attempt, 'diagnosis':diagnosis, 'audit':audit})
             (directory / 'run.json').write_text(json.dumps(session['review_run'],ensure_ascii=False,indent=2),encoding='utf-8')
             protected = audit.get('missing_protected_spans') or {}
@@ -895,9 +908,11 @@ issue_index 对应以下已由复核定位、逐字来自当前稿的片段列�
         _record_skill(session, 4, '反 AI Skill 复核：确定性检查未通过，已保留原文',
                       manifest, ['check_ai_tone_signals.py', 'check_natural_prose.py', 'audit_revision.py'],
                       'degraded', detail[:200])
-        return article, {'source': 'universe-delete-ai-skill', 'model': _setting('WECHAT_TEXT_MODEL'),
-                         'action': '确定性检查未通过，保留原文交付', 'audit': {}, 'gate': 'needs_review',
-                         'article_sha256': skill_runtime.digest(article), 'changed': False,
+        delivered = candidate if candidate.strip() else article
+        return delivered, {'source': 'universe-delete-ai-skill', 'model': _setting('WECHAT_TEXT_MODEL'),
+                         'action': '确定性检查未通过，交付当前修订稿', 'audit': {}, 'gate': 'needs_review',
+                         'article_sha256': skill_runtime.digest(delivered),
+                         'changed': delivered != article,
                          'manifest': manifest, 'rounds': records,
                          'pending_review_notes': [{'reason': detail}], 'blockers': blockers}
     except Exception as exc:
