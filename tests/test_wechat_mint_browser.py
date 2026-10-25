@@ -45,3 +45,45 @@ def test_existing_history_control_remains_operable(ui):
     page.goto('http://ui.test/workbench')
     page.locator('#recent-workbench-chats').click()
     expect(page.locator('#workbench-chat-history')).to_be_visible()
+
+
+@pytest.mark.parametrize('width', [1280, 1440, 1920, 2560])
+def test_steps_fit_the_header_and_wallet_shares_a_row_with_settings(ui, width):
+    page, _ = ui
+    page.set_viewport_size({'width':width,'height':1229})
+    page.goto('http://ui.test/workbench')
+    expect(page.locator('.pd-pageact .pd-pill')).to_be_hidden()
+    expect(page.locator('.v3-topbar .right .stat')).to_be_visible()
+    page.locator('.v3-topbar .right .stat b').evaluate("el=>el.textContent='99,859'")
+    wallet = page.locator('.v3-topbar .right .stat').bounding_box()
+    toggle = page.get_by_role('button', name='打开设置菜单').bounding_box()
+    assert wallet['x'] + wallet['width'] <= toggle['x']
+    assert abs((wallet['y']+wallet['height']/2)-(toggle['y']+toggle['height']/2)) < 2
+    rail = page.locator('#workbench-stage-nav').bounding_box()
+    heading = page.locator('.studio-heading').bounding_box()
+    assert abs(rail['x']-heading['x']) < 1
+    assert abs(rail['width']-heading['width']) < 1
+    for button in page.locator('#workbench-stage-nav button').all():
+        rect = button.bounding_box()
+        assert rect['y'] >= rail['y']
+        assert rect['y'] + rect['height'] <= rail['y'] + rail['height']
+    assert page.evaluate('document.documentElement.scrollHeight<=innerHeight+1')
+
+
+def test_sidebar_settings_button_reuses_existing_menu_and_supports_keyboard(ui):
+    page, _ = ui
+    page.set_viewport_size({'width':1440,'height':1000})
+    page.goto('http://ui.test/workbench')
+    toggle = page.get_by_role('button', name='打开设置菜单')
+    toggle.focus(); page.keyboard.press('Enter')
+    expect(page.locator('#settings-menu')).to_be_visible()
+    expect(toggle).to_have_attribute('aria-expanded', 'true')
+    menu = page.locator('#settings-menu').bounding_box()
+    assert menu['x'] >= 0
+    assert menu['x'] + menu['width'] <= 1440
+    page.keyboard.press('Escape')
+    expect(page.locator('#settings-menu')).to_be_hidden()
+    expect(toggle).to_be_focused()
+    expect(toggle).to_have_attribute('aria-expanded', 'false')
+    page.locator('.app-tabs [data-view="home"]').click()
+    expect(toggle).to_be_hidden()
