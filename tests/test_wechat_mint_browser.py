@@ -88,7 +88,7 @@ def test_sidebar_settings_button_reuses_existing_menu_and_supports_keyboard(ui):
     expect(toggle).to_be_focused()
     expect(toggle).to_have_attribute('aria-expanded', 'false')
     page.locator('.app-tabs [data-view="home"]').click()
-    expect(toggle).to_be_hidden()
+    expect(toggle).to_be_visible()
 
 
 @pytest.mark.parametrize('width', [1101, 1280, 1440, 1920, 2560])
