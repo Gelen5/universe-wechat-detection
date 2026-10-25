@@ -12,7 +12,10 @@
 
   const ORDER = ['weibo', 'zhihu', 'douyin', 'toutiao', 'baidu', 'bilibili',
                  'juejin', 'tieba', 'douban', 'v2ex', 'hackernews', 'github'];
-  const state = { platform: '', q: '', loaded: false };
+  const PAGE = 8;
+  const FAV_KEY = 'hotspot:favorites';
+  const state = { platform: '', q: '', loaded: false, favoritesOnly: false, rotate: {},
+                  items: [], platforms: [] };
   let timer = null;
 
   const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, (char) => ({
@@ -29,10 +32,34 @@
     });
   }
 
-  async function api(path) {
-    const response = await fetch(path, { credentials: 'same-origin' });
+  async function api(path, options) {
+    const response = await fetch(path, { credentials: 'same-origin', ...(options || {}) });
     if (!response.ok) throw new Error(`请求失败（${response.status}）`);
     return response.json();
+  }
+
+  // ---- 收藏（只存本地，不入库） ----
+  function favorites() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(FAV_KEY) || '[]');
+      return Array.isArray(raw) ? raw : [];
+    } catch { return []; }
+  }
+  function isFavorite(item) {
+    return favorites().some((row) => row.url === item.url);
+  }
+  function toggleFavorite(item) {
+    const rows = favorites();
+    const index = rows.findIndex((row) => row.url === item.url);
+    if (index >= 0) {
+      rows.splice(index, 1);
+      localStorage.setItem(FAV_KEY, JSON.stringify(rows));
+      return false;
+    }
+    rows.unshift({ title: item.title, url: item.url, platform: item.platform,
+                   platform_zh: item.platform_zh, hot: item.hot, rank: item.rank });
+    localStorage.setItem(FAV_KEY, JSON.stringify(rows.slice(0, 200)));
+    return true;
   }
 
   function group(items) {
@@ -46,51 +73,87 @@
     return [...known, ...extra].map((pid) => ({ platform: pid, items: buckets.get(pid) }));
   }
 
-  function renderChips(platforms) {
-    const total = platforms.reduce((sum, item) => sum + (item.count || 0), 0);
-    const rows = [{ id: '', name: '全部', count: total, ok: true }, ...platforms];
+  function renderChips() {
+    const total = state.platforms.reduce((sum, item) => sum + (item.count || 0), 0);
+    const favCount = favorites().length;
+    const rows = [{ id: '', name: '全部', count: total, ok: true }, ...state.platforms];
+    const fav = favCount
+      ? `<button type="button" class="hs-chip hs-chip-fav" data-fav-view="1" aria-pressed="${state.favoritesOnly}">收藏 ${favCount}</button>`
+      : '';
     chips.innerHTML = rows.map((item) => `
       <button type="button" class="hs-chip${item.ok === false ? ' is-off' : ''}"
               data-platform="${escapeHtml(item.id)}"
-              aria-pressed="${item.id === state.platform}">
+              aria-pressed="${!state.favoritesOnly && item.id === state.platform}">
         ${escapeHtml(item.name)}${item.count ? ` ${item.count}` : ''}
-      </button>`).join('');
+      </button>`).join('') + fav;
   }
 
   function itemHtml(item) {
     const meta = item.hot ? item.hot : `热搜 #${item.rank || 0}`;
+    const starred = isFavorite(item) ? ' is-on' : '';
     return `
       <li class="hs-item">
         <a class="hs-item-title" href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title)}</a>
         <span class="hs-item-meta">${escapeHtml(meta)}</span>
-        <button type="button" class="hs-go" data-create="${escapeHtml(item.title)}" data-url="${escapeHtml(item.url)}">去创作</button>
+        <span class="hs-item-tools">
+          <button type="button" class="hs-mini" data-copy="${escapeHtml(item.title)}" title="复制标题">复制</button>
+          <button type="button" class="hs-mini hs-star${starred}" data-fav="${escapeHtml(item.url)}" title="收藏">★</button>
+          <button type="button" class="hs-go" data-create="${escapeHtml(item.title)}" data-url="${escapeHtml(item.url)}">去创作</button>
+        </span>
       </li>`;
   }
 
-  function cardHtml(rows, limit) {
+  function cardHtml(rows, options) {
     const head = rows[0] || {};
-    const visible = rows.slice(0, limit);
+    const { offset = 0, pageSize = PAGE, showTools = true, title, subtitle } = options || {};
+    const start = rows.length > pageSize ? offset % rows.length : 0;
+    const visible = rows.slice(start, start + pageSize);
+    if (visible.length < pageSize && rows.length > pageSize) {
+      visible.push(...rows.slice(0, pageSize - visible.length));
+    }
     const rest = rows.length - visible.length;
+    const rotate = showTools && rows.length > pageSize
+      ? `<button type="button" class="hs-card-btn" data-rotate="${escapeHtml(head.platform || '')}">换一批</button>` : '';
+    const refresh = showTools && head.platform
+      ? `<button type="button" class="hs-card-btn" data-refresh="${escapeHtml(head.platform)}">刷新</button>` : '';
     return `
       <section class="hs-card" data-platform="${escapeHtml(head.platform || '')}">
         <header class="hs-card-head">
           <span class="hs-dot hs-dot-${escapeHtml(head.platform || '')}" aria-hidden="true"></span>
-          <h2>${escapeHtml(head.platform_zh || head.platform || '')}</h2>
+          <h2>${escapeHtml(title || head.platform_zh || head.platform || '')}</h2>
           <span class="hs-card-count">${rows.length}</span>
         </header>
         <ol class="hs-card-list">${visible.map(itemHtml).join('')}</ol>
-        ${rest > 0 ? `<footer class="hs-card-foot">还有 ${rest} 条 · 点上方「${escapeHtml(head.platform_zh || '')}」看全部</footer>` : ''}
+        <footer class="hs-card-foot">
+          <span>${subtitle || (rest > 0 ? `还有 ${rest} 条` : '')}</span>
+          <span class="hs-card-tools">${rotate}${refresh}</span>
+        </footer>
       </section>`;
   }
 
-  function renderGrid(items) {
-    const groups = group(items);
+  function renderGrid() {
+    if (state.favoritesOnly) {
+      const rows = favorites();
+      if (!rows.length) {
+        grid.innerHTML = `<div class="hs-empty"><strong>还没有收藏</strong>把常看的热点点上 ★，就会出现在这里。</div>`;
+        return;
+      }
+      grid.innerHTML = cardHtml(rows, {
+        pageSize: 30, showTools: false, title: '我的收藏',
+        subtitle: `${rows.length} 条 · 只存在这台设备上`,
+      });
+      return;
+    }
+    const groups = group(state.items);
     if (!groups.length) {
       grid.innerHTML = `<div class="hs-empty"><strong>这个筛选下没有热点</strong>换个平台，或清空搜索词。</div>`;
       return;
     }
-    const perCard = state.platform ? 30 : 8;
-    grid.innerHTML = groups.map((entry) => cardHtml(entry.items, perCard)).join('');
+    grid.innerHTML = groups.map((entry) => cardHtml(entry.items, {
+      offset: state.rotate[entry.platform] || 0,
+      pageSize: state.platform ? 30 : PAGE,
+      showTools: !state.platform,
+    })).join('');
   }
 
   function skeleton() {
@@ -104,8 +167,10 @@
     if (state.q) params.set('q', state.q);
     try {
       const data = await api(`/api/hotspots?${params.toString()}`);
-      renderChips(data.platforms || []);
-      renderGrid(data.items || []);
+      state.items = data.items || [];
+      state.platforms = data.platforms || [];
+      renderChips();
+      renderGrid();
       const when = formatTime(data.updated_at);
       updated.querySelector('span').textContent = when === '尚未同步' ? when : `更新于 ${when}`;
       updated.classList.toggle('is-stale', when === '尚未同步');
@@ -119,8 +184,19 @@
   }
 
   chips?.addEventListener('click', (event) => {
+    const favView = event.target.closest('[data-fav-view]');
+    if (favView) {
+      state.favoritesOnly = !state.favoritesOnly;
+      state.platform = '';
+      state.q = '';
+      if (search) search.value = '';
+      renderChips();
+      renderGrid();
+      return;
+    }
     const button = event.target.closest('[data-platform]');
     if (!button) return;
+    state.favoritesOnly = false;
     state.platform = button.dataset.platform || '';
     load();
   });
@@ -129,21 +205,77 @@
     clearTimeout(timer);
     timer = setTimeout(() => {
       state.q = search.value.trim();
+      state.favoritesOnly = false;
       load();
     }, 250);
   });
 
-  page.addEventListener('click', (event) => {
-    const button = event.target.closest('[data-create]');
-    if (!button) return;
-    const title = button.dataset.create || '';
-    const url = button.dataset.url || '';
-    const input = document.querySelector('#workbench-topic');
-    if (!input) return;
-    input.value = `围绕这个热点写一篇公众号：${title}（来源：${url}）`;
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    window.AppNav?.setActiveView?.('workbench', true);
-    document.querySelector('#start-workbench')?.click();
+  grid?.addEventListener('click', async (event) => {
+    const copy = event.target.closest('[data-copy]');
+    if (copy) {
+      try {
+        await navigator.clipboard.writeText(copy.dataset.copy || '');
+        copy.textContent = '已复制';
+      } catch {
+        copy.textContent = '失败';
+      }
+      setTimeout(() => { copy.textContent = '复制'; }, 1200);
+      return;
+    }
+
+    const fav = event.target.closest('[data-fav]');
+    if (fav) {
+      const url = fav.dataset.fav;
+      const row = state.items.find((item) => item.url === url)
+        || favorites().find((item) => item.url === url);
+      if (!row) return;
+      const added = toggleFavorite(row);
+      fav.classList.toggle('is-on', added);
+      renderChips();
+      if (state.favoritesOnly) renderGrid();
+      return;
+    }
+
+    const rotate = event.target.closest('[data-rotate]');
+    if (rotate) {
+      const platform = rotate.dataset.rotate;
+      state.rotate[platform] = (state.rotate[platform] || 0) + PAGE;
+      renderGrid();
+      return;
+    }
+
+    const refresh = event.target.closest('[data-refresh]');
+    if (refresh) {
+      const platform = refresh.dataset.refresh;
+      refresh.textContent = '刷新中…';
+      refresh.disabled = true;
+      try {
+        const result = await api(`/api/hotspots/refresh?platform=${encodeURIComponent(platform)}`,
+                                { method: 'POST' });
+        if (result.status === 'throttled') {
+          refresh.textContent = `${result.retry_after}s 后再试`;
+        } else {
+          refresh.textContent = '已刷新';
+          await load();
+        }
+      } catch {
+        refresh.textContent = '刷新失败';
+      }
+      setTimeout(() => { refresh.textContent = '刷新'; refresh.disabled = false; }, 2200);
+      return;
+    }
+
+    const create = event.target.closest('[data-create]');
+    if (create) {
+      const title = create.dataset.create || '';
+      const url = create.dataset.url || '';
+      const input = document.querySelector('#workbench-topic');
+      if (!input) return;
+      input.value = `围绕这个热点写一篇公众号：${title}（来源：${url}）`;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      window.AppNav?.setActiveView?.('workbench', true);
+      document.querySelector('#start-workbench')?.click();
+    }
   });
 
   async function ensureLoaded() {

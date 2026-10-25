@@ -57,6 +57,7 @@ KEY_HOUR = "hotspot:v1:snapshot:hour"
 KEY_LOCK = "hotspot:v1:sync:lock"
 
 _LAST_ATTEMPT = 0.0
+_refresh_locks: dict[str, float] = {}
 
 HEADERS = {
     "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -304,6 +305,21 @@ def list_hotspots(platform: str = Query(default="", max_length=32),
         "degraded": bool((data["meta"] or {}).get("degraded")),
         "platforms": data["platforms"],
     }
+
+
+@router.post("/api/hotspots/refresh")
+def refresh_platform(platform: str = Query(default="", max_length=32)):
+    """手动刷新一个平台（或全部）。上游是公共实例，这里按平台做 60 秒限流。"""
+    target = platform if platform in NAMES else ""
+    key = target or "__all__"
+    now = time.time()
+    last = _refresh_locks.get(key, 0.0)
+    if now - last < 60:
+        return {"status": "throttled", "retry_after": int(60 - (now - last))}
+    _refresh_locks[key] = now
+    result = sync([target] if target else None)
+    return {"status": result.get("status", "ok"), "platform": target,
+            "items": result.get("items", 0), "seconds": result.get("seconds")}
 
 
 @router.get("/api/hotspots/meta")

@@ -133,6 +133,37 @@
   border-top: 1px solid var(--hs-line); font-family: var(--mono, "SF Mono", monospace);
 }
 
+/* 行内轻操作：复制 / 收藏 / 去创作 */
+.hs-item-tools { grid-column: 2; grid-row: 1 / span 2; display: flex; align-items: center; gap: 4px; justify-self: end; }
+.hs-mini {
+  padding: 4px 7px; border-radius: 7px; font-size: 10.5px; cursor: pointer; white-space: nowrap;
+  border: 1px solid var(--hs-line); color: var(--hs-ink-4); background: rgba(255, 255, 255, .5);
+  opacity: 0; transition: opacity .15s ease, color .15s ease, border-color .15s ease;
+}
+.hs-item:hover .hs-mini, .hs-mini:focus-visible { opacity: 1; }
+.hs-mini:hover { color: var(--hs-ink-2); border-color: var(--hs-ink-4); }
+.hs-star { font-size: 11px; line-height: 1; }
+.hs-star.is-on { color: #d97706; border-color: rgba(217, 119, 6, .35); background: rgba(217, 119, 6, .1); }
+
+/* 卡片底部工具 */
+.hs-card-foot { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+.hs-card-tools { display: flex; gap: 6px; }
+.hs-card-btn {
+  padding: 3px 9px; border-radius: 7px; font-size: 10.5px; cursor: pointer;
+  border: 1px solid var(--hs-line); color: var(--hs-ink-3); background: rgba(255, 255, 255, .45);
+  transition: color .15s ease, border-color .15s ease, background .15s ease;
+}
+.hs-card-btn:hover { color: var(--hs-ikb); border-color: rgba(0, 47, 167, .3); background: var(--hs-ikb-soft); }
+.hs-card-btn:disabled { opacity: .6; cursor: default; }
+
+.hs-chip-fav { color: #b45309; border-color: rgba(180, 83, 9, .3); }
+.hs-chip-fav[aria-pressed="true"] { background: rgba(180, 83, 9, .1); font-weight: 600; }
+
+@media (max-width: 900px) {
+  .hs-mini { opacity: 1; }
+}
+
+
 .hs-empty { padding: 60px 0; text-align: center; color: var(--hs-ink-4); grid-column: 1 / -1; }
 .hs-empty strong { display: block; font-size: 14px; color: var(--hs-ink-2); margin-bottom: 6px; }
 .hs-skeleton {

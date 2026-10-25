@@ -88,7 +88,8 @@ async def account_and_points_gate(request: Request, call_next):
     # AI 超市的只读索引是对外的（只跳转、不执行），管理端仍然要登录+管理员。
     public_market = request.method == "GET" and (path.startswith("/api/market/")
                      or path.startswith("/api/hotspots"))
-    public_api = path in {"/api/auth/register", "/api/auth/login"} or public_market
+    public_refresh = request.method == "POST" and path == "/api/hotspots/refresh"
+    public_api = path in {"/api/auth/register", "/api/auth/login"} or public_market or public_refresh
     user = accounts.user_from_request(request)
     request.state.user = user
     if path.startswith("/api/") and not public_api and not user:
