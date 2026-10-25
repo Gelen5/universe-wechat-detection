@@ -257,7 +257,6 @@
       <header class="topic-board-head">
         <div>
           <strong>选一个能写下去的方向</strong>
-          <p>${normalized.length} 个方向 · 热度与涨粉为模型估计，不是平台真实数据</p>
         </div>
       </header>
       <div class="topic-row-list">${cards}</div>
