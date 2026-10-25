@@ -55,7 +55,8 @@ class ModelService:
                 ),
             })
         log_event("provider.call", run_id=run_id, user_id=user_id, provider=provider,
-                  model=model, latency_ms=latency_ms, status="completed")
+                  model=model, latency_ms=latency_ms, status="completed",
+                  input_tokens=response.input_tokens, output_tokens=response.output_tokens)
         return response
 
     def generate_image(self, prompt: str, *, size: str, count: int = 1,

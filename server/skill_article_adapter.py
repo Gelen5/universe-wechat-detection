@@ -88,6 +88,21 @@ def _source_records(raw: Any) -> list[dict[str, Any]]:
     return records
 
 
+def review_state(article_payload: dict[str, Any]) -> dict[str, Any]:
+    """Whether the ArticleState considers the current draft reviewed.
+
+    The state records which draft the review node actually passed; the session
+    only remembers that *a* review happened. Deciding freshness from the state
+    stops a stale session value from skipping a review a newer draft needs.
+    """
+    article_state, _workflow = _skill_modules()
+    state = article_state.ArticleState.from_dict(article_payload)
+    return {
+        "passed": state.nodes["review"].status == "passed",
+        "article_sha256": workbench.skill_runtime.digest(state.draft or ""),
+    }
+
+
 def _revision_plan_from(review: Any) -> list[dict[str, Any]]:
     """Turn the platform's real review rounds into the Skill's revision shape."""
     plan: list[dict[str, Any]] = []

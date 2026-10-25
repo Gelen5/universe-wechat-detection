@@ -56,6 +56,16 @@ def _execute_node(workflow: dict[str, Any], node_name: str) -> dict[str, Any]:
         working = accounts.load_workbench_session(workflow_id, user_id)
         if working:
             restored = skill_article_adapter.hydrate_session(working, state_payload)
+            # The state is authoritative for review freshness: if it says this
+            # exact draft passed review, project that verdict so the review node
+            # does not run again on an unchanged draft.
+            verdict = skill_article_adapter.review_state(state_payload)
+            if verdict["passed"] and workbench.skill_runtime.digest(working.get("article") or "") == verdict["article_sha256"]:
+                if (working.get("review") or {}).get("article_sha256") != verdict["article_sha256"]:
+                    working["review"] = {"gate": "passed",
+                                         "article_sha256": verdict["article_sha256"],
+                                         "source": "article_state"}
+                    restored["restored"].append("review")
             if restored["restored"]:
                 accounts.save_workbench_session(user_id, working)
     if node_name == "intent":

@@ -215,3 +215,40 @@ class DraftPromptSizeTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class ReviewStateTests(unittest.TestCase):
+    """2c：复核是否有效由 ArticleState 决定，不再看 session 的历史字段。"""
+
+    def setUp(self):
+        if not (workbench.SKILL_DIR / "toolkit").is_dir():
+            self.skipTest("vendored skill missing")
+        import sys
+        root = str(workbench.SKILL_DIR)
+        if root not in sys.path:
+            sys.path.insert(0, root)
+
+    def _payload(self, draft, passed):
+        from toolkit import article_workflow as wf
+
+        state = wf.new_article_state("写一篇关于老店关闭的文章", topic="老店为什么关了")
+        state.draft = draft
+        state.nodes["review"].status = "passed" if passed else "blocked"
+        return state.to_dict()
+
+    def test_matching_draft_reports_fresh(self):
+        draft = "# 标题\n\n正文内容"
+        verdict = skill_article_adapter.review_state(self._payload(draft, True))
+        self.assertTrue(verdict["passed"])
+        self.assertEqual(workbench.skill_runtime.digest(draft), verdict["article_sha256"])
+
+    def test_blocked_review_is_not_fresh(self):
+        verdict = skill_article_adapter.review_state(self._payload("# 标题\n正文", False))
+        self.assertFalse(verdict["passed"])
+
+    def test_digest_changes_with_the_draft(self):
+        one = skill_article_adapter.review_state(self._payload("# 甲\n正文", True))
+        two = skill_article_adapter.review_state(self._payload("# 乙\n正文", True))
+        self.assertNotEqual(one["article_sha256"], two["article_sha256"])
+
+if __name__ == "__main__":
+    unittest.main()
