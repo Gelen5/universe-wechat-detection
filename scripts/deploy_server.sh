@@ -194,6 +194,10 @@ check 'test -f server/agent/intent.py' '阶段路由（intent）'
 check 'grep -q topic_queries server/workbench_research.py' '真搜索（多查询+抓正文）'
 check 'grep -q chat-steps static/conversation-workbench.js' '进度卡'
 check 'grep -q bookshelf server/main.py' 'AI 书架'
+# Probe configured node models: relays rename models and revoke per-group access.
+echo "  == node models"
+docker exec "${PROJECT}-web-1" python scripts/check_node_models.py 2>&1 | sed "s/^/  /" \
+  || warn "some node models are unavailable; revert those WECHAT_*_MODEL vars before deploying"
 echo "  版本 $(docker exec ${PROJECT}-web-1 grep -o 'conversation-workbench.js?v=[0-9a-z-]*' static/index.html | head -1)"
 curl -fsS -m 5 -o /dev/null -w "  /health/ready -> %{http_code}\n" "$HEALTH_URL" || true
 curl -fsS -m 8 -o /dev/null -w "  /bookshelf    -> %{http_code}\n" http://127.0.0.1:8000/bookshelf || true
