@@ -24,6 +24,17 @@ class InsufficientPoints(ValueError):
         self.balance = balance
 
 
+class IdempotencyConflict(ValueError):
+    """The same idempotency key was reused for a different request.
+
+    Returning the old Run in this situation would answer 202 for work the
+    caller never asked to run, so the API must surface a conflict instead.
+    """
+
+    def __init__(self, message: str = "idempotency key reused for a different request"):
+        super().__init__(message)
+
+
 def _event(db, run: AgentRun, event_type: str, payload: dict[str, Any] | None = None) -> None:
     db.add(RunEvent(run_id=run.id, conversation_id=run.conversation_id, user_id=run.user_id,
                     event_type=event_type, payload_json=payload or {}))
@@ -244,6 +255,26 @@ def create_run(conversation_id: str, user_id: str, trigger_message_id: str,
             return _run_view(row), True
 
 
+def _ensure_same_request(db, run: AgentRun, conversation_id: str, content: str,
+                         content_json: dict[str, Any] | None) -> None:
+    """Reject a replayed idempotency key that carries a different request.
+
+    Key uniqueness alone only scopes a key to a user. Without this check a
+    client that reuses a key for another conversation, or another body, gets a
+    silent 202 pointing at the old Run: the new message is never accepted and
+    the caller has no way to notice.
+    """
+    if run.conversation_id != conversation_id:
+        raise IdempotencyConflict("idempotency key reused for a different conversation")
+    previous = db.get(ConversationMessage, run.trigger_message_id)
+    if previous is None:
+        return
+    if (previous.content or "") != (content or ""):
+        raise IdempotencyConflict("idempotency key reused for a different message body")
+    if content_json and previous.content_json and previous.content_json != content_json:
+        raise IdempotencyConflict("idempotency key reused for a different message payload")
+
+
 def create_message_run(conversation_id: str, user_id: str, content: str,
                        idempotency_key: str, *, content_json: dict[str, Any] | None = None,
                        metadata: dict[str, Any] | None = None, reserve_points: int = 0,
@@ -255,6 +286,7 @@ def create_message_run(conversation_id: str, user_id: str, content: str,
                 AgentRun.user_id == user_id, AgentRun.idempotency_key == idempotency_key,
             ))
             if existing:
+                _ensure_same_request(db, existing, conversation_id, content, content_json)
                 message = db.get(ConversationMessage, existing.trigger_message_id)
                 return _message_view(message), _run_view(existing), True
             conversation = db.scalar(select(Conversation).where(
@@ -266,6 +298,7 @@ def create_message_run(conversation_id: str, user_id: str, content: str,
                 AgentRun.user_id == user_id, AgentRun.idempotency_key == idempotency_key,
             ))
             if existing:
+                _ensure_same_request(db, existing, conversation_id, content, content_json)
                 message = db.get(ConversationMessage, existing.trigger_message_id)
                 return _message_view(message), _run_view(existing), True
             now = _now()
@@ -311,6 +344,7 @@ def create_message_run(conversation_id: str, user_id: str, content: str,
             ))
             if not run:
                 raise
+            _ensure_same_request(db, run, conversation_id, content, content_json)
             message = db.get(ConversationMessage, run.trigger_message_id)
             return _message_view(message), _run_view(run), True
 
@@ -443,6 +477,33 @@ def recover_stale_runs(stale_seconds: int = 720) -> list[str]:
     return recovered
 
 
+def recover_orphaned_queued_runs(queued_seconds: int = 180) -> list[str]:
+    """Re-dispatch Runs that were committed but never reached the broker.
+
+    ``create_message_run`` commits the Run as ``queued`` and the API publishes
+    it afterwards. A crash, a broker outage or a killed worker between those
+    two steps leaves the Run queued forever while its points stay reserved, and
+    ``recover_stale_runs`` only scans ``running`` rows, so nothing ever picks it
+    up. Bumping ``updated_at`` here also throttles redelivery: the next pass
+    cannot select the same row until another window has elapsed.
+    """
+    cutoff = _now() - timedelta(seconds=max(30, queued_seconds))
+    recovered: list[str] = []
+    with session_scope() as db:
+        rows = db.scalars(select(AgentRun).where(
+            AgentRun.status == "queued",
+            AgentRun.celery_task_id.is_(None),
+            AgentRun.updated_at < cutoff,
+        ).with_for_update(skip_locked=True)).all()
+        for row in rows:
+            row.updated_at = _now()
+            row.error_code = "redelivered"
+            row.error_message = "queued run re-dispatched by reconciler"
+            _event(db, row, "run.queued", {"recovered": True, "reason": "orphaned_queued"})
+            recovered.append(row.id)
+    return recovered
+
+
 def cancel_run(run_id: str, user_id: str) -> dict[str, Any]:
     with session_scope() as db:
         row = db.scalar(select(AgentRun).where(
@@ -537,17 +598,33 @@ def finish_tool_call(tool_call_id: str, run_id: str, user_id: str, *,
         ).with_for_update())
         if not row:
             raise KeyError("tool call not found")
-        if row.status in {"completed", "failed", "cancelled"}:
+        run = db.get(AgentRun, run_id)
+        # A Run that already reached a terminal state must not accept fresh
+        # output from a worker that lost its lease (cancel/refund race).
+        if not error and run is not None and run.status in {"cancelled", "failed"}:
             return _tool_call_view(row)
+        if row.status in {"completed", "cancelled"}:
+            return _tool_call_view(row)
+        if row.status == "failed" and error:
+            return _tool_call_view(row)
+        # A transient failure can be retried with the same logical key. When the
+        # retry succeeds the row is still "failed", and returning early would
+        # throw the successful result away: the Run completes with an empty
+        # ToolCall that can never be replayed. Repair the row instead and keep
+        # the failed attempt in the event stream.
+        retry_repaired = row.status == "failed" and not error
         row.status = "failed" if error else "completed"
         row.result_json = result or {}
         row.error_message = error
         row.finished_at = _now()
-        run = db.get(AgentRun, run_id)
         _event(db, run, "tool.failed" if error else "tool.completed", {
             "tool_call_id": row.id, "tool_name": row.tool_name,
             **({"error": error} if error else {}),
         })
+        if retry_repaired:
+            _event(db, run, "tool.retry_succeeded", {
+                "tool_call_id": row.id, "tool_name": row.tool_name,
+            })
         return _tool_call_view(row)
 
 
@@ -574,6 +651,12 @@ def create_artifact(run_id: str, user_id: str, artifact_type: str, *, title: str
         run = db.scalar(select(AgentRun).where(AgentRun.id == run_id, AgentRun.user_id == user_id))
         if not run:
             raise KeyError("run not found")
+        # Artifact writes are the last thing a worker does, well after its final
+        # heartbeat. A cancel/refund or a newer attempt can win that window, and
+        # the stale worker must not leave fresh output on a dead Run.
+        if run.status in {"cancelled", "failed"}:
+            raise RuntimeError(
+                f"run {run_id} is {run.status}; refusing to persist new artifacts")
         conversation = db.scalar(select(Conversation).where(
             Conversation.id == run.conversation_id, Conversation.user_id == user_id,
         ).with_for_update())

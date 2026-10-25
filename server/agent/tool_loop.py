@@ -1,9 +1,10 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import json
 import hashlib
 import inspect
 import os
+import threading
 import time
 from dataclasses import dataclass
 from typing import Any, Callable
@@ -13,9 +14,63 @@ from jsonschema import Draft202012Validator
 from .. import conversation_repository
 from ..agent_events import notify
 from ..providers import ModelService
+from ..providers import call_context
 from ..skills.executor import ToolContext, ToolExecutor
 from ..skills.tool_result import ToolResult
 from ..storage import get_storage
+
+
+def _heartbeat_interval() -> float:
+    """How often the lease supervisor renews a run while a tool blocks.
+
+    The stale-run scan default is 720s, so renewing every 60s by default keeps
+    a healthy but slow tool far away from being mistaken for a dead worker.
+    """
+    try:
+        return max(5.0, float(os.getenv("AGENT_HEARTBEAT_INTERVAL", "60") or 60))
+    except ValueError:
+        return 60.0
+
+
+class _HeartbeatSupervisor:
+    """Renew the run lease on its own thread while a blocking tool runs.
+
+    Heartbeating only before and after ``tool.invoke`` means a tool that spends
+    minutes inside provider calls looks identical to a crashed worker. The
+    recovery scan then re-dispatches the same Run, and both attempts can reach
+    the provider, so the work is paid for twice. A worker-owned renewal loop
+    keeps the lease truthful regardless of what the tool is doing.
+    """
+
+    def __init__(self, heartbeat: Callable[[], bool], interval: float | None = None):
+        self._heartbeat = heartbeat
+        self._interval = _heartbeat_interval() if interval is None else interval
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+        self.lost = False
+
+    def __enter__(self) -> "_HeartbeatSupervisor":
+        if self._interval > 0:
+            self._thread = threading.Thread(
+                target=self._run, name="run-heartbeat", daemon=True)
+            self._thread.start()
+        return self
+
+    def _run(self) -> None:
+        while not self._stop.wait(self._interval):
+            try:
+                if not self._heartbeat():
+                    self.lost = True
+                    return
+            except Exception:  # a failing renewal must not kill the tool
+                self.lost = True
+                return
+
+    def __exit__(self, *exc_info) -> bool:
+        self._stop.set()
+        if self._thread is not None:
+            self._thread.join(timeout=2)
+        return False
 
 
 @dataclass(frozen=True)
@@ -38,6 +93,7 @@ def run_tool_loop(*, model_service: ModelService, messages: list[dict[str, Any]]
                   on_tool_result: Callable[[ToolResult, str], dict[str, Any] | None] | None = None,
                   required_tool: str | None = None) -> str:
     started = time.monotonic()
+    deadline = started + timeout_seconds
     definitions = [tool.definition for tool in tools.values()]
     calls = 0
     validation_failures = 0
@@ -130,9 +186,20 @@ def run_tool_loop(*, model_service: ModelService, messages: list[dict[str, Any]]
                         remaining_seconds=lambda: max(0, int(
                             timeout_seconds - (time.monotonic() - started))),
                     )
+                    if time.monotonic() >= deadline:
+                        raise TimeoutError("agent tool loop deadline exceeded before tool start")
                     if not heartbeat():
                         raise RuntimeError("run execution lease changed")
-                    structured = tool.invoke(call.arguments, context)
+                    with call_context.bind(
+                        run_id=run_id, user_id=user_id,
+                        usage_recorder=getattr(model_service, "usage_recorder", None),
+                        cost_policy=getattr(model_service, "cost_policy", None),
+                        idempotency_key=logical_key, deadline=deadline,
+                    ):
+                        with _HeartbeatSupervisor(heartbeat) as supervisor:
+                            structured = tool.invoke(call.arguments, context)
+                    if supervisor.lost:
+                        raise RuntimeError("run execution lease changed")
                     result = structured.data
                     if is_cancelled():
                         raise RuntimeError("run cancelled")
@@ -149,6 +216,8 @@ def run_tool_loop(*, model_service: ModelService, messages: list[dict[str, Any]]
                     notify(run_id)
                     raise
             if call.name == required_tool:
+                if time.monotonic() > deadline:
+                    raise TimeoutError("agent tool loop timed out after required tool")
                 required_called = True
                 return "当前阶段已完成，请查看作品区。"
             messages.append({"role": "assistant", "content": "", "tool_calls": [{

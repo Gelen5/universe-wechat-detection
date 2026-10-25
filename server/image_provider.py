@@ -34,6 +34,10 @@ def generate(payload: dict[str, Any]) -> dict[str, Any]:
         if not body["prompt"].strip():
             raise ImageProviderError("图片提示词不能为空")
         from .providers import ModelService, OpenAICompatibleProvider, ProviderRequestError
+        from .providers import call_context
+        # Image work triggered from inside a tool belongs to that Run too; the
+        # bare client used to drop its cost out of Run and ProviderCall totals.
+        attribution = call_context.current()
         provider = OpenAICompatibleProvider(
             api_key=workbench._setting("WECHAT_TEXT_API_KEY") or api_key,
             base_url=workbench._setting("WECHAT_TEXT_API_BASE_URL") or base_url,
@@ -41,10 +45,20 @@ def generate(payload: dict[str, Any]) -> dict[str, Any]:
             image_api_key=api_key, image_base_url=base_url, image_model=body["model"],
             verify_ssl=workbench._verify_ssl(),
         )
+        image_timeout = 300
+        remaining = call_context.remaining_seconds()
+        if remaining is not None:
+            image_timeout = max(1, min(image_timeout, remaining))
         try:
-            return ModelService(provider).generate_image(
-                body["prompt"], size=body["size"], count=body["n"], timeout=300,
-                idempotency_key=workbench._setting("WECHAT_REQUEST_IDEMPOTENCY_KEY") or None,
+            return ModelService(
+                provider,
+                usage_recorder=attribution.get("usage_recorder"),
+                cost_policy=attribution.get("cost_policy"),
+            ).generate_image(
+                body["prompt"], size=body["size"], count=body["n"], timeout=image_timeout,
+                idempotency_key=(attribution.get("idempotency_key")
+                                 or workbench._setting("WECHAT_REQUEST_IDEMPOTENCY_KEY") or None),
+                run_id=attribution.get("run_id"), user_id=attribution.get("user_id"),
             )
         except ProviderRequestError as exc:
             raise ImageProviderError(f"图片接口请求失败：{exc}") from exc

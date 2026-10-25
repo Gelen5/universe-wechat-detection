@@ -79,6 +79,10 @@ def execute_agent_run(self, run_id: str):
 @celery_app.task(name="agent.recover_stale")
 def recover_stale_agent_runs():
     recovered = conversation_repository.recover_stale_runs()
-    for run_id in recovered:
+    # Runs that were committed but never published (crash between commit and
+    # broker publish, or a broker outage) stay queued with their points
+    # reserved. Nothing else scans that state, so reconcile it here.
+    orphaned = conversation_repository.recover_orphaned_queued_runs()
+    for run_id in recovered + orphaned:
         execute_agent_run.apply_async(args=[run_id], queue="chat")
-    return {"recovered": len(recovered)}
+    return {"recovered": len(recovered), "orphaned": len(orphaned)}

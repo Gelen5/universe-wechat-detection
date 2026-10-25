@@ -140,6 +140,14 @@ def send_message(conversation_id: str, payload: MessageCreate, request: Request,
             status_code=402,
             detail=f"积分不足：需要 {exc.required} 积分，当前剩余 {exc.balance} 积分",
         ) from exc
+    except conversation_repository.IdempotencyConflict as exc:
+        # Reusing a key for another conversation or body must not silently
+        # answer with the previous Run; the caller has to learn that the new
+        # request was rejected.
+        raise HTTPException(
+            status_code=409,
+            detail="Idempotency-Key 已用于另一个请求，请为新请求使用新的 key",
+        ) from exc
     except Exception as exc:
         logger.exception(
             "conversation message submission failed",
