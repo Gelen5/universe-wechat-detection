@@ -101,3 +101,46 @@ def test_hotspots_failed_load_can_be_retried_without_losing_navigation(ui):
     page.get_by_role('button',name='重新加载',exact=True).click()
     expect(page.locator('.hs-card')).to_have_count(12)
     expect(page.locator('.app-tabs [data-view="hotspots"]')).to_have_attribute('aria-current','page')
+
+
+def test_platform_counts_and_chips_remain_stable_without_loading_flash(ui):
+    page,_=ui;page.set_viewport_size({'width':1920,'height':1159});calls=hotspots_fixture(page)
+    page.goto('http://ui.test/hotspots')
+    expect(page.locator('.hs-card')).to_have_count(12)
+    all_chip=page.locator('#hs-platforms [data-platform=""]')
+    expect(all_chip).to_have_text('全部 144')
+    page.evaluate("""() => {
+      window.originalHotspotChip=document.querySelector('#hs-platforms [data-platform=""]');
+      window.hotspotLoadingFrames=0;
+      new MutationObserver(records=>{
+        for(const record of records) for(const node of record.addedNodes)
+          if(node.nodeType===1 && (node.matches('.hs-skeleton') || node.querySelector('.hs-skeleton'))) window.hotspotLoadingFrames++;
+      }).observe(document.querySelector('#hs-grid'),{childList:true,subtree:true});
+    }""")
+    initial_requests=len(calls)
+    for platform in ['weibo','zhihu','douyin','']:
+        page.locator(f'#hs-platforms [data-platform="{platform}"]').click()
+        expect(page.locator('.hs-card')).to_have_count(1 if platform else 12)
+        expect(all_chip).to_have_text('全部 144')
+        expect(page.locator('#hs-platforms .hs-chip-count')).to_have_count(13)
+        assert page.evaluate('window.originalHotspotChip===document.querySelector(\'#hs-platforms [data-platform=""]\')')
+    page.locator('#hs-search').fill('知乎热点1：')
+    expect(page.locator('.hs-item-title')).to_have_count(1)
+    expect(all_chip).to_have_text('全部 144')
+    page.locator('#hs-search').fill('')
+    expect(page.locator('.hs-card')).to_have_count(12)
+    assert len(calls)==initial_requests
+    assert page.evaluate('window.hotspotLoadingFrames')==0
+
+
+def test_failed_refresh_keeps_existing_hotspots_and_counts(ui):
+    page,_=ui;page.set_viewport_size({'width':1440,'height':1000});hotspots_fixture(page)
+    page.goto('http://ui.test/hotspots')
+    expect(page.locator('.hs-card')).to_have_count(12)
+    page.route('**/api/hotspots?**',lambda route: route.fulfill(status=503,json={'detail':'temporary failure'}))
+    page.locator('[data-refresh="weibo"]').click()
+    expect(page.locator('#hs-banner')).to_contain_text('已保留当前热点')
+    expect(page.locator('.hs-card')).to_have_count(12)
+    expect(page.locator('#hs-platforms [data-platform=""]')).to_have_text('全部 144')
+    expect(page.locator('.hs-skeleton')).to_have_count(0)
+    expect(page.locator('#hs-grid')).to_have_attribute('aria-busy','false')

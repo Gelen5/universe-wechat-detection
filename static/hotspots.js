@@ -15,8 +15,10 @@
   const PAGE = 4;
   const FAV_KEY = 'hotspot:favorites';
   const state = { platform: '', q: '', loaded: false, favoritesOnly: false, rotate: {},
-                  items: [], platforms: [] };
+                  items: [], platforms: [], snapshotReady: false };
   let timer = null;
+  let loadVersion = 0;
+  let chipsKey = null;
 
   const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, (char) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;',
@@ -80,11 +82,18 @@
     const fav = favCount
       ? `<button type="button" class="hs-chip hs-chip-fav" data-fav-view="1" aria-pressed="${state.favoritesOnly}">收藏 ${favCount}</button>`
       : '';
+    const key = JSON.stringify([rows, favCount]);
+    if (key === chipsKey) {
+      chips.querySelectorAll('[data-platform]').forEach(button => button.setAttribute('aria-pressed', String(!state.favoritesOnly && button.dataset.platform === state.platform)));
+      chips.querySelector('[data-fav-view]')?.setAttribute('aria-pressed', String(state.favoritesOnly));
+      return;
+    }
+    chipsKey = key;
     chips.innerHTML = rows.map((item) => `
       <button type="button" class="hs-chip${item.ok === false ? ' is-off' : ''}"
               data-platform="${escapeHtml(item.id)}"
               aria-pressed="${!state.favoritesOnly && item.id === state.platform}">
-        ${escapeHtml(item.name)}${item.count ? ` ${item.count}` : ''}
+        ${escapeHtml(item.name)} <span class="hs-chip-count">${item.count || 0}</span>
       </button>`).join('') + fav;
   }
 
@@ -144,7 +153,9 @@
       });
       return;
     }
-    const groups = group(state.items);
+    const needle = state.q.toLocaleLowerCase();
+    const filtered = state.items.filter(item => (!state.platform || item.platform === state.platform) && (!needle || `${item.title || ''} ${item.excerpt || ''}`.toLocaleLowerCase().includes(needle)));
+    const groups = group(filtered);
     if (!groups.length) {
       grid.innerHTML = `<div class="hs-empty"><strong>这个筛选下没有热点</strong>换个平台，或清空搜索词。</div>`;
       return;
@@ -161,12 +172,14 @@
   }
 
   async function load() {
-    skeleton();
+    const version = ++loadVersion;
+    if (!state.snapshotReady) skeleton();
+    grid.setAttribute('aria-busy', 'true');
     const params = new URLSearchParams({ limit: '400' });
-    if (state.platform) params.set('platform', state.platform);
-    if (state.q) params.set('q', state.q);
     try {
       const data = await api(`/api/hotspots?${params.toString()}`);
+      if (version !== loadVersion) return;
+      state.snapshotReady = true;
       state.items = data.items || [];
       state.platforms = data.platforms || [];
       renderChips();
@@ -177,9 +190,17 @@
       banner.hidden = !data.degraded;
       if (data.degraded) banner.textContent = '上游暂时不可用，当前展示的是最近一份快照，可能不是最新。';
     } catch (error) {
+      if (version !== loadVersion) return;
+      if (state.snapshotReady) {
+        banner.hidden = false;
+        banner.textContent = '刷新暂时失败，已保留当前热点，请稍后重试。';
+        return;
+      }
       grid.innerHTML = `<div class="hs-empty"><strong>热榜暂时读不到</strong>${escapeHtml(error.message)}<br><button type="button" class="hs-card-btn" data-retry>重新加载</button></div>`;
       updated.querySelector('span').textContent = '读取失败';
       updated.classList.add('is-stale');
+    } finally {
+      if (version === loadVersion) grid.setAttribute('aria-busy', 'false');
     }
   }
 
@@ -198,7 +219,8 @@
     if (!button) return;
     state.favoritesOnly = false;
     state.platform = button.dataset.platform || '';
-    load();
+    renderChips();
+    renderGrid();
   });
 
   search?.addEventListener('input', () => {
@@ -206,14 +228,15 @@
     timer = setTimeout(() => {
       state.q = search.value.trim();
       state.favoritesOnly = false;
-      load();
+      renderChips();
+      renderGrid();
     }, 250);
   });
 
   grid?.addEventListener('click', async (event) => {
     if(event.target.closest('[data-retry]')) {await load();return;}
     const openPlatform=event.target.closest('[data-open-platform]');
-    if(openPlatform) {state.platform=openPlatform.dataset.openPlatform;state.favoritesOnly=false;await load();return;}
+    if(openPlatform) {state.platform=openPlatform.dataset.openPlatform;state.favoritesOnly=false;renderChips();renderGrid();return;}
 
     const copy = event.target.closest('[data-copy]');
     if (copy) {
