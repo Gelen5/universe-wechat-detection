@@ -1,5 +1,6 @@
 """File-backed Skill context and deterministic script execution; no provider secrets."""
 import hashlib
+import importlib.util
 import json
 import re
 import subprocess
@@ -12,6 +13,15 @@ SCRIPT_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*\.py$")
 
 def digest(text):
     return hashlib.sha256(text.encode('utf-8')).hexdigest()
+
+
+def node_rules(node):
+    """Read the same node rules used by the vendored Skill's host contract."""
+    path = Path(__file__).resolve().parents[1] / 'vendor/skill-extensions/weChat-autoCreate/node_rules.py'
+    spec = importlib.util.spec_from_file_location('wechat_node_rules', path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.load(node)
 
 
 def context(root: Path, references=()):

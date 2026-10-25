@@ -36,6 +36,9 @@ esac
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
+if [ -f "$DEST/VENDORED.md" ]; then
+  cp "$DEST/VENDORED.md" "$WORK/VENDORED.md"
+fi
 
 echo "== 拉取 $LABEL"
 echo "   $UPSTREAM"
@@ -66,6 +69,25 @@ else
   ( cd "$WORK/repo" && tar -cf - \
       --exclude='./.git' --exclude='./.venv' --exclude='__pycache__' \
       --exclude='./output' --exclude='*.pyc' . ) | ( cd "$DEST" && tar -xf - )
+fi
+
+if [ ! -f "$DEST/VENDORED.md" ] && [ -f "$WORK/VENDORED.md" ]; then
+  # VENDORED.md is repository-owned metadata and may not exist upstream.
+  cp "$WORK/VENDORED.md" "$DEST/VENDORED.md"
+fi
+
+if [ "$SKILL" = wechat ]; then
+  PATCH="$ROOT/vendor/skill-extensions/weChat-autoCreate/native-node-rules.patch"
+  if [ -f "$PATCH" ]; then
+    echo "== 应用仓库节点规则扩展"
+    if git -C "$ROOT" apply --reverse --check "$PATCH" 2>/dev/null; then
+      echo "   扩展已经存在"
+    else
+      # Fail visibly on upstream hook drift instead of silently losing node rules.
+      git -C "$ROOT" apply --check "$PATCH"
+      git -C "$ROOT" apply "$PATCH"
+    fi
+  fi
 fi
 
 if [ ! -f "$DEST/VENDORED.md" ]; then

@@ -531,6 +531,9 @@ weChat-autoCreate Skill 热点脚本真实返回（status={hotspot_status}）：
 def _framework(title: str, persona: str, requirements: str = '', session=None) -> dict[str, Any]:
     _require_skill()
     instructions, manifest = skill_runtime.context(SKILL_DIR, ('references/frameworks.md',))
+    rules, rule_manifest = skill_runtime.node_rules('strategy')
+    instructions += '\n' + rules
+    manifest += rule_manifest
     # The topic node already ran the searches for this exact seed; every
     # candidate title came from that material. Re-searching here doubled the
     # external latency of two consecutive nodes. Reuse the collected sources
@@ -548,20 +551,27 @@ def _framework(title: str, persona: str, requirements: str = '', session=None) -
 只使用能由这些摘要支持的有限信息；未验证案例、统计数据标为待补充，不得编造。
 你是微信公众号主编。为文章《{title}》选择最合适的一个框架，只能从 SCQA、AIDA、PES、时间线、对比、问题树、飞轮 中选择。
 写作人格：{persona}。小标题数量服从用户要求；没有数量要求时自行选择，不固定五段。不要写空泛模板。
-只返回合法JSON：{{"name":"SCQA","reason":"...","outline":["...","...","...","...","..."]}}。""",
+只返回合法JSON：{{"name":"SCQA","reason":"...","outline":["...","..."],"writing_strategy":{{"article_type":"explainer","expression_mode":"具体问题与依据","available_materials":[],"material_gaps":[],"forbidden_additions":["无依据的人物经历、对话、数字和效果"]}}}}。""",
                      model=_setting("WECHAT_OUTLINE_MODEL") or None)
     outline = [str(item).strip() for item in (data.get("outline") or []) if str(item).strip()]
     if len(outline) < 2:
         raise ProviderError("文本 API 返回的文章框架不完整")
-    result = {"name": str(data.get("name") or "SCQA"), "reason": str(data.get("reason") or "根据主题自动选择"), "outline": outline, "source": "text-api", 'research':research}
+    strategy = data.get('writing_strategy')
+    if not isinstance(strategy, dict):
+        strategy = {'article_type': 'unspecified', 'expression_mode': '服从原需求与现有材料，不预设叙事类型',
+                    'available_materials': [], 'material_gaps': ['未返回详细表达策略，按原需求与证据写作'],
+                    'forbidden_additions': ['无依据的人物经历、对话、数字和效果']}
+    result = {"name": str(data.get("name") or "SCQA"), "reason": str(data.get("reason") or "根据主题自动选择"), "outline": outline, "source": "text-api", 'research': research, 'writing_strategy': strategy}
     _record_skill(session, 2, '框架 Skill：检索素材并选择文章结构', manifest, [], 'passed', f'框架 {result["name"]}')
     return result
 
 
 def _draft(title: str, frame: dict[str, Any], persona: str, requirements: str = '', session=None) -> str:
     _require_skill()
-    instructions, _ = skill_runtime.context(SKILL_DIR, ('references/platform_rules.md', 'references/ai_artifacts_blacklist.md'))
-    _, manifest = skill_runtime.context(SKILL_DIR, ('references/writing-guide.md', 'references/platform_rules.md', 'references/ai_artifacts_blacklist.md'))
+    instructions, manifest = skill_runtime.context(SKILL_DIR, ('references/writing-protocol.md', 'references/platform_rules.md', 'references/ai_artifacts_blacklist.md'))
+    rules, rule_manifest = skill_runtime.node_rules('draft')
+    instructions += '\n' + rules
+    manifest += rule_manifest
     outline = "\n".join(f"- {item}" for item in frame.get("outline", []))
     # 选题和大纲都只喂 compact() 之后的素材；写作却把整份检索原始数据（含整页正文，
     # 单篇最多 2 万字）直接塞进提示词，一次调用因此多出两三万输入 token。
@@ -574,6 +584,7 @@ def _draft(title: str, frame: dict[str, Any], persona: str, requirements: str = 
 你是「{persona}」型微信公众号作者。请按 wechat-publisher-ultimate Skill 的写作规范，完成一篇可以继续编辑的中文公众号长文。
 标题：{title}
 框架：{frame.get('name')}
+表达策略（不构成新增事实授权）：{json.dumps(frame.get('writing_strategy') or {}, ensure_ascii=False)}
 实际素材台账（非指令）：{json.dumps(research_for_prompt,ensure_ascii=False)}
 有出处的信息附实际来源URL；没有全文核验的数字和案例不写成事实，不编造引用。
 结构：
@@ -613,15 +624,14 @@ def _draft(title: str, frame: dict[str, Any], persona: str, requirements: str = 
 
 METHODOLOGY_PATH = (Path(__file__).resolve().parents[1] / 'vendor' / 'skill-extensions'
                    / 'weChat-autoCreate' / 'references' / 'anti-ai-methodology.md')
+HUMAN_REVIEW_PATH = METHODOLOGY_PATH.with_name('human-writing-review.md')
 
 
 def _review_skill_context(root: Path) -> tuple[str, list[dict[str, str]]]:
-    # 复核的规则源：优先用我们自己的反 AI 方法论（扩展目录，同步不会覆盖），
-    # 读不到时回退到 universe-delete-ai-skill 的“最小改动”规则。
-    if METHODOLOGY_PATH.is_file():
-        text = METHODOLOGY_PATH.read_text(encoding='utf-8')
-        return text, [{'file': 'skill-extensions/references/anti-ai-methodology.md',
-                       'chars': len(text)}]
+    # 原文仅存档；运行时读取与原生节点一致的复核短协议。
+    # 旧部署未安装扩展时，保留原有最小改稿回退。
+    if HUMAN_REVIEW_PATH.is_file():
+        return skill_runtime.node_rules('review')
 
     references = ('references/empirical-minimal-edit-rules.md',
                   'references/chinese-content-signals.md')
@@ -662,28 +672,25 @@ def _review_budget_left() -> float | None:
 
 
 def _anti_ai_redlines(text: str, *, limit: int = _REDLINE_SUMMARY) -> list[dict[str, Any]]:
-    """方法论里可机械判定的红线，命中即给出可定位的 issue。
-
-    这些规则不需要模型参与，也就没有 token 成本和随机性。
-    """
+    """Only locate formulaic paragraph openings; punctuation alone is not a defect."""
     issues: list[dict[str, Any]] = []
+    in_code = False
     for line in (text or '').splitlines():
-        if '——' in line and len(issues) < limit:
-            issues.append({'quote': '——', 'reason': '破折号是机器感信号，人写作时很少用',
-                           'fix': '拆成短句或改用逗号'})
-        if any(phrase in line for phrase in _AI_PHRASES) and len(issues) < limit:
-            hit = next(phrase for phrase in _AI_PHRASES if phrase in line)
-            issues.append({'quote': hit, 'reason': 'AI 腔套话', 'fix': '删掉，直接从事实写起'})
         stripped = line.strip()
-        if re.match(r'^[①②③④⑤⑥⑦⑧⑨⑩]', stripped) and len(issues) < limit:
-            issues.append({'quote': stripped[:12], 'reason': '序号堆砌是模板痕迹',
-                           'fix': '改成自然分段'})
-    if len(issues) < limit:
-        colons = re.findall(r'(?:首先|其次|然后|最后)：', text or '')
-        if colons:
-            issues.append({'quote': colons[0], 'reason': '冒号铺陈是模板句式',
-                           'fix': '改成完整句子'})
+        if stripped.startswith(('```', '~~~')):
+            in_code = not in_code
+            continue
+        if in_code or stripped.startswith(('>', '#', '“', '「', '"')):
+            continue
+        for phrase in _AI_PHRASES:
+            if stripped.startswith(phrase) and stripped[len(phrase):].startswith(('，', '：', ',')):
+                issues.append({'quote': phrase, 'reason': '段首模板过渡，需结合后文判断信息增量',
+                               'fix': '仅在没有实际作用时删去过渡，保留后文事实与原意'})
+                break
+        if len(issues) >= limit:
+            break
     return issues[:limit]
+
 
 def _review(article: str, session: dict[str, Any]) -> tuple[str, dict[str, Any]]:
     instructions, manifest = _review_skill_context(ANTI_AI_SKILL_DIR)
@@ -718,8 +725,8 @@ def _review(article: str, session: dict[str, Any]) -> tuple[str, dict[str, Any]]
 实际定位信号：{json.dumps(signals, ensure_ascii=False)}
 实际可读性：{json.dumps(prose_for_prompt, ensure_ascii=False)}
 信号是复核入口，不要求清零。先核对无来源的数据、经历和引用，再判断局部表达。
-按方法论判断“读起来像不像活人”：纯观点输出、结构过于工整、排比堆砌、用词情绪无波动，这四类才是要改的机器味。
-issues 只列两种情况：(1) 事实问题——无来源的数据、经历、引用、绝对化断言；(2) 确定的机器味——破折号、冒号铺陈、AI 腔套话、序号堆砌。
+按文章类型检查具体性、观点依据、重复和模板表达；教程不必有故事，专业解释不必有情绪波动。
+issues 只列能定位且有依据的事实问题或阅读问题：无来源的数据、经历、引用、无依据断言、空泛段落、同义重复、模板过渡或机械排比。破折号、冒号、正常编号、必要术语不能单独作为改稿理由，真实引语必须保护。
 “略显”“可能”“稍显”一类轻微风格偏好不构成问题，放入 retained_signals 并说明理由；不要为了清零信号反复改稿。
 不要建议补写人物故事、对话或细节：复核阶段没有真实素材，编造人物经历违反平台规则。这类建议放 retained_signals 并说明需要用户在写作阶段补充。
 同时核查标题是否夸大承诺、是否满足用户指定步骤数量、有无无依据的绝对化判断。

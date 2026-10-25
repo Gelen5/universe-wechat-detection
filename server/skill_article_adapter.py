@@ -58,6 +58,7 @@ def hydrate_session(session: dict[str, Any], article_payload: dict[str, Any]) ->
                 "reason": "来自 ArticleState",
                 "outline": lines,
                 "source": "article_state",
+                "writing_strategy": strategy.get("writing_strategy") or strategy,
             }
             restored.append("framework")
 

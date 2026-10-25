@@ -7,6 +7,7 @@
 |---|---|
 | 上游仓库 | https://github.com/Gelen5/weChat-autoCreate |
 | 固定提交 | `0d4cd85a51e8289944ad05c9dfb43125fe38dd2a` |
+| 受控本地扩展 | `vendor/skill-extensions/weChat-autoCreate/native-node-rules.patch`；不是上游原始内容 |
 | 版本 | 2.1.0 |
 | 同步日期 | 2026-10-25 |
 | 许可证 | 见本目录 `LICENSE`（仓库自有，无第三方授权问题） |
@@ -14,9 +15,9 @@
 
 ## 规则
 
-1. **不要手改这里的文件。** 所有变更都必须来自上游仓库，通过
+1. **不要手改这里的文件。** 上游变更必须来自上游仓库，通过
    `scripts/sync_vendored_skill.sh wechat [sha]` 同步，它会同时更新本文件的提交号。
-   手改会让这份副本和上游分叉，也就失去了 vendoring 的意义。
+   唯一的受控例外是上表登记的节点规则补丁：变更在扩展目录保留完整 patch，由同步脚本自动重放；不能把它描述为上游原始内容。其余手改会导致不可追溯的分叉。
 2. 同步时排除 `.git`、`.venv`、`__pycache__`、`output`、`*.pyc`。
 3. 不要在本仓库的 CI 里跑 `tests/`；那是 Skill 自己的测试，依赖和失败原因都与平台无关。
    验证只需要冒烟：能 import `toolkit.article_workflow`，能建空 `ArticleState`。

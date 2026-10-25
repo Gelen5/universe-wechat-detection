@@ -29,8 +29,8 @@ class PipelineTests(unittest.TestCase):
             (root / 'references' / 'chinese-content-signals.md').write_text(
                 '## 优先检查的内容信号\nCheck specific signals.\n'
                 '## 二次审计\nArchive only.\n', encoding='utf-8')
-            # 方法论扩展已存在时优先用它，这里显式关掉以覆盖旧的回退分支。
-            with patch.object(w, 'METHODOLOGY_PATH', Path(directory) / 'absent.md'):
+            # Explicitly disable the scoped extension to cover legacy fallback.
+            with patch.object(w, 'HUMAN_REVIEW_PATH', Path(directory) / 'absent.md'):
                 context, manifest = w._review_skill_context(root)
         self.assertIn('Protect facts.', context)
         self.assertIn('Only local edits.', context)
@@ -43,22 +43,26 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(manifest[-1]['file'], 'references/chinese-content-signals.md')
 
 
-    def test_review_uses_the_anti_ai_methodology_when_present(self):
-        """方法论放在扩展目录，复核优先读它；同步上游不会覆盖。"""
+    def test_review_uses_scoped_rules_and_preserves_original_methodology(self):
+        """Archive remains intact, but only scoped review rules enter prompts."""
         self.assertTrue(w.METHODOLOGY_PATH.is_file(), w.METHODOLOGY_PATH)
         context, manifest = w._review_skill_context(w.ANTI_AI_SKILL_DIR)
-        self.assertIn('反 AI 检测写作方法论', context)
-        self.assertIn('观点寄生人物', context)
-        self.assertEqual('skill-extensions/references/anti-ai-methodology.md', manifest[0]['file'])
+        self.assertIn('先保护事实，再定位局部表达问题', context)
+        self.assertIn('不能单独作为改稿理由', context)
+        self.assertNotIn('目标「人工特征」占比', context)
+        self.assertEqual('skill-extensions/weChat-autoCreate/references/human-writing-review.md', manifest[0]['file'])
+        self.assertEqual(64, len(manifest[0]['sha256']))
 
-    def test_redlines_catch_the_mechanical_signals(self):
+    def test_signals_locate_stock_openings_without_banning_punctuation(self):
         text = '值得注意的是，这件事很复杂。\n——他这样说的\n① 第一点\n首先：先做事'
         issues = w._anti_ai_redlines(text)
         quotes = [issue['quote'] for issue in issues]
         self.assertIn('值得注意的是', quotes)
-        self.assertIn('——', quotes)
-        self.assertTrue(any(q.startswith('①') for q in quotes))
-        self.assertIn('首先：', quotes)
+        self.assertEqual(['值得注意的是'], quotes)
+
+    def test_quotes_code_and_tutorial_numbering_are_not_mechanical_defects(self):
+        text = '> 值得注意的是，这是原话。\n① 安装环境\n② 运行测试\n参数说明：可选——默认关闭。\n```\n综上所述，原始样本\n```'
+        self.assertEqual([], w._anti_ai_redlines(text))
 
     def test_clean_text_has_no_redlines(self):
         self.assertEqual([], w._anti_ai_redlines('他推开门，屋里没人。桌上有一杯凉掉的茶。'))

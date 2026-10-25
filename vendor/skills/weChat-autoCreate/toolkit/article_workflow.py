@@ -55,6 +55,14 @@ def _host_request(state: ArticleState, node: str, purpose: str, output_contract:
             "返回 JSON 对象；不要静默补全缺失的关键事实",
         ],
     }
+    # Repository-owned node rules live outside the upstream sync destination.
+    extension = Path(__file__).resolve().parents[3] / 'skill-extensions/weChat-autoCreate/node_rules.py'
+    if extension.is_file():
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('wechat_node_rules', extension)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        item.request = module.native_request(item.request, node)
 
 
 def _relevant_state(state: ArticleState, node: str) -> Dict[str, Any]:

@@ -99,7 +99,7 @@ class OutlineResearchReuseTests(unittest.TestCase):
         frame = {"name": "SCQA", "reason": "r", "outline": ["一", "二"]}
         with mock.patch.object(workbench, "_require_skill", lambda: None), \
              mock.patch.object(workbench.skill_runtime, "context",
-                               lambda *a, **k: ("说明", {"name": "m"})), \
+                               lambda *a, **k: ("说明", [{"file": "SKILL.md"}])), \
              mock.patch.object(workbench, "_json_text", lambda *a, **k: dict(frame)), \
              mock.patch.object(workbench, "_record_skill", lambda *a, **k: None), \
              mock.patch.object(workbench.workbench_research, "search", search):
@@ -141,7 +141,7 @@ class NodeModelTieringTests(unittest.TestCase):
             return dict(frame)
 
         with mock.patch.object(workbench, "_require_skill", lambda: None), \
-             mock.patch.object(workbench.skill_runtime, "context", lambda *a, **k: ("", {})), \
+             mock.patch.object(workbench.skill_runtime, "context", lambda *a, **k: ("", [])), \
              mock.patch.object(workbench, "_json_text", fake_json), \
              mock.patch.object(workbench, "_record_skill", lambda *a, **k: None), \
              mock.patch.dict("os.environ", environ):
