@@ -162,6 +162,7 @@ def test_standalone_market_loads_immediately_and_can_retry(ui):
 def test_home_target_forwards_the_draft_without_starting_a_paid_run(ui, label, target, selector):
     page, state = ui
     page.goto("http://ui.test/")
+    page.locator(".universe-quick summary").click()
     page.locator("#atelier-draft").fill("给刚开始写公众号的人一个实用建议")
     chip = page.get_by_role("button", name=label, exact=True)
     chip.click()
@@ -176,6 +177,7 @@ def test_recent_item_opens_its_own_conversation_and_bookshelf_is_a_real_route(ui
     page, state = ui
     page.set_viewport_size({"width": 1440, "height": 900})
     page.goto("http://ui.test/")
+    page.locator(".universe-quick summary").click()
     page.get_by_role("link", name="真实会话测试记录", exact=False).click()
     page.wait_for_url("**/workbench?conversation=recent-1")
     page.wait_for_function("localStorage.getItem('universe.conversation.workbench') === 'recent-1'")

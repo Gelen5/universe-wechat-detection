@@ -51,6 +51,9 @@
 <link rel="stylesheet" href="/static/sidebar.css?v=20261025-sidebar-1" />
 <link rel="stylesheet" href="/static/resources-editorial.css?v=20261025-resources-3" />
     <link rel="stylesheet" href="/static/hotspots.css?v=20261025-reading-wall-1" />
+<link rel="stylesheet" href="/static/universe-home.css?v=20261025-universe-1" />
+<link rel="stylesheet" href="/static/settings-mint.css?v=20261025-settings-1" />
+<meta name="description" content="宇宙第一工作台：探索内容创作、AI 能力与智能体。你的想法，不必止于想想。" />
 </head>
   <body class="atelier">
     <script>if(location.pathname.replace(/\/$/,'')==='/hotspots')document.body.classList.add('hotspots-body');</script>
@@ -205,7 +208,19 @@
            TAB 1 · / — 首页（薄荷玻璃 v2）
            ============================================================ -->
       <section id="home" class="home-page home-v2" data-atelier="true">
-        <div class="hv-body">
+        <section class="universe-stage" aria-label="一个人的宇宙">
+          <div class="universe-edition"><span>一个人的宇宙</span><span>CREATOR OS / OPEN ENDED</span></div>
+          <a class="universe-object object-type" href="/one-click-writing"><span class="object-label">文字 <span>↗</span></span><span class="type-art" aria-hidden="true">Aa<span></span></span></a>
+          <a class="universe-object object-research" href="/hotspots"><span class="research-art" aria-hidden="true"><i></i><i></i><i></i></span><span class="object-label">发现与研究 <span>↗</span></span></a>
+          <a class="universe-object object-image" href="/tie-tu"><span class="object-label">图像 <span>↗</span></span><span class="image-art" aria-hidden="true"><i></i><i></i><i></i></span></a>
+          <div class="universe-brand"><h1><span>宇宙第一</span><span>工作台<span class="brand-period" aria-hidden="true">.</span></span></h1><p>你的想法，不必止于想想。</p><a class="universe-start" href="#universe-entry">从一个想法开始 <span aria-hidden="true">↗</span></a></div>
+          <div class="universe-object object-video"><span class="object-label">视频与声音</span><div class="film-art" aria-hidden="true"><i></i><i></i><i></i></div><div class="sound-art" aria-hidden="true">▂ ▄ ▆ ▃ ▇ ▄ ▂ ▅ ▃</div><span class="object-note">更多创作形式 · 探索中</span></div>
+          <div class="universe-object object-flow"><span class="object-label">自动化</span><svg class="flow-art" viewBox="0 0 200 100" aria-hidden="true"><path d="M45 50H80Q100 50 100 25H155M80 50Q100 50 100 80H155"/><rect x="8" y="34" width="55" height="32" rx="16"/><rect x="142" y="9" width="48" height="30" rx="15"/><rect x="142" y="65" width="48" height="30" rx="15"/></svg><span class="object-note">让能力彼此协作 · 构想中</span></div>
+          <a class="universe-object object-agents" href="/market"><span class="object-label">智能体 <span>AI 超市 ↗</span></span><div class="agent-art" aria-hidden="true"><i class="agent-orb"></i><i class="agent-star">✦</i><i class="agent-cone"></i><span>＋</span></div><span class="object-note">发现 AI 能力，智能体接入持续探索中</span></a>
+        </section>
+        <section class="universe-entry" id="universe-entry" aria-labelledby="universe-entry-title" tabindex="-1"><div><span class="micro-label">YOUR NEXT IDEA</span><h2 id="universe-entry-title">今天，想做点什么？</h2><p>选一个入口，让想法往前走一步。</p></div><div class="universe-entry-links"><a href="/workbench"><strong>写点内容 ↗</strong><span>公众号创作</span></a><a href="/xiaohongshu"><strong>换种表达 ↗</strong><span>小红书创作</span></a><a href="/tie-tu"><strong>做点图文 ↗</strong><span>贴图号</span></a><a href="/market"><strong>找个帮手 ↗</strong><span>探索 AI 能力</span></a></div></section>
+
+        <details class="universe-quick"><summary>快速开始与最近创作 <span>＋</span></summary><div class="hv-body">
 
           <div class="hv-main">
 
@@ -270,7 +285,7 @@
             </section>
           </aside>
         </div>
-      </section>
+      </details></section>
 
       <!-- ============================================================
            TAB 2 · /diagnose — 公众号账号诊断（拆自原 #entry 的诊断表单）
