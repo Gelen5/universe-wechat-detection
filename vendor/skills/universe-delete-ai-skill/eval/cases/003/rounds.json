@@ -1,0 +1,83 @@
+[
+  {
+    "plan": {
+      "base_sha256": "66b78432ea5fd287c5aafa269f1cc82ecf0a347670796b922f7a8f4a10bc5b91",
+      "change_type": "local_copyedit",
+      "edits": [
+        {
+          "start": 622,
+          "end": 628,
+          "original": "到是“流行”",
+          "replacement": "倒是“流行”",
+          "reason": "将转折副词的同音字到修正为倒；流行仍为原文引号中的说法，立场不变。"
+        }
+      ]
+    },
+    "review": {
+      "schema_version": 1,
+      "original_sha256": "66b78432ea5fd287c5aafa269f1cc82ecf0a347670796b922f7a8f4a10bc5b91",
+      "revision_sha256": "69e1afd7fbdd1ecb8e8daecac5471acb42099ef98b8b069e69fb68ef984fa447",
+      "manifest_sha256": "c01de949de244e8f29aac67d204e8ee91563b94a5d9c36cc2f18d2fe2db94b70",
+      "plan_sha256": "f8a9139c10a61e6deb21bfe80612fa6fcce18a619596e2baf7f73c546f69944c",
+      "reviewer": "Codex editorial review",
+      "reviewer_type": "llm",
+      "reviewed_at": "2026-09-06",
+      "entities_complete": true,
+      "dimensions": {
+        "theme": {
+          "status": "PASS",
+          "evidence": "全文只有该局部校对；主题及标题逐字保留。"
+        },
+        "claims": {
+          "status": "PASS",
+          "evidence": "所有其余句子未动；此处没有删独有判断。将转折副词的同音字到修正为倒；流行仍为原文引号中的说法，立场不变。"
+        },
+        "facts": {
+          "status": "PASS",
+          "evidence": "此处仅重复定语/同音字校对，不改变原稿事实陈述；未核验原稿事实的外部真实性。"
+        },
+        "entities": {
+          "status": "PASS",
+          "evidence": "该处不涉及人物/组织/地点改动，全文其他人名和关系保持原字面。"
+        },
+        "causality": {
+          "status": "PASS",
+          "evidence": "没有增加或删除因果连接和事件，原论证路径保留。"
+        },
+        "time_order": {
+          "status": "PASS",
+          "evidence": "时间词与事件顺序未改；近况本身仍指近期情况。"
+        },
+        "stance": {
+          "status": "PASS",
+          "evidence": "作者语气、评价、数量和限定不变。将转折副词的同音字到修正为倒；流行仍为原文引号中的说法，立场不变。"
+        },
+        "quotes": {
+          "status": "PASS",
+          "evidence": "所有带引号原话保持，校对在引号之外。"
+        },
+        "negation": {
+          "status": "PASS",
+          "evidence": "此修改未动任何否定及强度限定。"
+        },
+        "readability": {
+          "status": "PASS",
+          "evidence": "修改处可连续阅读、句末标点保留；全文原有口语/省略未新增，不将标点统计当语法证明。"
+        },
+        "naturalness": {
+          "status": "PASS",
+          "evidence": "只处理一处明显重复/错字，不改作者叙述语气，不插入假细节。"
+        }
+      },
+      "change_reviews": [
+        {
+          "index": 0,
+          "status": "PASS",
+          "original": "到",
+          "revision": "倒",
+          "reason": "将转折副词的同音字到修正为倒；流行仍为原文引号中的说法，立场不变。"
+        }
+      ]
+    }
+  }
+]

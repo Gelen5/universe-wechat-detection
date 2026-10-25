@@ -1,0 +1,385 @@
+{
+  "schema_version": 1,
+  "original_sha256": "5bd119abc271d1b2431d8bdb504c0fc8bfd2c9371766fb9e6f5feb9156abf4ff",
+  "chars": 1447,
+  "entities": [
+    "堂小叔",
+    "小张"
+  ],
+  "protected_spans": [
+    {
+      "kind": "entity",
+      "start": 68,
+      "end": 71,
+      "text": "堂小叔"
+    },
+    {
+      "kind": "entity",
+      "start": 105,
+      "end": 108,
+      "text": "堂小叔"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 209,
+      "end": 210,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 256,
+      "end": 257,
+      "text": "不"
+    },
+    {
+      "kind": "number",
+      "start": 265,
+      "end": 268,
+      "text": "40岁"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 348,
+      "end": 349,
+      "text": "不"
+    },
+    {
+      "kind": "number",
+      "start": 366,
+      "end": 367,
+      "text": "4"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 375,
+      "end": 377,
+      "text": "没有"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 384,
+      "end": 386,
+      "text": "没有"
+    },
+    {
+      "kind": "quote",
+      "start": 388,
+      "end": 392,
+      "text": "“竞争”"
+    },
+    {
+      "kind": "han_number",
+      "start": 402,
+      "end": 404,
+      "text": "一个"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 423,
+      "end": 425,
+      "text": "没有"
+    },
+    {
+      "kind": "han_number",
+      "start": 430,
+      "end": 432,
+      "text": "一个"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 434,
+      "end": 435,
+      "text": "未"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 453,
+      "end": 455,
+      "text": "可能"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 486,
+      "end": 487,
+      "text": "不"
+    },
+    {
+      "kind": "han_number",
+      "start": 488,
+      "end": 490,
+      "text": "一个"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 529,
+      "end": 530,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 543,
+      "end": 544,
+      "text": "没"
+    },
+    {
+      "kind": "han_number",
+      "start": 559,
+      "end": 561,
+      "text": "一人"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 565,
+      "end": 566,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 613,
+      "end": 615,
+      "text": "可能"
+    },
+    {
+      "kind": "han_number",
+      "start": 619,
+      "end": 621,
+      "text": "一个"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 650,
+      "end": 651,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 659,
+      "end": 660,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 746,
+      "end": 747,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 752,
+      "end": 753,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 759,
+      "end": 760,
+      "text": "不"
+    },
+    {
+      "kind": "quote",
+      "start": 790,
+      "end": 800,
+      "text": "“只要合适就能结婚”"
+    },
+    {
+      "kind": "quote",
+      "start": 844,
+      "end": 848,
+      "text": "“觉醒”"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 868,
+      "end": 869,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 895,
+      "end": 896,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 900,
+      "end": 901,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 916,
+      "end": 917,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 927,
+      "end": 928,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 938,
+      "end": 939,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 960,
+      "end": 961,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 990,
+      "end": 991,
+      "text": "不"
+    },
+    {
+      "kind": "entity",
+      "start": 1002,
+      "end": 1005,
+      "text": "堂小叔"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 1011,
+      "end": 1013,
+      "text": "没有"
+    },
+    {
+      "kind": "entity",
+      "start": 1055,
+      "end": 1057,
+      "text": "小张"
+    },
+    {
+      "kind": "number",
+      "start": 1068,
+      "end": 1071,
+      "text": "30岁"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 1074,
+      "end": 1075,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 1085,
+      "end": 1086,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 1127,
+      "end": 1128,
+      "text": "不"
+    },
+    {
+      "kind": "han_number",
+      "start": 1158,
+      "end": 1160,
+      "text": "一个"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 1195,
+      "end": 1196,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 1196,
+      "end": 1198,
+      "text": "可能"
+    },
+    {
+      "kind": "han_number",
+      "start": 1220,
+      "end": 1222,
+      "text": "一个"
+    },
+    {
+      "kind": "number",
+      "start": 1228,
+      "end": 1231,
+      "text": "42岁"
+    },
+    {
+      "kind": "han_number",
+      "start": 1241,
+      "end": 1243,
+      "text": "一个"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 1255,
+      "end": 1257,
+      "text": "没有"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 1281,
+      "end": 1282,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 1293,
+      "end": 1294,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 1333,
+      "end": 1334,
+      "text": "不"
+    },
+    {
+      "kind": "han_number",
+      "start": 1337,
+      "end": 1339,
+      "text": "一个"
+    },
+    {
+      "kind": "han_number",
+      "start": 1346,
+      "end": 1348,
+      "text": "十年"
+    },
+    {
+      "kind": "han_number",
+      "start": 1356,
+      "end": 1358,
+      "text": "一个"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 1403,
+      "end": 1405,
+      "text": "不敢"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 1412,
+      "end": 1414,
+      "text": "不敢"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 1418,
+      "end": 1419,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 1427,
+      "end": 1428,
+      "text": "不"
+    }
+  ],
+  "entity_review_required": true,
+  "note": "Entity list must be completed by the editor. Regex is not named-entity recognition."
+}

@@ -1,0 +1,16 @@
+{
+  "kind": "real_historical_snapshot_local_edit",
+  "article_type": "公众号社会观察",
+  "source": "approved-works/毕业10年所有同学群彻底死了。.md",
+  "chars": 1087,
+  "zhuque_original": null,
+  "zhuque_revision": null,
+  "detected_at": null,
+  "detector_model_version": null,
+  "edit_scope": "one_local_span",
+  "human_confirmed_meaning": false,
+  "fact_damage": null,
+  "passed": null,
+  "review_kind": "llm_not_human",
+  "provenance": "Existing repository snapshot reused as current experiment baseline; historical pre-rewrite original unknown."
+}

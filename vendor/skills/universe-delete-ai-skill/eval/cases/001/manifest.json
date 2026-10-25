@@ -1,0 +1,343 @@
+{
+  "schema_version": 1,
+  "original_sha256": "ae3bd1f7887bc768665f72602274670b3857028800b5b7163b1e0cc495633034",
+  "chars": 1087,
+  "entities": [
+    "QQ",
+    "微信"
+  ],
+  "protected_spans": [
+    {
+      "kind": "number",
+      "start": 2,
+      "end": 5,
+      "text": "10年"
+    },
+    {
+      "kind": "number",
+      "start": 20,
+      "end": 23,
+      "text": "10年"
+    },
+    {
+      "kind": "number",
+      "start": 58,
+      "end": 60,
+      "text": "20"
+    },
+    {
+      "kind": "han_number",
+      "start": 67,
+      "end": 69,
+      "text": "两年"
+    },
+    {
+      "kind": "han_number",
+      "start": 85,
+      "end": 88,
+      "text": "三五年"
+    },
+    {
+      "kind": "han_number",
+      "start": 120,
+      "end": 122,
+      "text": "一个"
+    },
+    {
+      "kind": "entity",
+      "start": 134,
+      "end": 136,
+      "text": "QQ"
+    },
+    {
+      "kind": "entity",
+      "start": 139,
+      "end": 141,
+      "text": "微信"
+    },
+    {
+      "kind": "han_number",
+      "start": 147,
+      "end": 150,
+      "text": "三两个"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 159,
+      "end": 160,
+      "text": "仅"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 166,
+      "end": 167,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 209,
+      "end": 210,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 226,
+      "end": 227,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 235,
+      "end": 236,
+      "text": "没"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 266,
+      "end": 268,
+      "text": "可能"
+    },
+    {
+      "kind": "number",
+      "start": 287,
+      "end": 290,
+      "text": "10年"
+    },
+    {
+      "kind": "number",
+      "start": 311,
+      "end": 313,
+      "text": "10"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 324,
+      "end": 326,
+      "text": "没有"
+    },
+    {
+      "kind": "han_number",
+      "start": 340,
+      "end": 343,
+      "text": "三两个"
+    },
+    {
+      "kind": "quote",
+      "start": 400,
+      "end": 404,
+      "text": "“热闹”"
+    },
+    {
+      "kind": "number",
+      "start": 415,
+      "end": 417,
+      "text": "10"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 425,
+      "end": 426,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 435,
+      "end": 436,
+      "text": "没"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 448,
+      "end": 449,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 456,
+      "end": 458,
+      "text": "部分"
+    },
+    {
+      "kind": "han_number",
+      "start": 467,
+      "end": 471,
+      "text": "四五十人"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 473,
+      "end": 474,
+      "text": "不"
+    },
+    {
+      "kind": "number",
+      "start": 475,
+      "end": 476,
+      "text": "5"
+    },
+    {
+      "kind": "number",
+      "start": 522,
+      "end": 524,
+      "text": "10"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 545,
+      "end": 547,
+      "text": "可能"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 559,
+      "end": 560,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 598,
+      "end": 600,
+      "text": "多数"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 625,
+      "end": 627,
+      "text": "仅仅"
+    },
+    {
+      "kind": "han_number",
+      "start": 668,
+      "end": 670,
+      "text": "三年"
+    },
+    {
+      "kind": "han_number",
+      "start": 671,
+      "end": 673,
+      "text": "五年"
+    },
+    {
+      "kind": "han_number",
+      "start": 674,
+      "end": 676,
+      "text": "十年"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 704,
+      "end": 705,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 736,
+      "end": 738,
+      "text": "可能"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 739,
+      "end": 740,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 752,
+      "end": 753,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 766,
+      "end": 768,
+      "text": "不能"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 854,
+      "end": 855,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 857,
+      "end": 858,
+      "text": "不"
+    },
+    {
+      "kind": "han_number",
+      "start": 874,
+      "end": 876,
+      "text": "一个"
+    },
+    {
+      "kind": "quote",
+      "start": 920,
+      "end": 925,
+      "text": "“道不同”"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 922,
+      "end": 923,
+      "text": "不"
+    },
+    {
+      "kind": "han_number",
+      "start": 946,
+      "end": 949,
+      "text": "七八年"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 969,
+      "end": 970,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 982,
+      "end": 984,
+      "text": "多数"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 985,
+      "end": 987,
+      "text": "可能"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 1009,
+      "end": 1011,
+      "text": "仅仅"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 1033,
+      "end": 1035,
+      "text": "或许"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 1035,
+      "end": 1037,
+      "text": "可能"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 1063,
+      "end": 1064,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 1077,
+      "end": 1079,
+      "text": "或许"
+    }
+  ],
+  "entity_review_required": true,
+  "note": "Entity list must be completed by the editor. Regex is not named-entity recognition."
+}

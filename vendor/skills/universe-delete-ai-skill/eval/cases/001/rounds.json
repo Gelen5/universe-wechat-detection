@@ -1,0 +1,83 @@
+[
+  {
+    "plan": {
+      "base_sha256": "ae3bd1f7887bc768665f72602274670b3857028800b5b7163b1e0cc495633034",
+      "change_type": "local_copyedit",
+      "edits": [
+        {
+          "start": 353,
+          "end": 362,
+          "original": "活跃的基本都基本是",
+          "replacement": "活跃的基本都是",
+          "reason": "删除紧邻的重复“基本”，保留基本这个限定、群体活跃观察及先后顺序。"
+        }
+      ]
+    },
+    "review": {
+      "schema_version": 1,
+      "original_sha256": "ae3bd1f7887bc768665f72602274670b3857028800b5b7163b1e0cc495633034",
+      "revision_sha256": "a59ba5ddc56400ce5f5d00dd008aa0a3eb576523b945dc6d758ef2d7e1d40ce7",
+      "manifest_sha256": "295dac9f4c10f710ce0a702d824be15e03216b79b70a5e0b6a6031b14926313b",
+      "plan_sha256": "8fcfa55e5d5635a12e748d28ef33728f1d228604d4df3380c4fe130c1566bd87",
+      "reviewer": "Codex editorial review",
+      "reviewer_type": "llm",
+      "reviewed_at": "2026-09-06",
+      "entities_complete": true,
+      "dimensions": {
+        "theme": {
+          "status": "PASS",
+          "evidence": "全文只有该局部校对；主题及标题逐字保留。"
+        },
+        "claims": {
+          "status": "PASS",
+          "evidence": "所有其余句子未动；此处没有删独有判断。删除紧邻的重复“基本”，保留基本这个限定、群体活跃观察及先后顺序。"
+        },
+        "facts": {
+          "status": "PASS",
+          "evidence": "此处仅重复定语/同音字校对，不改变原稿事实陈述；未核验原稿事实的外部真实性。"
+        },
+        "entities": {
+          "status": "PASS",
+          "evidence": "该处不涉及人物/组织/地点改动，全文其他人名和关系保持原字面。"
+        },
+        "causality": {
+          "status": "PASS",
+          "evidence": "没有增加或删除因果连接和事件，原论证路径保留。"
+        },
+        "time_order": {
+          "status": "PASS",
+          "evidence": "时间词与事件顺序未改；近况本身仍指近期情况。"
+        },
+        "stance": {
+          "status": "PASS",
+          "evidence": "作者语气、评价、数量和限定不变。删除紧邻的重复“基本”，保留基本这个限定、群体活跃观察及先后顺序。"
+        },
+        "quotes": {
+          "status": "PASS",
+          "evidence": "所有带引号原话保持，校对在引号之外。"
+        },
+        "negation": {
+          "status": "PASS",
+          "evidence": "此修改未动任何否定及强度限定。"
+        },
+        "readability": {
+          "status": "PASS",
+          "evidence": "修改处可连续阅读、句末标点保留；全文原有口语/省略未新增，不将标点统计当语法证明。"
+        },
+        "naturalness": {
+          "status": "PASS",
+          "evidence": "只处理一处明显重复/错字，不改作者叙述语气，不插入假细节。"
+        }
+      },
+      "change_reviews": [
+        {
+          "index": 0,
+          "status": "PASS",
+          "original": "基本",
+          "revision": "",
+          "reason": "删除紧邻的重复“基本”，保留基本这个限定、群体活跃观察及先后顺序。"
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,402 @@
+{
+  "schema_version": 1,
+  "original_sha256": "66b78432ea5fd287c5aafa269f1cc82ecf0a347670796b922f7a8f4a10bc5b91",
+  "chars": 1273,
+  "entities": [
+    "广州",
+    "张三",
+    "李四",
+    "海南",
+    "潮汕",
+    "黄五",
+    "黄姐"
+  ],
+  "protected_spans": [
+    {
+      "kind": "negation_qualifier",
+      "start": 9,
+      "end": 10,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 36,
+      "end": 37,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 81,
+      "end": 82,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 86,
+      "end": 87,
+      "text": "没"
+    },
+    {
+      "kind": "entity",
+      "start": 106,
+      "end": 108,
+      "text": "海南"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 114,
+      "end": 116,
+      "text": "没有"
+    },
+    {
+      "kind": "han_number",
+      "start": 139,
+      "end": 141,
+      "text": "十年"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 142,
+      "end": 143,
+      "text": "不"
+    },
+    {
+      "kind": "han_number",
+      "start": 151,
+      "end": 153,
+      "text": "四个"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 176,
+      "end": 177,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 210,
+      "end": 212,
+      "text": "没有"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 242,
+      "end": 244,
+      "text": "可能"
+    },
+    {
+      "kind": "han_number",
+      "start": 247,
+      "end": 249,
+      "text": "一个"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 255,
+      "end": 257,
+      "text": "一定"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 286,
+      "end": 287,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 288,
+      "end": 290,
+      "text": "没有"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 294,
+      "end": 295,
+      "text": "不"
+    },
+    {
+      "kind": "han_number",
+      "start": 298,
+      "end": 300,
+      "text": "一次"
+    },
+    {
+      "kind": "han_number",
+      "start": 330,
+      "end": 332,
+      "text": "一次"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 376,
+      "end": 377,
+      "text": "没"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 399,
+      "end": 400,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 402,
+      "end": 403,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 411,
+      "end": 412,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 431,
+      "end": 432,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 445,
+      "end": 446,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 466,
+      "end": 467,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 475,
+      "end": 476,
+      "text": "不"
+    },
+    {
+      "kind": "quote",
+      "start": 479,
+      "end": 483,
+      "text": "“得罪”"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 499,
+      "end": 500,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 501,
+      "end": 502,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 512,
+      "end": 513,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 562,
+      "end": 563,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 574,
+      "end": 575,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 615,
+      "end": 616,
+      "text": "不"
+    },
+    {
+      "kind": "quote",
+      "start": 624,
+      "end": 628,
+      "text": "“流行”"
+    },
+    {
+      "kind": "entity",
+      "start": 638,
+      "end": 640,
+      "text": "张三"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 644,
+      "end": 645,
+      "text": "不"
+    },
+    {
+      "kind": "entity",
+      "start": 649,
+      "end": 651,
+      "text": "李四"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 656,
+      "end": 657,
+      "text": "不"
+    },
+    {
+      "kind": "entity",
+      "start": 664,
+      "end": 666,
+      "text": "黄五"
+    },
+    {
+      "kind": "number",
+      "start": 690,
+      "end": 692,
+      "text": "7年"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 740,
+      "end": 741,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 768,
+      "end": 770,
+      "text": "没有"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 783,
+      "end": 784,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 797,
+      "end": 799,
+      "text": "或许"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 804,
+      "end": 805,
+      "text": "未"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 821,
+      "end": 823,
+      "text": "大概"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 828,
+      "end": 829,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 868,
+      "end": 870,
+      "text": "没有"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 919,
+      "end": 920,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 951,
+      "end": 952,
+      "text": "不"
+    },
+    {
+      "kind": "entity",
+      "start": 966,
+      "end": 968,
+      "text": "黄姐"
+    },
+    {
+      "kind": "entity",
+      "start": 972,
+      "end": 974,
+      "text": "潮汕"
+    },
+    {
+      "kind": "entity",
+      "start": 998,
+      "end": 1000,
+      "text": "广州"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 1006,
+      "end": 1007,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 1018,
+      "end": 1019,
+      "text": "不"
+    },
+    {
+      "kind": "han_number",
+      "start": 1048,
+      "end": 1050,
+      "text": "四次"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 1155,
+      "end": 1156,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 1164,
+      "end": 1165,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 1186,
+      "end": 1187,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 1193,
+      "end": 1195,
+      "text": "可能"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 1204,
+      "end": 1205,
+      "text": "不"
+    },
+    {
+      "kind": "negation_qualifier",
+      "start": 1210,
+      "end": 1211,
+      "text": "不"
+    },
+    {
+      "kind": "han_number",
+      "start": 1232,
+      "end": 1234,
+      "text": "一个"
+    }
+  ],
+  "entity_review_required": true,
+  "note": "Entity list must be completed by the editor. Regex is not named-entity recognition."
+}

@@ -1,4 +1,4 @@
-# 内置的公众号创作 Skill（vendored）
+﻿# 内置的公众号创作 Skill（vendored）
 
 这里放的是 `weChat-autoCreate` 的源码副本，目的是让仓库自包含：本地能跑、部署可复现、
 线上跑的版本可以从仓库里直接查。
@@ -15,7 +15,7 @@
 ## 规则
 
 1. **不要手改这里的文件。** 所有变更都必须来自上游仓库，通过
-   `scripts/sync_vendored_skill.sh <sha>` 同步，它会同时更新本文件的提交号。
+   `scripts/sync_vendored_skill.sh wechat [sha]` 同步，它会同时更新本文件的提交号。
    手改会让这份副本和上游分叉，也就失去了 vendoring 的意义。
 2. 同步时排除 `.git`、`.venv`、`__pycache__`、`output`、`*.pyc`。
 3. 不要在本仓库的 CI 里跑 `tests/`；那是 Skill 自己的测试，依赖和失败原因都与平台无关。

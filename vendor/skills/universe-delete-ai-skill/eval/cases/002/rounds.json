@@ -1,0 +1,83 @@
+[
+  {
+    "plan": {
+      "base_sha256": "5bd119abc271d1b2431d8bdb504c0fc8bfd2c9371766fb9e6f5feb9156abf4ff",
+      "change_type": "local_copyedit",
+      "edits": [
+        {
+          "start": 136,
+          "end": 141,
+          "original": "最近的近况",
+          "replacement": "近况",
+          "reason": "近况已包含最近状态，删重复定语；仍是送鸭子后谈及堂小叔近况，没有增删事件。"
+        }
+      ]
+    },
+    "review": {
+      "schema_version": 1,
+      "original_sha256": "5bd119abc271d1b2431d8bdb504c0fc8bfd2c9371766fb9e6f5feb9156abf4ff",
+      "revision_sha256": "7ea61c90a9c0f56fa8d7bed915c1da83d1d56e0d79d3b5866fb9b956152b20aa",
+      "manifest_sha256": "c1db93ac14a9a0d456f7b58fde13ed15941290832256bfc8e04a42824c59ac21",
+      "plan_sha256": "2c9363ef188e5543d8c3d278fa98180efd466afb1048dfd9d0e2c1005b4ae913",
+      "reviewer": "Codex editorial review",
+      "reviewer_type": "llm",
+      "reviewed_at": "2026-09-06",
+      "entities_complete": true,
+      "dimensions": {
+        "theme": {
+          "status": "PASS",
+          "evidence": "全文只有该局部校对；主题及标题逐字保留。"
+        },
+        "claims": {
+          "status": "PASS",
+          "evidence": "所有其余句子未动；此处没有删独有判断。近况已包含最近状态，删重复定语；仍是送鸭子后谈及堂小叔近况，没有增删事件。"
+        },
+        "facts": {
+          "status": "PASS",
+          "evidence": "此处仅重复定语/同音字校对，不改变原稿事实陈述；未核验原稿事实的外部真实性。"
+        },
+        "entities": {
+          "status": "PASS",
+          "evidence": "该处不涉及人物/组织/地点改动，全文其他人名和关系保持原字面。"
+        },
+        "causality": {
+          "status": "PASS",
+          "evidence": "没有增加或删除因果连接和事件，原论证路径保留。"
+        },
+        "time_order": {
+          "status": "PASS",
+          "evidence": "时间词与事件顺序未改；近况本身仍指近期情况。"
+        },
+        "stance": {
+          "status": "PASS",
+          "evidence": "作者语气、评价、数量和限定不变。近况已包含最近状态，删重复定语；仍是送鸭子后谈及堂小叔近况，没有增删事件。"
+        },
+        "quotes": {
+          "status": "PASS",
+          "evidence": "所有带引号原话保持，校对在引号之外。"
+        },
+        "negation": {
+          "status": "PASS",
+          "evidence": "此修改未动任何否定及强度限定。"
+        },
+        "readability": {
+          "status": "PASS",
+          "evidence": "修改处可连续阅读、句末标点保留；全文原有口语/省略未新增，不将标点统计当语法证明。"
+        },
+        "naturalness": {
+          "status": "PASS",
+          "evidence": "只处理一处明显重复/错字，不改作者叙述语气，不插入假细节。"
+        }
+      },
+      "change_reviews": [
+        {
+          "index": 0,
+          "status": "PASS",
+          "original": "最近的",
+          "revision": "",
+          "reason": "近况已包含最近状态，删重复定语；仍是送鸭子后谈及堂小叔近况，没有增删事件。"
+        }
+      ]
+    }
+  }
+]

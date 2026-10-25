@@ -1,0 +1,3 @@
+# Evaluation text hashes bind exact line endings; Git must not normalize fixtures.
+eval/cases/**/original.md -text whitespace=cr-at-eol,-blank-at-eof
+eval/cases/**/revision.md -text whitespace=cr-at-eol,-blank-at-eof

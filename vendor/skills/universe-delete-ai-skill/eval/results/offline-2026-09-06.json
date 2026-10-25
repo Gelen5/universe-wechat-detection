@@ -1,0 +1,105 @@
+{
+  "cases": 3,
+  "items": [
+    {
+      "case": "001",
+      "kind": "real_historical_snapshot_local_edit",
+      "local_gate_pass": true,
+      "saved_revision_matches_selected": true,
+      "rollback_count": 0,
+      "rounds": [
+        {
+          "version": 1,
+          "change_type": "local_copyedit",
+          "text_sha256": "a59ba5ddc56400ce5f5d00dd008aa0a3eb576523b945dc6d758ef2d7e1d40ce7",
+          "semantic_check": "PASS",
+          "facts_check": "PASS",
+          "readability_check": "PASS",
+          "change_ratio": {
+            "chars": 0.0018399264029438822,
+            "sentences": 0.016129032258064516,
+            "paragraphs": 0.05263157894736842
+          },
+          "changed_sentences": 1,
+          "errors": [],
+          "pending": [],
+          "zhuque_result": null,
+          "decision": "accepted_offline_not_detector_validated"
+        }
+      ],
+      "detector_comparable": false,
+      "improvement": null,
+      "positive": false
+    },
+    {
+      "case": "002",
+      "kind": "real_historical_snapshot_local_edit",
+      "local_gate_pass": true,
+      "saved_revision_matches_selected": true,
+      "rollback_count": 0,
+      "rounds": [
+        {
+          "version": 1,
+          "change_type": "local_copyedit",
+          "text_sha256": "7ea61c90a9c0f56fa8d7bed915c1da83d1d56e0d79d3b5866fb9b956152b20aa",
+          "semantic_check": "PASS",
+          "facts_check": "PASS",
+          "readability_check": "PASS",
+          "change_ratio": {
+            "chars": 0.002073255010366275,
+            "sentences": 0.01282051282051282,
+            "paragraphs": 0.045454545454545456
+          },
+          "changed_sentences": 1,
+          "errors": [],
+          "pending": [],
+          "zhuque_result": null,
+          "decision": "accepted_offline_not_detector_validated"
+        }
+      ],
+      "detector_comparable": false,
+      "improvement": null,
+      "positive": false
+    },
+    {
+      "case": "003",
+      "kind": "real_historical_snapshot_local_edit",
+      "local_gate_pass": true,
+      "saved_revision_matches_selected": true,
+      "rollback_count": 0,
+      "rounds": [
+        {
+          "version": 1,
+          "change_type": "local_copyedit",
+          "text_sha256": "69e1afd7fbdd1ecb8e8daecac5471acb42099ef98b8b069e69fb68ef984fa447",
+          "semantic_check": "PASS",
+          "facts_check": "PASS",
+          "readability_check": "PASS",
+          "change_ratio": {
+            "chars": 0.0007855459544383347,
+            "sentences": 0.012658227848101266,
+            "paragraphs": 0.043478260869565216
+          },
+          "changed_sentences": 1,
+          "errors": [],
+          "pending": [],
+          "zhuque_result": null,
+          "decision": "accepted_offline_not_detector_validated"
+        }
+      ],
+      "detector_comparable": false,
+      "improvement": null,
+      "positive": false
+    }
+  ],
+  "local_pass": 3,
+  "rollback_count": 0,
+  "detector_pairs": 0,
+  "improved": 0,
+  "mean_improvement": null,
+  "median_improvement": null,
+  "variance": null,
+  "improvement_rate": null,
+  "positives": 0,
+  "note": "Local fidelity audit is not an external fact check or detector effectiveness result."
+}
