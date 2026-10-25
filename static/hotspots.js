@@ -98,7 +98,7 @@
 
   async function load() {
     skeleton();
-    const params = new URLSearchParams({ limit: '200' });
+    const params = new URLSearchParams({ limit: '400' });
     if (state.platform) params.set('platform', state.platform);
     if (state.q) params.set('q', state.q);
     try {

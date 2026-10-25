@@ -288,7 +288,7 @@ def load(platform: str = "", query: str = "", limit: int = 60) -> dict:
 @router.get("/api/hotspots")
 def list_hotspots(platform: str = Query(default="", max_length=32),
                   q: str = Query(default="", max_length=80),
-                  limit: int = Query(default=60, ge=1, le=200)):
+                  limit: int = Query(default=60, ge=1, le=400)):
     data = load(platform=platform, query=q, limit=limit)
     return {
         "items": data["items"],
