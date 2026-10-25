@@ -414,3 +414,24 @@ class PipelineTests(unittest.TestCase):
                     self.assertEqual(review['gate'],'passed')
                 else:
                     with self.assertRaises(w.ProviderError): w._review(candidate,{'id':'test'})
+
+    def test_review_accepts_with_notes_instead_of_failing_on_wording(self):
+        """只剩措辞建议时应该带保留意见通过，而不是把整篇判失败。"""
+        article = '这是一段待审正文。'
+        diagnosis = {'issues': [{'quote': '待审', 'reason': '措辞含糊', 'fix': '说明谁在等'}],
+                     'reason': '仅措辞建议，不影响事实', 'fidelity_ok': True, 'readability_ok': True}
+        audit = {'status': 'success', 'complete_sentence_ratio': 1, 'missing_protected_spans': {}}
+        with tempfile.TemporaryDirectory() as directory, \
+             patch.object(w, 'OUTPUT_DIR', Path(directory)), \
+             patch.object(w, '_review_skill_context', return_value=('Skill rules', [])), \
+             patch.object(skill_runtime, 'script', side_effect=[{'signals': []}, {'review_items': []}]), \
+             patch.object(skill_runtime, 'length_issue', return_value=None), \
+             patch.object(w, '_anti_ai_audit', return_value=audit), \
+             patch.object(w, '_json_text', side_effect=[diagnosis]), \
+             patch.dict('os.environ', {'WECHAT_REVIEW_ROUNDS': '1'}):
+            revised, report = w._review(article, {'id': 'review-notes', 'brief': '审稿'})
+        self.assertEqual(revised, article)
+        self.assertEqual(report['gate'], 'passed')
+        self.assertEqual(1, len(report['pending_review_notes']))
+        self.assertIn('谁在等', report['pending_review_notes'][0]['fix'])
+

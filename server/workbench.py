@@ -732,16 +732,29 @@ JSON的items要逐项覆盖列表中的每个下标；这只是返回报告覆�
                      and audit.get('complete_sentence_ratio', 0) >= .9
                      and diagnosis.get('fidelity_ok') is True and diagnosis.get('readability_ok') is True
                      and not skill_runtime.length_issue(candidate, skill_runtime.brief(session)))
-            if not diagnosis['issues'] and valid:
+            last_round = attempt == max_rounds - 1
+            # 硬门禁（事实、保真、篇幅、完整句）必须过。只剩措辞类问题时，最后一轮
+            # 接受当前稿并记录待办——为一句“等待时间是谁在等”把写完并复核过的整篇
+            # 文章判失败，用户损失的是十几分钟和一次任务。
+            if valid and (not diagnosis['issues'] or last_round):
+                pending_notes = [
+                    {'quote': str(issue.get('quote') or ''), 'reason': str(issue.get('reason') or ''),
+                     'fix': str(issue.get('fix') or '')}
+                    for issue in diagnosis['issues'] if isinstance(issue, dict)
+                ]
                 session['review_run']['status'] = 'passed'
+                if pending_notes:
+                    session['review_run']['pending_notes'] = pending_notes
                 (directory / 'run.json').write_text(json.dumps(session['review_run'],ensure_ascii=False,indent=2),encoding='utf-8')
                 _record_skill(session, 4, '反 AI Skill：信号检测、局部改稿、保真与可读性复核', manifest,
                               ['check_ai_tone_signals.py', 'check_natural_prose.py', 'audit_revision.py'],
-                              'passed', f'完成 {attempt + 1} 轮复核')
+                              'passed', f'完成 {attempt + 1} 轮复核'
+                                        + (f'，保留 {len(pending_notes)} 项非阻断建议' if pending_notes else ''))
                 return candidate, {'source':'universe-delete-ai-skill', 'model':_setting('WECHAT_TEXT_MODEL'),
                     'action':'Skill 文件加载 → 定位检查 → 定向修稿 → 二次复核', 'audit':audit,
-                    'gate':'passed', 'article_sha256':skill_runtime.digest(candidate), 'changed':candidate != article, 'manifest':manifest, 'rounds':records}
-            if attempt == max_rounds - 1:
+                    'gate':'passed', 'article_sha256':skill_runtime.digest(candidate), 'changed':candidate != article,
+                    'manifest':manifest, 'rounds':records, 'pending_review_notes':pending_notes}
+            if last_round:
                 break
             anchored_issues = [
                 (index, issue) for index, issue in enumerate(diagnosis['issues'])
