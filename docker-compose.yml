@@ -32,8 +32,8 @@ services:
       APP_ENV: production
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-universe}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-universe}
       REDIS_URL: redis://redis:6379/0
-      WECHAT_PUBLISHER_SKILL_DIR: /opt/universe-skills/weChat-autoCreate
-      UNIVERSE_ANTI_AI_SKILL_DIR: /opt/universe-skills/universe-delete-ai-skill
+      WECHAT_PUBLISHER_SKILL_DIR: ${WECHAT_PUBLISHER_SKILL_DIR:-/app/vendor/skills/weChat-autoCreate}
+      UNIVERSE_ANTI_AI_SKILL_DIR: ${UNIVERSE_ANTI_AI_SKILL_DIR:-/app/vendor/skills/universe-delete-ai-skill}
     env_file: .env
     command: ["alembic", "upgrade", "head"]
     volumes:

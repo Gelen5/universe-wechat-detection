@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env bash
+#!/usr/bin/env bash
 # 唯一的部署入口：从 GitHub main 拉取指定提交，新 release 目录 + 重建镜像。
 #
 #   sudo bash deploy.sh              # 部署当前 main
@@ -194,6 +194,9 @@ check 'test -f server/agent/intent.py' '阶段路由（intent）'
 check 'grep -q topic_queries server/workbench_research.py' '真搜索（多查询+抓正文）'
 check 'grep -q chat-steps static/conversation-workbench.js' '进度卡'
 check 'grep -q bookshelf server/main.py' 'AI 书架'
+# The skills are vendored into the image; a missing path breaks the node at runtime.
+check 'test -f "$WECHAT_PUBLISHER_SKILL_DIR/toolkit/article_workflow.py"' 'Skill 公众号（vendored）'
+check 'test -f "$UNIVERSE_ANTI_AI_SKILL_DIR/scripts/check_ai_tone_signals.py"' 'Skill 去 AI 味（vendored）'
 # Probe configured node models: relays rename models and revoke per-group access.
 echo "  == node models"
 docker exec "${PROJECT}-web-1" python scripts/node_model_probe.py 2>&1 | sed "s/^/  /" \
