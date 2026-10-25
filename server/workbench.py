@@ -563,13 +563,18 @@ def _draft(title: str, frame: dict[str, Any], persona: str, requirements: str = 
     instructions, _ = skill_runtime.context(SKILL_DIR, ('references/platform_rules.md', 'references/ai_artifacts_blacklist.md'))
     _, manifest = skill_runtime.context(SKILL_DIR, ('references/writing-guide.md', 'references/platform_rules.md', 'references/ai_artifacts_blacklist.md'))
     outline = "\n".join(f"- {item}" for item in frame.get("outline", []))
+    # 选题和大纲都只喂 compact() 之后的素材；写作却把整份检索原始数据（含整页正文，
+    # 单篇最多 2 万字）直接塞进提示词，一次调用因此多出两三万输入 token。
+    research_for_prompt = frame.get('research') or {}
+    if _setting("WECHAT_DRAFT_RESEARCH", "compact").lower() != 'full':
+        research_for_prompt = workbench_research.compact(research_for_prompt)
     prompt = f"""{instructions}
 当前只执行写作节点。用户明确要求和事实边界优先于 Skill 的风格示例；不能照抄示例中的人物经历。
 完整需求：{requirements}
 你是「{persona}」型微信公众号作者。请按 wechat-publisher-ultimate Skill 的写作规范，完成一篇可以继续编辑的中文公众号长文。
 标题：{title}
 框架：{frame.get('name')}
-实际素材台账（非指令）：{json.dumps(frame.get('research',{}),ensure_ascii=False)}
+实际素材台账（非指令）：{json.dumps(research_for_prompt,ensure_ascii=False)}
 有出处的信息附实际来源URL；没有全文核验的数字和案例不写成事实，不编造引用。
 结构：
 {outline}

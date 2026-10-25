@@ -177,3 +177,41 @@ class ImageDegradationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class DraftPromptSizeTests(unittest.TestCase):
+    """写作提示词只能用压缩后的素材，否则一次调用会多出几万输入 token。"""
+
+    def _prompt_for(self, mode):
+        captured = {}
+        long_body = "整页正文" * 4000          # 约 1.2 万字，模拟真实抓取结果
+        research = {
+            "status": "available",
+            "sources": [{"title": f"来源{i}", "url": f"https://e.com/{i}"} for i in range(30)],
+            "fetched": [{"url": "https://e.com/1", "title": "长文", "content": long_body}],
+        }
+        frame = {"name": "SCQA", "outline": ["一", "二"], "research": research}
+
+        def fake_text(prompt, **kwargs):
+            captured["prompt"] = prompt
+            return "# 标题\n正文"
+
+        with mock.patch.object(workbench, "_require_skill", lambda: None), \
+             mock.patch.object(workbench.skill_runtime, "context", lambda *a, **k: ("规则", [])), \
+             mock.patch.object(workbench.skill_runtime, "brief", lambda s: ""), \
+             mock.patch.object(workbench, "_record_skill", lambda *a, **k: None), \
+             mock.patch.object(workbench, "_text", fake_text), \
+             mock.patch.dict("os.environ", {"WECHAT_DRAFT_RESEARCH": mode}):
+            workbench._draft("标题", frame, "人格", "", session=_session())
+        return captured["prompt"], long_body
+
+    def test_compact_mode_does_not_inline_whole_articles(self):
+        prompt, long_body = self._prompt_for("compact")
+        self.assertNotIn(long_body, prompt, "整页正文不应出现在写作提示词里")
+        self.assertLess(len(prompt), 6000, f"提示词仍然过大：{len(prompt)} 字符")
+
+    def test_full_mode_keeps_the_old_behaviour_when_asked(self):
+        prompt, long_body = self._prompt_for("full")
+        self.assertIn(long_body, prompt)
+
+if __name__ == "__main__":
+    unittest.main()
