@@ -71,6 +71,13 @@ class ReviewDeliveryTests(unittest.TestCase):
         finally:
             w.REVIEW_REASONING.reset(token)
 
+    def test_empty_replacement_can_remove_only_a_formulaic_transition(self):
+        with patch.object(w, '_json_text', return_value={'edits': [{'issue_index': 0, 'after': ''}]}):
+            _, revised = w._validated_local_edits('值得注意的是，正文。', 'edit', anchors=['值得注意的是，'], require_edits=True)
+            self.assertEqual('正文。', revised)
+            with self.assertRaises(w.ProviderError):
+                w._validated_local_edits('真实原话。', 'edit', anchors=['真实原话。'], require_edits=True)
+
     def test_sol_uses_responses_and_medium(self):
         session = FakeSession([FakeResponse({'status': 'completed', 'output': []})])
         provider = OpenAICompatibleProvider(api_key='test', base_url='https://relay.test/v1',

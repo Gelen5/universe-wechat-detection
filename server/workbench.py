@@ -700,7 +700,7 @@ def _anti_ai_redlines(text: str, *, limit: int = _REDLINE_SUMMARY) -> list[dict[
             continue
         for phrase in _AI_PHRASES:
             if stripped.startswith(phrase) and stripped[len(phrase):].startswith(('，', '：', ',')):
-                issues.append({'quote': phrase, 'reason': '段首模板过渡，需结合后文判断信息增量',
+                issues.append({'quote': phrase + stripped[len(phrase)], 'reason': '段首模板过渡，需结合后文判断信息增量',
                                'fix': '仅在没有实际作用时删去过渡，保留后文事实与原意'})
                 break
         if len(issues) >= limit:
@@ -1106,8 +1106,8 @@ def _validated_local_edits(
             if not isinstance(before, str) or not before or not isinstance(after, str):
                 errors.append('before或after格式错误')
                 continue
-            if not after:
-                errors.append('after不能为空；请用保留事实边界的具体措辞替换')
+            if not after and before.strip('，：,: ') not in _AI_PHRASES:
+                errors.append('after不能为空（无信息量的模板过渡除外）；其余片段须保留事实边界')
                 continue
             if revised.count(before) != 1:
                 errors.append('before在当前稿中不能唯一定位')
@@ -1116,13 +1116,13 @@ def _validated_local_edits(
             if lost_quotes:
                 errors.append('after丢失引号内原话：' + '、'.join(lost_quotes))
                 continue
-            if before[-1] in '。！？.!?' and after[-1] not in '。！？.!?':
+            if after and before[-1] in '。！？.!?' and after[-1] not in '。！？.!?':
                 errors.append('after丢失句末标点')
                 continue
             revised = revised.replace(before, after, 1)
         if not errors:
             return payload, revised
-    raise ProviderError('去 AI 局部修改连续三次无法安全定位，已保留原文：' + '；'.join(errors))
+    raise ProviderError('去 AI 局部修改连续两次无法安全定位，已保留原文：' + '；'.join(errors))
 
 
 def _markdown_prose_for_sentence_audit(text: str) -> str:
