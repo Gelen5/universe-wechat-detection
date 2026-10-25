@@ -1,0 +1,69 @@
+# 风格配置模板
+# 定义写作风格、人格、语气参数
+
+# 默认人格（对应 personas/ 目录下的YAML文件名）
+default_persona: "warm-editor"
+
+# 默认关闭随机 CSS，确保预览、复制和发布结果可复现。
+css_perturbation: false
+
+# 语气参数
+tone:
+  formality: "casual"           # formal / semi-formal / casual
+  humor_level: 0.3              # 0.0-1.0 幽默程度
+  technical_depth: "moderate"   # shallow / moderate / deep
+  audience: "general"           # general / professional / expert
+
+# 段落风格
+paragraph:
+  min_length: 30
+  max_length: 200
+  prefer_short: true            # 偏好短段落
+
+# 标题风格
+headline:
+  style: "conversational"       # conversational / formal / provocative / curious
+  max_length: 30
+  use_numbers: true             # 倾向使用数字标题
+
+# 开头风格
+opening:
+  style: "hook"                 # hook / question / story / data / quote
+  avoid_patterns:
+    - "在这个"
+    - "随着"
+    - "如今"
+
+# 结尾风格
+closing:
+  style: "open_ended"           # open_ended / call_to_action / summary / provocative_question
+  avoid_patterns:
+    - "总而言之"
+    - "综上所述"
+
+# 禁用词列表
+forbidden_words:
+  - "值得注意的是"
+  - "综上所述"
+  - "总而言之"
+  - "不可忽视"
+  - "至关重要"
+  - "不言而喻"
+  - "毋庸置疑"
+  - "显而易见"
+  - "不可或缺"
+  - "令人瞩目"
+  - "令人惊叹"
+  - "令人兴奋"
+  - "颠覆性"
+  - "革命性"
+  - "划时代"
+  - "跨时代"
+  - "干货"
+  - "必读"
+  - "必看"
+
+# AIGC声明
+aigc:
+  enabled: false
+  text: "本文由AI辅助创作，经人工审核编辑后发布"

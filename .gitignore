@@ -31,6 +31,10 @@ scripts_refactor_entry.py
 shot_v3r2.py
 selftest_v3r2.py
 
+# vendored third-party skills are source, never local scratch: the rules above
+# would otherwise drop their check_*.py scripts and break the pinned copy.
+!/vendor/skills/**
+
 # Keep the reviewed native text batch; other local Easel source files are audit input.
 /vendor/easel/skills/openclaw/*
 !/vendor/easel/skills/openclaw/skill-account-diagnosis/

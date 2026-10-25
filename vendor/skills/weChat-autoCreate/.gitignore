@@ -1,0 +1,42 @@
+# 配置文件（含敏感凭证）
+config.yaml
+config.yml
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# Node.js
+node_modules/
+package-lock.json
+
+# 输出
+output/
+*.png
+*.jpg
+!personas/*.yaml
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Lessons & playbook (用户本地数据)
+lessons.json
+playbook.json
+stats.yaml

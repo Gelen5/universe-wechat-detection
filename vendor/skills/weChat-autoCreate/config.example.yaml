@@ -1,0 +1,66 @@
+# 微信公众号全链路自动化 - API配置模板
+# 复制为 config.yaml 并填入真实凭证
+
+wechat:
+  appid: ""            # 微信公众号 AppID
+  secret: ""           # 微信公众号 AppSecret
+
+# 图片生成提供商配置
+# 设置 image.provider 选择默认提供商
+# 可选: openai / doubao / gemini / dashscope / minimax / replicate / azure_openai / openrouter / jimeng
+image:
+  provider: "openai"
+
+  openai:
+    api_key: ""        # 或设置环境变量 OPENAI_API_KEY
+    model: "dall-e-3"  # dall-e-3 / gpt-image-2
+
+  doubao:
+    api_key: ""        # 或设置环境变量 DOUBAO_API_KEY
+    model: "doubao-seedream-3-0-t2i-250415"
+
+  gemini:
+    api_key: ""        # 或设置环境变量 GEMINI_API_KEY
+    model: "imagen-3.0-generate-001"
+
+  dashscope:
+    api_key: ""        # 或设置环境变量 DASHSCOPE_API_KEY
+    model: "wanx-v1"
+
+  minimax:
+    api_key: ""        # 或设置环境变量 MINIMAX_API_KEY
+    group_id: ""       # 或设置环境变量 MINIMAX_GROUP_ID
+    model: "image-01"
+
+  replicate:
+    api_token: ""      # 或设置环境变量 REPLICATE_API_TOKEN
+    model: "stability-ai/sdxl"
+
+  azure_openai:
+    api_key: ""        # 或设置环境变量 AZURE_OPENAI_API_KEY
+    endpoint: ""       # Azure OpenAI 终端
+    model: "dall-e-3"
+
+  openrouter:
+    api_key: ""        # 或设置环境变量 OPENROUTER_API_KEY
+    model: "openai/dall-e-3"
+
+  jimeng:
+    api_key: ""        # 或设置环境变量 JIMENG_API_KEY
+    model: "jimeng-2.1"
+
+# 主题配置
+style_file: "style.yaml"
+
+# 写作参数
+writing_config_file: "writing-config.yaml"
+
+workflow:
+  mode: "interactive"
+  state_file: "article-state.json"
+  block_time_sensitive_research_failure: true
+  require_reader_simulation: true
+
+# 可选：本地已发布文章目录，用于发布前同质化与近似重复检查
+recommendation_quality:
+  history_dir: ""

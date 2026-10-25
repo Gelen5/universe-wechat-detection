@@ -1,0 +1,17 @@
+# 2.0 写作策略只保留内容目标，不用统计指标制造“真人感”。
+target_length: 1500
+primary_goal: "trust"       # trust / explain / search / convert / opinion / record
+evidence_level: "standard" # light / standard / high
+seo_mode: "intent_only"
+author_profile: ""
+
+revision:
+  mode: "local_only"
+  preserve_facts: true
+  preserve_citations: true
+  invent_experience: false
+
+quality:
+  block_unsupported_key_claims: true
+  block_fabricated_experience: true
+  require_reader_simulation: true
