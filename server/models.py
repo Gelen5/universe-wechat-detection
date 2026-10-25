@@ -295,3 +295,17 @@ class RunEvent(Base):
     payload_json: Mapped[dict] = mapped_column(JSON_TYPE, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
     __table_args__ = (Index("idx_run_events_replay", "run_id", "id"),)
+
+class HotspotSnapshot(Base):
+    """热点广场的小时级快照：给排名轨迹、跨平台频次留数据。"""
+
+    __tablename__ = "hotspot_snapshots"
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"),
+                                    primary_key=True, autoincrement=True)
+    platform: Mapped[str] = mapped_column(String(32), index=True)
+    title: Mapped[str] = mapped_column(Text)
+    url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    hot: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    rank: Mapped[int] = mapped_column(Integer, default=0)
+    captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc, index=True)
+    __table_args__ = (Index("idx_hotspot_platform_captured", "platform", "captured_at"),)

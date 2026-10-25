@@ -343,7 +343,8 @@ async function loadAccount() {
   try {
     const response = await fetch('/api/auth/me');
     // AI 超市是公开索引：未登录也直接展示内容，不强弹登录框。
-    if (!response.ok) { if (pathToView(location.pathname) !== 'market') showAuth(); return; }
+    const publicView = ['market', 'hotspots'].includes(pathToView(location.pathname));
+    if (!response.ok) { if (!publicView) showAuth(); return; }
     const data = await readApiResponse(response);
     currentAccount = data.user;
     window.dispatchEvent(new Event('account-changed'));
@@ -1327,6 +1328,7 @@ const viewMap = {
   morning: morningGenerator,
   report: reportRoot,
   market: document.querySelector('#market'),
+  hotspots: document.querySelector('#hotspots'),
 };
 
 const viewTitles = {
@@ -1339,6 +1341,7 @@ const viewTitles = {
   morning: '早安祝福',
   report: '诊断报告',
   market: 'AI 超市',
+  hotspots: '热点广场',
 };
 
 function pathToView(path) {
@@ -1348,12 +1351,15 @@ function pathToView(path) {
   return Object.prototype.hasOwnProperty.call(viewMap, p) ? p : 'home';
 }
 
+window.AppNav = { setActiveView };
+
 function setActiveView(view, updateHash = false) {
   Object.entries(viewMap).forEach(([name, element]) => { if (element) element.hidden = name !== view; });
   document.querySelectorAll('.app-tabs [data-view]').forEach(item => item.classList.toggle('active', item.dataset.view === view));
-  appShell?.classList.toggle('workbench-active', view !== 'home' && view !== 'diagnose' && view !== 'report' && view !== 'market');
+  appShell?.classList.toggle('workbench-active', view !== 'home' && view !== 'diagnose' && view !== 'report' && view !== 'market' && view !== 'hotspots');
   document.body.classList.toggle('market-body', view === 'market');
   if (view === 'market') window.MarketView?.ensureLoaded?.();
+  if (view === 'hotspots') window.HotspotsView?.ensureLoaded?.();
   if (downloadButton) downloadButton.hidden = view !== 'report';
   if (view === 'one-click-writing') {
     const frame = document.querySelector('#one-click-writing-frame');

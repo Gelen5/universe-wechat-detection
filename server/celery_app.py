@@ -23,6 +23,7 @@ celery_app.conf.update(
         "agent.run": {"queue": "chat"},
         "agent.recover_stale": {"queue": "chat"},
         "market.sync": {"queue": "text"},
+        "hotspot.sync": {"queue": "text"},
     },
     worker_concurrency=max(1, int(os.getenv("CELERY_WORKER_CONCURRENCY", "4"))),
     beat_schedule={
@@ -34,6 +35,9 @@ celery_app.conf.update(
         },
         "market-sync-daily": {
             "task": "market.sync", "schedule": crontab(hour=4, minute=10),
+        },
+        "hotspot-sync": {
+            "task": "hotspot.sync", "schedule": 600.0,
         },
     },
 )

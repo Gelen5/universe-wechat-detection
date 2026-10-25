@@ -23,6 +23,7 @@ from .conversation_api import router as conversation_router
 from .qihaoshou import router as qihaoshou_router
 from .bookshelf import router as bookshelf_router
 from .market import router as market_router
+from .hotspots import router as hotspots_router
 from .workflow_events import redis_ready
 from .observability import event as log_event
 
@@ -47,6 +48,7 @@ app.include_router(conversation_router)
 app.include_router(qihaoshou_router)
 app.include_router(bookshelf_router)
 app.include_router(market_router)
+app.include_router(hotspots_router)
 
 
 @app.middleware("http")
@@ -84,7 +86,8 @@ async def account_and_points_gate(request: Request, call_next):
     """Protect product APIs and settle all point charges in one place."""
     path = request.url.path
     # AI 超市的只读索引是对外的（只跳转、不执行），管理端仍然要登录+管理员。
-    public_market = request.method == "GET" and path.startswith("/api/market/")
+    public_market = request.method == "GET" and (path.startswith("/api/market/")
+                     or path.startswith("/api/hotspots"))
     public_api = path in {"/api/auth/register", "/api/auth/login"} or public_market
     user = accounts.user_from_request(request)
     request.state.user = user

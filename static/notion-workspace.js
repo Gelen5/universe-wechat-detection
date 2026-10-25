@@ -13,7 +13,7 @@
     const open = header.classList.toggle('nav-open'); menu.setAttribute('aria-expanded', String(open));
   });
   const groups = [
-    ['内容创作', ['workbench','one-click-writing','xiaohongshu','tie-tu','morning']],
+    ['内容创作', ['hotspots', 'workbench','one-click-writing','xiaohongshu','tie-tu','morning']],
     ['分析', ['diagnose','hit-detector']],
   ];
   for (const [label, ids] of groups) {
@@ -35,11 +35,22 @@
   // 按固定清单重建导航：不再依赖节点原来的位置
   {
     const plan = [
-      ['内容创作', ['/workbench', '/one-click-writing', '/xiaohongshu', '/tie-tu', '/morning-generator']],
+      ['内容创作', ['/hotspots', '/workbench', '/one-click-writing', '/xiaohongshu', '/tie-tu', '/morning-generator']],
       ['分析', ['/diagnose', '/hit-detector']],
       ['资源', ['/market', '/bookshelf']],
     ];
-    const home = nav.querySelector('a[href="/"]');
+    // 静态 HTML 里没有的导航项在这里兜底创建，保证计划清单说了就一定出现
+const EXTRA = {
+  '/hotspots': { view: 'hotspots', label: '热点广场',
+    icon: '<path d="M3 17l5-5 4 3 5-7 4 5"/><path d="M3 21h18"/>' },
+};
+function buildNavItem(href, spec) {
+  const a = document.createElement('a');
+  a.href = href; a.dataset.view = spec.view;
+  a.innerHTML = `<svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${spec.icon}</svg><span>${spec.label}</span>`;
+  return a;
+}
+const home = nav.querySelector('a[href="/"]');
     const frag = document.createDocumentFragment();
     for (const [label, hrefs] of plan) {
       const cap = document.createElement('div');
@@ -47,7 +58,8 @@
       cap.textContent = label;
       frag.appendChild(cap);
       for (const href of hrefs) {
-        const el = nav.querySelector(`a[href="${href}"], a[data-view][href$="${href}"]`);
+        let el = nav.querySelector(`a[href="${href}"], a[data-view][href$="${href}"]`);
+        if (!el && EXTRA[href]) el = buildNavItem(href, EXTRA[href]);
         if (el) frag.appendChild(el);
       }
     }
