@@ -10,7 +10,7 @@
   const updated = page.querySelector('#hs-updated');
   const banner = page.querySelector('#hs-banner');
 
-  const ORDER = ['weibo', 'zhihu', 'douyin', 'toutiao', 'baidu', 'bilibili'];
+  const ORDER = ['weibo', 'zhihu', 'douyin', 'toutiao', 'baidu', 'bilibili', 'v2ex', 'hackernews'];
   const state = { platform: '', q: '', loaded: false };
   let timer = null;
 

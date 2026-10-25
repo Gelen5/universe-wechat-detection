@@ -91,6 +91,8 @@
 .hs-dot-toutiao { background: #f04142; }
 .hs-dot-baidu { background: #2932e1; }
 .hs-dot-bilibili { background: #fb7299; }
+.hs-dot-v2ex { background: #333333; }
+.hs-dot-hackernews { background: #ff6600; }
 .hs-card-head h2 { margin: 0; font-size: 14px; font-weight: 640; letter-spacing: -.01em; }
 .hs-card-count {
   margin-left: auto; font-family: var(--mono, "SF Mono", monospace); font-size: 11px;

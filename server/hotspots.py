@@ -38,7 +38,7 @@ PLATFORMS = (
     ("v2ex", "V2EX"),
     ("hackernews", "Hacker News"),
 )
-DEFAULT_PLATFORMS = ("weibo", "zhihu", "douyin", "toutiao", "baidu", "bilibili")
+DEFAULT_PLATFORMS = ("weibo", "zhihu", "douyin", "toutiao", "baidu", "bilibili", "v2ex", "hackernews")
 NAMES = dict(PLATFORMS)
 
 API_URL = os.getenv("HOTSPOT_API_URL", "https://newsnow.busiyi.world/api/s")
