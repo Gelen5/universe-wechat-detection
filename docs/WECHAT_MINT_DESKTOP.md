@@ -30,3 +30,12 @@ python -m pytest tests -q
 ## 发布
 
 按 DEPLOY.md 使用 /opt/universe-deploy/deploy.sh 指定提交部署，保留旧版本作为回滚点。不得在旧 release 目录直接构建，以免回退其他模块。发布后检查 ready、实际提供的 CSS/JS 字节、登录边界及桌面浏览器渲染。
+
+
+## 2026-10-25 本次验收结果
+
+- 桌面主题、全站导航、五步创作链路、失败重试、产物与历史专项：29 passed。
+- 最终全量回归：348 passed、33 subtests passed；1 项既有 Starlette/httpx 弃用提示。
+- node --check static/wechat-mint.js、git diff --check 通过。
+- 1600×1000、1440×1000 已进行截图复核，1101/1280/1440/1920px 均验证无横向溢出、无面板重叠。
+- 截图：output/mint-ui/desktop-empty.png、desktop-conversation.png、desktop-writing.png、desktop-1440.png。对话/写作截图使用明确的本地测试数据；生产不会预填这些内容。
