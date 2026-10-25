@@ -234,7 +234,7 @@ class PipelineTests(unittest.TestCase):
         diagnosis = {**good, 'issues': [{'quote': '“原话”', 'reason': 'style', 'fix': 'outside quote only'}]}
         prompts = []
         replies = iter([diagnosis, {'edits': [], 'retained_issue_indexes': [0]}, good])
-        def generate(prompt):
+        def generate(prompt, **kwargs):
             prompts.append(prompt)
             return next(replies)
         audits = [{'status': 'success', 'complete_sentence_ratio': 1, 'missing_protected_spans': {}}] * 2

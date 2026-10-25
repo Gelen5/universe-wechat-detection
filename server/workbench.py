@@ -653,7 +653,8 @@ issues 只列事实边界、原意保真、明显病句或用户明确要求等�
 只返回JSON：{{"issues":[{{"quote":"原文片段","reason":"具体问题","fix":"修改要求"}}],
 "retained_signals":[{{"quote":"保留片段","reason":"结合语境说明无需修改"}}],
 "fidelity_ok":true,"readability_ok":true,"reason":"复核依据"}}。
-需要修改的事项必须列入issues；无法核验的事实不能直接判定无问题。''')
+需要修改的事项必须列入issues；无法核验的事实不能直接判定无问题。''',
+                                 model=_setting("WECHAT_REVIEW_MODEL") or None)
             if not isinstance(diagnosis.get('issues'), list) or not diagnosis.get('reason'):
                 raise ProviderError('去 AI 复核缺少结构化问题或依据')
             retained_fixes = {'保留', '无需修改', '不修改', '保持原样'}
@@ -743,6 +744,7 @@ issue_index 对应以下已由复核定位、逐字来自当前稿的片段列�
 若问题只是修辞且会删改或替换引号内原话，必须把该问题的下标放入 retained_issue_indexes，不得编造替代文本；其余问题必须修改。每个片段在当前稿中必须唯一；不要改变无关内容。'''
             edits, revised = _validated_local_edits(
                 candidate, edit_prompt, require_edits=bool(diagnosis['issues'] or blockers), anchors=issue_anchors,
+                model=_setting("WECHAT_REVIEW_MODEL") or None,
             )
             retained_indexes = edits.get('retained_issue_indexes', [])
             retained_original_indexes = {
@@ -821,6 +823,7 @@ def _quoted_words(text: str) -> list[str]:
 
 def _validated_local_edits(
     candidate: str, prompt: str, require_edits: bool, anchors: list[str] | None = None,
+    model: str | None = None,
 ) -> tuple[dict[str, Any], str]:
     if anchors and any(not anchor or anchor not in candidate for anchor in anchors):
         raise ProviderError('去 AI 修改片段未逐字出现在当前稿，已保留原文')
@@ -843,7 +846,7 @@ def _validated_local_edits(
                     + json.dumps(repeated_contexts, ensure_ascii=False)) if repeated_contexts else ""
     for _ in range(3):
         correction = '' if not errors else '\n上次返回无效：' + '；'.join(errors) + '。若原片段重复，可逐字复制唯一 before 上下文并让 after 保留上下文；也可填写 occurrence（从1开始的出现序号）与 replacement（仅替换原片段）。保留引号内原话。'
-        payload = _json_text(prompt + context_hint + correction)
+        payload = _json_text(prompt + context_hint + correction, model=model)
         edit_list = payload.get('edits') if isinstance(payload, dict) else None
         retained = payload.get('retained_issue_indexes', []) if isinstance(payload, dict) else []
         if not isinstance(edit_list, list) or not isinstance(retained, list):
