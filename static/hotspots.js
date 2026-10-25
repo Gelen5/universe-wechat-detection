@@ -4,12 +4,13 @@
   const page = document.querySelector('#hotspots');
   if (!page) return;
 
-  const list = page.querySelector('#hs-list');
+  const grid = page.querySelector('#hs-grid');
   const chips = page.querySelector('#hs-platforms');
   const search = page.querySelector('#hs-search');
   const updated = page.querySelector('#hs-updated');
   const banner = page.querySelector('#hs-banner');
 
+  const ORDER = ['weibo', 'zhihu', 'douyin', 'toutiao', 'baidu', 'bilibili'];
   const state = { platform: '', q: '', loaded: false };
   let timer = null;
 
@@ -33,6 +34,17 @@
     return response.json();
   }
 
+  function group(items) {
+    const buckets = new Map();
+    for (const item of items) {
+      if (!buckets.has(item.platform)) buckets.set(item.platform, []);
+      buckets.get(item.platform).push(item);
+    }
+    const known = ORDER.filter((pid) => buckets.has(pid));
+    const extra = [...buckets.keys()].filter((pid) => !ORDER.includes(pid));
+    return [...known, ...extra].map((pid) => ({ platform: pid, items: buckets.get(pid) }));
+  }
+
   function renderChips(platforms) {
     const total = platforms.reduce((sum, item) => sum + (item.count || 0), 0);
     const rows = [{ id: '', name: '全部', count: total, ok: true }, ...platforms];
@@ -44,45 +56,62 @@
       </button>`).join('');
   }
 
-  function renderList(items) {
-    if (!items.length) {
-      list.innerHTML = `<div class="hs-empty"><strong>这个筛选下没有热点</strong>换个平台，或清空搜索词。</div>`;
+  function itemHtml(item) {
+    const meta = item.hot ? item.hot : `热搜 #${item.rank || 0}`;
+    return `
+      <li class="hs-item">
+        <a class="hs-item-title" href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title)}</a>
+        <span class="hs-item-meta">${escapeHtml(meta)}</span>
+        <button type="button" class="hs-go" data-create="${escapeHtml(item.title)}" data-url="${escapeHtml(item.url)}">去创作</button>
+      </li>`;
+  }
+
+  function cardHtml(rows, limit) {
+    const head = rows[0] || {};
+    const visible = rows.slice(0, limit);
+    const rest = rows.length - visible.length;
+    return `
+      <section class="hs-card" data-platform="${escapeHtml(head.platform || '')}">
+        <header class="hs-card-head">
+          <span class="hs-dot hs-dot-${escapeHtml(head.platform || '')}" aria-hidden="true"></span>
+          <h2>${escapeHtml(head.platform_zh || head.platform || '')}</h2>
+          <span class="hs-card-count">${rows.length}</span>
+        </header>
+        <ol class="hs-card-list">${visible.map(itemHtml).join('')}</ol>
+        ${rest > 0 ? `<footer class="hs-card-foot">还有 ${rest} 条 · 点上方「${escapeHtml(head.platform_zh || '')}」看全部</footer>` : ''}
+      </section>`;
+  }
+
+  function renderGrid(items) {
+    const groups = group(items);
+    if (!groups.length) {
+      grid.innerHTML = `<div class="hs-empty"><strong>这个筛选下没有热点</strong>换个平台，或清空搜索词。</div>`;
       return;
     }
-    list.innerHTML = items.map((item, index) => `
-      <article class="hs-row">
-        <span class="hs-rank">${String(index + 1).padStart(2, '0')}</span>
-        <div class="hs-main">
-          <div class="hs-title"><a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title)}</a></div>
-          <div class="hs-sub">
-            <span>${escapeHtml(item.platform_zh || item.platform)}</span>
-            ${item.hot ? `<b>${escapeHtml(item.hot)}</b>` : `<b>热搜 #${item.rank || 0}</b>`}
-          </div>
-        </div>
-        <button type="button" class="hs-go" data-create="${escapeHtml(item.title)}" data-url="${escapeHtml(item.url)}">去创作</button>
-      </article>`).join('');
+    const perCard = state.platform ? 30 : 8;
+    grid.innerHTML = groups.map((entry) => cardHtml(entry.items, perCard)).join('');
   }
 
   function skeleton() {
-    list.innerHTML = Array.from({ length: 6 }, () => '<div class="hs-skeleton"></div>').join('');
+    grid.innerHTML = Array.from({ length: 6 }, () => '<div class="hs-skeleton"></div>').join('');
   }
 
   async function load() {
     skeleton();
-    const params = new URLSearchParams({ limit: '80' });
+    const params = new URLSearchParams({ limit: '200' });
     if (state.platform) params.set('platform', state.platform);
     if (state.q) params.set('q', state.q);
     try {
       const data = await api(`/api/hotspots?${params.toString()}`);
       renderChips(data.platforms || []);
-      renderList(data.items || []);
+      renderGrid(data.items || []);
       const when = formatTime(data.updated_at);
       updated.querySelector('span').textContent = when === '尚未同步' ? when : `更新于 ${when}`;
       updated.classList.toggle('is-stale', when === '尚未同步');
       banner.hidden = !data.degraded;
       if (data.degraded) banner.textContent = '上游暂时不可用，当前展示的是最近一份快照，可能不是最新。';
     } catch (error) {
-      list.innerHTML = `<div class="hs-empty"><strong>热榜暂时读不到</strong>${escapeHtml(error.message)}</div>`;
+      grid.innerHTML = `<div class="hs-empty"><strong>热榜暂时读不到</strong>${escapeHtml(error.message)}</div>`;
       updated.querySelector('span').textContent = '读取失败';
       updated.classList.add('is-stale');
     }
@@ -103,7 +132,7 @@
     }, 250);
   });
 
-  list?.addEventListener('click', (event) => {
+  page.addEventListener('click', (event) => {
     const button = event.target.closest('[data-create]');
     if (!button) return;
     const title = button.dataset.create || '';
@@ -121,7 +150,6 @@
     state.loaded = true;
     await load();
   }
-
 
   // 导航兜底：静态锚点可能被侧边栏重建吞掉，这里保证 tab 一定在「公众号创作」上面
   function ensureNavItem() {
