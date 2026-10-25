@@ -148,3 +148,28 @@ def test_topic_results_share_a_centered_readable_rail(ui, width):
     assert page.locator('.topic-row').first.evaluate('e=>e.scrollWidth<=e.clientWidth')
     if width == 2560:
         page.screenshot(path=str(ROOT / 'output/mint-ui/refined-topics-wide.png'))
+
+
+@pytest.mark.parametrize('width', [1101, 1440, 2560])
+def test_assistant_action_card_keeps_long_selection_and_controls_inside(ui, width):
+    page, _ = ui
+    page.set_viewport_size({'width':width,'height':1159})
+    topic = '地震避险别只记生命三角：家庭版伏地、遮挡、抓牢清单，以及家人之间如何提前约定集合位置和紧急联系办法'
+    artifact = {'id':'selected-topic-test','type':'topic','title':'选题建议','content':'测试选题','content_json':{'topics':[{'title':topic,'heat':7,'fan_score':82,'competition':'高'}]},'version':1,'created_at':'2026-10-25T00:00:00Z'}
+    page.route('**/api/conversations/recent-1/artifacts',lambda route:route.fulfill(json={'artifacts':[artifact]}))
+    page.goto('http://ui.test/workbench?conversation=recent-1')
+    page.locator('[data-topic-choice]').first.click()
+    card = page.locator('#workbench-action-card')
+    expect(card.locator('.chat-selected-topic')).to_have_text(topic)
+    expect(card.locator('[data-next-stage="outline"]')).to_be_visible()
+    box = card.bounding_box()
+    for child in card.locator('strong,p,button').all():
+        rect = child.bounding_box()
+        assert rect['y'] >= box['y']
+        assert rect['y']+rect['height'] <= box['y']+box['height']+1
+        assert rect['x']+rect['width'] <= box['x']+box['width']+1
+    assert card.evaluate('e=>getComputedStyle(e).flexShrink') == '0'
+    assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
+    assert not page.locator('#workbench-action-card').get_by_text('去左侧选择方向').count()
+    if width == 2560:
+        page.screenshot(path=str(ROOT/'output/mint-ui/assistant-action-refined.png'))

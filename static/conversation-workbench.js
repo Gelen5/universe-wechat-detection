@@ -549,15 +549,17 @@
       const topics = (topicItem.content_json?.topics || []).filter(choice => topicTitle(choice));
       html = `<strong>${topics.length ? `${topics.length} 个方向已就绪` : '还没有可用方向'}</strong>
         <p>${topics.length
-          ? `左侧已排好 ${topics.length} 个方向：热度、涨粉、竞争度可横向比较，点开任一方向看推荐理由。选中后我接着写大纲。`
+          ? `选题已准备好。查看选题并选择一个方向，我接着写大纲。`
           : '这次没有返回可用方向，可以重新生成。'}</p>
         <div class="chat-action-row">
-          ${topics.length ? '<button type="button" class="chat-action-primary" data-focus-topics>去左侧选择方向</button>' : ''}
+          ${topics.length ? '<button type="button" class="chat-action-primary" data-focus-topics>查看选题</button>' : ''}
           <button type="button" class="${topics.length ? 'chat-action-ghost' : 'chat-action-primary'}" data-retry-stage="topic">${topics.length ? '换一批' : '重新生成选题'}</button>
         </div>`;
     } else if (next) {
       html = `<strong>下一步：${escapeHtml(stageLabel(next))}</strong>
-        <p>已选方向《${escapeHtml(selectedTopic)}》。已完成的阶段都会保留。</p>
+        <p class="chat-selection-label">已选方向</p>
+        <p class="chat-selected-topic">${escapeHtml(selectedTopic)}</p>
+        <p class="chat-action-note">已完成的阶段会保留，可随时返回修改。</p>
         <div class="chat-action-row">
           <button type="button" class="chat-action-primary" data-next-stage="${next}">继续：${escapeHtml(stageLabel(next))}</button>
           ${next === 'typeset' ? '' : '<button type="button" class="chat-action-ghost" data-next-stage="typeset">直接排版</button>'}

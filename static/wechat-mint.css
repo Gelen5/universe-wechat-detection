@@ -339,3 +339,39 @@
   body.atelier.mint-wechat #workbench #workbench-result .workbench-stage-choices button.topic-row { padding:18px 12px !important; grid-template-columns:20px minmax(0,1fr) 12px !important; gap:8px !important; }
   body.atelier.mint-wechat #workbench #workbench-result .topic-row-meta { gap:8px !important; }
 }
+
+/* Assistant messages and action cards share one readable left edge. */
+@media (min-width:1101px) {
+  body.atelier.mint-wechat #workbench #workbench-chat-thread > :is(.chat-message,.chat-action-card) { flex-shrink:0 !important; height:auto !important; min-height:min-content !important; }
+  body.atelier.mint-wechat #workbench #workbench-chat-thread .chat-message.from-ai { padding-left:42px !important; }
+  body.atelier.mint-wechat #workbench #workbench-chat-thread .chat-message.from-ai > span:first-child {
+    top:14px !important; bottom:auto !important; left:0 !important; width:30px !important; height:30px !important;
+    border-radius:10px !important; background:#dcefe3 !important; border:1px solid #bddac8 !important;
+    line-height:1 !important;
+  }
+  body.atelier.mint-wechat #workbench #workbench-chat-thread .chat-message p { padding:16px 18px !important; border-radius:18px !important; }
+  body.atelier.mint-wechat #workbench #workbench-action-card {
+    box-sizing:border-box !important; width:calc(100% - 42px) !important; max-width:none !important;
+    margin:0 0 20px 42px !important; padding:20px !important; display:flex !important; flex-direction:column !important;
+    gap:10px !important; overflow:visible !important; border:1px solid #cce1d3 !important; border-radius:18px !important;
+    background:rgba(250,255,251,.72) !important; box-shadow:none !important;
+  }
+  body.atelier.mint-wechat #workbench #workbench-action-card > strong { display:block !important; font-size:16px !important; line-height:1.6 !important; color:#254d36 !important; margin:0 !important; }
+  body.atelier.mint-wechat #workbench #workbench-action-card p {
+    display:block !important; padding:0 !important; margin:0 !important; height:auto !important; max-height:none !important;
+    overflow:visible !important; white-space:normal !important; overflow-wrap:anywhere !important;
+    font-size:14px !important; line-height:1.8 !important; color:#536c5c !important; background:none !important; border:0 !important; box-shadow:none !important;
+  }
+  body.atelier.mint-wechat #workbench #workbench-action-card .chat-selection-label { font-size:12px !important; color:#607667 !important; margin-top:2px !important; }
+  body.atelier.mint-wechat #workbench #workbench-action-card .chat-selected-topic { font-size:15px !important; font-weight:600 !important; color:#294934 !important; padding:0 0 12px !important; border-bottom:1px solid #dfebe3 !important; }
+  body.atelier.mint-wechat #workbench #workbench-action-card .chat-action-note { font-size:12px !important; }
+  body.atelier.mint-wechat #workbench #workbench-action-card .chat-action-row { display:flex !important; flex-wrap:wrap !important; gap:10px !important; margin:4px 0 0 !important; padding:0 !important; }
+  body.atelier.mint-wechat #workbench #workbench-action-card button { min-height:42px !important; height:auto !important; max-width:100% !important; padding:10px 14px !important; border-radius:11px !important; font-size:13px !important; line-height:1.5 !important; white-space:normal !important; box-shadow:none !important; }
+  body.atelier.mint-wechat #workbench #workbench-action-card .chat-action-primary { color:white !important; background:#327c59 !important; border:1px solid #327c59 !important; }
+  body.atelier.mint-wechat #workbench #workbench-action-card .chat-action-primary:hover { background:#286749 !important; }
+  body.atelier.mint-wechat #workbench #workbench-action-card .chat-action-ghost { color:#3f6550 !important; background:#f6fcf8 !important; border:1px solid #c7ddd0 !important; }
+  body.atelier.mint-wechat #workbench #workbench-action-card button:disabled { opacity:.45 !important; }
+}
+@media (min-width:1101px) and (max-width:1279px) {
+  body.atelier.mint-wechat #workbench #workbench-action-card { padding:16px !important; }
+}
