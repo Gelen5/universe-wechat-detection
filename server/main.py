@@ -72,7 +72,8 @@ async def request_observability(request: Request, call_next):
 @app.middleware("http")
 async def disable_frontend_cache(request, call_next):
     response = await call_next(request)
-    if request.url.path == "/" or request.url.path.startswith("/static/"):
+    is_html = response.headers.get("content-type", "").split(";", 1)[0].strip() == "text/html"
+    if is_html or request.url.path.startswith("/static/"):
         response.headers["Cache-Control"] = "no-store, max-age=0"
         response.headers["Pragma"] = "no-cache"
     return response

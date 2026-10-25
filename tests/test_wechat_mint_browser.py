@@ -173,3 +173,19 @@ def test_assistant_action_card_keeps_long_selection_and_controls_inside(ui, widt
     assert not page.locator('#workbench-action-card').get_by_text('去左侧选择方向').count()
     if width == 2560:
         page.screenshot(path=str(ROOT/'output/mint-ui/assistant-action-refined.png'))
+
+
+@pytest.mark.parametrize('width', [1101, 1440, 2560])
+def test_writing_theme_is_present_before_late_theme_script_and_survives_reload(ui, width):
+    page, _ = ui
+    page.set_viewport_size({'width':width,'height':1159})
+    # The late script is unavailable: the first-paint theme must still be present.
+    page.route('**/static/wechat-mint.js*', lambda route:route.abort())
+    page.goto('http://ui.test/workbench')
+    for _ in range(3):
+        expect(page.locator('body')).to_have_class('atelier mint-wechat')
+        for selector in ('.conversation-panel-head', '.workbench-stage-head'):
+            assert page.locator(selector).evaluate('e=>getComputedStyle(e).borderBottomWidth') == '0px'
+        assert page.locator('.conversation-panel-head').evaluate('e=>getComputedStyle(e).boxShadow') == 'none'
+        assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
+        page.reload()

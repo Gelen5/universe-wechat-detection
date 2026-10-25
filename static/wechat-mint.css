@@ -5,9 +5,9 @@
     --m-font:"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;
     --m-ink:#19382a; --m-text:#4e6859; --m-muted:#526b5c;
     --m-green:#398969; --m-deep:#226a50; --m-line:rgba(72,128,99,.14);
-    --m-panel:linear-gradient(145deg,rgba(249,255,251,.94),rgba(231,249,238,.94) 58%,rgba(243,248,232,.95));
-    --m-edge:inset 0 1px 2px rgba(255,255,255,.95),inset 1px 0 1px rgba(255,255,255,.85),0 0 0 1px rgba(255,255,255,.45);
-    --m-shadow:0 12px 30px -20px rgba(46,108,77,.20),0 2px 6px rgba(62,116,84,.035);
+    --m-panel:rgba(243,251,245,.96);
+    --m-edge:0 0 0 1px rgba(255,255,255,.28);
+    --m-shadow:0 8px 24px -18px rgba(46,108,77,.15);
     --fp-serif:var(--m-font); --fp-sans:var(--m-font); --fp-mono:var(--m-font);
     --fp-ink:var(--m-ink); --fp-ink2:var(--m-text); --fp-ink3:var(--m-muted); --fp-ink4:var(--m-muted);
     --a-ink:var(--m-ink); --a-ink-soft:var(--m-text); --a-muted:var(--m-muted);
@@ -374,4 +374,28 @@
 }
 @media (min-width:1101px) and (max-width:1279px) {
   body.atelier.mint-wechat #workbench #workbench-action-card { padding:16px !important; }
+}
+
+/* Let space and typography separate sections; retain functional selection cues. */
+@media (min-width:1101px) {
+  body.atelier.mint-wechat #workbench .conversation-panel-head,
+  body.atelier.mint-wechat #workbench #workbench-result .workbench-stage-head,
+  body.atelier.mint-wechat #workbench #workbench-result .topic-board-head,
+  body.atelier.mint-wechat #workbench #workbench-result .topic-row-list,
+  body.atelier.mint-wechat #workbench #workbench-result .topic-row-meta,
+  body.atelier.mint-wechat #workbench #workbench-action-card .chat-selected-topic,
+  body.atelier.mint-wechat #workbench #workbench-result .article-canvas-foot { border:0 !important; }
+  body.atelier.mint-wechat #workbench .conversation-panel-head { padding-bottom:20px !important; box-shadow:none !important; }
+  body.atelier.mint-wechat #workbench #workbench-result .workbench-stage-head { padding-bottom:8px !important; margin-bottom:32px !important; }
+  body.atelier.mint-wechat #workbench #workbench-result .topic-row-meta { padding-top:10px !important; }
+  body.atelier.mint-wechat #workbench #workbench-result .workbench-stage-choices button.topic-row { border-color:transparent !important; background:rgba(255,255,255,.52) !important; box-shadow:none !important; }
+  body.atelier.mint-wechat #workbench #workbench-result .workbench-stage-choices button.topic-row:hover { background:#fafdfb !important; border-color:transparent !important; }
+  body.atelier.mint-wechat #workbench #workbench-result .workbench-stage-choices button.topic-row.is-selected { border-color:#7eac90 !important; background:#edf7ef !important; box-shadow:none !important; }
+  body.atelier.mint-wechat #workbench #workbench-action-card { border-color:transparent !important; background:rgba(255,255,255,.56) !important; }
+  body.atelier.mint-wechat #workbench #workbench-chat-thread .chat-message p { background:#fcfefc !important; box-shadow:none !important; border-color:transparent !important; }
+  body.atelier.mint-wechat #workbench #workbench-chat-thread .chat-message.from-user p,
+  body.atelier.mint-wechat #workbench #workbench-chat-thread .chat-message.from-me p { background:#c3e3d0 !important; }
+  body.atelier.mint-wechat #workbench .studio-heading { background:#f3fbf5 !important; box-shadow:none !important; }
+  body.atelier.mint-wechat #workbench #workbench-stage-nav { background:#f3fbf5 !important; box-shadow:var(--m-shadow) !important; }
+  body.atelier.mint-wechat #workbench .composer-shell { background:rgba(255,255,255,.32) !important; box-shadow:none !important; border-color:#d5e5d9 !important; }
 }

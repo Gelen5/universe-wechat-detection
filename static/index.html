@@ -47,9 +47,15 @@
   <link rel="stylesheet" href="/static/liquid-glass.css?v=20261025-liquid-2" />
   <link rel="stylesheet" href="/static/type-system.css?v=20261025-type-b" />
   <link rel="stylesheet" href="/static/folio.css?v=20261025-folio-18" />
-  <link rel="stylesheet" href="/static/wechat-mint.css?v=20261025-mint-7" />
+  <link rel="stylesheet" href="/static/wechat-mint.css?v=20261025-mint-8" />
 </head>
   <body class="atelier">
+    <script>
+      // Resolve the desktop writing theme before any visible shell is parsed.
+      if (location.pathname.replace(/\/$/, '') === '/workbench' && matchMedia('(min-width:1101px)').matches) {
+        document.body.classList.add('mint-wechat');
+      }
+    </script>
     <div class="app-shell">
 
       <!-- ============================================================
