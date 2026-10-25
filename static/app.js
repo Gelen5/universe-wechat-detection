@@ -180,6 +180,7 @@ async function readApiResponse(response) {
     throw new Error(`服务器响应格式异常（HTTP ${response.status}，${contentType || '未知格式'}），请刷新页面后重试`);
   }
   const data = await response.json();
+  window.PointsNotice?.fromResponse(response, data);
   const headerBalance = response.headers.get('X-Points-Balance');
   if (headerBalance !== null) setWalletBalance(Number(headerBalance));
   if (response.status === 401) showAuth();

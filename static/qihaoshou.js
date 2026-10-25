@@ -41,6 +41,7 @@ async function api(path, options = {}) {
   });
   if (!response.ok) {
     const value = await response.json().catch(() => ({}));
+    window.PointsNotice?.fromResponse(response, value);
     if (response.status === 401) showLogin();
     throw new Error(
       typeof value.detail === "string"
@@ -289,6 +290,7 @@ $("q-generate").onclick = () =>
       });
       if (!response.ok) {
         const value = await response.json();
+        window.PointsNotice?.fromResponse(response, value);
         throw new Error(
           typeof value.detail === "string" ? value.detail : "生成请求失败",
         );

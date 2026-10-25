@@ -271,6 +271,7 @@
     const response = await fetch(path, options);
     const type = response.headers.get('content-type') || '';
     const data = type.includes('application/json') ? await response.json() : { detail: await response.text() };
+    window.PointsNotice?.fromResponse(response, data);
     if (!response.ok) throw new Error(data.detail || `请求失败（${response.status}）`);
     return data;
   }

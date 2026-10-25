@@ -1,0 +1,16 @@
+body.points-notice-open{overflow:hidden}
+html body #points-notice{box-sizing:border-box;width:min(440px,calc(100vw - 32px));max-height:calc(100dvh - 40px);overflow:auto;margin:auto;padding:32px;border:1px solid #ffffffe6;border-radius:28px;background:#f3faf3;color:#244532;box-shadow:0 28px 90px #193e3338;font-family:var(--sans,system-ui,sans-serif)}
+#points-notice::backdrop{background:#24473542;backdrop-filter:blur(9px)}
+html body #points-notice .points-notice-close{position:absolute;right:18px;top:18px;display:grid;place-items:center;width:36px;height:36px;padding:0;border:1px solid #d8e5d9;border-radius:12px;color:#65816c;background:#ffffffb3;font:400 24px/1 system-ui;cursor:pointer}
+#points-notice .points-notice-symbol{display:grid;place-items:center;width:48px;height:48px;border-radius:16px;background:#dfede0;color:#467459;font-size:25px;margin-bottom:22px}
+#points-notice .points-notice-eyebrow{font-size:11px;letter-spacing:.1em;color:#6d8573}
+html body #points-notice #points-notice-title{font:650 27px/1.4 var(--sans,system-ui,sans-serif)!important;letter-spacing:-.025em;margin:8px 0 12px;color:#234a32}
+html body #points-notice p{font:400 14px/1.85 var(--sans,system-ui,sans-serif)!important;letter-spacing:0;margin:0;color:#647b6a;overflow-wrap:anywhere}
+#points-notice .points-notice-contact{margin:24px 0;padding:18px;background:#e6f1e6;border:1px solid #d7e6d8;border-radius:18px}
+html body #points-notice #points-notice-contact{font-weight:550!important;color:#315e40;user-select:text}
+html body #points-notice .points-notice-copy{min-height:40px;margin:12px 0 0;padding:8px 12px;border:1px solid #c6dacb;border-radius:10px;background:#f8fcf6;color:#3c6c4b;font:500 13px/1.5 var(--sans,system-ui,sans-serif);cursor:pointer}
+#points-notice .points-notice-feedback{display:block;font-size:12px;color:#5d7d65;margin-top:6px}
+#points-notice .points-notice-feedback:empty{display:none}
+html body #points-notice .points-notice-confirm{display:block;width:100%;min-height:46px;padding:12px;border:0;border-radius:14px;background:#337454;color:white;font:550 15px/1.5 var(--sans,system-ui,sans-serif);cursor:pointer}
+#points-notice button:focus-visible{outline:2px solid #5e9973;outline-offset:3px}
+@media(max-width:480px){html body #points-notice{padding:28px 24px;border-radius:24px}}
