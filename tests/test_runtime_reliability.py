@@ -1,4 +1,4 @@
-"""Regression tests for the runtime reliability findings D01-D10.
+﻿"""Regression tests for the runtime reliability findings D01-D10.
 
 Each test pins one invariant that the static architecture review proved was
 missing: an orphaned queued Run, a retried tool call that lost its result, a
@@ -71,7 +71,7 @@ class _RuntimeReliabilityTests(unittest.TestCase):
         # A Run that was just committed is still inside the publish window.
         self.assertEqual([], repo.recover_orphaned_queued_runs())
 
-        self._backdate_queued(run["id"], 600)
+        self._backdate_queued(run["id"], 900)
         self.assertEqual([run["id"]], repo.recover_orphaned_queued_runs())
         # Re-dispatch bumps updated_at, so the next pass cannot select it again.
         self.assertEqual([], repo.recover_orphaned_queued_runs())
@@ -85,7 +85,7 @@ class _RuntimeReliabilityTests(unittest.TestCase):
         _, run, _ = repo.create_message_run(
             conversation["id"], "user-a", "写文章", "queued-running")
         repo.transition_run(run["id"], "user-a", "running")
-        self._backdate_queued(run["id"], 600)
+        self._backdate_queued(run["id"], 900)
         self.assertEqual([], repo.recover_orphaned_queued_runs())
 
     # ---- D03 -------------------------------------------------------------

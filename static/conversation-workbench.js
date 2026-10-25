@@ -548,7 +548,9 @@
       // 真正的起点：既没有选题作品，也没有大纲。
       html = `<strong>先告诉我你想写什么</strong>
         <p>一句话就够，例如「写一篇给 30 岁职场人的 AI 工具实测」。</p>`;
-    } else if (topicItem && !selectedTopic) {
+    } else if (topicItem && !selectedTopic && !stageArtifact('outline')) {
+      // 只有还没进入大纲时才要求选方向；已经有大纲说明方向已经落地过，
+      // 再要求选一次会把已经推进的链路挡回去。
       const topics = (topicItem.content_json?.topics || []).filter(choice => topicTitle(choice));
       html = `<strong>${topics.length ? `${topics.length} 个方向已就绪` : '还没有可用方向'}</strong>
         <p>${topics.length
@@ -564,12 +566,16 @@
         ? `<p class="chat-selection-label">已选方向</p>
         <p class="chat-selected-topic">${escapeHtml(selectedTopic)}</p>
         <p class="chat-action-note">已完成的阶段会保留，可随时返回修改。</p>`
-        : `<p class="chat-action-note">你是直接给的主题，跳过了候选选题这一步；已完成的阶段会保留。</p>`;
+        : `<p class="chat-action-note">已完成的阶段会保留，可随时返回修改，或回到选题换个方向。</p>`;
+      // 没有正文时不该出现「直接排版」：排版节点没有可排的内容，点了只会报错。
+      const directTypeset = next !== 'typeset' && stageArtifact('writing')
+        ? '<button type="button" class="chat-action-ghost" data-next-stage="typeset">直接排版</button>'
+        : '';
       html = `<strong>下一步：${escapeHtml(stageLabel(next))}</strong>
         ${direction}
         <div class="chat-action-row">
           <button type="button" class="chat-action-primary" data-next-stage="${next}">继续：${escapeHtml(stageLabel(next))}</button>
-          ${next === 'typeset' ? '' : '<button type="button" class="chat-action-ghost" data-next-stage="typeset">直接排版</button>'}
+          ${directTypeset}
         </div>`;
     } else {
       html = `<strong>这篇稿子已经排好版</strong>

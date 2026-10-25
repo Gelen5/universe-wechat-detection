@@ -477,7 +477,7 @@ def recover_stale_runs(stale_seconds: int = 720) -> list[str]:
     return recovered
 
 
-def recover_orphaned_queued_runs(queued_seconds: int = 180) -> list[str]:
+def recover_orphaned_queued_runs(queued_seconds: int = 600) -> list[str]:
     """Re-dispatch Runs that were committed but never reached the broker.
 
     ``create_message_run`` commits the Run as ``queued`` and the API publishes
@@ -486,6 +486,10 @@ def recover_orphaned_queued_runs(queued_seconds: int = 180) -> list[str]:
     ``recover_stale_runs`` only scans ``running`` rows, so nothing ever picks it
     up. Bumping ``updated_at`` here also throttles redelivery: the next pass
     cannot select the same row until another window has elapsed.
+
+    The window is deliberately long. A run waiting behind a congested queue
+    looks identical to an orphan, and a short window would keep republishing it,
+    multiplying load exactly when the queue is already full.
     """
     cutoff = _now() - timedelta(seconds=max(30, queued_seconds))
     recovered: list[str] = []

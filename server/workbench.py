@@ -1162,7 +1162,12 @@ def _typeset(session: dict[str, Any]) -> str:
     """第6步排版：严格执行 weChat-autoCreate 的 DSL、转换器、主题和质检。"""
     _require_skill()
     instructions, manifest = skill_runtime.context(SKILL_DIR, ('references/mobile-layout-quality.md', 'references/wechat-html-spec.md', 'references/components.md', 'references/article-template.html'))
-    layout_key = skill_runtime.digest(session['article'] + session['theme'] + json.dumps(session.get('image_plan',{}),sort_keys=True,ensure_ascii=False))
+    layout_key = skill_runtime.digest(
+        session['article'] + session['theme']
+        + json.dumps(session.get('image_plan', {}), sort_keys=True, ensure_ascii=False)
+        # Salt the key with the planning prompt version so a prompt change does
+        # not keep serving plans produced by the old instructions.
+        + (_setting("WECHAT_LAYOUT_PLAN_VERSION", "1") or "1"))
     if session.get('layout_plan_key') != layout_key:
         # The plan cache used to live only in this session dict, and every
         # workflow starts with a fresh one, so re-typesetting identical content

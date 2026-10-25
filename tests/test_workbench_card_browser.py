@@ -110,3 +110,33 @@ def test_written_article_without_topic_moves_on_to_deai():
     # The bug: this kept saying "大纲已就绪" after the draft was finished.
     assert "大纲已就绪" not in text, text
     assert "下一步" in text and "去 AI" in text, text
+
+
+def test_selected_topic_is_not_demanded_again_once_an_outline_exists():
+    """A conversation can reach an outline without an explicit candidate pick.
+
+    The card used to fall back to "pick a direction" and hide the next step,
+    which stalls anyone who typed the instruction instead of clicking a title.
+    """
+    text = _open_workbench(
+        [
+            _artifact("topic", "1. 方向甲\n2. 方向乙", 1,
+                      {"topics": [{"title": "方向甲"}, {"title": "方向乙"}]}),
+            _artifact("outline", "1. 开头\n2. 结尾", 2,
+                      {"framework": {"name": "SCQA", "outline": ["开头", "结尾"]}}),
+        ],
+        USER_MESSAGE,
+    )
+    assert "下一步" in text and "写作" in text, text
+    assert "个方向已就绪" not in text, text
+
+
+def test_direct_typeset_is_hidden_before_any_article_exists():
+    text = _open_workbench(
+        [_artifact("outline", "1. 开头\n2. 结尾", 1,
+                   {"framework": {"name": "SCQA", "outline": ["开头", "结尾"]}})],
+        USER_MESSAGE,
+    )
+    # Without a draft the typeset node has nothing to render; offering it only
+    # produces a confusing failure.
+    assert "直接排版" not in text, text
