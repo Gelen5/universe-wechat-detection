@@ -12,7 +12,7 @@
 
   const ORDER = ['weibo', 'zhihu', 'douyin', 'toutiao', 'baidu', 'bilibili',
                  'juejin', 'tieba', 'douban', 'v2ex', 'hackernews', 'github'];
-  const PAGE = 8;
+  const PAGE = 4;
   const FAV_KEY = 'hotspot:favorites';
   const state = { platform: '', q: '', loaded: false, favoritesOnly: false, rotate: {},
                   items: [], platforms: [] };
@@ -96,8 +96,8 @@
         <a class="hs-item-title" href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title)}</a>
         <span class="hs-item-meta">${escapeHtml(meta)}</span>
         <span class="hs-item-tools">
-          <button type="button" class="hs-mini" data-copy="${escapeHtml(item.title)}" title="复制标题">复制</button>
-          <button type="button" class="hs-mini hs-star${starred}" data-fav="${escapeHtml(item.url)}" title="收藏">★</button>
+          <button type="button" class="hs-mini" data-copy="${escapeHtml(item.title)}" title="复制标题" aria-label="复制标题：${escapeHtml(item.title)}">复制</button>
+          <button type="button" class="hs-mini hs-star${starred}" data-fav="${escapeHtml(item.url)}" title="${starred ? '取消收藏' : '收藏'}" aria-label="${starred ? '取消收藏' : '收藏'}：${escapeHtml(item.title)}" aria-pressed="${!!starred}">★</button>
           <button type="button" class="hs-go" data-create="${escapeHtml(item.title)}" data-url="${escapeHtml(item.url)}">去创作</button>
         </span>
       </li>`;
@@ -120,8 +120,8 @@
       <section class="hs-card" data-platform="${escapeHtml(head.platform || '')}">
         <header class="hs-card-head">
           <span class="hs-dot hs-dot-${escapeHtml(head.platform || '')}" aria-hidden="true"></span>
-          <h2>${escapeHtml(title || head.platform_zh || head.platform || '')}</h2>
-          <span class="hs-card-count">${rows.length}</span>
+          <h2>${showTools && head.platform ? `<button type="button" class="hs-platform-open" data-open-platform="${escapeHtml(head.platform)}" title="查看此平台更多热点">${escapeHtml(title || head.platform_zh || head.platform)}</button>` : escapeHtml(title || head.platform_zh || head.platform || '')}</h2>
+          <span class="hs-card-count">${rows.length} 条</span>
         </header>
         <ol class="hs-card-list">${visible.map(itemHtml).join('')}</ol>
         <footer class="hs-card-foot">
@@ -172,12 +172,12 @@
       renderChips();
       renderGrid();
       const when = formatTime(data.updated_at);
-      updated.querySelector('span').textContent = when === '尚未同步' ? when : `更新于 ${when}`;
+      updated.querySelector('span').textContent = `${state.platforms.length} 个平台 · ${when === '尚未同步' ? when : `更新于 ${when}`}`;
       updated.classList.toggle('is-stale', when === '尚未同步');
       banner.hidden = !data.degraded;
       if (data.degraded) banner.textContent = '上游暂时不可用，当前展示的是最近一份快照，可能不是最新。';
     } catch (error) {
-      grid.innerHTML = `<div class="hs-empty"><strong>热榜暂时读不到</strong>${escapeHtml(error.message)}</div>`;
+      grid.innerHTML = `<div class="hs-empty"><strong>热榜暂时读不到</strong>${escapeHtml(error.message)}<br><button type="button" class="hs-card-btn" data-retry>重新加载</button></div>`;
       updated.querySelector('span').textContent = '读取失败';
       updated.classList.add('is-stale');
     }
@@ -211,6 +211,10 @@
   });
 
   grid?.addEventListener('click', async (event) => {
+    if(event.target.closest('[data-retry]')) {await load();return;}
+    const openPlatform=event.target.closest('[data-open-platform]');
+    if(openPlatform) {state.platform=openPlatform.dataset.openPlatform;state.favoritesOnly=false;await load();return;}
+
     const copy = event.target.closest('[data-copy]');
     if (copy) {
       try {
@@ -231,6 +235,9 @@
       if (!row) return;
       const added = toggleFavorite(row);
       fav.classList.toggle('is-on', added);
+      fav.setAttribute('aria-pressed', String(added));
+      fav.title=added?'取消收藏':'收藏';
+      fav.setAttribute('aria-label',`${added?'取消收藏':'收藏'}：${row.title}`);
       renderChips();
       if (state.favoritesOnly) renderGrid();
       return;
@@ -283,20 +290,6 @@
     state.loaded = true;
     await load();
   }
-
-  // 导航兜底：静态锚点可能被侧边栏重建吞掉，这里保证 tab 一定在「公众号创作」上面
-  function ensureNavItem() {
-    const nav = document.querySelector('.app-tabs');
-    if (!nav || nav.querySelector('[data-view="hotspots"]')) return;
-    const link = document.createElement('a');
-    link.dataset.view = 'hotspots';
-    link.href = '/hotspots';
-    link.innerHTML = '<svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l5-5 4 3 5-7 4 5"/><path d="M3 21h18"/></svg><span>热点广场</span>';
-    const anchor = nav.querySelector('a[href="/workbench"]');
-    if (anchor) nav.insertBefore(link, anchor); else nav.appendChild(link);
-  }
-  ensureNavItem();
-  new MutationObserver(ensureNavItem).observe(document.querySelector('.app-tabs') || document.body, { childList: true });
 
   window.HotspotsView = { ensureLoaded };
   if (!page.hidden) ensureLoaded();

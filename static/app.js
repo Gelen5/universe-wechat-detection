@@ -1358,6 +1358,7 @@ function setActiveView(view, updateHash = false) {
   document.querySelectorAll('.app-tabs [data-view]').forEach(item => item.classList.toggle('active', item.dataset.view === view));
   appShell?.classList.toggle('workbench-active', view !== 'home' && view !== 'diagnose' && view !== 'report' && view !== 'market' && view !== 'hotspots');
   document.body.classList.toggle('market-body', view === 'market');
+  document.body.classList.toggle('hotspots-body', view === 'hotspots');
   if (view === 'market') window.MarketView?.ensureLoaded?.();
   if (view === 'hotspots') window.HotspotsView?.ensureLoaded?.();
   if (downloadButton) downloadButton.hidden = view !== 'report';

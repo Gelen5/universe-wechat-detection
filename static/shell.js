@@ -3,7 +3,7 @@
   const nav = document.querySelector('.v3-topbar .app-tabs');
   if (!nav) return;
   const routes = [
-    ['/', '首页', '首页'], ['/workbench', '公众号创作', '创作'],
+    ['/', '首页', '首页'], ['/hotspots', '热点广场'], ['/workbench', '公众号创作', '创作'],
     ['/one-click-writing', '公众号一键成文', '一键成文'],
     ['/xiaohongshu', '小红书'], ['/tie-tu', '贴图号'], ['/morning-generator', '早安祝福'],
     ['/diagnose', '账号诊断'], ['/hit-detector', '发布前复核'],
@@ -17,9 +17,13 @@
   const list = document.createElement('nav'); list.setAttribute('aria-label', '全部功能');
   menu.append(heading, close, list); document.body.append(menu);
   const ordered = document.createDocumentFragment();
-  const groups = {'/workbench': '内容创作', '/diagnose': '分析', '/market': '资源'};
+  const groups = {'/hotspots': '内容创作', '/diagnose': '分析', '/market': '资源'};
   for (const [href, label, short] of routes) {
-    const link = nav.querySelector(`a[href="${href}"]`);
+    let link = nav.querySelector(`a[href="${href}"]`);
+    if (!link && href === '/hotspots') {
+      link=document.createElement('a');link.href=href;link.dataset.view='hotspots';
+      link.innerHTML='<svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m3 17 5-5 4 3 5-7 4 5M3 21h18"/></svg><span>热点广场</span>';
+    }
     if (!link) continue;
     if (groups[href]) {
       const caption = document.createElement('div'); caption.className = 'nav-group-label';
@@ -51,6 +55,10 @@
   });
   nav.replaceChildren(ordered, more);
   const sync = () => {
+    for (const link of nav.querySelectorAll('a')) {
+      if(link.classList.contains('active'))link.setAttribute('aria-current','page');
+      else link.removeAttribute('aria-current');
+    }
     const secondaryActive = !!nav.querySelector('a.active:not([data-shell-primary])');
     if (more.classList.contains('active') !== secondaryActive) more.classList.toggle('active', secondaryActive);
     for (const choice of list.children) {

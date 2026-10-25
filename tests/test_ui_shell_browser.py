@@ -100,7 +100,7 @@ def test_mobile_navigation_has_named_targets_and_more_menu(ui, path):
     more = page.get_by_role("button", name="更多", exact=True)
     more.click()
     expect(page.get_by_role("dialog", name="全部功能")).to_be_visible()
-    expect(page.get_by_role("navigation", name="全部功能").get_by_role("link")).to_have_count(10)
+    expect(page.get_by_role("navigation", name="全部功能").get_by_role("link")).to_have_count(11)
     page.keyboard.press("Escape")
     expect(more).to_be_focused()
     expect(more).to_have_attribute("aria-expanded", "false")
