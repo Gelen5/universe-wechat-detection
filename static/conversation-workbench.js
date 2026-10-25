@@ -220,11 +220,13 @@
       if (!name) return '';
       const selected = name === selectedTopic;
       const type = String(topic.type || '方向').trim();
-      const heat = Math.max(1, Math.min(10, Number(topic.heat) || 0));
+      const heat = Math.max(0, Math.min(10, Number(topic.heat) || 0));
+      const hasHeat = topic.heat !== null && topic.heat !== undefined && topic.heat !== '' && Number.isFinite(Number(topic.heat));
+      const hasFan = topic.fan_score !== null && topic.fan_score !== undefined && topic.fan_score !== '' && Number.isFinite(Number(topic.fan_score));
       const fan = Math.max(0, Math.min(100, Number(topic.fan_score) || 0));
-      const hasMetrics = Number(topic.heat) > 0 || Number(topic.fan_score) > 0;
+      const hasMetrics = hasHeat || hasFan || ['低', '中', '高'].includes(String(topic.competition));
       const competition = ['低', '中', '高'].includes(String(topic.competition))
-        ? String(topic.competition) : '中';
+        ? String(topic.competition) : '未评估';
       return `<button type="button" class="topic-row${selected ? ' is-selected' : ''}"
           data-topic-choice="${index}" aria-pressed="${selected}">
         <span class="topic-row-index">${String(index + 1).padStart(2, '0')}</span>
@@ -233,22 +235,23 @@
             <strong class="topic-row-title">${escapeHtml(name)}</strong>
           </span>
           ${topic.reason ? `<span class="topic-row-reason">${escapeHtml(topic.reason)}</span>` : ''}
-          <span class="topic-row-meta">
+          <span class="topic-row-badges">
             <span class="topic-row-type">${escapeHtml(type)}</span>
             ${index === recommended ? '<span class="topic-row-pick" title="按模型估计的热度与涨粉潜力综合排序">推荐</span>' : ''}
-            ${hasMetrics ? `
+          </span>
+          ${hasMetrics ? `<span class="topic-row-meta">
             <span class="topic-signal" title="模型估计热度，不是平台真实数据">
               <span class="topic-signal-label">热度</span>
-              <span class="topic-meter" aria-hidden="true"><i style="width:${heat * 10}%"></i></span>
-              <b>${heat}</b>
+              <b>${hasHeat ? heat : "—"}<small>${hasHeat ? " / 10" : ""}</small></b>
+              <span class="topic-meter" aria-hidden="true"><i style="width:${hasHeat ? heat * 10 : 0}%"></i></span>
             </span>
             <span class="topic-signal" title="模型估计涨粉潜力，不是平台真实数据">
-              <span class="topic-signal-label">涨粉</span>
-              <span class="topic-meter" aria-hidden="true"><i style="width:${fan}%"></i></span>
-              <b>${fan}</b>
+              <span class="topic-signal-label">涨粉潜力</span>
+              <b>${hasFan ? fan : "—"}<small>${hasFan ? " / 100" : ""}</small></b>
+              <span class="topic-meter" aria-hidden="true"><i style="width:${hasFan ? fan : 0}%"></i></span>
             </span>
-            <span class="topic-row-competition" data-level="${escapeHtml(competition)}" title="竞争度">竞争 ${escapeHtml(competition)}</span>` : ''}
-          </span>
+            <span class="topic-row-competition" data-level="${escapeHtml(competition)}" title="模型估计竞争度，不是平台真实数据"><span class="topic-signal-label">竞争度</span><b>${escapeHtml(competition)}</b></span>
+          </span>` : ''}
         </span>
         <span class="topic-row-state" aria-hidden="true">${selected ? '✓' : '›'}</span>
       </button>`;

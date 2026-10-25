@@ -118,15 +118,15 @@ def test_adaptive_workspace_uses_available_width_without_stretching_reading(ui, 
     assert float(page.locator('.folio-doc p').first.evaluate('e=>getComputedStyle(e).fontSize').replace('px','')) >= 17
 
 
-@pytest.mark.parametrize('width', [1280, 1440, 2560])
+@pytest.mark.parametrize('width', [1101, 1280, 1440, 2560])
 def test_topic_results_share_a_centered_readable_rail(ui, width):
     page, _ = ui
     page.set_viewport_size({'width':width,'height':1229})
-    topics = [{'title':'为什么越来越多人不接陌生电话：把防骚扰和不漏接重要来电分开处理', 'heat':7, 'fan_score':84, 'competition':'中', 'type':'观点'}, {'title':'AI开始替人处理任务后，普通用户先要管好哪些授权？', 'heat':8, 'fan_score':86, 'competition':'高'}]
+    topics = [{'title':'为什么越来越多人不接陌生电话：把防骚扰和不漏接重要来电分开处理', 'heat':7, 'fan_score':84, 'competition':'中', 'type':'观点'}, {'title':'AI开始替人处理任务后，普通用户先要管好哪些授权？', 'heat':8, 'fan_score':86, 'competition':'高'}, {'title':'仅提供部分指标的选题', 'fan_score':0}]
     artifact = {'id':'topic-test', 'type':'topic', 'title':'选题建议与检索记录', 'content':'测试选题', 'content_json':{'topics':topics}, 'version':1, 'created_at':'2026-10-25T00:00:00Z'}
     page.route('**/api/conversations/recent-1/artifacts', lambda route:route.fulfill(json={'artifacts':[artifact]}))
     page.goto('http://ui.test/workbench?conversation=recent-1')
-    expect(page.locator('.topic-row')).to_have_count(2)
+    expect(page.locator('.topic-row')).to_have_count(3)
     canvas = page.locator('#workbench-result').bounding_box()
     rail = page.locator('#workbench-stage-choices').bounding_box()
     assert rail['width'] <= 961
@@ -134,8 +134,17 @@ def test_topic_results_share_a_centered_readable_rail(ui, width):
     head = page.locator('.workbench-stage-head').bounding_box()
     assert abs(head['x']-rail['x']) < 1
     assert page.locator('.topic-row').first.evaluate('e=>getComputedStyle(e).textAlign') == 'left'
-    assert float(page.locator('.topic-signal-label').first.evaluate('e=>getComputedStyle(e).fontSize').replace('px','')) >= 13
-    assert page.locator('.topic-meter').first.evaluate('e=>getComputedStyle(e).display') == 'none'
+    assert float(page.locator('.topic-signal-label').first.evaluate('e=>getComputedStyle(e).fontSize').replace('px','')) >= 12
+    assert page.locator('.topic-meter').first.evaluate('e=>getComputedStyle(e).display') == 'block'
     assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+    partial = page.locator('.topic-row').nth(2)
+    expect(partial.locator('.topic-signal').first).to_contain_text('—')
+    expect(partial.locator('.topic-signal').nth(1)).to_contain_text('0 / 100')
+    expect(partial.locator('.topic-row-competition')).to_contain_text('未评估')
+    meta = page.locator('.topic-row-meta').first
+    assert meta.evaluate('e=>getComputedStyle(e).display') == 'grid'
+    expect(page.locator('.topic-row-badges').first).to_contain_text('观点')
+    expect(page.locator('.topic-signal').first).to_contain_text('7 / 10')
+    assert page.locator('.topic-row').first.evaluate('e=>e.scrollWidth<=e.clientWidth')
     if width == 2560:
         page.screenshot(path=str(ROOT / 'output/mint-ui/refined-topics-wide.png'))
