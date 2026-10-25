@@ -493,18 +493,20 @@
     stageNext.hidden = index === stages.length - 1;
     stageNext.textContent = stale ? `更新${stage.label}` : item ? `继续：${stages[index + 1]?.label || ''}` : `生成${stage.label}`;
     stageNext.disabled = Boolean(!progress.hidden || submitting || (stage.id === 'topic' && item && !selectedTopic) ||
-      (index > 0 && !stageArtifact(stages[index - 1].id)));
+      (index > 0 && !item && !stageArtifact(stages[index - 1].id)));
     viewToggle.hidden = !allArtifacts.length;
     resultMeta.textContent = item ? `${artifactKind(item)} · V${item.version}` : '当前阶段尚无作品';
   }
 
   function firstMissingStage() {
-    if (!stageArtifact('topic')) return 'topic';
-    if (!selectedTopic) return null;
-    if (!stageArtifact('outline')) return 'outline';
-    if (!stageArtifact('writing')) return 'writing';
-    if (!stageArtifact('deai')) return 'deai';
-    if (!stageArtifact('typeset')) return 'typeset';
+    // 用户可以直接给出主题、跳过候选选题，所以「没有选题作品」本身不代表链路断了。
+    // 只要后续阶段已经有作品，下一步就接在后面，而不是要求回头重新选题。
+    const has = id => Boolean(stageArtifact(id));
+    if (!has('topic') && !has('outline') && !has('writing') && !has('deai') && !has('typeset')) return 'topic';
+    if (!has('outline')) return 'outline';
+    if (!has('writing')) return 'writing';
+    if (!has('deai')) return 'deai';
+    if (!has('typeset')) return 'typeset';
     return null;
   }
 
@@ -543,7 +545,16 @@
           <button type="button" class="chat-action-primary" data-retry-stage="${escapeHtml(stage)}">重试：${escapeHtml(stageLabel(stage))}</button>
         </div>`;
     } else if (!topicItem) {
-      html = `<strong>先告诉我你想写什么</strong>
+      // 直接给主题的用法会跳过候选选题：只要大纲已经在了，就继续往下走，
+      // 不要再把用户退回「先告诉我你想写什么」。
+      html = stageArtifact('outline')
+        ? `<strong>大纲已就绪</strong>
+        <p>你是直接给的主题，跳过了候选选题这一步。可以接着写正文，也可以补一批方向备选。</p>
+        <div class="chat-action-row">
+          <button type="button" class="chat-action-primary" data-next-stage="writing">继续：写作</button>
+          <button type="button" class="chat-action-ghost" data-retry-stage="topic">补一批选题</button>
+        </div>`
+        : `<strong>先告诉我你想写什么</strong>
         <p>一句话就够，例如「写一篇给 30 岁职场人的 AI 工具实测」。</p>`;
     } else if (!selectedTopic) {
       const topics = (topicItem.content_json?.topics || []).filter(choice => topicTitle(choice));
