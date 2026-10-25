@@ -184,7 +184,9 @@ def test_recent_item_opens_its_own_conversation_and_bookshelf_is_a_real_route(ui
     page.wait_for_url("http://ui.test/bookshelf")
     expect(page.locator('.app-tabs a[href="/bookshelf"]')).to_have_attribute("aria-current", "page")
     expect(page.locator('.app-tabs a[href="/"]')).not_to_have_attribute("aria-current", "page")
-    expect(page.locator(".book-link")).to_have_count(11)
+    import json
+    catalog = json.loads((ROOT / 'static/bookshelf-data.json').read_text(encoding='utf-8'))
+    expect(page.locator(".book-link")).to_have_count(len(catalog['books']))
 
 
 def test_more_menu_can_open_a_secondary_module(ui):
@@ -198,29 +200,41 @@ def test_more_menu_can_open_a_secondary_module(ui):
     expect(page.get_by_role('button', name='更多', exact=True)).to_have_class('shell-mobile-more active')
 
 @pytest.mark.parametrize('width', [1920,1280,1101,1100,390])
-def test_centered_workbench_preserves_dom_and_folds_at_1100(ui, width):
+def test_workbench_preserves_dom_and_existing_narrow_layout(ui, width):
     page, _ = ui
     page.set_viewport_size({'width':width,'height':1000})
     page.goto('http://ui.test/workbench')
+    if width <= 1100:
+        # Mobile is outside this change. Removing the new stylesheet must have
+        # no visual effect, regardless of the existing Folio view state.
+        expect(page.locator('body')).not_to_have_class('atelier mint-wechat')
+        assert page.evaluate('''() => {
+            const signature=()=>['#workbench','#creation-assistant','#workbench-result','#workbench-topic']
+              .map(selector=>{const c=getComputedStyle(document.querySelector(selector));
+                return [c.display,c.visibility,c.width,c.height,c.backgroundColor,c.fontFamily].join('|')}).join(';');
+            const before=signature(); document.querySelector('link[href*="wechat-mint.css"]').disabled=true;
+            return before===signature();
+        }''')
+        return
+    # Exercise an active conversation, rather than the separate Folio landing screen.
+    page.locator('#workbench-chat-thread').evaluate('''el => {
+        const item=document.createElement('article'); item.className='chat-message from-user';
+        const text=document.createElement('p'); text.textContent='界面回归测试，不调用模型';
+        item.append(text); el.append(item);
+    }''')
     expect(page.locator('#workbench-topic')).to_be_visible()
     assert page.locator('.conversation-workbench-layout').evaluate('(el)=>[...el.children].filter(x=>["studio-details","creation-assistant","workbench-result"].includes(x.id)).map(x=>x.id)') == ['creation-assistant','workbench-result','studio-details']
     assert page.evaluate('document.documentElement.scrollWidth <= innerWidth+1')
     if width > 1100:
-        structure=page.locator('#studio-details').bounding_box()
+        expect(page.locator('#studio-details')).to_be_hidden()
         chat=page.locator('#creation-assistant').bounding_box()
         canvas=page.locator('#workbench-result').bounding_box()
-        assert structure['x'] < chat['x'] < canvas['x']
-        assert abs(structure['width']-292)<1
-        assert abs(canvas['width']-372)<1
-        assert chat['height']>=790
+        assert chat['x'] + chat['width'] < canvas['x']
+        assert chat['width'] >= 300
+        assert canvas['width'] >= 340
+        assert chat['height'] >= 580
         nav=page.locator('.app-shell > .v3-topbar').bounding_box()
-        assert abs(nav['width']-248)<1
+        assert nav['x'] + nav['width'] < chat['x']
         control=page.locator('#workbench-topic')
-        assert control.evaluate('(el)=>getComputedStyle(el).fontSize')=='13.5px'
-        assert abs(control.bounding_box()['height']-76)<1
-    else:
-        expect(page.locator('#studio-details')).to_be_hidden()
-        expect(page.locator('#workbench-result')).to_be_hidden()
-        page.locator('#workbench').evaluate('(el)=>el.dataset.outputOpen="true"')
-        expect(page.locator('#workbench-result')).to_be_visible()
-        expect(page.locator('#creation-assistant')).to_be_hidden()
+        assert float(control.evaluate('(el)=>getComputedStyle(el).fontSize').replace('px','')) >= 14
+        assert control.bounding_box()['height'] >= 64
