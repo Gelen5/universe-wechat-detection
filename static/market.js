@@ -81,7 +81,7 @@
             <span class="name">${escapeHtml(title(row))}</span>
             ${badges.join('')}
           </div>
-          <p class="desc">${escapeHtml(description(row))}</p>
+          <p class="desc" title="${escapeHtml(description(row))}">${escapeHtml(description(row))}</p>
           <div class="meta">
             <span>${escapeHtml(row.repo)}${row.path ? ` · ${escapeHtml(row.path)}` : ''}</span>
             <span>${row.manual ? `手工添加于 ${escapeHtml(row.added_at || '')}` : `收录于 ${escapeHtml((row.added_at || '').slice(5))}`}</span>
@@ -92,7 +92,7 @@
           <span class="stars">${starIcon}${stars}</span>
           <span class="cat">${escapeHtml(row.category_zh || '其他')}</span>
         </div>
-        <span class="go">${chevron}</span>
+        <span class="go">前往 GitHub ${chevron}</span>
       </a>`;
   }
 

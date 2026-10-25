@@ -1,0 +1,133 @@
+/* Resource pages: quiet typography and content-led layouts. Sidebar is separate. */
+body.atelier.library-body { --lib-paper:#faf9f6; --lib-ink:#292f2b; --lib-muted:#626c63; background:#faf9f6 !important; }
+body.atelier.library-body #library-main {
+  width:100% !important; max-width:1440px !important; margin:0 auto !important;
+  padding:56px clamp(24px,3.5vw,56px) 48px !important; container-type:inline-size;
+  font-family:"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif !important;
+}
+body.atelier.library-body #library-main :is(h1,h2,h3,p,span,strong,button,input,a,dt,dd,small) { font-family:inherit !important; }
+body.atelier.library-body #library-main #library-shelf { max-width:none !important; }
+body.atelier.library-body #library-main .library-heading { max-width:none !important; margin:0 0 36px !important; padding:0 !important; border:0 !important; background:none !important; box-shadow:none !important; }
+body.atelier.library-body #library-main .library-eyebrow { display:none !important; }
+body.atelier.library-body #library-main .library-heading h1 { font-size:38px !important; line-height:1.3 !important; font-weight:650 !important; letter-spacing:-.04em !important; }
+body.atelier.library-body #library-main .library-heading .library-subtitle { font-size:16px !important; line-height:1.8 !important; color:#626c63 !important; margin:14px 0 0 !important; }
+body.atelier.library-body #library-main .library-search-toggle { border:1px solid #e1e5de !important; background:#fff !important; box-shadow:none !important; border-radius:12px !important; min-height:46px !important; font-size:14px !important; }
+body.atelier.library-body #library-main .library-search input { font-size:16px !important; min-height:48px !important; }
+body.atelier.library-body #library-main .library-categories { border:0 !important; padding:0 0 10px !important; gap:8px !important; }
+body.atelier.library-body #library-main .library-categories button { min-height:44px !important; padding:10px 16px !important; font-size:14px !important; border-radius:10px !important; color:#58655b !important; }
+body.atelier.library-body #library-main .library-categories button[aria-pressed=true] { color:#305d40 !important; background:#e6eee5 !important; }
+body.atelier.library-body #library-main .library-collection-heading { margin:28px 0 30px !important; }
+body.atelier.library-body #library-main .library-collection-heading h2 { font-size:20px !important; font-weight:600 !important; color:#293c2e !important; }
+body.atelier.library-body #library-main #book-count { font-size:13px !important; color:#647066 !important; }
+body.atelier.library-body #library-main .book-grid { grid-template-columns:repeat(2,minmax(0,1fr)) !important; gap:46px 28px !important; }
+body.atelier.library-body #library-main .book-item { padding:0 !important; background:none !important; border:0 !important; box-shadow:none !important; }
+body.atelier.library-body #library-main .book-cover { container-type:inline-size; border-radius:2px 5px 5px 2px !important; box-shadow:2px 3px 4px #29272112,6px 12px 18px -6px #29272127 !important; }
+body.atelier.library-body #library-main .cover-name { font-size:clamp(21px,20cqi,34px) !important; line-height:1.16 !important; letter-spacing:-.035em !important; overflow-wrap:anywhere !important; }
+body.atelier.library-body #library-main .cover-subtitle { font-size:11px !important; line-height:1.6 !important; }
+body.atelier.library-body #library-main :is(.cover-series,.cover-author) { font-size:10px !important; line-height:1.6 !important; }
+body.atelier.library-body #library-main .cover-art::before { display:none !important; }
+body.atelier.library-body #library-main .book-meta { margin-top:20px !important; }
+body.atelier.library-body #library-main .book-meta h3 { font-size:16px !important; line-height:1.65 !important; font-weight:600 !important; margin:0 0 6px !important; }
+body.atelier.library-body #library-main .book-meta p { font-size:13px !important; line-height:1.7 !important; margin:0 0 6px !important; }
+body.atelier.library-body #library-main .book-stars { font-size:12px !important; }
+body.atelier.library-body #library-main .library-footer { border:0 !important; margin-top:60px !important; padding-top:20px !important; font-size:12px !important; line-height:1.9 !important; }
+body.atelier.library-body #library-main .library-footer small { font-size:12px !important; }
+body.atelier.library-body #library-main .detail-layout { gap:56px !important; }
+body.atelier.library-body #library-main .detail-copy h1 { font-size:34px !important; line-height:1.5 !important; letter-spacing:-.03em !important; }
+body.atelier.library-body #library-main .detail-about { border:0 !important; padding-top:24px !important; }
+body.atelier.library-body #library-main .detail-about p { font-size:16px !important; line-height:1.95 !important; }
+body.atelier.library-body #library-main :is(.detail-source dl,.detail-read-note,.detail-license) { font-size:13px !important; line-height:1.9 !important; }
+body.atelier.library-body #library-main .detail-read { border-radius:12px !important; font-size:15px !important; min-height:48px !important; }
+@container (min-width:540px) { body.atelier.library-body #library-main .book-grid { grid-template-columns:repeat(3,minmax(0,1fr)) !important; gap:48px 32px !important; } }
+@container (min-width:850px) { body.atelier.library-body #library-main .book-grid { grid-template-columns:repeat(4,minmax(0,1fr)) !important; gap:48px 36px !important; } }
+@container (min-width:1180px) { body.atelier.library-body #library-main .book-grid { grid-template-columns:repeat(5,minmax(0,1fr)) !important; gap:52px 40px !important; } }
+@media (hover:hover) { body.atelier.library-body #library-main .book-link:hover .book-cover { transform:translateY(-4px) !important; box-shadow:3px 5px 6px #29272112,8px 17px 22px -8px #29272130 !important; } }
+@media (max-width:760px) {
+ body.atelier.library-body #library-main { padding:32px 22px !important; }
+ body.atelier.library-body #library-main .library-heading h1 { font-size:30px !important; }
+ body.atelier.library-body #library-main .library-heading .library-subtitle { font-size:14px !important; }
+ body.atelier.library-body #library-main .book-grid { gap:36px 24px !important; }
+ body.atelier.library-body #library-main .book-meta h3 { font-size:14px !important; }
+ body.atelier.library-body #library-main .detail-copy h1 { font-size:28px !important; }
+}
+
+/* Marketplace: task-based discovery, with source links rather than launch claims. */
+body.atelier.market-body { background:#f8f9f6 !important; }
+body.atelier.market-body :is(#market-main,#market) {
+  background:#f8f9f6 !important; color:#29352d !important; box-shadow:none !important; padding:0 !important; border:0 !important; border-radius:0 !important;
+  font-family:"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif !important;
+}
+body.atelier.market-body :is(#market-main,#market) :is(h1,h2,h3,p,a,span,strong,b,button,input,kbd) { font-family:inherit !important; }
+body.atelier.market-body :is(#market-main,#market) .market-wrap { width:100% !important; max-width:1440px !important; margin:0 auto !important; padding:0 clamp(24px,3.5vw,56px) !important; box-sizing:border-box !important; container-type:inline-size; }
+body.atelier.market-body :is(#market-main,#market) .market-hero { padding:56px 0 28px !important; background:none !important; border:0 !important; border-radius:0 !important; box-shadow:none !important; }
+body.atelier.market-body :is(#market-main,#market) .market-hero::before,
+body.atelier.market-body :is(#market-main,#market) .market-hero::after { content:none !important; }
+body.atelier.market-body :is(#market-main,#market) .market-kicker { display:none !important; }
+body.atelier.market-body :is(#market-main,#market) .market-hero h1 { margin:0 !important; font-size:38px !important; font-weight:650 !important; line-height:1.3 !important; letter-spacing:-.04em !important; color:#29352d !important; }
+body.atelier.market-body :is(#market-main,#market) .market-hero p { margin:14px 0 0 !important; max-width:65ch !important; font-size:16px !important; line-height:1.8 !important; color:#5f6c63 !important; }
+body.atelier.market-body :is(#market-main,#market) .market-meta { margin-top:12px !important; font-size:12px !important; color:#68756b !important; }
+body.atelier.market-body :is(#market-main,#market) .market-meta > span:not(#meta-updated) { display:none !important; }
+body.atelier.market-body :is(#market-main,#market) .market-searchwrap { padding:0 !important; margin:0 0 24px !important; }
+body.atelier.market-body :is(#market-main,#market) .market-search { width:100% !important; max-width:none !important; min-height:54px !important; height:auto !important; padding:0 18px !important; background:#fff !important; border:1px solid #dce3dc !important; border-radius:12px !important; box-shadow:none !important; }
+body.atelier.market-body :is(#market-main,#market) .market-search input { width:100% !important; min-width:0 !important; font-size:16px !important; padding:14px 0 !important; color:#29352d !important; }
+body.atelier.market-body :is(#market-main,#market) .market-search kbd { display:none !important; }
+body.atelier.market-body :is(#market-main,#market) .market-layout { display:block !important; padding:0 0 36px !important; }
+body.atelier.market-body :is(#market-main,#market) .market-rail { position:static !important; width:100% !important; padding:0 !important; margin:0 0 32px !important; background:none !important; box-shadow:none !important; border:0 !important; }
+body.atelier.market-body :is(#market-main,#market) .market-rail h2 { display:none !important; }
+body.atelier.market-body :is(#market-main,#market) .market-rail ul { display:flex !important; flex-wrap:wrap !important; gap:8px !important; padding:0 !important; margin:0 !important; list-style:none !important; }
+body.atelier.market-body :is(#market-main,#market) .market-rail a { display:flex !important; align-items:center !important; gap:10px !important; min-height:42px !important; padding:8px 13px !important; border:0 !important; border-radius:9px !important; font-size:14px !important; background:transparent !important; color:#59695e !important; box-shadow:none !important; }
+body.atelier.market-body :is(#market-main,#market) .market-rail a.on { background:#e5eee5 !important; color:#2f6041 !important; font-weight:600 !important; }
+body.atelier.market-body :is(#market-main,#market) .market-rail .n { font-size:12px !important; color:#6d7b70 !important; }
+body.atelier.market-body :is(#market-main,#market) .market-section-head { margin:0 0 18px !important; border:0 !important; }
+body.atelier.market-body :is(#market-main,#market) .market-section-head h2 { font-size:20px !important; font-weight:600 !important; color:#2f4235 !important; }
+body.atelier.market-body :is(#market-main,#market) .market-section-head > span { display:none !important; }
+body.atelier.market-body :is(#market-main,#market) .market-featured { display:grid !important; grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr)) !important; gap:18px !important; margin:0 0 34px !important; }
+body.atelier.market-body :is(#market-main,#market) .market-fcard { padding:22px !important; gap:12px !important; border:0 !important; border-radius:14px !important; background:#eaf1e9 !important; box-shadow:none !important; }
+body.atelier.market-body :is(#market-main,#market) .market-fcard .tag { font-size:12px !important; color:#526b58 !important; letter-spacing:0 !important; }
+body.atelier.market-body :is(#market-main,#market) .market-fcard .tag::before { content:none !important; }
+body.atelier.market-body :is(#market-main,#market) .market-fcard strong { font-size:18px !important; line-height:1.6 !important; color:#294432 !important; }
+body.atelier.market-body :is(#market-main,#market) .market-fcard p { font-size:14px !important; line-height:1.8 !important; color:#53675a !important; }
+body.atelier.market-body :is(#market-main,#market) .market-fcard .src { font-size:12px !important; color:#607466 !important; overflow-wrap:anywhere !important; }
+body.atelier.market-body :is(#market-main,#market) .market-toolbar { display:flex !important; flex-wrap:wrap !important; gap:16px !important; justify-content:space-between !important; align-items:center !important; margin:0 0 20px !important; padding:0 !important; border:0 !important; }
+body.atelier.market-body :is(#market-main,#market) .market-count { font-size:14px !important; color:#5e6c62 !important; }
+body.atelier.market-body :is(#market-main,#market) .market-seg { padding:3px !important; border:0 !important; border-radius:10px !important; background:#edf0eb !important; }
+body.atelier.market-body :is(#market-main,#market) .market-seg button { padding:8px 12px !important; min-height:40px !important; font-size:13px !important; border-radius:8px !important; color:#58675d !important; box-shadow:none !important; }
+body.atelier.market-body :is(#market-main,#market) .market-seg button[aria-pressed=true] { background:#fff !important; color:#315d41 !important; }
+body.atelier.market-body :is(#market-main,#market) .market-list { display:grid !important; grid-template-columns:repeat(2,minmax(0,1fr)) !important; gap:20px !important; border:0 !important; }
+body.atelier.market-body :is(#market-main,#market) .market-row { display:flex !important; flex-direction:column !important; align-items:stretch !important; gap:14px !important; min-width:0 !important; min-height:238px !important; padding:24px !important; border:1px solid #e4e8e1 !important; border-radius:14px !important; background:#fff !important; box-shadow:none !important; transition:border-color 180ms ease,background 180ms ease !important; }
+body.atelier.market-body :is(#market-main,#market) .market-row > div:first-child { flex:1 !important; }
+body.atelier.market-body :is(#market-main,#market) .market-row .name { font-size:17px !important; font-weight:600 !important; line-height:1.6 !important; color:#293b2e !important; overflow-wrap:anywhere !important; white-space:normal !important; }
+body.atelier.market-body :is(#market-main,#market) .market-row .desc { font-size:14px !important; line-height:1.85 !important; color:#59675e !important; margin:12px 0 !important; -webkit-line-clamp:3 !important; }
+body.atelier.market-body :is(#market-main,#market) .market-row .meta { font-size:12px !important; line-height:1.7 !important; color:#6b786f !important; overflow-wrap:anywhere !important; }
+body.atelier.market-body :is(#market-main,#market) .market-row .meta > span:nth-child(2) { display:none !important; }
+body.atelier.market-body :is(#market-main,#market) .market-row .side { display:flex !important; flex-direction:row !important; justify-content:space-between !important; gap:12px !important; align-items:center !important; }
+body.atelier.market-body :is(#market-main,#market) .market-row :is(.stars,.cat) { font-size:12px !important; color:#627166 !important; }
+body.atelier.market-body :is(#market-main,#market) .market-row .go { display:inline-flex !important; align-items:center !important; gap:6px !important; align-self:flex-start !important; color:#3a694a !important; font-size:13px !important; transform:none !important; }
+body.atelier.market-body :is(#market-main,#market) .market-badge { font-size:11px !important; letter-spacing:0 !important; padding:2px 6px !important; border:0 !important; border-radius:5px !important; background:#edf2ec !important; color:#55705b !important; }
+body.atelier.market-body :is(#market-main,#market) .market-loading,
+body.atelier.market-body :is(#market-main,#market) .market-empty { grid-column:1/-1 !important; padding:48px 20px !important; font-size:15px !important; line-height:1.9 !important; color:#5c6d60 !important; background:none !important; border:0 !important; }
+body.atelier.market-body :is(#market-main,#market) .market-more button { min-height:44px !important; padding:10px 22px !important; border-radius:10px !important; font-size:14px !important; background:#e8efe6 !important; color:#365f43 !important; box-shadow:none !important; }
+body.atelier.market-body :is(#market-main,#market) .market-foot { border:0 !important; padding:12px 0 36px !important; margin:0 !important; }
+body.atelier.market-body :is(#market-main,#market) .market-foot p { font-size:12px !important; line-height:1.9 !important; color:#6b776e !important; }
+body.atelier.market-body :is(#market-main,#market) :is(a,button,input):focus-visible { outline:3px solid #4f795b !important; outline-offset:4px !important; }
+@container (min-width:1120px) { body.atelier.market-body :is(#market-main,#market) .market-list { grid-template-columns:repeat(3,minmax(0,1fr)) !important; } }
+@media (hover:hover) { body.atelier.market-body :is(#market-main,#market) .market-row:hover { border-color:#a9c2ae !important; background:#fdfefd !important; } }
+@media (max-width:760px) {
+ body.atelier.market-body :is(#market-main,#market) .market-wrap { padding:0 22px !important; }
+ body.atelier.market-body :is(#market-main,#market) .market-hero { padding:32px 0 24px !important; }
+ body.atelier.market-body :is(#market-main,#market) .market-hero h1 { font-size:30px !important; }
+ body.atelier.market-body :is(#market-main,#market) .market-hero p { font-size:14px !important; }
+ body.atelier.market-body :is(#market-main,#market) .market-featured,
+ body.atelier.market-body :is(#market-main,#market) .market-list { grid-template-columns:minmax(0,1fr) !important; }
+ body.atelier.market-body :is(#market-main,#market) .market-row { padding:22px !important; min-height:0 !important; }
+ body.atelier.market-body :is(#market-main,#market) .market-rail ul { flex-wrap:nowrap !important; overflow-x:auto !important; padding:2px 2px 8px !important; }
+ body.atelier.market-body :is(#market-main,#market) .market-rail a { white-space:nowrap !important; }
+}
+@media(prefers-reduced-motion:reduce) { body.atelier.market-body :is(#market-main,#market) * { transition:none !important; } }
+
+@media(max-width:480px) {
+ body.atelier.library-body #library-main .book-grid .cover-series { display:none !important; }
+ body.atelier.library-body #library-main .book-grid .cover-name { margin-top:12% !important; }
+ body.atelier.library-body #library-main .book-grid .cover-art { min-height:0 !important; }
+ body.atelier.library-body #library-main .book-grid .cover-author { font-size:9px !important; }
+}

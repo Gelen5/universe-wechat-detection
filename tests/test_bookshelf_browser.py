@@ -48,7 +48,7 @@ def test_bookshelf_public_reading_and_mobile_layout():
         page.get_by_role('searchbox', name='搜索书名', exact=True).fill('不存在的书')
         expect(page.get_by_role('heading', name='还没有找到这本书')).to_be_visible()
         page.get_by_role('button', name='查看全部', exact=True).click()
-        for width, columns in ((390,2),(768,3),(1280,4),(1440,5)):
+        for width, columns in ((390,2),(768,3),(1280,4),(1440,4),(1920,5)):
             page.set_viewport_size({'width':width,'height':900})
             assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), width
             assert len(page.locator('#book-grid').evaluate('e=>getComputedStyle(e).gridTemplateColumns.split(" ")')) == columns
