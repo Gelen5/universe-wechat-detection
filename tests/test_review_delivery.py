@@ -54,6 +54,23 @@ class ReviewDeliveryTests(unittest.TestCase):
         self.assertGreater(left, 0)
         self.assertEqual(impl.call_count, 1)
 
+    def test_review_retries_only_the_failed_request_once(self):
+        from server.providers import ProviderRequestError, ProviderResponse
+        token = w.REVIEW_REASONING.set('medium')
+        try:
+            with patch('server.providers.OpenAICompatibleProvider'), \
+                 patch('server.providers.ModelService') as service, \
+                 patch.object(w.time, 'sleep'), \
+                 patch.dict('os.environ', {'WECHAT_TEXT_API_KEY': 'test'}), \
+                 call_context.bind(deadline=w.time.monotonic() + 240):
+                service.return_value.create_response.side_effect = [
+                    ProviderRequestError('upstream unavailable', transient=True), ProviderResponse(text='OK')]
+                self.assertEqual('OK', w._text('diagnose'))
+                self.assertEqual(2, service.return_value.create_response.call_count)
+                self.assertLessEqual(service.return_value.create_response.call_args.kwargs['timeout'], 90)
+        finally:
+            w.REVIEW_REASONING.reset(token)
+
     def test_sol_uses_responses_and_medium(self):
         session = FakeSession([FakeResponse({'status': 'completed', 'output': []})])
         provider = OpenAICompatibleProvider(api_key='test', base_url='https://relay.test/v1',
