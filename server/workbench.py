@@ -777,7 +777,9 @@ issues 只列能定位且有依据的事实问题或阅读问题：无来源的�
                 ]
             redlines = _anti_ai_redlines(candidate)
             if redlines:
-                diagnosis['issues'] = list(diagnosis.get('issues') or []) + redlines
+                existing = list(diagnosis.get('issues') or [])
+                diagnosis['issues'] = existing + [item for item in redlines if not any(
+                    item['quote'] in str(issue.get('quote') or '') for issue in existing if isinstance(issue, dict))]
                 diagnosis['redlines'] = redlines
             diagnosis = _anchor_review_issues(diagnosis, candidate)
             # 复核的改稿环节只能替换正文片段，改不了 H1 标题。若某一轮的意见全落在
@@ -908,6 +910,9 @@ issue_index 对应以下已由复核定位、逐字来自当前稿的片段列�
             edits, revised = _validated_local_edits(
                 candidate, edit_prompt,
                 require_edits=bool([i for _, i in anchored_issues] or blockers), anchors=issue_anchors,
+                deletable_indexes={index for index, (_, issue) in enumerate(anchored_issues)
+                    if any(word in str(issue.get('fix') or '') for word in ('删除', '删去'))
+                    and any(word in str(issue.get('reason') or '') for word in ('重复', '模板过渡', '无信息增量'))},
                 model=_setting("WECHAT_REVIEW_MODEL") or None,
             )
             retained_indexes = edits.get('retained_issue_indexes', [])
@@ -1026,7 +1031,7 @@ def _quoted_words(text: str) -> list[str]:
 
 def _validated_local_edits(
     candidate: str, prompt: str, require_edits: bool, anchors: list[str] | None = None,
-    model: str | None = None,
+    model: str | None = None, deletable_indexes: set[int] | None = None,
 ) -> tuple[dict[str, Any], str]:
     if anchors and any(not anchor or anchor not in candidate for anchor in anchors):
         raise ProviderError('去 AI 修改片段未逐字出现在当前稿，已保留原文')
@@ -1092,7 +1097,8 @@ def _validated_local_edits(
                                     if item['issue_index'] == issue_index
                                     and item['occurrence'] == occurrence), None)
                     if (not isinstance(occurrence, int) or isinstance(occurrence, bool)
-                            or not isinstance(replacement, str) or not replacement or not context):
+                            or not isinstance(replacement, str) or not context
+                            or (not replacement and issue_index not in (deletable_indexes or set()))):
                         errors.append('重复片段需要提供唯一的before上下文或有效的occurrence与replacement')
                         continue
                     before = context
@@ -1106,7 +1112,7 @@ def _validated_local_edits(
             if not isinstance(before, str) or not before or not isinstance(after, str):
                 errors.append('before或after格式错误')
                 continue
-            if not after and before.strip('，：,: ') not in _AI_PHRASES:
+            if not after and before.strip('，：,: ') not in _AI_PHRASES and issue_index not in (deletable_indexes or set()):
                 errors.append('after不能为空（无信息量的模板过渡除外）；其余片段须保留事实边界')
                 continue
             if revised.count(before) != 1:
@@ -1119,7 +1125,11 @@ def _validated_local_edits(
             if after and before[-1] in '。！？.!?' and after[-1] not in '。！？.!?':
                 errors.append('after丢失句末标点')
                 continue
-            revised = revised.replace(before, after, 1)
+            updated = revised.replace(before, after, 1)
+            if not updated.strip():
+                errors.append('不能删除整篇正文')
+                continue
+            revised = updated
         if not errors:
             return payload, revised
     raise ProviderError('去 AI 局部修改连续两次无法安全定位，已保留原文：' + '；'.join(errors))

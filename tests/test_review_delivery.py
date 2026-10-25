@@ -78,6 +78,15 @@ class ReviewDeliveryTests(unittest.TestCase):
             with self.assertRaises(w.ProviderError):
                 w._validated_local_edits('真实原话。', 'edit', anchors=['真实原话。'], require_edits=True)
 
+    def test_explicit_redundancy_deletion_preserves_rest_of_article(self):
+        with patch.object(w, '_json_text', return_value={'edits': [{'issue_index': 0, 'after': ''}]}):
+            _, revised = w._validated_local_edits('具体步骤。重复总结。', 'edit', anchors=['重复总结。'], require_edits=True, deletable_indexes={0})
+            self.assertEqual('具体步骤。', revised)
+            with self.assertRaises(w.ProviderError):
+                w._validated_local_edits('“真实引语”。具体步骤。', 'edit', anchors=['“真实引语”。'], require_edits=True, deletable_indexes={0})
+            with self.assertRaises(w.ProviderError):
+                w._validated_local_edits('全部正文。', 'edit', anchors=['全部正文。'], require_edits=True, deletable_indexes={0})
+
     def test_sol_uses_responses_and_medium(self):
         session = FakeSession([FakeResponse({'status': 'completed', 'output': []})])
         provider = OpenAICompatibleProvider(api_key='test', base_url='https://relay.test/v1',
