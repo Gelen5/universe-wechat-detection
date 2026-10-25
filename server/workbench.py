@@ -338,7 +338,7 @@ def _response_text(data: dict[str, Any]) -> str:
     return text
 
 
-def _text(prompt: str, *, reasoning: str = "medium", model: str | None = None,
+def _text(prompt: str, *, reasoning: str | None = None, model: str | None = None,
           base_url: str | None = None) -> str:
     from .providers import ModelService, OpenAICompatibleProvider, ProviderRequestError
     from .providers import call_context
@@ -346,6 +346,11 @@ def _text(prompt: str, *, reasoning: str = "medium", model: str | None = None,
     # Run owns any provider spend they create. Without this attribution the
     # topic/outline/draft calls were invisible to Run cost and to ProviderCall.
     attribution = call_context.current()
+    # ``reasoning`` used to be accepted and silently dropped: the provider only
+    # ever received REVIEW_REASONING, so callers asking for a specific effort
+    # got the default. Honour the argument, keep the review override, and let
+    # an unset value mean "send no reasoning field at all".
+    effort = REVIEW_REASONING.get() or reasoning or None
     provider = OpenAICompatibleProvider(
         api_key=_setting("WECHAT_TEXT_API_KEY"),
         base_url=base_url or _setting("WECHAT_TEXT_API_BASE_URL") or _setting("WECHAT_API_BASE_URL", "https://api.openai.com/v1"),
@@ -353,7 +358,7 @@ def _text(prompt: str, *, reasoning: str = "medium", model: str | None = None,
         image_api_key=_setting("WECHAT_IMAGE_API_KEY") or _setting("WECHAT_TEXT_API_KEY"),
         image_base_url=_setting("WECHAT_IMAGE_API_BASE_URL") or _setting("WECHAT_API_BASE_URL", "https://api.openai.com/v1"),
         image_model=_setting("WECHAT_IMAGE_MODEL", "gpt-image-2"), verify_ssl=_verify_ssl(),
-        reasoning_effort=REVIEW_REASONING.get(),
+        reasoning_effort=effort,
     )
     request_timeout = max(60, int(_setting("WECHAT_TEXT_REQUEST_TIMEOUT", "300") or 300))
     remaining = call_context.remaining_seconds()
@@ -509,7 +514,16 @@ weChat-autoCreate Skill 热点脚本真实返回（status={hotspot_status}）：
 def _framework(title: str, persona: str, requirements: str = '', session=None) -> dict[str, Any]:
     _require_skill()
     instructions, manifest = skill_runtime.context(SKILL_DIR, ('references/frameworks.md',))
-    research = workbench_research.search(title, fetch=True, max_fetch=3)
+    # The topic node already ran the searches for this exact seed; every
+    # candidate title came from that material. Re-searching here doubled the
+    # external latency of two consecutive nodes. Reuse the collected sources
+    # unless the operator asks for a fresh search.
+    cached = (session or {}).get('topic_research') or {}
+    mode = _setting("WECHAT_OUTLINE_RESEARCH", "reuse").lower()
+    if mode == "reuse" and cached.get('sources'):
+        research = cached
+    else:
+        research = workbench_research.search(title, fetch=True, max_fetch=3)
     data = _json_text(f"""{instructions}
 当前只执行框架节点，不执行发布。用户要求优先于默认模板；未经检索不得声称已采集素材。
 完整需求：{requirements}
@@ -550,7 +564,11 @@ def _draft(title: str, frame: dict[str, Any], persona: str, requirements: str = 
 5. 结构、建议数量和结尾遵守完整需求，不套固定互动问题。
 6. 不要解释写作过程，只输出文章正文。不要输出配图方案、图片占位文字，这些由后续节点处理。
 7. 标题与正文不能承诺未证实的效果、期限或收益，不能使用“核心原因只有一个”等无依据断言。"""
-    article = _text(prompt, reasoning='high')
+    # ``reasoning='high'`` used to be a no-op, so production never paid for it.
+    # Now that the argument is honoured, keep the default behaviour (send no
+    # reasoning field) and expose the choice as an operator setting instead of
+    # silently making the slowest node slower.
+    article = _text(prompt, reasoning=_setting("WECHAT_DRAFT_REASONING") or None)
     for _ in range(2):
         issue = skill_runtime.length_issue(article, requirements)
         if not issue:
@@ -1137,12 +1155,29 @@ def _typeset(session: dict[str, Any]) -> str:
     instructions, manifest = skill_runtime.context(SKILL_DIR, ('references/mobile-layout-quality.md', 'references/wechat-html-spec.md', 'references/components.md', 'references/article-template.html'))
     layout_key = skill_runtime.digest(session['article'] + session['theme'] + json.dumps(session.get('image_plan',{}),sort_keys=True,ensure_ascii=False))
     if session.get('layout_plan_key') != layout_key:
-        session['layout_plan'] = _json_text(f'''{instructions}
+        # The plan cache used to live only in this session dict, and every
+        # workflow starts with a fresh one, so re-typesetting identical content
+        # always paid for a new planning call. Keep it on disk keyed by the
+        # content digest: same article + theme + images reuses the plan.
+        cache_dir = OUTPUT_DIR / '_layout_cache'
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        cache_file = cache_dir / f'{layout_key}.json'
+        plan = None
+        if cache_file.is_file():
+            try:
+                cached = json.loads(cache_file.read_text(encoding='utf-8'))
+                plan = cached if isinstance(cached, dict) else None
+            except (ValueError, OSError):
+                plan = None
+        if plan is None:
+            plan = _json_text(f'''{instructions}
 当前只生成排版决策，不改正文。必须使用 weChat-autoCreate 的模式B（Markdown + :::module DSL），只选择与内容有功能关系的模块，不堆装饰。
 正文：{session['article']}
 图片方案：{json.dumps(session.get('image_plan',{}),ensure_ascii=False)}
 用户风格选择：{session['theme']}
 返回JSON：{{"first_screen":"首屏安排","components":["callout","quote"],"decoration_budget":3,"emphasis":"需要强调的一句正文原文或空字符串","image_evidence":"图文对应说明","line_break_risks":"断行风险"}}''')
+            cache_file.write_text(json.dumps(plan, ensure_ascii=False), encoding='utf-8')
+        session['layout_plan'] = plan
         session['layout_plan']['manifest'] = manifest
         session['layout_plan_key'] = layout_key
     md = _build_article_markdown(session)

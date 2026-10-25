@@ -46,6 +46,24 @@ def _source_records(raw: Any) -> list[dict[str, Any]]:
     return records
 
 
+def _revision_plan_from(review: Any) -> list[dict[str, Any]]:
+    """Turn the platform's real review rounds into the Skill's revision shape."""
+    plan: list[dict[str, Any]] = []
+    for record in (review or {}).get("rounds") or []:
+        diagnosis = record.get("diagnosis") or {}
+        for issue in diagnosis.get("issues") or []:
+            if not isinstance(issue, dict):
+                continue
+            plan.append({
+                "source": "web_review",
+                "round": record.get("round"),
+                "quote": str(issue.get("quote") or ""),
+                "reason": str(issue.get("reason") or ""),
+                "fix": str(issue.get("fix") or ""),
+            })
+    return plan
+
+
 def apply_node(article_payload: dict[str, Any], node_name: str,
                result: dict[str, Any], output_dir: Path) -> dict[str, Any]:
     article_state, workflow = _skill_modules()
@@ -90,11 +108,23 @@ def apply_node(article_payload: dict[str, Any], node_name: str,
         })
         workflow.run_node(state, "draft")
     elif node_name == "review":
+        # Run the node first so the Skill's real hard gate (check_content with
+        # strict=True) actually evaluates the draft. The previous version
+        # pre-filled a fabricated reader_simulation so the node always reported
+        # "passed": the state then claimed a reader simulation that never ran.
         workflow.apply_host_result(state, "review", {
-            "reader_simulation": [{"reader": "目标读者", "result": "已由 Web 复核链路验证"}],
-            "revision_plan": [], "revised_draft": result.get("article", state.draft),
+            "revision_plan": _revision_plan_from(result.get("review")),
+            "revised_draft": result.get("article") or state.draft,
         })
         workflow.run_node(state, "review")
+        node = state.nodes["review"]
+        if node.status == "awaiting_host":
+            # The hard gate passed, but no reader simulation was produced.
+            # Record that honestly instead of inventing reader verdicts.
+            node.status = "passed"
+            node.message = "硬门禁已通过；读者模拟未独立执行（由平台复核链路替代，记为 skipped）"
+            state.log("node:review:skipped", node.message)
+        result["quality_report"] = state.quality_report
     elif node_name == "visual":
         plan = result.get("image_plan") or {}
         state.visual_plan = plan.get("items") if isinstance(plan, dict) else plan
