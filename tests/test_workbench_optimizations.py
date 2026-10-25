@@ -32,6 +32,22 @@ class _FakeService:
         return _FakeResponse()
 
 
+class _FlakyService:
+    """ModelService stub that fails on demand, so retry logic is observable."""
+
+    last = None
+    calls = 0
+    script = None
+
+    def __init__(self, provider, usage_recorder=None, cost_policy=None):
+        self.provider = provider
+        _FlakyService.last = self
+
+    def create_response(self, *args, **kwargs):
+        _FlakyService.calls += 1
+        return _FlakyService.script(_FlakyService.calls)
+
+
 class ReviewAdapterTests(unittest.TestCase):
     def test_revision_plan_is_built_from_real_review_rounds(self):
         review = {"rounds": [
@@ -169,6 +185,41 @@ class NodeTimingTests(unittest.TestCase):
                 workflow_engine.execute_node({"id": "w1"}, "draft")
         self.assertEqual("RuntimeError", events[0][1]["status"])
         self.assertEqual("draft", events[0][1]["node"])
+
+
+class TextRetryTests(unittest.TestCase):
+    """上游流中断（transient）要重试，一次抖动不该废掉整篇。"""
+
+    def _run(self, script, attempts="3"):
+        from server.providers import ProviderRequestError  # noqa: F401  (type documented in stubs)
+        _FlakyService.calls = 0
+        _FlakyService.script = script
+        with mock.patch("server.providers.OpenAICompatibleProvider", _FakeProvider), \
+             mock.patch("server.providers.ModelService", _FlakyService), \
+             mock.patch.dict("os.environ", {"WECHAT_TEXT_API_KEY": "k",
+                                            "WECHAT_TEXT_ATTEMPTS": attempts}):
+            return workbench._text("提示")
+
+    def test_transient_failure_is_retried(self):
+        from server.providers import ProviderRequestError
+
+        def script(call_no):
+            if call_no <= 1:
+                raise ProviderRequestError("Upstream response stream was interrupted",
+                                           code="provider_unavailable", transient=True)
+            return _FakeResponse()
+
+        self.assertEqual("正文", self._run(script))
+
+    def test_permanent_failure_is_not_retried(self):
+        from server.providers import ProviderRequestError
+
+        def script(call_no):
+            raise ProviderRequestError("bad api key", code="invalid_response", transient=False)
+
+        with self.assertRaises(workbench.ProviderError):
+            self._run(script)
+        self.assertEqual(1, _FlakyService.calls)
 
 
 if __name__ == "__main__":
