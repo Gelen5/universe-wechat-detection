@@ -27,3 +27,5 @@
 本地截图output/mint-ui/library-editorial-1440.png使用真实静态书目；market-editorial-1440.png使用隔离测试fixture，不代表生产工具或生产Star数。
 
 资源页专项最终11项通过，含主壳内超市Tab与独立超市共用样式的检查。
+
+线上复核发现market真实入口使用主壳嵌套页面，旧market-page规则重复预留252px侧栏宽度。已仅对嵌套market清除重复偏移，并新增内容区与父视图同宽同起点断言。

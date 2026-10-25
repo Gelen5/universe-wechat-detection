@@ -67,6 +67,9 @@ def test_market_uses_the_same_presentation_inside_workbench_tabs(ui):
     page.goto('http://ui.test/workbench')
     page.locator('.app-tabs [data-view="market"]').click()
     expect(page.locator('#market')).to_be_visible()
+    host=page.locator('#market').bounding_box();content=page.locator('#market-main').bounding_box()
+    assert abs(host['x']-content['x'])<1
+    assert abs(host['width']-content['width'])<1
     expect(page.locator('.market-row')).to_have_count(2)
     assert page.locator('#market-list').evaluate('e=>getComputedStyle(e).display')=='grid'
     assert float(page.locator('.market-row .name').first.evaluate('e=>parseFloat(getComputedStyle(e).fontSize)'))>=16

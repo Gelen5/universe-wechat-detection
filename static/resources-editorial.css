@@ -131,3 +131,6 @@ body.atelier.market-body :is(#market-main,#market) :is(a,button,input):focus-vis
  body.atelier.library-body #library-main .book-grid .cover-art { min-height:0 !important; }
  body.atelier.library-body #library-main .book-grid .cover-author { font-size:9px !important; }
 }
+
+/* The SPA already reserves sidebar space; its nested market must not reserve it again. */
+body.atelier.market-body #market #market-main { margin-left:0 !important; margin-right:0 !important; width:100% !important; max-width:none !important; }
