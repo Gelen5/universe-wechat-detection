@@ -1560,8 +1560,18 @@ def _node_review(session: dict[str, Any], *, selection: int | None = None) -> di
     return {"node": "review", "skipped": False}
 
 
+def _image_policy(session: dict[str, Any]) -> str:
+    """Session choice wins; otherwise fall back to the deployment default.
+
+    ``WECHAT_IMAGE_POLICY=none`` runs the whole pipeline without images, which
+    is what an account without image-provider access needs: the wording, review
+    and typesetting still run, only the illustration step is skipped.
+    """
+    return str(session.get('image_policy') or _setting("WECHAT_IMAGE_POLICY", "auto") or "auto")
+
+
 def _node_visual_plan(session: dict[str, Any], *, selection: int | None = None) -> dict[str, Any]:
-    if session.get('image_policy') == 'none':
+    if _image_policy(session) == 'none':
         if not _skill_step_passed(session, 5):
             _record_skill(session, 5, '配图节点按用户选择跳过', [], [], 'skipped',
                           '当前任务选择仅输出正文，不生成图片')
@@ -1574,7 +1584,7 @@ def _node_visual_plan(session: dict[str, Any], *, selection: int | None = None) 
 
 
 def _node_images(session: dict[str, Any], *, selection: int | None = None) -> dict[str, Any]:
-    if session.get('image_policy') == 'none':
+    if _image_policy(session) == 'none':
         return {"node": "images", "skipped": True}
     # 'degraded' means the provider refused: do not retry it on every node visit.
     if (session.get('image_plan') or {}).get('status') in {'generated', 'degraded'}:
