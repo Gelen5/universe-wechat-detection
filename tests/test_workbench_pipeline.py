@@ -58,7 +58,7 @@ class PipelineTests(unittest.TestCase):
         issues = w._anti_ai_redlines(text)
         quotes = [issue['quote'] for issue in issues]
         self.assertIn('值得注意的是，', quotes)
-        self.assertEqual(['值得注意的是'], quotes)
+        self.assertEqual(['值得注意的是，'], quotes)
 
     def test_quotes_code_and_tutorial_numbering_are_not_mechanical_defects(self):
         text = '> 值得注意的是，这是原话。\n① 安装环境\n② 运行测试\n参数说明：可选——默认关闭。\n```\n综上所述，原始样本\n```'
