@@ -1,10 +1,12 @@
 """One node engine shared by automatic and interactive creator modes."""
 from __future__ import annotations
 
+import time
 from typing import Any
 
 from . import accounts, workbench
 from . import skill_article_adapter
+from .observability import event as log_event
 from .workflow_repository import NODES
 
 
@@ -16,6 +18,31 @@ def _legacy_session(workflow: dict[str, Any]) -> dict[str, Any]:
 
 
 def execute_node(workflow: dict[str, Any], node_name: str) -> dict[str, Any]:
+    """Run one node and record how long it actually took.
+
+    Per-node durations are the missing input for every speed decision: without
+    them "this node is slow" is an impression. The event lands in the normal
+    structured log with the workflow, node and outcome.
+    """
+    started = time.monotonic()
+    status = "ok"
+    try:
+        return _execute_node(workflow, node_name)
+    except Exception as exc:
+        status = type(exc).__name__
+        raise
+    finally:
+        log_event(
+            "workflow.node",
+            workflow_id=workflow.get("id"),
+            user_id=workflow.get("user_id"),
+            node=node_name,
+            duration_ms=int((time.monotonic() - started) * 1000),
+            status=status,
+        )
+
+
+def _execute_node(workflow: dict[str, Any], node_name: str) -> dict[str, Any]:
     """Execute exactly one durable node using the existing proven creator rules."""
     data = workflow["input"]
     user_id = workflow["user_id"]

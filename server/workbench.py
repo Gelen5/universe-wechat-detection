@@ -531,7 +531,8 @@ def _framework(title: str, persona: str, requirements: str = '', session=None) -
 只使用能由这些摘要支持的有限信息；未验证案例、统计数据标为待补充，不得编造。
 你是微信公众号主编。为文章《{title}》选择最合适的一个框架，只能从 SCQA、AIDA、PES、时间线、对比、问题树、飞轮 中选择。
 写作人格：{persona}。小标题数量服从用户要求；没有数量要求时自行选择，不固定五段。不要写空泛模板。
-只返回合法JSON：{{"name":"SCQA","reason":"...","outline":["...","...","...","...","..."]}}。""")
+只返回合法JSON：{{"name":"SCQA","reason":"...","outline":["...","...","...","...","..."]}}。""",
+                     model=_setting("WECHAT_OUTLINE_MODEL") or None)
     outline = [str(item).strip() for item in (data.get("outline") or []) if str(item).strip()]
     if len(outline) < 2:
         raise ProviderError("文本 API 返回的文章框架不完整")
@@ -568,7 +569,8 @@ def _draft(title: str, frame: dict[str, Any], persona: str, requirements: str = 
     # Now that the argument is honoured, keep the default behaviour (send no
     # reasoning field) and expose the choice as an operator setting instead of
     # silently making the slowest node slower.
-    article = _text(prompt, reasoning=_setting("WECHAT_DRAFT_REASONING") or None)
+    article = _text(prompt, reasoning=_setting("WECHAT_DRAFT_REASONING") or None,
+                    model=_setting("WECHAT_DRAFT_MODEL") or None)
     for _ in range(2):
         issue = skill_runtime.length_issue(article, requirements)
         if not issue:
@@ -621,8 +623,12 @@ def _review(article: str, session: dict[str, Any]) -> tuple[str, dict[str, Any]]
     records = []
     session['review_run'] = {'status':'running', 'manifest':manifest, 'rounds':records}
     reasoning_token = REVIEW_REASONING.set('low')
+    # Four unconditional rounds cost up to twelve model calls on the slowest
+    # node. Two rounds cover the real cases (fact fixes + one re-check) and the
+    # loop still exits as soon as the draft is clean.
+    max_rounds = max(1, min(4, int(_setting("WECHAT_REVIEW_ROUNDS", "2") or 2)))
     try:
-        for attempt in range(4):
+        for attempt in range(max_rounds):
             current_path = directory / f'round-{attempt}.txt'
             current_path.write_text(candidate, encoding='utf-8')
             signals = skill_runtime.script(ANTI_AI_SKILL_DIR, 'check_ai_tone_signals.py', current_path, '--mode', 'standard')
@@ -712,7 +718,7 @@ JSON的items要逐项覆盖列表中的每个下标；这只是返回报告覆�
                 return candidate, {'source':'universe-delete-ai-skill', 'model':_setting('WECHAT_TEXT_MODEL'),
                     'action':'Skill 文件加载 → 定位检查 → 定向修稿 → 二次复核', 'audit':audit,
                     'gate':'passed', 'article_sha256':skill_runtime.digest(candidate), 'changed':candidate != article, 'manifest':manifest, 'rounds':records}
-            if attempt == 3:
+            if attempt == max_rounds - 1:
                 break
             anchored_issues = [
                 (index, issue) for index, issue in enumerate(diagnosis['issues'])
@@ -1175,7 +1181,8 @@ def _typeset(session: dict[str, Any]) -> str:
 正文：{session['article']}
 图片方案：{json.dumps(session.get('image_plan',{}),ensure_ascii=False)}
 用户风格选择：{session['theme']}
-返回JSON：{{"first_screen":"首屏安排","components":["callout","quote"],"decoration_budget":3,"emphasis":"需要强调的一句正文原文或空字符串","image_evidence":"图文对应说明","line_break_risks":"断行风险"}}''')
+返回JSON：{{"first_screen":"首屏安排","components":["callout","quote"],"decoration_budget":3,"emphasis":"需要强调的一句正文原文或空字符串","image_evidence":"图文对应说明","line_break_risks":"断行风险"}}''',
+                        model=_setting("WECHAT_LAYOUT_MODEL") or None)
             cache_file.write_text(json.dumps(plan, ensure_ascii=False), encoding='utf-8')
         session['layout_plan'] = plan
         session['layout_plan']['manifest'] = manifest

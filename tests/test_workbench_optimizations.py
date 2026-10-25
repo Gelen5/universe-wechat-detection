@@ -9,7 +9,7 @@ from __future__ import annotations
 import unittest
 from unittest import mock
 
-from server import skill_article_adapter, workbench
+from server import skill_article_adapter, workflow_engine, workbench
 
 
 class _FakeProvider:
@@ -113,6 +113,62 @@ class OutlineResearchReuseTests(unittest.TestCase):
             result = self._call({"topic_research": {"sources": [{"title": "旧的"}]}},
                                 lambda *a, **k: fresh)
         self.assertIs(fresh, result["research"])
+
+
+class NodeModelTieringTests(unittest.TestCase):
+    def _run(self, environ):
+        captured = {}
+        frame = {"name": "SCQA", "reason": "r", "outline": ["一", "二"]}
+
+        def fake_json(*args, **kwargs):
+            captured.update(kwargs)
+            return dict(frame)
+
+        with mock.patch.object(workbench, "_require_skill", lambda: None), \
+             mock.patch.object(workbench.skill_runtime, "context", lambda *a, **k: ("", {})), \
+             mock.patch.object(workbench, "_json_text", fake_json), \
+             mock.patch.object(workbench, "_record_skill", lambda *a, **k: None), \
+             mock.patch.dict("os.environ", environ):
+            workbench._framework("标题", "人格", "",
+                                 session={"topic_research": {"sources": [{"title": "s"}]}})
+        return captured
+
+    def test_outline_model_is_configurable_per_node(self):
+        captured = self._run({"WECHAT_OUTLINE_MODEL": "fast-model"})
+        self.assertEqual("fast-model", captured.get("model"))
+
+    def test_outline_model_defaults_to_the_pipeline_model(self):
+        captured = self._run({})
+        self.assertIsNone(captured.get("model"))
+
+
+class NodeTimingTests(unittest.TestCase):
+    def test_execute_node_records_duration_and_node(self):
+        events = []
+        with mock.patch.object(workflow_engine, "_execute_node", lambda w, n: {"ok": True}), \
+             mock.patch.object(workflow_engine, "log_event",
+                               lambda name, **kw: events.append((name, kw))):
+            result = workflow_engine.execute_node({"id": "w1", "user_id": "u1"}, "draft")
+        self.assertEqual({"ok": True}, result)
+        self.assertEqual("workflow.node", events[0][0])
+        self.assertEqual("draft", events[0][1]["node"])
+        self.assertEqual("w1", events[0][1]["workflow_id"])
+        self.assertIn("duration_ms", events[0][1])
+        self.assertEqual("ok", events[0][1]["status"])
+
+    def test_execute_node_records_failure_and_reraises(self):
+        events = []
+
+        def boom(workflow, node):
+            raise RuntimeError("node failed")
+
+        with mock.patch.object(workflow_engine, "_execute_node", boom), \
+             mock.patch.object(workflow_engine, "log_event",
+                               lambda name, **kw: events.append((name, kw))):
+            with self.assertRaises(RuntimeError):
+                workflow_engine.execute_node({"id": "w1"}, "draft")
+        self.assertEqual("RuntimeError", events[0][1]["status"])
+        self.assertEqual("draft", events[0][1]["node"])
 
 
 if __name__ == "__main__":
