@@ -134,3 +134,31 @@ body.atelier.market-body :is(#market-main,#market) :is(a,button,input):focus-vis
 
 /* The SPA already reserves sidebar space; its nested market must not reserve it again. */
 body.atelier.market-body #market #market-main { margin-left:0 !important; margin-right:0 !important; width:100% !important; max-width:none !important; }
+
+/* Page introductions: one quiet surface, aligned with each page's content rail. */
+body.atelier.library-body #library-main .library-heading {
+  padding:26px 28px !important; margin-bottom:24px !important; gap:20px !important;
+  align-items:center !important; border:1px solid #ffffff8c !important; border-radius:24px !important;
+  background:#eef3e8 !important; box-shadow:inset 0 1px 0 #ffffff80 !important;
+}
+body.atelier.library-body #library-main .library-heading > div { min-width:0 !important; }
+body.atelier.library-body #library-main .library-heading h1 { font-size:36px !important; }
+body.atelier.library-body #library-main .library-heading .library-subtitle { margin-top:10px !important; }
+body.atelier.library-body #library-main .library-search-toggle { flex:none !important; margin:0 !important; align-self:center !important; background:#ffffffb3 !important; border-color:#d9e3d6 !important; }
+body.atelier.market-body :is(#market-main,#market) .market-hero { padding-bottom:24px !important; }
+body.atelier.market-body :is(#market-main,#market) .market-hero > .market-wrap {
+  width:calc(100% - 2 * clamp(24px,3.5vw,56px)) !important;
+  max-width:calc(1440px - 2 * clamp(24px,3.5vw,56px)) !important;
+  padding:26px 28px !important; border:1px solid #ffffff8c !important; border-radius:24px !important;
+  background:#eaf2ed !important; box-shadow:inset 0 1px 0 #ffffff80 !important;
+}
+body.atelier.market-body :is(#market-main,#market) .market-hero h1 { font-size:36px !important; }
+body.atelier.market-body :is(#market-main,#market) .market-hero p { margin-top:10px !important; }
+@media(max-width:760px) {
+  body.atelier.library-body #library-main .library-heading { padding:20px !important; gap:12px !important; border-radius:20px !important; }
+  body.atelier.library-body #library-main .library-heading h1 { font-size:28px !important; }
+  body.atelier.library-body #library-main .library-heading .library-subtitle { font-size:15px !important; }
+  body.atelier.market-body :is(#market-main,#market) .market-hero > .market-wrap { width:calc(100% - 44px) !important; padding:20px !important; border-radius:20px !important; }
+  body.atelier.market-body :is(#market-main,#market) .market-hero h1 { font-size:28px !important; }
+  body.atelier.market-body :is(#market-main,#market) .market-hero p { font-size:15px !important; }
+}

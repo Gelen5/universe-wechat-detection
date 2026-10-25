@@ -76,3 +76,26 @@ def test_market_uses_the_same_presentation_inside_workbench_tabs(ui):
     page.locator('.app-tabs [data-view="workbench"]').click()
     expect(page.locator('#workbench')).to_be_visible()
     expect(page.locator('#market')).to_be_hidden()
+
+
+@pytest.mark.parametrize('width',[390,1440,2560])
+def test_resource_header_panels_align_with_content_and_keep_search_usable(ui,width):
+    page,_=ui;page.set_viewport_size({'width':width,'height':1000});market_fixture(page)
+    page.goto('http://ui.test/bookshelf')
+    expect(page.locator('.book-link')).to_have_count(21)
+    panel=page.locator('.library-heading')
+    assert panel.evaluate('e=>getComputedStyle(e).backgroundColor')=='rgb(238, 243, 232)'
+    box=panel.bounding_box();grid=page.locator('#book-grid').bounding_box()
+    assert abs(box['x']-grid['x'])<1 and abs(box['width']-grid['width'])<1
+    search=page.locator('#search-toggle').bounding_box()
+    assert search['x']>=box['x'] and search['x']+search['width']<=box['x']+box['width']
+    page.get_by_role('button',name='搜索书名',exact=True).click()
+    expect(page.locator('#book-search')).to_be_visible()
+    page.goto('http://ui.test/market')
+    expect(page.locator('.market-row')).to_have_count(2)
+    panel=page.locator('.market-hero > .market-wrap');box=panel.bounding_box();search=page.locator('.market-search').bounding_box()
+    assert panel.evaluate('e=>getComputedStyle(e).backgroundColor')=='rgb(234, 242, 237)'
+    assert abs(box['x']-search['x'])<1 and abs(box['width']-search['width'])<1
+    assert search['y']-box['y']-box['height']>=23
+    assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
+    if width==1440:page.screenshot(path=str(ROOT/'output/mint-ui/market-header-panel-1440.png'))
