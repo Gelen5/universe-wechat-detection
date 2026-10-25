@@ -1488,44 +1488,100 @@ def create(topic: str, mode: str = "interactive", persona: str = "深度观察�
     return _session_view(session)
 
 
+def _node_outline(session: dict[str, Any], *, selection: int | None = None) -> dict[str, Any]:
+    """确认选题方向并生成大纲；已有大纲就跳过。"""
+    if session["framework"] is not None:
+        return {"node": "outline", "skipped": True}
+    if not session.get('suggestions'):
+        raise ProviderError('选题尚未生成完成，请重新生成选题后继续')
+    chosen = session["suggestions"][selection - 1] if selection and 1 <= selection <= len(session["suggestions"]) else session["suggestions"][0]
+    session["topic"] = chosen["title"]
+    session["selected_topic"] = chosen
+    session["status"] = "calling_text_api"
+    session["framework"] = _framework(session["topic"], session["persona"], skill_runtime.brief(session), session)
+    return {"node": "outline", "skipped": False}
+
+
+def _node_draft(session: dict[str, Any], *, selection: int | None = None) -> dict[str, Any]:
+    if session["article"]:
+        return {"node": "draft", "skipped": True}
+    session["status"] = "calling_text_api"
+    session["article"] = _draft(session["topic"], session["framework"], session["persona"],
+                                skill_runtime.brief(session), session)
+    return {"node": "draft", "skipped": False}
+
+
+def _node_review(session: dict[str, Any], *, selection: int | None = None) -> dict[str, Any]:
+    if not (session["article"] and not _review_is_current(session)):
+        return {"node": "review", "skipped": True}
+    session["status"] = "calling_text_api"
+    session["article"], session["review"] = _review(session["article"], session)
+    reviewed_title = re.match(r'^#\s+(.+)', session['article'])
+    if reviewed_title:
+        session['topic'] = reviewed_title.group(1).strip()
+    session["score"] = _score(session["article"], session)
+    if session["score"].get("status") != "success":
+        raise ProviderError('公众号 Skill L3 评分未成功，已停止后续节点')
+    return {"node": "review", "skipped": False}
+
+
+def _node_visual_plan(session: dict[str, Any], *, selection: int | None = None) -> dict[str, Any]:
+    if session.get('image_policy') == 'none':
+        if not _skill_step_passed(session, 5):
+            _record_skill(session, 5, '配图节点按用户选择跳过', [], [], 'skipped',
+                          '当前任务选择仅输出正文，不生成图片')
+        return {"node": "visual_plan", "skipped": True}
+    if (session.get('image_plan') or {}).get('article_sha256') == skill_runtime.digest(session['article']):
+        return {"node": "visual_plan", "skipped": True}
+    session['image_plan'] = _image_plan(session)
+    session['images'] = []
+    return {"node": "visual_plan", "skipped": False}
+
+
+def _node_images(session: dict[str, Any], *, selection: int | None = None) -> dict[str, Any]:
+    if session.get('image_policy') == 'none':
+        return {"node": "images", "skipped": True}
+    if (session.get('image_plan') or {}).get('status') == 'generated':
+        return {"node": "images", "skipped": True}
+    session['image_plan']['status'] = 'approved'
+    session['status'] = 'calling_image_api'
+    session['images'] = _images(session)
+    return {"node": "images", "skipped": False}
+
+
+def _node_typeset(session: dict[str, Any], *, selection: int | None = None) -> dict[str, Any]:
+    if session.get("typeset_html"):
+        return {"node": "typeset", "skipped": True}
+    session["status"] = "rendering"
+    _typeset(session)
+    return {"node": "typeset", "skipped": False}
+
+
+def _node_preview(session: dict[str, Any], *, selection: int | None = None) -> dict[str, Any]:
+    _preview_session(session)
+    return {"node": "preview", "skipped": False}
+
+
+# (最低步数, 执行器)。顺序即依赖顺序：大纲 → 正文 → 复核 → 配图方案 → 出图 → 排版 → 预览。
+# 每个执行器自身幂等，所以「目标步数更大时把前面补齐」的语义保持不变。
+ADVANCE_NODES: tuple[tuple[int, Any], ...] = (
+    (2, _node_outline),
+    (3, _node_draft),
+    (4, _node_review),
+    (5, _node_visual_plan),
+    (6, _node_images),
+    (6, _node_typeset),
+    (7, _node_preview),
+)
+
+
 def _advance(session: dict[str, Any], target: int, selection: int | None = None) -> dict[str, Any]:
     if session["id"] in CANCEL_REQUESTS:
         raise ProviderError("已取消本次生成")
     target = max(1, min(8, target))
-    if target >= 2 and session["framework"] is None:
-        if not session.get('suggestions'):
-            raise ProviderError('选题尚未生成完成，请重新生成选题后继续')
-        chosen = session["suggestions"][selection - 1] if selection and 1 <= selection <= len(session["suggestions"]) else session["suggestions"][0]
-        session["topic"] = chosen["title"]
-        session["selected_topic"] = chosen
-        session["status"] = "calling_text_api"
-        session["framework"] = _framework(session["topic"], session["persona"], skill_runtime.brief(session), session)
-    if target >= 3 and not session["article"]:
-        session["status"] = "calling_text_api"
-        session["article"] = _draft(session["topic"], session["framework"], session["persona"], skill_runtime.brief(session), session)
-    if target >= 4 and session["article"] and not _review_is_current(session):
-        session["status"] = "calling_text_api"
-        session["article"], session["review"] = _review(session["article"], session)
-        reviewed_title = re.match(r'^#\s+(.+)',session['article'])
-        if reviewed_title:
-            session['topic'] = reviewed_title.group(1).strip()
-        session["score"] = _score(session["article"], session)
-        if session["score"].get("status") != "success":
-            raise ProviderError('公众号 Skill L3 评分未成功，已停止后续节点')
-    if target >= 5 and session.get('image_policy') == 'none' and not _skill_step_passed(session, 5):
-        _record_skill(session, 5, '配图节点按用户选择跳过', [], [], 'skipped', '当前任务选择仅输出正文，不生成图片')
-    if target >= 5 and session.get('image_policy') != 'none' and (session.get('image_plan') or {}).get('article_sha256') != skill_runtime.digest(session['article']):
-        session['image_plan'] = _image_plan(session)
-        session['images'] = []
-    if target >= 6 and session.get('image_policy') != 'none' and (session.get('image_plan') or {}).get('status') != 'generated':
-        session['image_plan']['status'] = 'approved'
-        session['status'] = 'calling_image_api'
-        session['images'] = _images(session)
-    if target >= 6 and not session.get("typeset_html"):
-        session["status"] = "rendering"
-        _typeset(session)
-    if target >= 7:
-        _preview_session(session)
+    for minimum_step, node in ADVANCE_NODES:
+        if target >= minimum_step:
+            node(session, selection=selection)
     _require_skill_steps(session, target)
     session["current_step"] = target
     session["status"] = "ready_for_delivery" if target >= 7 else "ready_for_review"

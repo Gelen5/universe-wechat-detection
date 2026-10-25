@@ -48,6 +48,16 @@ def _execute_node(workflow: dict[str, Any], node_name: str) -> dict[str, Any]:
     user_id = workflow["user_id"]
     workflow_id = workflow["id"]
     decisions = (workflow.get("state") or {}).get("decisions") or {}
+    # ArticleState is the durable record; the session is the working copy the
+    # node functions read. Copy forward what the state already knows so a
+    # restart resumes instead of regenerating work that already exists.
+    state_payload = (workflow.get("state") or {}).get("article_state")
+    if state_payload and node_name != "intent":
+        working = accounts.load_workbench_session(workflow_id, user_id)
+        if working:
+            restored = skill_article_adapter.hydrate_session(working, state_payload)
+            if restored["restored"]:
+                accounts.save_workbench_session(user_id, working)
     if node_name == "intent":
         article_state = skill_article_adapter.initialize(
             data.get("topic", ""), workflow["mode"], data.get("persona", "深度观察者"),

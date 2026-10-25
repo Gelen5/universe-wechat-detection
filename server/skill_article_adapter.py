@@ -29,6 +29,48 @@ def initialize(user_request: str, mode: str, persona: str) -> dict[str, Any]:
     return article.to_dict()
 
 
+def hydrate_session(session: dict[str, Any], article_payload: dict[str, Any]) -> dict[str, Any]:
+    """Project the durable ArticleState back into the working session.
+
+    The state is the record that survives restarts; the session is the working
+    copy the legacy node functions read. When the session lost a field the state
+    still has (restart, failed save, older version), copy it forward so the node
+    guards see it as already done instead of regenerating work that exists.
+    """
+    article_state, _workflow = _skill_modules()
+    state = article_state.ArticleState.from_dict(article_payload)
+    restored: list[str] = []
+
+    if not str(session.get("article") or "").strip() and str(state.draft or "").strip():
+        session["article"] = state.draft
+        restored.append("article")
+
+    if session.get("framework") is None and state.outline:
+        lines = [
+            str(item.get("content") if isinstance(item, dict) else item).strip()
+            for item in state.outline
+        ]
+        lines = [line for line in lines if line]
+        if lines:
+            strategy = state.writing_strategy if isinstance(state.writing_strategy, dict) else {}
+            session["framework"] = {
+                "name": str(strategy.get("name") or "SCQA"),
+                "reason": "来自 ArticleState",
+                "outline": lines,
+                "source": "article_state",
+            }
+            restored.append("framework")
+
+    title = str(state.selected_title or state.topic or "").strip()
+    if not str(session.get("topic") or "").strip() and title:
+        session["topic"] = title
+        restored.append("topic")
+
+    if restored:
+        session.setdefault("status", "ready_for_review")
+    return {"restored": restored}
+
+
 def _source_records(raw: Any) -> list[dict[str, Any]]:
     records = []
     for index, item in enumerate(raw or []):
