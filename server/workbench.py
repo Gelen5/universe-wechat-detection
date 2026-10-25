@@ -690,6 +690,21 @@ issues 只列事实边界、原意保真、明显病句或用户明确要求等�
                     issue for issue in diagnosis['issues'] if issue not in retained_issues
                 ]
             diagnosis = _anchor_review_issues(diagnosis, candidate)
+            # 复核的改稿环节只能替换正文片段，改不了 H1 标题。若某一轮的意见全落在
+            # 标题上，它会永远无法收敛——实测一次跑了 886 秒后因此判失败。这类意见
+            # 转入待办，交给用户在编辑器里改，不再阻塞整篇。
+            title_line = (candidate.strip().splitlines() or [''])[0]
+            title_notes = [issue for issue in diagnosis.get('issues') or []
+                           if isinstance(issue, dict)
+                           and title_line.startswith('#')
+                           and str(issue.get('quote') or '').strip()
+                           and str(issue.get('quote')).strip() in title_line
+                           and len(str(issue.get('quote')).strip()) >= 4]
+            if title_notes and len(title_notes) == len(diagnosis.get('issues') or []):
+                diagnosis['title_notes'] = title_notes
+                diagnosis['issues'] = []
+                diagnosis['fidelity_ok'] = True
+                diagnosis['readability_ok'] = True
             audit = _anti_ai_audit(article, candidate, session)
             records.append({'round':attempt, 'diagnosis':diagnosis, 'audit':audit})
             (directory / 'run.json').write_text(json.dumps(session['review_run'],ensure_ascii=False,indent=2),encoding='utf-8')

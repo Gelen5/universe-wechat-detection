@@ -1,4 +1,4 @@
-import tempfile
+﻿import tempfile
 import unittest
 import json
 import base64
@@ -415,6 +415,24 @@ class PipelineTests(unittest.TestCase):
                 else:
                     with self.assertRaises(w.ProviderError): w._review(candidate,{'id':'test'})
 
+    def test_title_only_issues_do_not_block_the_article(self):
+        """复核改不了标题，只针对标题的意见应转为待办而不是让整篇失败。"""
+        article = '# 老店为什么关了？：一个观察\n\n正文内容。'
+        diagnosis = {'issues': [{'quote': '老店为什么关了？：一个观察', 'reason': '标点层级冲突',
+                                 'fix': '改成陈述句标题'}],
+                     'reason': '仅标题表达问题', 'fidelity_ok': False, 'readability_ok': False}
+        audit = {'status': 'success', 'complete_sentence_ratio': 1, 'missing_protected_spans': {}}
+        with tempfile.TemporaryDirectory() as directory, \
+             patch.object(w, 'OUTPUT_DIR', Path(directory)), \
+             patch.object(w, '_review_skill_context', return_value=('Skill rules', [])), \
+             patch.object(skill_runtime, 'script', side_effect=[{'signals': []}, {'review_items': []}]), \
+             patch.object(skill_runtime, 'length_issue', return_value=None), \
+             patch.object(w, '_anti_ai_audit', return_value=audit), \
+             patch.object(w, '_json_text', side_effect=[diagnosis]), \
+             patch.dict('os.environ', {'WECHAT_REVIEW_ROUNDS': '1'}):
+            revised, report = w._review(article, {'id': 'title-notes', 'brief': '审稿'})
+        self.assertEqual(revised, article)
+        self.assertEqual(report['gate'], 'passed')
     def test_review_accepts_with_notes_instead_of_failing_on_wording(self):
         """只剩措辞建议时应该带保留意见通过，而不是把整篇判失败。"""
         article = '这是一段待审正文。'
@@ -434,4 +452,5 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(report['gate'], 'passed')
         self.assertEqual(1, len(report['pending_review_notes']))
         self.assertIn('谁在等', report['pending_review_notes'][0]['fix'])
+
 
