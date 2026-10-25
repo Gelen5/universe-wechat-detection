@@ -62,7 +62,7 @@ class ApiTests(unittest.TestCase):
 
         with patch.object(hotspots, "_redis", return_value=None), \
                 patch.object(hotspots, "_collect", side_effect=fake_collect):
-            data = self.client.get("/api/hotspots?limit=10").json()
+            data = self.client.get("/api/hotspots?limit=50").json()
         self.assertEqual(len(hotspots.DEFAULT_PLATFORMS), len(data["items"]))
         self.assertFalse(data["degraded"])
         self.assertTrue(all(item["url"].startswith("https://") for item in data["items"]))
