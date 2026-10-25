@@ -1,12 +1,14 @@
 """One node engine shared by automatic and interactive creator modes."""
 from __future__ import annotations
 
+import os
 import time
 from typing import Any
 
 from . import accounts, workbench
 from . import skill_article_adapter
 from .observability import event as log_event
+from .providers import call_context
 from .workflow_repository import NODES
 
 
@@ -17,17 +19,27 @@ def _legacy_session(workflow: dict[str, Any]) -> dict[str, Any]:
     return session
 
 
-def execute_node(workflow: dict[str, Any], node_name: str) -> dict[str, Any]:
-    """Run one node and record how long it actually took.
+def _node_budget_seconds() -> float:
+    """Wall-clock budget for one node, so retries cannot run away.
 
-    Per-node durations are the missing input for every speed decision: without
-    them "this node is slow" is an impression. The event lands in the normal
-    structured log with the workflow, node and outcome.
+    Without it the workflow path had no deadline at all: a 183-second relay
+    timeout could be retried three times inside a single review node.
     """
+    try:
+        return max(60.0, float(os.getenv("WECHAT_NODE_BUDGET_SECONDS", "540") or 540))
+    except ValueError:
+        return 540.0
+
+
+def execute_node(workflow: dict[str, Any], node_name: str) -> dict[str, Any]:
+    """Run one node, bound its retries to a deadline, and record how long it took."""
     started = time.monotonic()
     status = "ok"
+    budget = _node_budget_seconds()
     try:
-        return _execute_node(workflow, node_name)
+        with call_context.bind(user_id=workflow.get("user_id"),
+                               deadline=started + budget):
+            return _execute_node(workflow, node_name)
     except Exception as exc:
         status = type(exc).__name__
         raise

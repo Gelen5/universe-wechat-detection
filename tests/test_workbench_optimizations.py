@@ -159,6 +159,25 @@ class NodeModelTieringTests(unittest.TestCase):
 
 
 class NodeTimingTests(unittest.TestCase):
+    def test_execute_node_binds_a_deadline(self):
+        """没有 deadline 时，183 秒的中转超时可以被重试三次而无人叫停。"""
+        from server.providers import call_context
+
+        seen = {}
+
+        def probe(workflow, node):
+            seen["remaining"] = call_context.remaining_seconds()
+            seen["after"] = call_context.current()
+            return {}
+
+        with mock.patch.object(workflow_engine, "_execute_node", probe), \
+             mock.patch.object(workflow_engine, "log_event", lambda *a, **k: None):
+            workflow_engine.execute_node({"id": "w1", "user_id": "u1"}, "review")
+        self.assertIsNotNone(seen["remaining"])
+        self.assertGreater(seen["remaining"], 0)
+        # 退出节点后不能把 deadline 泄漏给下一个节点
+        self.assertIsNone(call_context.remaining_seconds())
+
     def test_execute_node_records_duration_and_node(self):
         events = []
         with mock.patch.object(workflow_engine, "_execute_node", lambda w, n: {"ok": True}), \
