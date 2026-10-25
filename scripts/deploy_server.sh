@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+﻿#!/usr/bin/env bash
 # 唯一的部署入口：从 GitHub main 拉取指定提交，新 release 目录 + 重建镜像。
 #
 #   sudo bash deploy.sh              # 部署当前 main
@@ -196,7 +196,7 @@ check 'grep -q chat-steps static/conversation-workbench.js' '进度卡'
 check 'grep -q bookshelf server/main.py' 'AI 书架'
 # Probe configured node models: relays rename models and revoke per-group access.
 echo "  == node models"
-docker exec "${PROJECT}-web-1" python scripts/check_node_models.py 2>&1 | sed "s/^/  /" \
+docker exec "${PROJECT}-web-1" python scripts/node_model_probe.py 2>&1 | sed "s/^/  /" \
   || warn "some node models are unavailable; revert those WECHAT_*_MODEL vars before deploying"
 echo "  版本 $(docker exec ${PROJECT}-web-1 grep -o 'conversation-workbench.js?v=[0-9a-z-]*' static/index.html | head -1)"
 curl -fsS -m 5 -o /dev/null -w "  /health/ready -> %{http_code}\n" "$HEALTH_URL" || true

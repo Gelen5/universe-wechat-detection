@@ -1,4 +1,4 @@
-"""Unit tests for the deployment-time node model probe."""
+﻿"""Unit tests for the deployment-time node model probe."""
 from __future__ import annotations
 
 import importlib.util
@@ -7,8 +7,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-_SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "check_node_models.py"
-_spec = importlib.util.spec_from_file_location("check_node_models", _SCRIPT)
+_SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "node_model_probe.py"
+_spec = importlib.util.spec_from_file_location("node_model_probe", _SCRIPT)
 check = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(check)
 
