@@ -87,3 +87,29 @@ def test_sidebar_settings_button_reuses_existing_menu_and_supports_keyboard(ui):
     expect(toggle).to_have_attribute('aria-expanded', 'false')
     page.locator('.app-tabs [data-view="home"]').click()
     expect(toggle).to_be_hidden()
+
+
+@pytest.mark.parametrize('width', [1101, 1280, 1440, 1920, 2560])
+def test_adaptive_workspace_uses_available_width_without_stretching_reading(ui, width):
+    page, _ = ui
+    page.set_viewport_size({'width':width,'height':1229})
+    page.goto('http://ui.test/workbench')
+    nav = page.locator('.v3-topbar').bounding_box()
+    workspace = page.locator('#workbench').bounding_box()
+    chat = page.locator('#creation-assistant').bounding_box()
+    canvas = page.locator('#workbench-result').bounding_box()
+    assert 24 <= workspace['x'] - nav['x'] - nav['width'] <= 32
+    assert 24 <= width - workspace['x'] - workspace['width'] <= 40
+    assert abs(canvas['x'] + canvas['width'] - workspace['x'] - workspace['width']) < 1
+    assert chat['width'] <= 561
+    assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
+    assert float(page.locator('#workbench-stage-nav small').first.evaluate('e=>getComputedStyle(e).fontSize').replace('px','')) >= 12
+    assert float(page.locator('.chat-message p').first.evaluate('e=>getComputedStyle(e).fontSize').replace('px','')) >= 16
+    article = '## 阅读宽度测试\n\n' + '这是一份临时排版测试稿，不会提交给模型或保存到真实会话。' * 10
+    page.locator('#article-editor').evaluate('''(el,text)=>{
+        el.value=text; el.dispatchEvent(new Event('input',{bubbles:true}));
+        el.closest('.editor-wrap').hidden=false;
+    }''', article)
+    expect(page.locator('.folio-doc p').first).to_be_visible()
+    assert page.locator('.editor-wrap').bounding_box()['width'] <= 861
+    assert float(page.locator('.folio-doc p').first.evaluate('e=>getComputedStyle(e).fontSize').replace('px','')) >= 17
