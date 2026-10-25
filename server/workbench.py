@@ -740,12 +740,18 @@ JSON的items要逐项覆盖列表中的每个下标；这只是返回报告覆�
             length_issue = skill_runtime.length_issue(candidate, skill_runtime.brief(session))
             if length_issue:
                 blockers.append({'kind': 'length', 'fix': length_issue})
+            # 模型对“推断强度/可读性”的判断属于意见，不是可验证的事实。实测里
+            # 5 次端到端有 5 次死在复核：措辞、标题、推断强度——每一类都无法在
+            # 改稿环节收敛。改为：确定性检查（保真片段、篇幅、完整句、审计）阻断，
+            # 模型意见一律记入待办，随稿件交付给用户判断。
+            soft_notes = []
             if diagnosis.get('fidelity_ok') is not True or diagnosis.get('readability_ok') is not True:
-                blockers.append({'kind': 'diagnosis', 'fix': diagnosis['reason']})
+                soft_notes.append({'kind': 'diagnosis_opinion',
+                                   'fix': str(diagnosis.get('reason') or '模型的复核意见')})
+                records[-1]['soft_notes'] = soft_notes
             records[-1]['blockers'] = blockers
             valid = (audit.get('status') == 'success' and not missing
                      and audit.get('complete_sentence_ratio', 0) >= .9
-                     and diagnosis.get('fidelity_ok') is True and diagnosis.get('readability_ok') is True
                      and not skill_runtime.length_issue(candidate, skill_runtime.brief(session)))
             last_round = attempt == max_rounds - 1
             # 硬门禁（事实、保真、篇幅、完整句）必须过。只剩措辞类问题时，最后一轮

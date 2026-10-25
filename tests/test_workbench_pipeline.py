@@ -415,6 +415,25 @@ class PipelineTests(unittest.TestCase):
                 else:
                     with self.assertRaises(w.ProviderError): w._review(candidate,{'id':'test'})
 
+    def test_model_opinion_does_not_block_delivery(self):
+        """模型的推断/可读性意见只记录，不阻断；确定性检查仍阻断。"""
+        article = '# 标题\n\n正文提到房租可能是共同原因。'
+        diagnosis = {'issues': [{'quote': '共同原因', 'reason': '推断强度过高', 'fix': '改成可能'}],
+                     'reason': '推断强度过高，现有条件不足以支撑', 'fidelity_ok': False, 'readability_ok': True}
+        audit = {'status': 'success', 'complete_sentence_ratio': 1, 'missing_protected_spans': {}}
+        with tempfile.TemporaryDirectory() as directory, \
+             patch.object(w, 'OUTPUT_DIR', Path(directory)), \
+             patch.object(w, '_review_skill_context', return_value=('Skill rules', [])), \
+             patch.object(skill_runtime, 'script', side_effect=[{'signals': []}, {'review_items': []}]), \
+             patch.object(skill_runtime, 'length_issue', return_value=None), \
+             patch.object(w, '_anti_ai_audit', return_value=audit), \
+             patch.object(w, '_json_text', side_effect=[diagnosis]), \
+             patch.dict('os.environ', {'WECHAT_REVIEW_ROUNDS': '1'}):
+            revised, report = w._review(article, {'id': 'opinion', 'brief': '审稿'})
+        self.assertEqual(report['gate'], 'passed')
+        self.assertEqual(revised, article)
+        self.assertEqual(1, len(report['pending_review_notes']))
+
     def test_title_only_issues_do_not_block_the_article(self):
         """复核改不了标题，只针对标题的意见应转为待办而不是让整篇失败。"""
         article = '# 老店为什么关了？：一个观察\n\n正文内容。'
