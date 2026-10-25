@@ -7,7 +7,7 @@ after the points were reserved.
 
 Run it inside the web/worker container (it reads the app's own settings):
 
-    python scripts/check_node_models.py
+    python scripts/node_model_probe.py
 
 Exit code 0 when every configured model answers, 1 otherwise.
 """
@@ -15,11 +15,17 @@ from __future__ import annotations
 
 import os
 import sys
+from pathlib import Path
 from typing import Any
 
 import requests
 
-from server import accounts
+# Running it as a plain file does not put the repo root on sys.path.
+_ROOT = Path(__file__).resolve().parents[1]
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+
+from server import accounts  # noqa: E402  (after the sys.path bootstrap)
 
 # Every knob the pipeline can send a model name to.
 NODE_VARS = (
