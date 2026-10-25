@@ -239,7 +239,10 @@ def load(platform: str = "", query: str = "", limit: int = 60) -> dict:
                 items.extend(json.loads(raw))
     global _LAST_ATTEMPT
     now = time.time()
-    if not items and now - _LAST_ATTEMPT > 60:  # 冷启动或缓存过期：最多每分钟补一次
+    cached = {item["platform"] for item in items}
+    missing = [pid for pid in wanted if pid not in cached]
+    # 冷启动、缓存过期，或者新增了平台还没有缓存：最多每分钟补一次
+    if (not items or missing) and now - _LAST_ATTEMPT > 60:
         _LAST_ATTEMPT = now
         if client is None:
             runs = _collect([platform] if platform in NAMES else None)
