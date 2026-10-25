@@ -544,19 +544,11 @@
         <div class="chat-action-row">
           <button type="button" class="chat-action-primary" data-retry-stage="${escapeHtml(stage)}">重试：${escapeHtml(stageLabel(stage))}</button>
         </div>`;
-    } else if (!topicItem) {
-      // 直接给主题的用法会跳过候选选题：只要大纲已经在了，就继续往下走，
-      // 不要再把用户退回「先告诉我你想写什么」。
-      html = stageArtifact('outline')
-        ? `<strong>大纲已就绪</strong>
-        <p>你是直接给的主题，跳过了候选选题这一步。可以接着写正文，也可以补一批方向备选。</p>
-        <div class="chat-action-row">
-          <button type="button" class="chat-action-primary" data-next-stage="writing">继续：写作</button>
-          <button type="button" class="chat-action-ghost" data-retry-stage="topic">补一批选题</button>
-        </div>`
-        : `<strong>先告诉我你想写什么</strong>
+    } else if (!topicItem && !stageArtifact('outline')) {
+      // 真正的起点：既没有选题作品，也没有大纲。
+      html = `<strong>先告诉我你想写什么</strong>
         <p>一句话就够，例如「写一篇给 30 岁职场人的 AI 工具实测」。</p>`;
-    } else if (!selectedTopic) {
+    } else if (topicItem && !selectedTopic) {
       const topics = (topicItem.content_json?.topics || []).filter(choice => topicTitle(choice));
       html = `<strong>${topics.length ? `${topics.length} 个方向已就绪` : '还没有可用方向'}</strong>
         <p>${topics.length
@@ -567,10 +559,14 @@
           <button type="button" class="${topics.length ? 'chat-action-ghost' : 'chat-action-primary'}" data-retry-stage="topic">${topics.length ? '换一批' : '重新生成选题'}</button>
         </div>`;
     } else if (next) {
-      html = `<strong>下一步：${escapeHtml(stageLabel(next))}</strong>
-        <p class="chat-selection-label">已选方向</p>
+      // 卡片跟着作品链走：用户直接给主题时没有选题作品，也不能因此停在「大纲已就绪」。
+      const direction = topicItem && selectedTopic
+        ? `<p class="chat-selection-label">已选方向</p>
         <p class="chat-selected-topic">${escapeHtml(selectedTopic)}</p>
-        <p class="chat-action-note">已完成的阶段会保留，可随时返回修改。</p>
+        <p class="chat-action-note">已完成的阶段会保留，可随时返回修改。</p>`
+        : `<p class="chat-action-note">你是直接给的主题，跳过了候选选题这一步；已完成的阶段会保留。</p>`;
+      html = `<strong>下一步：${escapeHtml(stageLabel(next))}</strong>
+        ${direction}
         <div class="chat-action-row">
           <button type="button" class="chat-action-primary" data-next-stage="${next}">继续：${escapeHtml(stageLabel(next))}</button>
           ${next === 'typeset' ? '' : '<button type="button" class="chat-action-ghost" data-next-stage="typeset">直接排版</button>'}
