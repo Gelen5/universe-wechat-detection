@@ -385,7 +385,7 @@ def _text(prompt: str, *, reasoning: str | None = None, model: str | None = None
     response = None
     if REVIEW_REASONING.get():
         attempts = 2
-        request_timeout = min(request_timeout, 90)
+        request_timeout = min(request_timeout, max(30, int(_setting("WECHAT_REVIEW_REQUEST_TIMEOUT", "120"))))
     for attempt in range(attempts):
         cancelled = attribution.get('is_cancelled')
         if cancelled and cancelled():

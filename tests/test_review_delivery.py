@@ -67,7 +67,7 @@ class ReviewDeliveryTests(unittest.TestCase):
                     ProviderRequestError('upstream unavailable', transient=True), ProviderResponse(text='OK')]
                 self.assertEqual('OK', w._text('diagnose'))
                 self.assertEqual(2, service.return_value.create_response.call_count)
-                self.assertLessEqual(service.return_value.create_response.call_args.kwargs['timeout'], 90)
+                self.assertLessEqual(service.return_value.create_response.call_args.kwargs['timeout'], 120)
         finally:
             w.REVIEW_REASONING.reset(token)
 
