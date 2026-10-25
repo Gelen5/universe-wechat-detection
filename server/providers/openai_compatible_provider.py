@@ -26,7 +26,7 @@ class OpenAICompatibleProvider(ModelProvider):
                  session: requests.Session | None = None,
                  reasoning_effort: str | None = None):
         self.api_key = api_key
-        self.responses_api = base_url.strip().rstrip("/").endswith("/responses")
+        self.responses_api = base_url.strip().rstrip("/").endswith("/responses") or text_model == "gpt-6.1-sol"
         if self.responses_api:
             base_url = base_url.strip().rstrip("/").removesuffix("/responses")
         self.base_url = self._v1(base_url)
@@ -50,6 +50,8 @@ class OpenAICompatibleProvider(ModelProvider):
             return self._create_responses_response(messages, tools=tools, timeout=timeout,
                                                    idempotency_key=idempotency_key)
         body: dict[str, Any] = {"model": self.text_model, "messages": messages}
+        if self.reasoning_effort:
+            body["reasoning_effort"] = self.reasoning_effort
         if tools:
             body["tools"] = [{"type": "function", "function": tool} for tool in tools]
             body["tool_choice"] = "auto"
@@ -96,11 +98,14 @@ class OpenAICompatibleProvider(ModelProvider):
             body["tools"] = [{"type": "function", **tool} for tool in tools]
             body["tool_choice"] = "auto"
         body["stream"] = True
+        deadline = time.monotonic() + timeout
         response = self._request("POST", self.base_url + "/responses", self.api_key, body,
                                  timeout, idempotency_key, stream=True)
         data: dict[str, Any] | None = None
         try:
             for line in response.iter_lines():
+                if time.monotonic() >= deadline:
+                    raise ProviderRequestError('provider response exceeded time budget', code='deadline', transient=False)
                 if not line or not line.startswith(b"data: "):
                     continue
                 try:

@@ -26,6 +26,7 @@ from typing import Any
 import uuid
 
 import requests
+from .providers import call_context
 from . import accounts
 from . import skill_runtime
 from . import workbench_research
@@ -350,11 +351,11 @@ def _text(prompt: str, *, reasoning: str | None = None, model: str | None = None
     # ever received REVIEW_REASONING, so callers asking for a specific effort
     # got the default. Honour the argument, keep the review override, and let
     # an unset value mean "send no reasoning field at all".
-    effort = REVIEW_REASONING.get() or reasoning or None
+    effort = _setting("WECHAT_REASONING_EFFORT") or REVIEW_REASONING.get() or reasoning or "medium"
     provider = OpenAICompatibleProvider(
         api_key=_setting("WECHAT_TEXT_API_KEY"),
         base_url=base_url or _setting("WECHAT_TEXT_API_BASE_URL") or _setting("WECHAT_API_BASE_URL", "https://api.openai.com/v1"),
-        text_model=model or _setting("WECHAT_TEXT_MODEL", "gpt-4.1-mini"),
+        text_model=model or _setting("WECHAT_TEXT_MODEL", "gpt-6.1-sol"),
         image_api_key=_setting("WECHAT_IMAGE_API_KEY") or _setting("WECHAT_TEXT_API_KEY"),
         image_base_url=_setting("WECHAT_IMAGE_API_BASE_URL") or _setting("WECHAT_API_BASE_URL", "https://api.openai.com/v1"),
         image_model=_setting("WECHAT_IMAGE_MODEL", "gpt-image-2"), verify_ssl=_verify_ssl(),
@@ -376,9 +377,24 @@ def _text(prompt: str, *, reasoning: str | None = None, model: str | None = None
     ]
     idempotency_key = (attribution.get("idempotency_key")
                        or _setting("WECHAT_REQUEST_IDEMPOTENCY_KEY") or None)
+    if idempotency_key:
+        # Each logical provider request gets a stable key of its own. Distinct
+        # diagnosis/edit prompts must never replay each other's response.
+        idempotency_key = idempotency_key[:110] + ':' + skill_runtime.digest(str(model) + prompt)[:32]
     attempts = max(1, int(_setting("WECHAT_TEXT_ATTEMPTS", "3") or 3))
     response = None
+    if REVIEW_REASONING.get():
+        attempts = 1
+        request_timeout = min(request_timeout, 90)
     for attempt in range(attempts):
+        cancelled = attribution.get('is_cancelled')
+        if cancelled and cancelled():
+            raise ProviderError('任务已取消，停止后续模型调用')
+        left = call_context.remaining_seconds()
+        if left is not None:
+            if left <= 0:
+                raise ProviderError('执行时间预算已用完，请重试；原稿已保留')
+            request_timeout = min(request_timeout, left)
         try:
             response = service.create_response(
                 messages, timeout=request_timeout, idempotency_key=idempotency_key,
@@ -692,7 +708,16 @@ def _anti_ai_redlines(text: str, *, limit: int = _REDLINE_SUMMARY) -> list[dict[
     return issues[:limit]
 
 
-def _review(article: str, session: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+def _review(article: str, session: dict[str, Any], progress=None) -> tuple[str, dict[str, Any]]:
+    inherited = call_context.current()
+    deadline = min(inherited.get('deadline') or float('inf'),
+                   time.monotonic() + max(60, int(_setting('WECHAT_REVIEW_TIMEOUT', '240'))))
+    with call_context.bind(**{key: inherited.get(key) for key in (
+            'run_id', 'user_id', 'usage_recorder', 'cost_policy', 'idempotency_key', 'is_cancelled')}, deadline=deadline):
+        return _review_impl(article, session, progress)
+
+
+def _review_impl(article: str, session: dict[str, Any], progress=None) -> tuple[str, dict[str, Any]]:
     instructions, manifest = _review_skill_context(ANTI_AI_SKILL_DIR)
     directory = OUTPUT_DIR / session['id'] / 'anti_ai'
     directory.mkdir(parents=True, exist_ok=True)
@@ -701,11 +726,10 @@ def _review(article: str, session: dict[str, Any]) -> tuple[str, dict[str, Any]]
     candidate = article
     records = []
     session['review_run'] = {'status':'running', 'manifest':manifest, 'rounds':records}
-    reasoning_token = REVIEW_REASONING.set('low')
-    # Four unconditional rounds cost up to twelve model calls on the slowest
-    # node. Two rounds cover the real cases (fact fixes + one re-check) and the
-    # loop still exits as soon as the draft is clean.
-    max_rounds = max(1, min(4, int(_setting("WECHAT_REVIEW_ROUNDS", "2") or 2)))
+    reasoning_token = REVIEW_REASONING.set(_setting('WECHAT_REASONING_EFFORT', 'medium'))
+    # One diagnosis/edit pass followed by local validation; do not spend a
+    # second model round rediscovering wording preferences.
+    max_rounds = max(1, min(4, int(_setting("WECHAT_REVIEW_ROUNDS", "1") or 1)))
     try:
         for attempt in range(max_rounds):
             current_path = directory / f'round-{attempt}.txt'
@@ -716,6 +740,8 @@ def _review(article: str, session: dict[str, Any]) -> tuple[str, dict[str, Any]]
                             'review_items', 'warnings', 'repeated_sentence_openings')
             prose_for_prompt = {key: prose[key] for key in prose_fields if key in prose}
             original_for_prompt = article if candidate != article else '与当前稿相同'
+            if progress:
+                progress('generating', {'label': '正在定位表达与事实问题', 'round': attempt + 1})
             diagnosis = _json_text(f'''{instructions}
 当前只做标准改稿复核，不执行发布。用户需求和事实边界优先。
 完整需求：{skill_runtime.brief(session)}
@@ -827,12 +853,13 @@ JSON的items要逐项覆盖列表中的每个下标；这只是返回报告覆�
             # 硬门禁（事实、保真、篇幅、完整句）必须过。只剩措辞类问题时，最后一轮
             # 接受当前稿并记录待办——为一句“等待时间是谁在等”把写完并复核过的整篇
             # 文章判失败，用户损失的是十几分钟和一次任务。
-            if valid and (not diagnosis['issues'] or last_round):
+            if valid and not diagnosis['issues']:
                 pending_notes = [
                     {'quote': str(issue.get('quote') or ''), 'reason': str(issue.get('reason') or ''),
                      'fix': str(issue.get('fix') or '')}
                     for issue in diagnosis['issues'] if isinstance(issue, dict)
                 ]
+                pending_notes.extend(diagnosis.get('title_notes') or [])
                 session['review_run']['status'] = 'passed'
                 if pending_notes:
                     session['review_run']['pending_notes'] = pending_notes
@@ -844,9 +871,8 @@ JSON的items要逐项覆盖列表中的每个下标；这只是返回报告覆�
                 return candidate, {'source':'universe-delete-ai-skill', 'model':_setting('WECHAT_TEXT_MODEL'),
                     'action':'Skill 文件加载 → 定位检查 → 定向修稿 → 二次复核', 'audit':audit,
                     'gate':'passed', 'article_sha256':skill_runtime.digest(candidate), 'changed':candidate != article,
+                    'summary': '已复核，正文无需修改',
                     'manifest':manifest, 'rounds':records, 'pending_review_notes':pending_notes}
-            if last_round:
-                break
             anchored_issues = [
                 (index, issue) for index, issue in enumerate(diagnosis['issues'])
                 if isinstance(issue, dict) and str(issue.get('quote') or '').strip()
@@ -877,6 +903,8 @@ issues为空不表示通过；必须同时修复上述拦截原因。原话保�
 issue_index 对应以下已由复核定位、逐字来自当前稿的片段列表：{json.dumps(issue_anchors, ensure_ascii=False)}。
 每个需要修改的问题必须用 issue_index 指向。原片段在当前稿唯一时不要返回 before；重复时可提供 before，必须包含原片段与能唯一定位的原样上下文，after 必须保留上下文不变。若无法逐字复制唯一上下文，可改用 occurrence（该片段从前到后的出现序号，从1开始）和 replacement（只替换该片段本身的文字），不要猜测上下文。
 若问题只是修辞且会删改或替换引号内原话，必须把该问题的下标放入 retained_issue_indexes，不得编造替代文本；其余问题必须修改。每个片段在当前稿中必须唯一；不要改变无关内容。'''
+            if progress:
+                progress('generating', {'label': '正在按定位问题局部改稿', 'issues': len(issue_anchors)})
             edits, revised = _validated_local_edits(
                 candidate, edit_prompt,
                 require_edits=bool([i for _, i in anchored_issues] or blockers), anchors=issue_anchors,
@@ -899,6 +927,26 @@ issue_index 对应以下已由复核定位、逐字来自当前稿的片段列�
             if revised.strip() == candidate.strip() and diagnosis['issues']:
                 records[-1]['unchanged_with_issues'] = True
             candidate = revised
+            if progress:
+                progress('generating', {'label': '正在检查修订稿保真与可读性'})
+            final_audit = _anti_ai_audit(article, candidate, session)
+            final_missing = {key: values for key, values in (final_audit.get('missing_protected_spans') or {}).items() if values and not (key == 'quoted_text' and all(str(value).strip('“”‘’\"\'') in candidate for value in values))}
+            # A fresh local audit must validate the changed text; an old diagnosis
+            # cannot certify the new candidate. No extra model round is needed.
+            if final_audit.get('status') == 'success' and not final_missing and final_audit.get('complete_sentence_ratio', 0) >= .9 and not skill_runtime.length_issue(candidate, skill_runtime.brief(session)):
+                records[-1]['post_edit_audit'] = final_audit
+                changed = candidate != article
+                notes = unlocatable if changed else diagnosis['issues'] + records[-1].get('retained_by_protection', [])
+                session['review_run']['status'] = 'passed'
+                (directory / 'run.json').write_text(json.dumps(session['review_run'], ensure_ascii=False, indent=2), encoding='utf-8')
+                return candidate, {'source': 'universe-delete-ai-skill', 'model': _setting('WECHAT_TEXT_MODEL'),
+                    'gate': 'passed', 'changed': changed, 'audit': final_audit,
+                    'article_sha256': skill_runtime.digest(candidate), 'manifest': manifest, 'rounds': records,
+                    'pending_review_notes': notes,
+                    'summary': '已完成局部改稿并通过检查' if changed else '已复核，正文未修改；请查看保留原因与待办'}
+            audit = final_audit
+            blockers = [{'kind': 'protected_spans' if final_missing else 'audit',
+                         'fix': '修订稿未通过保真、完整句或篇幅检查', 'missing': final_missing}]
         reasons = [str(issue.get('reason', '')) for issue in diagnosis['issues'] if isinstance(issue, dict)]
         reasons.extend(str(item['fix']) for item in blockers)
         detail = '；'.join(reason for reason in reasons if reason)[:500] or '复核结果未满足通过条件'
@@ -999,7 +1047,7 @@ def _validated_local_edits(
                     break
     context_hint = ("\n重复片段的唯一定位候选（选择对应位置并逐字复制 before；after 保留前后上下文）："
                     + json.dumps(repeated_contexts, ensure_ascii=False)) if repeated_contexts else ""
-    for _ in range(3):
+    for _ in range(2):
         correction = '' if not errors else '\n上次返回无效：' + '；'.join(errors) + '。若原片段重复，可逐字复制唯一 before 上下文并让 after 保留上下文；也可填写 occurrence（从1开始的出现序号）与 replacement（仅替换原片段）。保留引号内原话。'
         payload = _json_text(prompt + context_hint + correction, model=model)
         edit_list = payload.get('edits') if isinstance(payload, dict) else None

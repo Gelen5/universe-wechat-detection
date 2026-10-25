@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 import shutil
+from server.providers import call_context
 
 from server import conversation_repository
 from server.skills.adapter_support import article_result, model_image, required_text, topics_result, with_provider
@@ -23,7 +24,7 @@ def create_tools():
         if items is None:
             items = conversation_repository.list_artifacts(context.conversation_id, context.user_id)
         return max((item for item in items if item["type"] == artifact_type),
-                   key=lambda item: (item.get("version", 0), item.get("created_at", "")), default=None)
+                   key=lambda item: (item.get("created_at", ""), item.get("version", 0)), default=None)
 
     def search_topics(args, context):
         session = {}
@@ -111,8 +112,16 @@ def create_tools():
             "images": [],
             "skill_runs": [],
         }
-        reviewed, report = with_provider(lambda: workbench._review(article, session))
-        progress_for(context)("generated", {"label": "复核完成", "count": len(reviewed)})
+        progress = progress_for(context)
+        inherited = call_context.current()
+        # Retrying the entire review repeats successful calls and discards edits.
+        # The provider layer owns the per-request retry policy instead.
+        with workbench.provider_overrides(), call_context.bind(
+            **{key: inherited.get(key) for key in ('run_id', 'user_id', 'usage_recorder', 'cost_policy', 'idempotency_key')},
+            deadline=inherited.get("deadline"), is_cancelled=context.is_cancelled):
+            reviewed, report = workbench._review(article, session, progress=progress)
+        report.setdefault('summary', '复核仍有待办，请查看报告；当前稿已保留' if report.get('gate') != 'passed' else ('已完成局部改稿并通过检查' if report.get('changed') else '已复核，正文未修改；未发现可安全执行的修改，详情见报告'))
+        progress_for(context)("generated", {"label": report["summary"], "count": len(reviewed)})
         return ToolResult({"title": session["topic"], "article": reviewed, "review": report}, (
             ArtifactOutput(type="article", title=session["topic"], content=reviewed),
             ArtifactOutput(type="report", title="反 AI 复核报告", content_json=report),

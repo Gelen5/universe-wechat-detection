@@ -92,7 +92,7 @@ class PipelineTests(unittest.TestCase):
         self.assertNotIn('duplicate', prompt)
         self.assertEqual(revised, article)
         self.assertEqual(report['gate'], 'passed')
-        self.assertEqual(observed_effort, ['low'])
+        self.assertEqual(observed_effort, ['medium'])
         self.assertIsNone(w.REVIEW_REASONING.get())
 
     def test_review_reasoning_effort_resets_after_failure(self):
@@ -455,6 +455,7 @@ class PipelineTests(unittest.TestCase):
              patch.object(skill_runtime, 'length_issue', return_value=None), \
              patch.object(w, '_anti_ai_audit', return_value=audit), \
              patch.object(w, '_json_text', side_effect=[diagnosis]), \
+             patch.object(w, '_validated_local_edits', return_value=({'edits': [], 'retained_issue_indexes': [0]}, article)), \
              patch.dict('os.environ', {'WECHAT_REVIEW_ROUNDS': '1'}):
             revised, report = w._review(article, {'id': 'opinion', 'brief': '审稿'})
         self.assertEqual(report['gate'], 'passed')
@@ -475,6 +476,7 @@ class PipelineTests(unittest.TestCase):
              patch.object(skill_runtime, 'length_issue', return_value=None), \
              patch.object(w, '_anti_ai_audit', return_value=audit), \
              patch.object(w, '_json_text', side_effect=[diagnosis]), \
+             patch.object(w, '_validated_local_edits', return_value=({'edits': [], 'retained_issue_indexes': [0]}, article)), \
              patch.dict('os.environ', {'WECHAT_REVIEW_ROUNDS': '1'}):
             revised, report = w._review(article, {'id': 'title-notes', 'brief': '审稿'})
         self.assertEqual(revised, article)
@@ -492,6 +494,7 @@ class PipelineTests(unittest.TestCase):
              patch.object(skill_runtime, 'length_issue', return_value=None), \
              patch.object(w, '_anti_ai_audit', return_value=audit), \
              patch.object(w, '_json_text', side_effect=[diagnosis]), \
+             patch.object(w, '_validated_local_edits', return_value=({'edits': [], 'retained_issue_indexes': [0]}, article)), \
              patch.dict('os.environ', {'WECHAT_REVIEW_ROUNDS': '1'}):
             revised, report = w._review(article, {'id': 'review-notes', 'brief': '审稿'})
         self.assertEqual(revised, article)

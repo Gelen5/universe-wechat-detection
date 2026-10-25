@@ -102,7 +102,7 @@ def run_tool_loop(*, model_service: ModelService, messages: list[dict[str, Any]]
     while True:
         if is_cancelled():
             raise RuntimeError("run cancelled")
-        if time.monotonic() - started > timeout_seconds:
+        if time.monotonic() >= deadline:
             raise TimeoutError("agent tool loop timed out")
         if not heartbeat():
             raise RuntimeError("run execution lease changed")

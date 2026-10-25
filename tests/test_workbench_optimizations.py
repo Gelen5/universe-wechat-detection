@@ -81,9 +81,9 @@ class ReasoningArgumentTests(unittest.TestCase):
         self._call(reasoning="high")
         self.assertEqual("high", _FakeService.last.provider.kwargs["reasoning_effort"])
 
-    def test_no_reasoning_argument_sends_no_effort(self):
+    def test_no_reasoning_argument_defaults_to_medium(self):
         self._call()
-        self.assertIsNone(_FakeService.last.provider.kwargs["reasoning_effort"])
+        self.assertEqual("medium", _FakeService.last.provider.kwargs["reasoning_effort"])
 
     def test_review_override_wins(self):
         token = workbench.REVIEW_REASONING.set("low")

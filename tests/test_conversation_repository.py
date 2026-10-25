@@ -36,6 +36,15 @@ class ConversationRepositoryTests(unittest.TestCase):
         database.ENGINE.dispose()
         self.temp.cleanup()
 
+    def test_cancel_closes_active_tool_and_late_finish_cannot_reopen_it(self):
+        conversation = repo.create_conversation('user-a')
+        _, run, _ = repo.create_message_run(conversation['id'], 'user-a', 'review', 'cancel-tool-test')
+        tool, _ = repo.create_tool_call(run['id'], 'user-a', call_id='call', skill_id='wechat_writer',
+            tool_name='review_article', arguments={}, idempotency_key='cancel-tool')
+        repo.cancel_run(run['id'], 'user-a')
+        finished = repo.finish_tool_call(tool['id'], run['id'], 'user-a', error='late failure')
+        self.assertEqual('cancelled', finished['status'])
+
     def test_manual_conversation_requires_skill(self):
         with self.assertRaises(ValueError):
             repo.create_conversation("user-a", mode="manual")

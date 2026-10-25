@@ -477,8 +477,9 @@
     if (stage.id === 'deai' && item) {
       const revised = latestOf('article', candidate => candidate.run_id === item.run_id);
       showArtifact(revised || item);
-      if (item.content_json?.review) {
-        stageChoices.innerHTML = `<details><summary>查看复核报告</summary><pre>${escapeHtml(JSON.stringify(item.content_json.review, null, 2))}</pre></details>`;
+      const review = item.content_json?.review || item.content_json;
+      if (review && review.gate) {
+        stageChoices.innerHTML = `<p role="status">${escapeHtml(review.summary || (review.changed ? '已生成修订稿' : '本次复核未修改正文，请查看报告'))}</p><details><summary>查看复核报告</summary><pre>${escapeHtml(JSON.stringify(review, null, 2))}</pre></details>`;
       }
     } else if (item && hasText) showArtifact(item);
     else {

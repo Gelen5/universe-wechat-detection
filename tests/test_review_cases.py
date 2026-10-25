@@ -34,6 +34,7 @@ class ReviewCaseReplay(unittest.TestCase):
              patch.object(w, '_anti_ai_audit', return_value=case['audit']), \
              patch.object(w, '_json_text', return_value=case['diagnosis']), \
              patch.object(w, '_text', return_value=case['article']), \
+             patch.object(w, '_validated_local_edits', return_value=({'edits': [], 'retained_issue_indexes': list(range(len(case['diagnosis'].get('issues', []))))}, case['article'])), \
              patch.dict('os.environ', {'WECHAT_REVIEW_ROUNDS': '1'}):
             return w._review(case['article'], {'id': case.get('id', 'case'), 'brief': '审稿'})
 

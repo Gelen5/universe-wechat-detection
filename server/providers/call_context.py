@@ -29,7 +29,7 @@ def current() -> dict[str, Any]:
 def bind(*, run_id: str | None = None, user_id: str | None = None,
          usage_recorder: Callable[[dict[str, Any]], None] | None = None,
          cost_policy: Any = None, idempotency_key: str | None = None,
-         deadline: float | None = None):
+         deadline: float | None = None, is_cancelled: Callable[[], bool] | None = None):
     value = {
         "run_id": run_id,
         "user_id": user_id,
@@ -37,6 +37,7 @@ def bind(*, run_id: str | None = None, user_id: str | None = None,
         "cost_policy": cost_policy,
         "idempotency_key": idempotency_key,
         "deadline": deadline,
+        "is_cancelled": is_cancelled,
     }
     token = _CURRENT.set(value)
     try:

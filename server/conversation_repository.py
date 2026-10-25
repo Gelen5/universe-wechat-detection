@@ -521,6 +521,8 @@ def cancel_run(run_id: str, user_id: str) -> dict[str, Any]:
         row.status, row.finished_at, row.updated_at, row.heartbeat_at = "cancelled", now, now, now
         row.celery_task_id = None
         _refund_usage_locked(db, row, 499)
+        for tool in db.scalars(select(ToolCall).where(ToolCall.run_id == row.id, ToolCall.status.in_(['queued', 'running']))):
+            tool.status, tool.finished_at, tool.error_message = 'cancelled', now, 'run cancelled'
         _event(db, row, "run.cancelled", {})
         return _run_view(row)
 

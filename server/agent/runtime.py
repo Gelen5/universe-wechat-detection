@@ -25,8 +25,9 @@ def build_model_service() -> ModelService:
     image_key = _configured("WECHAT_IMAGE_API_KEY", stored, "image_api_key") or text_key
     image_base = _configured("WECHAT_IMAGE_API_BASE_URL", stored, "image_base_url") or base
     provider = OpenAICompatibleProvider(
+        reasoning_effort=os.getenv("WECHAT_REASONING_EFFORT", "medium"),
         api_key=text_key, base_url=base,
-        text_model=_configured("WECHAT_TEXT_MODEL", stored, "text_model", "gpt-4.1-mini"),
+        text_model=_configured("WECHAT_TEXT_MODEL", stored, "text_model", "gpt-6.1-sol"),
         image_api_key=image_key, image_base_url=image_base,
         image_model=_configured("WECHAT_IMAGE_MODEL", stored, "image_model", "gpt-image-2"),
         verify_ssl=os.getenv("WECHAT_API_VERIFY_SSL", "true").lower() not in {"0", "false", "no", "off"},
@@ -90,6 +91,7 @@ def build_intent_service() -> ModelService | None:
     if not base:
         base = "https://api.openai.com/v1"
     provider = OpenAICompatibleProvider(
+        reasoning_effort=os.getenv("WECHAT_REASONING_EFFORT", "medium"),
         api_key=text_key, base_url=base, text_model=model,
         verify_ssl=os.getenv("WECHAT_API_VERIFY_SSL", "true").lower() not in {"0", "false", "no", "off"},
     )
