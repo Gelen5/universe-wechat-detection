@@ -1,0 +1,20 @@
+{
+  "note": "引号内原话被改掉：事实错误，必须阻断（即使其他检查都通过）。",
+  "article": "# 老店为什么关了\n\n她当时说的是另一句话。",
+  "diagnosis": {
+    "issues": [],
+    "reason": "语义检查",
+    "fidelity_ok": true,
+    "readability_ok": true
+  },
+  "audit": {
+    "status": "success",
+    "complete_sentence_ratio": 1,
+    "missing_protected_spans": {
+      "quoted_text": [
+        "“月底就关门”"
+      ]
+    }
+  },
+  "expect_gate": "raise"
+}

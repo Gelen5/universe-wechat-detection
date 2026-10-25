@@ -586,7 +586,9 @@ def _draft(title: str, frame: dict[str, Any], persona: str, requirements: str = 
 4. 不编造研究、人物经历、统计数字或引用。没有来源的事实明确写成观察或判断。
 5. 结构、建议数量和结尾遵守完整需求，不套固定互动问题。
 6. 不要解释写作过程，只输出文章正文。不要输出配图方案、图片占位文字，这些由后续节点处理。
-7. 标题与正文不能承诺未证实的效果、期限或收益，不能使用“核心原因只有一个”等无依据断言。"""
+7. 标题与正文不能承诺未证实的效果、期限或收益，不能使用“核心原因只有一个”等无依据断言。
+8. 段落长短要错落，删掉对称排比，不要连用“第一第二第三”；结尾落在具体的人或具体问题上，不总结大道理。
+9. 全文尽量有一个具体的人在做事或说话。只有用户提供了真实经历时才用人物承载观点；没有真实素材时不得虚构人物、对话、数字或细节，改用观察者视角写具体场景。"""
     # ``reasoning='high'`` used to be a no-op, so production never paid for it.
     # Now that the argument is honoured, keep the default behaviour (send no
     # reasoning field) and expose the choice as an operator setting instead of
@@ -609,7 +611,18 @@ def _draft(title: str, frame: dict[str, Any], persona: str, requirements: str = 
 
 
 
+METHODOLOGY_PATH = (Path(__file__).resolve().parents[1] / 'vendor' / 'skill-extensions'
+                   / 'weChat-autoCreate' / 'references' / 'anti-ai-methodology.md')
+
+
 def _review_skill_context(root: Path) -> tuple[str, list[dict[str, str]]]:
+    # 复核的规则源：优先用我们自己的反 AI 方法论（扩展目录，同步不会覆盖），
+    # 读不到时回退到 universe-delete-ai-skill 的“最小改动”规则。
+    if METHODOLOGY_PATH.is_file():
+        text = METHODOLOGY_PATH.read_text(encoding='utf-8')
+        return text, [{'file': 'skill-extensions/references/anti-ai-methodology.md',
+                       'chars': len(text)}]
+
     references = ('references/empirical-minimal-edit-rules.md',
                   'references/chinese-content-signals.md')
     full_context, manifest = skill_runtime.context(root, references)
@@ -634,6 +647,36 @@ def _review_skill_context(root: Path) -> tuple[str, list[dict[str, str]]]:
     return '\n'.join(f'--- {name} ---\n{excerpt}' for name, excerpt in zip(
         ('SKILL.md / 局部改稿', 'SKILL.md / 双回读与保护', references[0]), excerpts)), manifest
 
+
+
+_AI_PHRASES = ('值得注意的是', '综上所述', '在当今时代', '不难发现', '由此可见',
+               '首先，其次，最后', '总的来说', '众所周知')
+_REDLINE_SUMMARY = 6
+
+
+def _anti_ai_redlines(text: str, *, limit: int = _REDLINE_SUMMARY) -> list[dict[str, Any]]:
+    """方法论里可机械判定的红线，命中即给出可定位的 issue。
+
+    这些规则不需要模型参与，也就没有 token 成本和随机性。
+    """
+    issues: list[dict[str, Any]] = []
+    for line in (text or '').splitlines():
+        if '——' in line and len(issues) < limit:
+            issues.append({'quote': '——', 'reason': '破折号是机器感信号，人写作时很少用',
+                           'fix': '拆成短句或改用逗号'})
+        if any(phrase in line for phrase in _AI_PHRASES) and len(issues) < limit:
+            hit = next(phrase for phrase in _AI_PHRASES if phrase in line)
+            issues.append({'quote': hit, 'reason': 'AI 腔套话', 'fix': '删掉，直接从事实写起'})
+        stripped = line.strip()
+        if re.match(r'^[①②③④⑤⑥⑦⑧⑨⑩]', stripped) and len(issues) < limit:
+            issues.append({'quote': stripped[:12], 'reason': '序号堆砌是模板痕迹',
+                           'fix': '改成自然分段'})
+    if len(issues) < limit:
+        colons = re.findall(r'(?:首先|其次|然后|最后)：', text or '')
+        if colons:
+            issues.append({'quote': colons[0], 'reason': '冒号铺陈是模板句式',
+                           'fix': '改成完整句子'})
+    return issues[:limit]
 
 def _review(article: str, session: dict[str, Any]) -> tuple[str, dict[str, Any]]:
     instructions, manifest = _review_skill_context(ANTI_AI_SKILL_DIR)
@@ -668,7 +711,10 @@ def _review(article: str, session: dict[str, Any]) -> tuple[str, dict[str, Any]]
 实际定位信号：{json.dumps(signals, ensure_ascii=False)}
 实际可读性：{json.dumps(prose_for_prompt, ensure_ascii=False)}
 信号是复核入口，不要求清零。先核对无来源的数据、经历和引用，再判断局部表达。
-issues 只列事实边界、原意保真、明显病句或用户明确要求等必须修的问题。"略显"、"可能"、"稍显"一类轻微风格偏好不构成拦截，放入 retained_signals 并说明保留理由；不要为了清零信号反复改稿。
+按方法论判断“读起来像不像活人”：纯观点输出、结构过于工整、排比堆砌、用词情绪无波动，这四类才是要改的机器味。
+issues 只列两种情况：(1) 事实问题——无来源的数据、经历、引用、绝对化断言；(2) 确定的机器味——破折号、冒号铺陈、AI 腔套话、序号堆砌。
+“略显”“可能”“稍显”一类轻微风格偏好不构成问题，放入 retained_signals 并说明理由；不要为了清零信号反复改稿。
+不要建议补写人物故事、对话或细节：复核阶段没有真实素材，编造人物经历违反平台规则。这类建议放 retained_signals 并说明需要用户在写作阶段补充。
 同时核查标题是否夸大承诺、是否满足用户指定步骤数量、有无无依据的绝对化判断。
 原稿本身可能有编造。经前轮明确判定无来源而删除的数字或案例，不应要求恢复；保真保护真实信息，不保护错误。
 已经判定无需修改的信号不要反复列入issues；编号用于教程步骤不构成需要删除的AI痕迹。
@@ -689,6 +735,10 @@ issues 只列事实边界、原意保真、明显病句或用户明确要求等�
                 diagnosis['issues'] = [
                     issue for issue in diagnosis['issues'] if issue not in retained_issues
                 ]
+            redlines = _anti_ai_redlines(candidate)
+            if redlines:
+                diagnosis['issues'] = list(diagnosis.get('issues') or []) + redlines
+                diagnosis['redlines'] = redlines
             diagnosis = _anchor_review_issues(diagnosis, candidate)
             # 复核的改稿环节只能替换正文片段，改不了 H1 标题。若某一轮的意见全落在
             # 标题上，它会永远无法收敛——实测一次跑了 886 秒后因此判失败。这类意见
@@ -781,6 +831,15 @@ JSON的items要逐项覆盖列表中的每个下标；这只是返回报告覆�
                 (index, issue) for index, issue in enumerate(diagnosis['issues'])
                 if isinstance(issue, dict) and str(issue.get('quote') or '').strip()
             ]
+            # 改稿只能替换能在正文里定位的片段。定位不到的（整段叙事、结构意见）
+            # 不进入改稿循环，否则模型每轮都会重复提同一条建议。
+            locatable = [(index, issue) for index, issue in anchored_issues
+                         if str(issue.get('quote')).strip() in candidate]
+            unlocatable = [issue for index, issue in anchored_issues
+                           if str(issue.get('quote')).strip() not in candidate]
+            if unlocatable:
+                records[-1]['unlocatable_notes'] = unlocatable
+            anchored_issues = locatable
             issue_anchors = [str(issue['quote']) for _, issue in anchored_issues]
             edit_prompt = f'''{instructions}
 只执行 standard 定向改稿，用户要求优先，不执行任何发布。
@@ -799,7 +858,8 @@ issue_index 对应以下已由复核定位、逐字来自当前稿的片段列�
 每个需要修改的问题必须用 issue_index 指向。原片段在当前稿唯一时不要返回 before；重复时可提供 before，必须包含原片段与能唯一定位的原样上下文，after 必须保留上下文不变。若无法逐字复制唯一上下文，可改用 occurrence（该片段从前到后的出现序号，从1开始）和 replacement（只替换该片段本身的文字），不要猜测上下文。
 若问题只是修辞且会删改或替换引号内原话，必须把该问题的下标放入 retained_issue_indexes，不得编造替代文本；其余问题必须修改。每个片段在当前稿中必须唯一；不要改变无关内容。'''
             edits, revised = _validated_local_edits(
-                candidate, edit_prompt, require_edits=bool(diagnosis['issues'] or blockers), anchors=issue_anchors,
+                candidate, edit_prompt,
+                require_edits=bool([i for _, i in anchored_issues] or blockers), anchors=issue_anchors,
                 model=_setting("WECHAT_REVIEW_MODEL") or None,
             )
             retained_indexes = edits.get('retained_issue_indexes', [])
@@ -822,7 +882,24 @@ issue_index 对应以下已由复核定位、逐字来自当前稿的片段列�
         reasons = [str(issue.get('reason', '')) for issue in diagnosis['issues'] if isinstance(issue, dict)]
         reasons.extend(str(item['fix']) for item in blockers)
         detail = '；'.join(reason for reason in reasons if reason)[:500] or '复核结果未满足通过条件'
-        raise ProviderError('自动修稿后仍需处理：' + detail + '。已保留原文，未进入配图。')
+        # 确定性检查没过时，整篇作废的代价太大（十分钟 + 一次任务）。默认保留原文、
+        # 把拦截原因交给用户判断；WECHAT_REVIEW_STRICT=1 可恢复"直接失败"的旧行为。
+        # 保真丢失（原话/数字/限定词消失）必须阻断：那是可验证的事实错误，不是意见。
+        fact_lost = any(item.get('kind') == 'protected_spans' for item in blockers)
+        if fact_lost or _setting("WECHAT_REVIEW_STRICT", "").lower() in {"1", "true", "yes"}:
+            raise ProviderError('自动修稿后仍需处理：' + detail + '。已保留原文，未进入配图。')
+        session['review_run']['status'] = 'needs_review'
+        session['review_run']['blockers'] = blockers
+        (directory / 'run.json').write_text(json.dumps(session['review_run'], ensure_ascii=False, indent=2),
+                                            encoding='utf-8')
+        _record_skill(session, 4, '反 AI Skill 复核：确定性检查未通过，已保留原文',
+                      manifest, ['check_ai_tone_signals.py', 'check_natural_prose.py', 'audit_revision.py'],
+                      'degraded', detail[:200])
+        return article, {'source': 'universe-delete-ai-skill', 'model': _setting('WECHAT_TEXT_MODEL'),
+                         'action': '确定性检查未通过，保留原文交付', 'audit': {}, 'gate': 'needs_review',
+                         'article_sha256': skill_runtime.digest(article), 'changed': False,
+                         'manifest': manifest, 'rounds': records,
+                         'pending_review_notes': [{'reason': detail}], 'blockers': blockers}
     except Exception as exc:
         session['review_run']['status'] = 'blocked'
         session['review_run']['error'] = str(exc)

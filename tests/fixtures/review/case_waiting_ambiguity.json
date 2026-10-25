@@ -1,0 +1,22 @@
+{
+  "note": "真实报错：'等待时间'没有说明是谁在等。属于措辞意见，不该让整篇失败。",
+  "article": "# 老店为什么关了\n\n店里的等待时间越来越长，客人就慢慢不来了。",
+  "diagnosis": {
+    "issues": [
+      {
+        "quote": "等待时间越来越长",
+        "reason": "没有说明是谁在等",
+        "fix": "明确是店主空等还是顾客排队"
+      }
+    ],
+    "reason": "措辞歧义",
+    "fidelity_ok": true,
+    "readability_ok": false
+  },
+  "audit": {
+    "status": "success",
+    "complete_sentence_ratio": 1,
+    "missing_protected_spans": {}
+  },
+  "expect_gate": "passed"
+}

@@ -138,6 +138,26 @@ class HydrateSessionTests(unittest.TestCase):
 if __name__ == "__main__":
     unittest.main()
 
+class DraftHumanVoiceTests(unittest.TestCase):
+    """方法论的人物法只能基于真实素材，否则就是编造。"""
+
+    def test_draft_prompt_forbids_inventing_people(self):
+        captured = {}
+
+        def fake_text(prompt, **kwargs):
+            captured["prompt"] = prompt
+            return "# 标题\n正文"
+
+        with mock.patch.object(workbench, "_require_skill", lambda: None), \
+             mock.patch.object(workbench.skill_runtime, "context", lambda *a, **k: ("规则", [])), \
+             mock.patch.object(workbench.skill_runtime, "brief", lambda s: ""), \
+             mock.patch.object(workbench, "_record_skill", lambda *a, **k: None), \
+             mock.patch.object(workbench, "_text", fake_text):
+            workbench._draft("标题", {"name": "SCQA", "outline": ["一"]}, "人格", "", session=_session())
+        self.assertIn("不得虚构", captured["prompt"])
+        self.assertIn("段落长短要错落", captured["prompt"])
+
+
 class ImageDegradationTests(unittest.TestCase):
     """图片服务不可用时，文字成果必须保住。"""
 

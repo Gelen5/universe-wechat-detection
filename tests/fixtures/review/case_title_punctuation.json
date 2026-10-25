@@ -1,0 +1,22 @@
+{
+  "note": "真实报错：'原因能只归于'搭配不顺，问号后紧接冒号。复核改不了 H1，应转待办并交付。",
+  "article": "# 理发店关门，原因能只归于房租吗？：一个街区的观察\n\n晚上七点，卷帘门已经拉下来了。",
+  "diagnosis": {
+    "issues": [
+      {
+        "quote": "原因能只归于房租吗？：一个街区的观察",
+        "reason": "搭配不顺，且问号后紧接冒号，标点层级冲突",
+        "fix": "改成陈述句标题"
+      }
+    ],
+    "reason": "标题表达问题",
+    "fidelity_ok": true,
+    "readability_ok": true
+  },
+  "audit": {
+    "status": "success",
+    "complete_sentence_ratio": 1,
+    "missing_protected_spans": {}
+  },
+  "expect_gate": "passed"
+}

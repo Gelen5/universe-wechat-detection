@@ -29,7 +29,9 @@ class PipelineTests(unittest.TestCase):
             (root / 'references' / 'chinese-content-signals.md').write_text(
                 '## 优先检查的内容信号\nCheck specific signals.\n'
                 '## 二次审计\nArchive only.\n', encoding='utf-8')
-            context, manifest = w._review_skill_context(root)
+            # 方法论扩展已存在时优先用它，这里显式关掉以覆盖旧的回退分支。
+            with patch.object(w, 'METHODOLOGY_PATH', Path(directory) / 'absent.md'):
+                context, manifest = w._review_skill_context(root)
         self.assertIn('Protect facts.', context)
         self.assertIn('Only local edits.', context)
         self.assertIn('Read for fidelity.', context)
@@ -39,6 +41,27 @@ class PipelineTests(unittest.TestCase):
         self.assertNotIn('Do not call detectors.', context)
         self.assertEqual(len(manifest), 3)
         self.assertEqual(manifest[-1]['file'], 'references/chinese-content-signals.md')
+
+
+    def test_review_uses_the_anti_ai_methodology_when_present(self):
+        """方法论放在扩展目录，复核优先读它；同步上游不会覆盖。"""
+        self.assertTrue(w.METHODOLOGY_PATH.is_file(), w.METHODOLOGY_PATH)
+        context, manifest = w._review_skill_context(w.ANTI_AI_SKILL_DIR)
+        self.assertIn('反 AI 检测写作方法论', context)
+        self.assertIn('观点寄生人物', context)
+        self.assertEqual('skill-extensions/references/anti-ai-methodology.md', manifest[0]['file'])
+
+    def test_redlines_catch_the_mechanical_signals(self):
+        text = '值得注意的是，这件事很复杂。\n——他这样说的\n① 第一点\n首先：先做事'
+        issues = w._anti_ai_redlines(text)
+        quotes = [issue['quote'] for issue in issues]
+        self.assertIn('值得注意的是', quotes)
+        self.assertIn('——', quotes)
+        self.assertTrue(any(q.startswith('①') for q in quotes))
+        self.assertIn('首先：', quotes)
+
+    def test_clean_text_has_no_redlines(self):
+        self.assertEqual([], w._anti_ai_redlines('他推开门，屋里没人。桌上有一杯凉掉的茶。'))
 
     def test_review_prompt_does_not_repeat_unchanged_article_or_signals(self):
         article = '这是一段待审正文。'

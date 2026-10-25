@@ -1,0 +1,22 @@
+{
+  "note": "真实报错：'不能只从房租一项解释'推断强度过高。模型意见，记录但不阻断。",
+  "article": "# 老店为什么关了\n\n不同时间、不同合同条件下关门，不能只从房租一项解释。",
+  "diagnosis": {
+    "issues": [
+      {
+        "quote": "不能只从房租一项解释",
+        "reason": "现有条件不足以推出这个结论",
+        "fix": "降低推断强度"
+      }
+    ],
+    "reason": "推断强度过高",
+    "fidelity_ok": false,
+    "readability_ok": true
+  },
+  "audit": {
+    "status": "success",
+    "complete_sentence_ratio": 1,
+    "missing_protected_spans": {}
+  },
+  "expect_gate": "passed"
+}
