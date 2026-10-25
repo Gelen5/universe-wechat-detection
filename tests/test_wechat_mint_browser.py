@@ -1,3 +1,5 @@
+from pathlib import Path
+ROOT = Path(__file__).resolve().parents[1]
 """Desktop mint presentation must preserve the real workspace controls and routes."""
 import pytest
 from playwright.sync_api import expect
@@ -98,7 +100,7 @@ def test_adaptive_workspace_uses_available_width_without_stretching_reading(ui, 
     workspace = page.locator('#workbench').bounding_box()
     chat = page.locator('#creation-assistant').bounding_box()
     canvas = page.locator('#workbench-result').bounding_box()
-    assert 24 <= workspace['x'] - nav['x'] - nav['width'] <= 32
+    assert 24 <= workspace['x'] - nav['x'] - nav['width'] <= 40
     assert 24 <= width - workspace['x'] - workspace['width'] <= 40
     assert abs(canvas['x'] + canvas['width'] - workspace['x'] - workspace['width']) < 1
     assert chat['width'] <= 561
@@ -114,3 +116,26 @@ def test_adaptive_workspace_uses_available_width_without_stretching_reading(ui, 
     expect(page.locator('.folio-doc p').first).to_be_visible()
     assert page.locator('.editor-wrap').bounding_box()['width'] <= 861
     assert float(page.locator('.folio-doc p').first.evaluate('e=>getComputedStyle(e).fontSize').replace('px','')) >= 17
+
+
+@pytest.mark.parametrize('width', [1280, 1440, 2560])
+def test_topic_results_share_a_centered_readable_rail(ui, width):
+    page, _ = ui
+    page.set_viewport_size({'width':width,'height':1229})
+    topics = [{'title':'为什么越来越多人不接陌生电话：把防骚扰和不漏接重要来电分开处理', 'heat':7, 'fan_score':84, 'competition':'中', 'type':'观点'}, {'title':'AI开始替人处理任务后，普通用户先要管好哪些授权？', 'heat':8, 'fan_score':86, 'competition':'高'}]
+    artifact = {'id':'topic-test', 'type':'topic', 'title':'选题建议与检索记录', 'content':'测试选题', 'content_json':{'topics':topics}, 'version':1, 'created_at':'2026-10-25T00:00:00Z'}
+    page.route('**/api/conversations/recent-1/artifacts', lambda route:route.fulfill(json={'artifacts':[artifact]}))
+    page.goto('http://ui.test/workbench?conversation=recent-1')
+    expect(page.locator('.topic-row')).to_have_count(2)
+    canvas = page.locator('#workbench-result').bounding_box()
+    rail = page.locator('#workbench-stage-choices').bounding_box()
+    assert rail['width'] <= 961
+    assert abs(rail['x']+rail['width']/2-canvas['x']-canvas['width']/2) < 12
+    head = page.locator('.workbench-stage-head').bounding_box()
+    assert abs(head['x']-rail['x']) < 1
+    assert page.locator('.topic-row').first.evaluate('e=>getComputedStyle(e).textAlign') == 'left'
+    assert float(page.locator('.topic-signal-label').first.evaluate('e=>getComputedStyle(e).fontSize').replace('px','')) >= 13
+    assert page.locator('.topic-meter').first.evaluate('e=>getComputedStyle(e).display') == 'none'
+    assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+    if width == 2560:
+        page.screenshot(path=str(ROOT / 'output/mint-ui/refined-topics-wide.png'))
