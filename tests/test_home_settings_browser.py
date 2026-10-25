@@ -4,6 +4,16 @@ from playwright.sync_api import expect
 from tests.test_ui_shell_browser import browser, ui
 
 
+def test_public_brand_home_does_not_force_login_but_creation_still_does(ui):
+    page, _ = ui
+    page.route('**/api/auth/me', lambda route: route.fulfill(status=401, json={'detail': '登录后使用'}))
+    page.goto('http://ui.test/')
+    expect(page.locator('.universe-brand')).to_be_visible()
+    expect(page.locator('#auth-modal')).to_be_hidden()
+    page.goto('http://ui.test/workbench')
+    expect(page.locator('#auth-modal')).to_be_visible()
+
+
 @pytest.mark.parametrize('width', [390, 1101, 1440, 1920, 2560])
 def test_brand_canvas_and_entry_have_no_overflow_or_overlapping_controls(ui, width):
     page, state = ui

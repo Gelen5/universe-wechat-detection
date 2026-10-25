@@ -340,10 +340,10 @@ logoutButton?.addEventListener('click', async () => {
 });
 
 async function loadAccount() {
+  const publicView = ['home', 'market', 'hotspots'].includes(pathToView(location.pathname));
   try {
     const response = await fetch('/api/auth/me');
-    // AI 超市是公开索引：未登录也直接展示内容，不强弹登录框。
-    const publicView = ['market', 'hotspots'].includes(pathToView(location.pathname));
+    // 首页与公开资源无需登录；创作页面继续沿用原登录校验。
     if (!response.ok) { if (!publicView) showAuth(); return; }
     const data = await readApiResponse(response);
     currentAccount = data.user;
@@ -353,7 +353,7 @@ async function loadAccount() {
     document.querySelector('#wallet-user-line').textContent = `${currentAccount.display_name} · ${currentAccount.email}`;
     document.querySelector('.api-live-dot')?.classList.remove('offline');
     restoreDurableWorkflow();
-  } catch { showAuth(); }
+  } catch { if (!publicView) showAuth(); }
 }
 
 function toggleSettingsMenu(force) {
