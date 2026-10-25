@@ -102,6 +102,7 @@ def test_adaptive_workspace_uses_available_width_without_stretching_reading(ui, 
     assert 24 <= width - workspace['x'] - workspace['width'] <= 40
     assert abs(canvas['x'] + canvas['width'] - workspace['x'] - workspace['width']) < 1
     assert chat['width'] <= 561
+    assert float(page.locator('.app-tabs [data-view="workbench"] > span').first.evaluate('e=>getComputedStyle(e).fontSize').replace('px','')) >= 15
     assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
     assert float(page.locator('#workbench-stage-nav small').first.evaluate('e=>getComputedStyle(e).fontSize').replace('px','')) >= 12
     assert float(page.locator('.chat-message p').first.evaluate('e=>getComputedStyle(e).fontSize').replace('px','')) >= 16

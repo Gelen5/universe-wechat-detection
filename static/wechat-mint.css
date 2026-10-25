@@ -68,6 +68,7 @@
     box-shadow:inset 0 1px 2px white,0 8px 14px -8px #41745b55 !important;
   }
   body.atelier.mint-wechat .v3-topbar .app-tabs a:hover { background:#f0fff485 !important; }
+  body.atelier.mint-wechat .v3-topbar .app-tabs a > span:not(.nav-short) { font-size:16px !important; font-weight:inherit !important; color:inherit !important; }
   body.atelier.mint-wechat .v3-topbar .tab-icon { width:21px !important; height:21px !important; color:currentColor !important; opacity:1 !important; }
   body.atelier.mint-wechat .v3-topbar .right { display:grid !important; grid-template-columns:minmax(0,1fr) 44px !important; flex-direction:row !important; align-items:center !important; gap:10px !important; flex-shrink:0; margin:0 !important; padding:14px 6px 0 !important; border-top:1px solid var(--m-line) !important; }
   body.atelier.mint-wechat .v3-topbar .right .stat { min-width:0 !important; width:auto !important; padding:9px 12px !important; background:#f6fff487 !important; color:var(--m-text) !important; box-shadow:none !important; border-radius:14px !important; }
