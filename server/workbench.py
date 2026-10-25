@@ -1380,24 +1380,42 @@ def _images(session: dict[str, Any]) -> list[dict[str, Any]]:
     output_dir = OUTPUT_DIR / session["id"] / "images"
     output_dir.mkdir(parents=True, exist_ok=True)
     result = list(session.get('images') or [])
+    failures: list[dict[str, Any]] = []
     for index, spec in enumerate(prompts, 1):
         if any(item.get('plan_index') == index for item in result):
             continue
         kind, prompt = spec['kind'], spec['prompt']
         if session["id"] in CANCEL_REQUESTS:
             raise ProviderError("已取消本次生成")
-        image = _generate_image(prompt, output_dir / f"{kind}-{index}.jpg")
+        # 配图是增值项：图片服务没权限、超时或额度用尽时，不能把已经写完、
+        # 复核过的正文整篇丢掉。失败的图记录原因，排版用剩下的图继续。
+        try:
+            image = _generate_image(prompt, output_dir / f"{kind}-{index}.jpg")
+        except Exception as exc:
+            failures.append({"kind": kind, "plan_index": index,
+                             "error": str(exc)[:300]})
+            continue
         if not image.get('file'):
-            raise ProviderError('图片尚未下载成功，不能进入排版；请重试当前步骤')
+            failures.append({"kind": kind, "plan_index": index,
+                             "error": "图片尚未下载成功"})
+            continue
         image.update({"kind": kind, 'plan_index':index, 'section':spec.get('section',''),
                      'claim': spec.get('claim',''), 'caption':spec['caption'],
                      "url": f"/api/workbench/assets/{session['id']}/{image['file']}"})
         result.append(image)
         session['images'] = result
         _save_session(session)
-    plan['status'] = 'generated'
-    _record_skill(session, 5, '配图 Skill：按已确认方案调用图片生成链路并保存素材',
-                  plan.get('manifest') or [], ['image_provider.generate'], 'passed', f'已生成 {len(result)} 张')
+    if failures:
+        plan['status'] = 'degraded'
+        session['image_failures'] = failures
+        _record_skill(session, 5, '配图 Skill：图片服务不可用，已保留文字成果继续排版',
+                      plan.get('manifest') or [], ['image_provider.generate'], 'degraded',
+                      f'{len(failures)} 张失败：{failures[0]["error"][:120]}')
+    else:
+        plan['status'] = 'generated'
+        _record_skill(session, 5, '配图 Skill：按已确认方案调用图片生成链路并保存素材',
+                      plan.get('manifest') or [], ['image_provider.generate'], 'passed',
+                      f'已生成 {len(result)} 张')
     return result
 
 
@@ -1541,7 +1559,8 @@ def _node_visual_plan(session: dict[str, Any], *, selection: int | None = None) 
 def _node_images(session: dict[str, Any], *, selection: int | None = None) -> dict[str, Any]:
     if session.get('image_policy') == 'none':
         return {"node": "images", "skipped": True}
-    if (session.get('image_plan') or {}).get('status') == 'generated':
+    # 'degraded' means the provider refused: do not retry it on every node visit.
+    if (session.get('image_plan') or {}).get('status') in {'generated', 'degraded'}:
         return {"node": "images", "skipped": True}
     session['image_plan']['status'] = 'approved'
     session['status'] = 'calling_image_api'

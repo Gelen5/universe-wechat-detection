@@ -137,3 +137,43 @@ class HydrateSessionTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class ImageDegradationTests(unittest.TestCase):
+    """图片服务不可用时，文字成果必须保住。"""
+
+    def _plan(self, session):
+        digest = workbench.skill_runtime.digest(session["article"])
+        session["image_plan"] = {
+            "article_sha256": digest, "status": "approved",
+            "images": [{"kind": "cover", "prompt": "p", "caption": "封面"}],
+        }
+
+    def test_provider_failure_keeps_the_article(self):
+        import tempfile
+        from pathlib import Path as _Path
+
+        session = _session(article="# 标题\n正文", image_policy="auto")
+        self._plan(session)
+        with tempfile.TemporaryDirectory() as directory, \
+             mock.patch.object(workbench, "OUTPUT_DIR", _Path(directory)), \
+             mock.patch.object(workbench, "_generate_image",
+                               side_effect=RuntimeError("403 no permission")), \
+             mock.patch.object(workbench, "_save_session", lambda s: None), \
+             mock.patch.object(workbench, "_record_skill", lambda *a, **k: None):
+            images = workbench._images(session)
+        self.assertEqual([], images)
+        self.assertEqual("degraded", session["image_plan"]["status"])
+        self.assertIn("403", session["image_failures"][0]["error"])
+
+    def test_degraded_plan_is_not_retried_on_every_visit(self):
+        session = _session(image_policy="auto")
+        session["image_plan"] = {"status": "degraded"}
+        self.assertTrue(workbench._node_images(session)["skipped"])
+
+    def test_missing_plan_still_raises(self):
+        session = _session(article="# 标题\n正文", image_policy="auto")
+        with self.assertRaises(workbench.ProviderError):
+            workbench._images(session)
+
+if __name__ == "__main__":
+    unittest.main()
