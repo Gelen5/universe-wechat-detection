@@ -11,6 +11,7 @@ from __future__ import annotations
 import tempfile
 import time
 import unittest
+from unittest.mock import patch
 from datetime import timedelta
 from pathlib import Path
 
@@ -19,12 +20,20 @@ from sqlalchemy.orm import sessionmaker
 
 from server import conversation_repository as repo
 from server import database
-from server.agent.tool_loop import _HeartbeatSupervisor, run_tool_loop
+from server.agent.tool_loop import _HeartbeatSupervisor, _emit_progress, run_tool_loop
 from server.models import AgentRun, Base, RunEvent, ToolCall, users_table
 from server.providers import call_context
 
 
 class _RuntimeReliabilityTests(unittest.TestCase):
+    def test_progress_is_durable_before_redis_wakeup(self):
+        calls = []
+        with patch('server.agent.tool_loop.conversation_repository.record_run_event',
+                   side_effect=lambda *args: calls.append('commit')), \
+             patch('server.agent.tool_loop.notify', side_effect=lambda *args: calls.append('notify')):
+            _emit_progress('run', 'user', 'tool.progress', {'step': 'search'})
+        self.assertEqual(['commit', 'notify'], calls)
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         engine = create_engine(f"sqlite:///{Path(self.temp.name, 'runtime.db').as_posix()}",
@@ -130,6 +139,18 @@ class _RuntimeReliabilityTests(unittest.TestCase):
             repo.create_artifact(run["id"], "user-a", "article", content="迟到结果")
         self.assertEqual([], repo.list_artifacts(conversation["id"], "user-a"))
 
+    def test_stale_worker_cannot_persist_after_another_attempt_claims_run(self):
+        conversation = repo.create_conversation('user-a')
+        _, run, _ = repo.create_message_run(conversation['id'], 'user-a', 'write', 'lease-artifact')
+        repo.claim_run(run['id'], 'worker-old')
+        repo.transition_run(run['id'], 'user-a', 'queued', task_id='worker-old')
+        repo.claim_run(run['id'], 'worker-new')
+        with self.assertRaisesRegex(RuntimeError, 'lease changed'):
+            repo.create_artifact(run['id'], 'user-a', 'article', content='stale', task_id='worker-old')
+        self.assertEqual([], repo.list_artifacts(conversation['id'], 'user-a'))
+        created = repo.create_artifact(run['id'], 'user-a', 'article', content='current', task_id='worker-new')
+        self.assertEqual('current', created['content'])
+
     def test_tool_completion_is_ignored_after_the_run_is_cancelled(self):
         _, run = self._running_run("tool-fence")
         record, _ = repo.create_tool_call(
@@ -139,7 +160,7 @@ class _RuntimeReliabilityTests(unittest.TestCase):
         repo.finish_tool_call(record["id"], run["id"], "user-a", result={"late": True})
         with database.session_scope() as db:
             row = db.get(ToolCall, record["id"])
-            self.assertEqual("running", row.status)
+            self.assertEqual("cancelled", row.status)
             self.assertEqual({}, row.result_json)
 
     # ---- D04 -------------------------------------------------------------

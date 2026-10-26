@@ -59,7 +59,7 @@ def test_wechat_stage_navigation_and_artifacts():
                 add_artifact("article", "# 测试文章\n修订正文")
                 add_artifact("report", "表达已复核", {"review": {"status": "passed"}})
             elif stage == "typeset":
-                add_artifact("html", "<!doctype html><html><body><h1>排版预览</h1></body></html>")
+                add_artifact("html", "<!doctype html><html><body><main id='article-content'><h1>排版预览</h1></main></body></html>")
             data = {"run_id": f"run-{len(stages_sent)}"}
         elif path == "/api/conversations/conv-1/messages":
             data = {"messages": messages}

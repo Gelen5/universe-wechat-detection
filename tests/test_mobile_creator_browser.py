@@ -25,7 +25,7 @@ def test_mobile_restored_chat_has_reachable_composer_and_work_view(ui,width,heig
     artifact=_artifact('article','这是一篇用于验证手机阅读布局的文章。\n\n内容会保留在当前对话中。',1)
     def artifacts(route): route.fulfill(json={'artifacts':[artifact]})
     def messages(route): route.fulfill(json={'messages':[{'role':'user','content':'写一篇 AI 工具实测','content_json':{}},{'role':'assistant','content':'正文已完成，可以查看作品。','content_json':{}}]})
-    page.route('**/api/conversations/recent-1/artifacts',artifacts)
+    page.route('**/api/conversations/recent-1/artifacts*',artifacts)
     page.route('**/api/conversations/recent-1/messages',messages)
     page.goto('http://ui.test/workbench?conversation=recent-1')
     expect(page.locator('#workbench-topic')).to_be_visible()

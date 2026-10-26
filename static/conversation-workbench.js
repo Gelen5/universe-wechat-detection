@@ -143,6 +143,8 @@
     if (next) setStep(next.key, 'active');
   }
 
+  let accountEpoch = 0;
+  let accountId;
   let conversation = null;
   let activeRun = null;
   let source = null;
@@ -156,11 +158,30 @@
   let artifactIndex = -1;
   let saveTimer = null;
   let editSequence = 0;
+  let pendingEdit = null;
+  let savingEdits = 0;
+  let deferredRefresh = false;
+  let saving = Promise.resolve();
+  let pendingSubmission = null;
+
+  async function flushEdits() {
+    const epoch = accountEpoch;
+    clearTimeout(saveTimer);
+    if (pendingEdit) {
+      const edit = pendingEdit;
+      pendingEdit = null;
+      saving = saving.catch(() => {}).then(() => saveArtifactEdit(...edit));
+    }
+    await saving;
+    if (epoch !== accountEpoch) throw new Error('账号已切换，请重新操作');
+  }
   // Lock before the async conversation creation/request starts. Waiting for
   // the API response here would allow rapid clicks to create duplicate runs.
   let submitting = false;
   let activeStage = 'topic';
   let allArtifacts = [];
+  let artifactTotal = 0;
+  let artifactCursor = null;
   let selectedTopic = '';
   let direction = '';
   let lastMessages = [];
@@ -276,11 +297,17 @@
   }
 
   async function api(path, options = {}) {
+    const epoch = accountEpoch;
     const response = await fetch(path, options);
     const type = response.headers.get('content-type') || '';
     const data = type.includes('application/json') ? await response.json() : { detail: await response.text() };
+    if (epoch !== accountEpoch) throw new Error('账号已切换，已忽略之前的响应');
     window.PointsNotice?.fromResponse(response, data);
-    if (!response.ok) throw new Error(data.detail || `请求失败（${response.status}）`);
+    if (!response.ok) {
+      const error = new Error(data.detail || `请求失败（${response.status}）`);
+      error.status = response.status;
+      throw error;
+    }
     return data;
   }
 
@@ -466,7 +493,7 @@
     if (placeholders[stage.id]) input.placeholder = placeholders[stage.id];
     stageNav.innerHTML = stages.map((entry, position) => {
       const done = Boolean(stageArtifact(entry.id));
-      const state = isStale(entry.id) ? '需更新' : done ? '已完成' : position === index ? '当前阶段' : '待开始';
+      const state = send.disabled && entry.id === progressStage ? (done ? '更新中' : '执行中') : isStale(entry.id) ? '需更新' : done ? '已完成' : position === index ? '当前阶段' : '待开始';
       return `<button type="button" data-workbench-stage="${entry.id}" ${position === index ? 'aria-current="step"' : ''}>
         <span>${String(position + 1).padStart(2, '0')} ${entry.label}</span><small>${state}</small></button>`;
     }).join('');
@@ -515,13 +542,9 @@
   function firstMissingStage() {
     // 用户可以直接给出主题、跳过候选选题，所以「没有选题作品」本身不代表链路断了。
     // 只要后续阶段已经有作品，下一步就接在后面，而不是要求回头重新选题。
-    const has = id => Boolean(stageArtifact(id));
-    if (!has('topic') && !has('outline') && !has('writing') && !has('deai') && !has('typeset')) return 'topic';
-    if (!has('outline')) return 'outline';
-    if (!has('writing')) return 'writing';
-    if (!has('deai')) return 'deai';
-    if (!has('typeset')) return 'typeset';
-    return null;
+    const completed = stages.map((stage, index) => stageArtifact(stage.id) ? index : -1);
+    const last = Math.max(-1, ...completed);
+    return stages[last + 1]?.id || null;
   }
 
   function latestFailure() {
@@ -558,11 +581,11 @@
         <div class="chat-action-row">
           <button type="button" class="chat-action-primary" data-retry-stage="${escapeHtml(stage)}">重试：${escapeHtml(stageLabel(stage))}</button>
         </div>`;
-    } else if (!topicItem && !stageArtifact('outline')) {
+    } else if (!allArtifacts.some(item => ['topic', 'outline', 'article', 'report', 'html'].includes(item.type))) {
       // 真正的起点：既没有选题作品，也没有大纲。
       html = `<strong>先告诉我你想写什么</strong>
         <p>一句话就够，例如「写一篇给 30 岁职场人的 AI 工具实测」。</p>`;
-    } else if (topicItem && !selectedTopic && !stageArtifact('outline')) {
+    } else if (topicItem && !selectedTopic && next === 'outline') {
       // 只有还没进入大纲时才要求选方向；已经有大纲说明方向已经落地过，
       // 再要求选一次会把已经推进的链路挡回去。
       const topics = (topicItem.content_json?.topics || []).filter(choice => topicTitle(choice));
@@ -614,7 +637,28 @@
     versionLabel.textContent = `${artifactKind(item)} · V${item.version}`;
   }
 
+  async function openArtifact(item) {
+    await flushEdits();
+    const conversationId = conversation?.id;
+    if (item.content_loaded === false) {
+      saveState.textContent = '正在读取历史正文…';
+      item = (await api(`/api/artifacts/${encodeURIComponent(item.id)}`)).artifact;
+      if (conversation?.id !== conversationId) return;
+      allArtifacts = allArtifacts.map(row => row.id === item.id ? item : row);
+      editableArtifacts = editableArtifacts.map(row => row.id === item.id ? item : row);
+    }
+    showArtifact(item);
+    artifactList.querySelectorAll('[data-artifact-id]').forEach(button => {
+      button.classList.toggle('current', button.dataset.artifactId === item.id);
+    });
+    htmlPreview.hidden = item.type !== 'html';
+    editor.closest('.editor-wrap').hidden = ['html', 'image', 'topic'].includes(item.type);
+    if (item.type === 'html') htmlPreview.srcdoc = window.PublisherCopy.preview(item);
+    saveState.textContent = '已读取历史版本；编辑将保存为新版本';
+  }
+
   function renderArtifacts(artifacts) {
+    root.querySelector('.artifact-history').hidden = !artifacts.length;
     const ordered = [...artifacts].sort((a, b) =>
       String(a.updated_at || a.created_at || '').localeCompare(String(b.updated_at || b.created_at || '')));
     allArtifacts = ordered;
@@ -630,21 +674,39 @@
       return;
     }
     const firstArtifact = !currentArtifact;
+    if (firstArtifact && conversation && !localStorage.getItem(stageKey(conversation.id))) {
+      const available = stages.filter(stage => stageArtifact(stage.id));
+      activeStage = available.at(-1)?.id || 'topic';
+    }
     showArtifact(current);
     viewToggle.hidden = false;
     if (firstArtifact) setOutputOpen(false);
     saveState.textContent = '已保存到当前对话';
     versionLabel.textContent = `${artifactKind(current)} · V${current.version}`;
     changeLabel.textContent = '每次修改都会保留历史版本';
-    resultMeta.textContent = `${artifactKind(current)} · ${ordered.length} 个版本`;
+    resultMeta.textContent = `${artifactKind(current)} · ${artifactTotal || ordered.length} 个版本`;
     artifactList.innerHTML = ordered.slice().reverse().map(item => `
       <button class="version-item${item.id === current.id ? ' current' : ''}" data-artifact-id="${escapeHtml(item.id)}" type="button">
         <strong>${escapeHtml(artifactKind(item))} V${item.version}</strong><span>${escapeHtml(item.title || '未命名作品')}</span>
-      </button>`).join('');
+      </button>`).join('') + (artifactCursor ? '<button type="button" data-more-artifacts>读取更早版本</button>' : '');
+    artifactList.querySelector('[data-more-artifacts]')?.addEventListener('click', async event => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      try {
+        await flushEdits();
+        const id = conversation?.id;
+        const data = await api(`/api/conversations/${encodeURIComponent(id)}/artifacts?view=workspace&before=${encodeURIComponent(artifactCursor)}`);
+        if (conversation?.id !== id) return;
+        artifactCursor = data.next_cursor || null;
+        const selected = currentArtifact;
+        renderArtifacts([...new Map([...allArtifacts, ...data.artifacts].map(item => [item.id, item])).values()]);
+        if (selected) await openArtifact(selected);
+      } catch (error) { appendNotice(error.message); button.disabled = false; }
+    });
     artifactList.querySelectorAll('[data-artifact-id]').forEach(button => button.addEventListener('click', () => {
       const item = ordered.find(candidate => candidate.id === button.dataset.artifactId);
       if (!item) return;
-      showArtifact(item);
+      openArtifact(item).catch(error => appendNotice(error.message));
     }));
     const imageArtifacts = ordered.filter(item => item.type === 'image' && item.storage_url);
     images.hidden = !imageArtifacts.length;
@@ -656,25 +718,51 @@
 
   async function refresh() {
     if (!conversation) return;
+    const conversationId = conversation.id;
+    const epoch = accountEpoch;
+    const sequence = editSequence;
     const [messages, artifacts] = await Promise.all([
       api(`/api/conversations/${encodeURIComponent(conversation.id)}/messages`),
-      api(`/api/conversations/${encodeURIComponent(conversation.id)}/artifacts`),
+      api(`/api/conversations/${encodeURIComponent(conversation.id)}/artifacts?view=workspace`),
     ]);
+    if (epoch !== accountEpoch || conversation?.id !== conversationId) return;
+    if (pendingEdit || savingEdits || sequence !== editSequence) {
+      deferredRefresh = true;
+      return;
+    }
+    artifactTotal = artifacts.total || 0;
+    artifactCursor = artifacts.next_cursor || null;
     renderMessages(messages.messages || []); renderArtifacts(artifacts.artifacts || []);
   }
 
   async function saveArtifactEdit(sequence, artifact, content) {
+    const epoch = accountEpoch;
+    savingEdits++;
     try {
       const data = await api(`/api/artifacts/${encodeURIComponent(artifact.id)}/versions`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content }),
+        signal: AbortSignal.timeout(15000),
       });
       if (sequence !== editSequence) return;
       currentArtifact = data.artifact;
+      artifactTotal++;
       saveState.textContent = '已保存新版本';
-      await refresh();
+      renderArtifacts([...allArtifacts.filter(item => item.id !== data.artifact.id), data.artifact]);
     } catch (error) {
-      if (sequence === editSequence) saveState.textContent = `保存失败：${error.message}`;
+      if (sequence === editSequence) {
+        pendingEdit = [sequence, artifact, content];
+        saveState.textContent = `保存失败：${error.message}；请重试，尚未执行下一步`;
+      }
+      throw error;
+    } finally {
+      if (epoch === accountEpoch) {
+        savingEdits--;
+        if (!savingEdits && !pendingEdit && deferredRefresh) {
+          deferredRefresh = false;
+          refresh().catch(error => appendNotice(error.message));
+        }
+      }
     }
   }
 
@@ -692,7 +780,9 @@
   }
 
   async function openConversation(conversationId) {
+    try { await flushEdits(); } catch (error) { appendNotice(error.message); return; }
     closeEvents(); activeRun = null; localStorage.removeItem(keyRun);
+    currentArtifact = null;
     conversation = (await api(`/api/conversations/${encodeURIComponent(conversationId)}`)).conversation;
     activeStage = localStorage.getItem(stageKey(conversation.id)) || 'topic';
     selectedTopic = localStorage.getItem(`universe.conversation.topic.${conversation.id}`) || '';
@@ -707,6 +797,7 @@
     historyPopover.hidden = true;
     await refresh();
     status.textContent = '已恢复历史对话';
+    if (conversation.active_run && ['queued', 'running'].includes(conversation.active_run.status)) watchRun(conversation.active_run.id);
   }
 
   async function toggleConversationHistory() {
@@ -803,6 +894,7 @@
       try {
         const run = (await api(`/api/runs/${encodeURIComponent(runId)}`, { signal: AbortSignal.timeout(10000) })).run;
         if (activeRun !== runId) return;
+        if (run.stage && stages.some(item => item.id === run.stage)) selectStage(run.stage);
         if (['completed', 'failed', 'cancelled', 'waiting_input'].includes(run.status)) {
           if (run.status === 'failed') {
             const message = failureText(run);
@@ -821,6 +913,7 @@
 
   async function submit(content = input.value.trim(), stage = activeStage, options = {}) {
     if (!content || send.disabled || submitting) return;
+    const epoch = accountEpoch;
     submitting = true;
     const explicit = options.explicit === true;
     // 只有用户在选题里真的写了方向才更新；按钮用的固定句、模型判定都不覆盖。
@@ -837,18 +930,32 @@
     if (selectedTopic) contentJson.selected_topic = selectedTopic;
     if (options.intent) contentJson.intent = options.intent;
     setBusy(true, explicit ? `正在执行：${stageLabel(stage)}` : '正在理解你的要求');
-    const idempotencyKey = uuid();
+    let idempotencyKey;
     const draftInput = input.value;
     try {
+      await flushEdits();
+      if (epoch !== accountEpoch) return;
       await ensureConversation();
+
+      const fingerprint = JSON.stringify([conversation.id, content, contentJson]);
+      if (!pendingSubmission || pendingSubmission.fingerprint !== fingerprint) {
+        pendingSubmission = {fingerprint, key: uuid()};
+      }
+      idempotencyKey = pendingSubmission.key;
       input.value = '';
       appendProgress(explicit ? `正在执行：${stageLabel(stage)}` : '正在理解你的要求');
       const data = await api(`/api/conversations/${encodeURIComponent(conversation.id)}/messages`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey },
         body: JSON.stringify({ content, content_json: contentJson }),
       });
-      await refresh(); watchRun(data.run_id);
+      pendingSubmission = null;
+      watchRun(data.run_id);
+      await refresh().catch(error => appendNotice(error.message));
     } catch (error) {
+      if (epoch !== accountEpoch) return;
+      // A definite 4xx means no new paid task was accepted. Transport failures
+      // and 5xx responses retain the key because the commit may have succeeded.
+      if (error.status >= 400 && error.status < 500) pendingSubmission = null;
       setBusy(false);
       input.value = draftInput;
       appendNotice(error.message);
@@ -858,7 +965,8 @@
   }
 
   // 按钮/标签驱动：阶段是用户明确点的，不再走模型判断（省一次调用，也保证确定性）。
-  function runStage(stage, extra = '', options = {}) {
+  async function runStage(stage, extra = '', options = {}) {
+    try { await flushEdits(); } catch (error) { appendNotice(error.message); return; }
     if (stage === 'topic' && stageArtifact('topic') && !options.keepTopic) {
       selectedTopic = '';
       if (conversation) localStorage.removeItem(`universe.conversation.topic.${conversation.id}`);
@@ -885,7 +993,7 @@
         await refresh();
       } catch { conversation = null; localStorage.removeItem(keyConversation); }
     } else { renderMessages([]); renderArtifacts([]); }
-    const runId = localStorage.getItem(keyRun);
+    const runId = conversation?.active_run?.id || localStorage.getItem(keyRun);
     if (runId && conversation) {
       try {
         const run = (await api(`/api/runs/${encodeURIComponent(runId)}`)).run;
@@ -902,7 +1010,8 @@
     document.addEventListener('click', event => {
       const target = event.target.closest(selector);
       if (!target || !root.contains(target)) return;
-      event.preventDefault(); event.stopImmediatePropagation(); handler(target, event);
+      event.preventDefault(); event.stopImmediatePropagation();
+      Promise.resolve().then(() => handler(target, event)).catch(error => appendNotice(error.message));
     }, true);
   }
 
@@ -912,7 +1021,10 @@
     // 交给模型判断这一步要做什么；当前标签只作为上下文提示。
     submit(value, activeStage, { explicit: false });
   });
-  captureClick('[data-workbench-stage]', button => selectStage(button.dataset.workbenchStage));
+  captureClick('[data-workbench-stage]', async button => {
+    await flushEdits();
+    selectStage(button.dataset.workbenchStage);
+  });
   captureClick('[data-topic-choice]', button => {
     const topics = stageArtifact('topic')?.content_json?.topics || [];
     const choice = topics[Number(button.dataset.topicChoice)];
@@ -957,7 +1069,8 @@
   });
   captureClick('#workbench-stage-rerun', () => runStage(activeStage));
   captureClick('#workbench-view-toggle', () => setOutputOpen(!outputOpen));
-  captureClick('#new-workbench-chat', () => {
+  captureClick('#new-workbench-chat', async () => {
+    try { await flushEdits(); } catch (error) { appendNotice(error.message); return; }
     closeEvents(); conversation = null; activeRun = null; renderedEventIds = new Set();
     localStorage.removeItem(keyConversation); localStorage.removeItem(keyRun);
     activeStage = 'topic'; selectedTopic = ''; direction = ''; allArtifacts = []; lastMessages = [];
@@ -993,19 +1106,23 @@
     input.value = selection ? `${button.dataset.rewriteSelection}：\n\n${selection}` : button.dataset.rewriteSelection;
     input.focus();
   });
-  captureClick('#version-back', () => {
+  captureClick('#version-back', async () => {
+    await flushEdits();
     if (!editableArtifacts.length) return;
-    showArtifact(editableArtifacts[Math.max(0, artifactIndex - 1)]);
+    await openArtifact(editableArtifacts[Math.max(0, artifactIndex - 1)]);
   });
-  captureClick('#version-forward', () => {
+  captureClick('#version-forward', async () => {
+    await flushEdits();
     if (!editableArtifacts.length) return;
-    showArtifact(editableArtifacts[Math.min(editableArtifacts.length - 1, artifactIndex + 1)]);
+    await openArtifact(editableArtifacts[Math.min(editableArtifacts.length - 1, artifactIndex + 1)]);
   });
   captureClick('#edit-current', () => {
     if (!currentArtifact || editor.readOnly) return;
+    if (!editor.closest('.editor-wrap')?.classList.contains('is-editing')) document.querySelector('.folio-doc-edit')?.click();
     editor.focus();
   });
   captureClick('#copy-current-artifact', async () => {
+    await flushEdits();
     if (!currentArtifact) return;
     try {
       if (currentArtifact.type === 'html') await window.PublisherCopy.copy(currentArtifact);
@@ -1013,7 +1130,8 @@
       saveState.textContent = '已复制当前作品';
     } catch (error) { saveState.textContent = error.message || '浏览器未允许复制'; }
   });
-  captureClick('#download-current-artifact', () => {
+  captureClick('#download-current-artifact', async () => {
+    await flushEdits();
     if (!currentArtifact) return;
     const extension = currentArtifact.type === 'html' ? 'html' : currentArtifact.type === 'markdown' ? 'md' : 'txt';
     const blob = new Blob([currentArtifact.type === 'html' ? currentArtifact.content : (editor.value || currentArtifact.content || '')], {
@@ -1039,7 +1157,8 @@
     const artifact = currentArtifact;
     const content = editor.value;
     saveState.textContent = '正在保存修改…';
-    saveTimer = setTimeout(() => saveArtifactEdit(sequence, artifact, content), 900);
+    pendingEdit = [sequence, artifact, content];
+    saveTimer = setTimeout(() => flushEdits().catch(() => {}), 900);
   });
 
   root.querySelector('#workflow-steps')?.setAttribute('hidden', '');
@@ -1066,6 +1185,34 @@
     skillPicker.parentElement.hidden = selectedMode === 'auto';
   }
 
+  window.addEventListener('account-changed', () => {
+    const next = typeof currentAccount !== 'undefined' ? currentAccount?.id || null : null;
+    if (accountId === undefined) { accountId = next; return; }
+    if (next === accountId) return;
+    accountId = next; accountEpoch++;
+    closeEvents(); endProgress(); clearTimeout(saveTimer);
+    pendingEdit = null; pendingSubmission = null; editSequence++;
+    savingEdits = 0; deferredRefresh = false;
+    conversation = null; activeRun = null; currentArtifact = null;
+    allArtifacts = []; editableArtifacts = []; lastMessages = [];
+    artifactTotal = 0; artifactCursor = null;
+    selectedTopic = ''; direction = ''; activeStage = 'topic';
+    localStorage.removeItem(keyConversation); localStorage.removeItem(keyRun);
+    input.value = ''; htmlPreview.srcdoc = ''; renderedEventIds.clear();
+    root.querySelectorAll('.folio-doc').forEach(node => { node.textContent = ''; });
+    const landingInput = root.querySelector('#folio-ask');
+    if (landingInput) landingInput.value = '';
+    const writerFrame = document.querySelector('#one-click-writing-frame');
+    if (writerFrame) {
+      writerFrame.removeAttribute('src');
+      if (next && !document.querySelector('#one-click-writing')?.hidden) writerFrame.src = writerFrame.dataset.src;
+    }
+    setBusy(false); renderMessages([]); renderArtifacts([]); syncSkillPicker();
+  });
+  window.addEventListener('beforeunload', event => {
+    if (!pendingEdit && !savingEdits) return;
+    event.preventDefault(); event.returnValue = '';
+  });
   syncSkillPicker();
   loadSkills();
   restore();

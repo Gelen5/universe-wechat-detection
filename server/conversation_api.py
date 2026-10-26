@@ -183,11 +183,18 @@ def cancel(run_id: str, request: Request):
 
 
 @router.get("/api/conversations/{conversation_id}/artifacts")
-def artifacts(conversation_id: str, request: Request):
+def artifacts(conversation_id: str, request: Request,
+              view: str = Query(default='full', pattern='^(full|workspace)$'),
+              limit: int = Query(default=50, ge=1, le=100), before: str | None = None):
     try:
+        if view == 'workspace':
+            return conversation_repository.artifact_workspace(
+                conversation_id, request.state.user['id'], limit=limit, before=before)
         return {"artifacts": conversation_repository.list_artifacts(conversation_id, request.state.user["id"])}
     except KeyError as exc:
         _not_found(exc)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail='历史版本游标无效，请刷新后重试') from exc
 
 
 @router.get("/api/artifacts/{artifact_id}")

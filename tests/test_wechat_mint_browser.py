@@ -124,7 +124,7 @@ def test_topic_results_share_a_centered_readable_rail(ui, width):
     page.set_viewport_size({'width':width,'height':1229})
     topics = [{'title':'为什么越来越多人不接陌生电话：把防骚扰和不漏接重要来电分开处理', 'heat':7, 'fan_score':84, 'competition':'中', 'type':'观点'}, {'title':'AI开始替人处理任务后，普通用户先要管好哪些授权？', 'heat':8, 'fan_score':86, 'competition':'高'}, {'title':'仅提供部分指标的选题', 'fan_score':0}]
     artifact = {'id':'topic-test', 'type':'topic', 'title':'选题建议与检索记录', 'content':'测试选题', 'content_json':{'topics':topics}, 'version':1, 'created_at':'2026-10-25T00:00:00Z'}
-    page.route('**/api/conversations/recent-1/artifacts', lambda route:route.fulfill(json={'artifacts':[artifact]}))
+    page.route('**/api/conversations/recent-1/artifacts*', lambda route:route.fulfill(json={'artifacts':[artifact]}))
     page.goto('http://ui.test/workbench?conversation=recent-1')
     expect(page.locator('.topic-row')).to_have_count(3)
     canvas = page.locator('#workbench-result').bounding_box()
@@ -156,7 +156,7 @@ def test_assistant_action_card_keeps_long_selection_and_controls_inside(ui, widt
     page.set_viewport_size({'width':width,'height':1159})
     topic = '地震避险别只记生命三角：家庭版伏地、遮挡、抓牢清单，以及家人之间如何提前约定集合位置和紧急联系办法'
     artifact = {'id':'selected-topic-test','type':'topic','title':'选题建议','content':'测试选题','content_json':{'topics':[{'title':topic,'heat':7,'fan_score':82,'competition':'高'}]},'version':1,'created_at':'2026-10-25T00:00:00Z'}
-    page.route('**/api/conversations/recent-1/artifacts',lambda route:route.fulfill(json={'artifacts':[artifact]}))
+    page.route('**/api/conversations/recent-1/artifacts*',lambda route:route.fulfill(json={'artifacts':[artifact]}))
     page.goto('http://ui.test/workbench?conversation=recent-1')
     page.locator('[data-topic-choice]').first.click()
     card = page.locator('#workbench-action-card')

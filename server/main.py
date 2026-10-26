@@ -75,9 +75,15 @@ async def request_observability(request: Request, call_next):
 async def disable_frontend_cache(request, call_next):
     response = await call_next(request)
     is_html = response.headers.get("content-type", "").split(";", 1)[0].strip() == "text/html"
-    if is_html or request.url.path.startswith("/static/"):
+    if is_html:
         response.headers["Cache-Control"] = "no-store, max-age=0"
         response.headers["Pragma"] = "no-cache"
+    elif request.url.path.startswith("/static/"):
+        # HTML carries the release manifest. Unversioned nested assets still
+        # revalidate; versioned URLs can be reused without a network request.
+        response.headers["Cache-Control"] = (
+            "public, max-age=31536000, immutable" if request.query_params.get("v")
+            else "public, max-age=0, must-revalidate")
     return response
 
 
@@ -85,6 +91,11 @@ async def disable_frontend_cache(request, call_next):
 async def account_and_points_gate(request: Request, call_next):
     """Protect product APIs and settle all point charges in one place."""
     path = request.url.path
+    if path.startswith('/static/'):
+        # StaticFiles is already public. Do not read/update a session in the
+        # database for each stylesheet, font shard and script request.
+        request.state.user = None
+        return await call_next(request)
     # AI 超市的只读索引是对外的（只跳转、不执行），管理端仍然要登录+管理员。
     public_market = request.method == "GET" and (path.startswith("/api/market/")
                      or path.startswith("/api/hotspots"))

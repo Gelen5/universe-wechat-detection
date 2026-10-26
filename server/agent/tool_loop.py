@@ -20,6 +20,13 @@ from ..skills.tool_result import ToolResult
 from ..storage import get_storage
 
 
+def _emit_progress(run_id: str, user_id: str, event: str, payload: dict) -> None:
+    # Commit the durable event before waking subscribers. Redis is a wakeup,
+    # never the source of truth; a missed notification remains replayable.
+    conversation_repository.record_run_event(run_id, user_id, event, payload)
+    notify(run_id)
+
+
 def _heartbeat_interval() -> float:
     """How often the lease supervisor renews a run while a tool blocks.
 
@@ -179,7 +186,7 @@ def run_tool_loop(*, model_service: ModelService, messages: list[dict[str, Any]]
                         user_id=user_id, conversation_id=run["conversation_id"], run_id=run_id,
                         skill_id=skill_id, tool_call_id=record["id"], idempotency_key=logical_key,
                         storage=get_storage(), model_service=model_service,
-                        emit=lambda event, payload: conversation_repository.record_run_event(
+                        emit=lambda event, payload: _emit_progress(
                             run_id, user_id, event, payload),
                         is_cancelled=is_cancelled,
                         heartbeat=heartbeat,

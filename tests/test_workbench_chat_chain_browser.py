@@ -60,7 +60,7 @@ def test_full_chain_driven_from_the_chat_thread():
                 add_artifact("article", "# 测试文章\n修订正文")
                 add_artifact("report", "表达已复核", {"review": {"status": "passed"}})
             elif stage == "typeset":
-                add_artifact("html", "<!doctype html><html><body><h1>排版预览</h1></body></html>")
+                add_artifact("html", "<!doctype html><html><body><main id='article-content'><h1>排版预览</h1></main></body></html>")
             data = {"run_id": f"run-{len(stages_sent)}"}
         elif path == "/api/conversations/conv-1/messages":
             data = {"messages": messages}
@@ -105,7 +105,7 @@ def test_full_chain_driven_from_the_chat_thread():
             page.locator("#workbench-action-card [data-copy-html]").wait_for(timeout=10000)
             assert stages_sent == ["topic", "outline", "writing", "deai", "typeset"], stages_sent
             card = page.locator("#workbench-action-card").inner_text()
-            assert "复制 HTML" in card
+            assert "复制排版" in card
             assert not errors, errors
         finally:
             browser.close()

@@ -1,4 +1,5 @@
 import unittest
+import os
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
@@ -10,6 +11,17 @@ from server.main import app
 
 
 class AccountAndBillingTests(unittest.TestCase):
+    def test_production_session_cookie_defaults_to_secure(self):
+        from fastapi import Response
+        with patch.dict(os.environ, {'APP_ENV': 'production'}):
+            os.environ.pop('CREATOR_COOKIE_SECURE', None)
+            response = Response()
+            accounts.create_session(self.user['id'], response)
+        cookie = response.headers['set-cookie'].lower()
+        self.assertIn('secure', cookie)
+        self.assertIn('httponly', cookie)
+        self.assertIn('samesite=lax', cookie)
+
     def setUp(self):
         self.client = TestClient(app)
         suffix = id(self)

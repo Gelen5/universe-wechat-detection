@@ -13,6 +13,48 @@ from server.models import AgentRun, Base, ProviderCall, UsageRecord, users_table
 
 
 class ConversationRepositoryTests(unittest.TestCase):
+    def test_workspace_pages_metadata_without_old_bodies_and_preserves_legacy_access(self):
+        conversation = repo.create_conversation('user-a')
+        _, run, _ = repo.create_message_run(conversation['id'], 'user-a', 'write', 'history-workspace')
+        for index in range(7):
+            repo.create_artifact(run['id'], 'user-a', 'article', content=f'{index}:' + 'x' * 10000)
+        page = repo.artifact_workspace(conversation['id'], 'user-a', limit=2)
+        self.assertEqual(7, page['total'])
+        self.assertIsNotNone(page['next_cursor'])
+        loaded = [item for item in page['artifacts'] if item['content_loaded']]
+        self.assertEqual(1, len(loaded))
+        self.assertEqual(7, loaded[0]['version'])
+        old = next(item for item in page['artifacts'] if not item['content_loaded'])
+        self.assertNotIn('content', old)
+        self.assertNotIn('content_json', old)
+        self.assertEqual(10002, len(repo.get_artifact(old['id'], 'user-a')['content']))
+        seen = {item['id'] for item in page['artifacts']}
+        while page['next_cursor']:
+            page = repo.artifact_workspace(conversation['id'], 'user-a', limit=2, before=page['next_cursor'])
+            seen.update(item['id'] for item in page['artifacts'])
+        self.assertEqual(7, len(seen))
+        self.assertEqual(7, len(repo.list_artifacts(conversation['id'], 'user-a')))
+        with self.assertRaises(KeyError):
+            repo.artifact_workspace(conversation['id'], 'user-b')
+        with self.assertRaises(ValueError):
+            repo.artifact_workspace(conversation['id'], 'user-a', before='unknown')
+
+    def test_empty_metadata_cannot_bypass_idempotency_conflict(self):
+        conversation = repo.create_conversation('user-a')
+        repo.create_message_run(conversation['id'], 'user-a', 'write', 'metadata-key',
+                                content_json={'workflow_stage': 'writing'})
+        with self.assertRaises(repo.IdempotencyConflict):
+            repo.create_message_run(conversation['id'], 'user-a', 'write', 'metadata-key',
+                                    content_json={})
+
+    def test_active_run_is_restored_from_server_and_owner_scoped(self):
+        conversation = repo.create_conversation('user-a')
+        _, run, _ = repo.create_message_run(conversation['id'], 'user-a', 'write', 'restore-key')
+        self.assertEqual(run['id'], repo.get_conversation(conversation['id'], 'user-a')['active_run']['id'])
+        self.assertIsNone(repo.get_conversation(conversation['id'], 'user-b'))
+        repo.transition_run(run['id'], 'user-a', 'cancelled')
+        self.assertIsNone(repo.get_conversation(conversation['id'], 'user-a')['active_run'])
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         engine = create_engine(f"sqlite:///{Path(self.temp.name, 'conversation.db').as_posix()}",

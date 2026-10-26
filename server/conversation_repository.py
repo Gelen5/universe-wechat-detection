@@ -9,6 +9,7 @@ from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import load_only
 
 from .database import session_scope
 from .models import (
@@ -149,7 +150,15 @@ def get_conversation(conversation_id: str, user_id: str) -> dict[str, Any] | Non
         row = db.scalar(select(Conversation).where(
             Conversation.id == conversation_id, Conversation.user_id == user_id,
         ))
-        return _conversation_view(row) if row else None
+        if not row:
+            return None
+        result = _conversation_view(row)
+        active = db.scalar(select(AgentRun).where(
+            AgentRun.conversation_id == conversation_id, AgentRun.user_id == user_id,
+            AgentRun.status.in_(("queued", "running", "waiting_input")),
+        ).order_by(AgentRun.created_at.desc()).limit(1))
+        result["active_run"] = _run_view(active) if active else None
+        return result
 
 
 def list_conversations(user_id: str, *, limit: int = 50) -> list[dict[str, Any]]:
@@ -271,7 +280,7 @@ def _ensure_same_request(db, run: AgentRun, conversation_id: str, content: str,
         return
     if (previous.content or "") != (content or ""):
         raise IdempotencyConflict("idempotency key reused for a different message body")
-    if content_json and previous.content_json and previous.content_json != content_json:
+    if (previous.content_json or {}) != (content_json or {}):
         raise IdempotencyConflict("idempotency key reused for a different message payload")
 
 
@@ -554,6 +563,55 @@ def get_artifact(artifact_id: str, user_id: str) -> dict[str, Any] | None:
         return _artifact_view(row) if row else None
 
 
+def artifact_workspace(conversation_id: str, user_id: str, *, limit: int = 50,
+                       before: str | None = None) -> dict[str, Any]:
+    """Current stage bodies plus a paged, body-free history. Legacy API is unchanged."""
+    with session_scope() as db:
+        owner = db.scalar(select(Conversation.id).where(
+            Conversation.id == conversation_id, Conversation.user_id == user_id))
+        if not owner:
+            raise KeyError('conversation not found')
+        scope = (Artifact.conversation_id == conversation_id, Artifact.user_id == user_id)
+        ranks = select(Artifact.id.label('id'), func.row_number().over(
+            partition_by=Artifact.type, order_by=Artifact.version.desc()).label('rank')
+        ).where(*scope).subquery()
+        current = list(db.scalars(select(Artifact).where(Artifact.id.in_(
+            select(ranks.c.id).where(ranks.c.rank == 1)))).all())
+        # A review has its own revised article. Keep both that version and the
+        # pre-review writing stage available without loading every old body.
+        report = next((item for item in current if item.type == 'report'), None)
+        if report:
+            for same_run in (True, False):
+                article = db.scalar(select(Artifact).where(*scope, Artifact.type == 'article',
+                    (Artifact.run_id == report.run_id) if same_run else (Artifact.run_id != report.run_id)
+                ).order_by(Artifact.version.desc()).limit(1))
+                if article and article.id not in {item.id for item in current}:
+                    current.append(article)
+        query = select(Artifact).where(*scope)
+        if before:
+            cursor = db.scalar(select(Artifact).where(*scope, Artifact.id == before))
+            if not cursor:
+                raise ValueError('invalid history cursor')
+            query = query.where((Artifact.created_at < cursor.created_at) |
+                ((Artifact.created_at == cursor.created_at) & (Artifact.id < cursor.id)))
+        size = min(max(limit, 1), 100)
+        rows = list(db.scalars(query.options(load_only(
+            Artifact.id, Artifact.conversation_id, Artifact.run_id, Artifact.type,
+            Artifact.title, Artifact.version, Artifact.storage_url, Artifact.created_at, Artifact.updated_at,
+        )).order_by(Artifact.created_at.desc(), Artifact.id.desc()).limit(size + 1)).all())
+        page = rows[:size]
+        summaries = {item.id: {
+            'id': item.id, 'conversation_id': item.conversation_id, 'run_id': item.run_id,
+            'type': item.type, 'title': item.title, 'version': item.version,
+            'storage_url': item.storage_url, 'created_at': item.created_at.isoformat(),
+            'updated_at': item.updated_at.isoformat(), 'content_loaded': False,
+        } for item in page}
+        summaries.update({item.id: {**_artifact_view(item), 'content_loaded': True} for item in current})
+        return {'artifacts': list(summaries.values()),
+                'total': db.scalar(select(func.count(Artifact.id)).where(*scope)),
+                'next_cursor': page[-1].id if len(rows) > size else None}
+
+
 def get_artifact_by_storage_key(storage_key: str, user_id: str) -> dict[str, Any] | None:
     with session_scope() as db:
         row = db.scalar(select(Artifact).where(
@@ -660,11 +718,14 @@ def replace_tool_call_result(tool_call_id: str, run_id: str, user_id: str,
 def create_artifact(run_id: str, user_id: str, artifact_type: str, *, title: str = "",
                     content: str = "", content_json: dict[str, Any] | None = None,
                     storage_key: str | None = None, storage_url: str | None = None,
-                    source_key: str | None = None) -> dict[str, Any]:
+                    source_key: str | None = None, task_id: str | None = None) -> dict[str, Any]:
     with session_scope() as db:
-        run = db.scalar(select(AgentRun).where(AgentRun.id == run_id, AgentRun.user_id == user_id))
+        run = db.scalar(select(AgentRun).where(
+            AgentRun.id == run_id, AgentRun.user_id == user_id).with_for_update())
         if not run:
             raise KeyError("run not found")
+        if task_id is not None and (run.status != 'running' or run.celery_task_id != task_id):
+            raise RuntimeError('run execution lease changed')
         # Artifact writes are the last thing a worker does, well after its final
         # heartbeat. A cancel/refund or a newer attempt can win that window, and
         # the stale worker must not leave fresh output on a dead Run.

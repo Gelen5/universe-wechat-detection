@@ -44,7 +44,7 @@
           '<h1>公众号创作</h1>' +
           '<p class="fl-sub"><span class="fl-desktop-copy">从一个主题开始，其余的交给我 —— 选题、大纲、正文、去 AI、排版，一共五步。左边聊，右边出稿。</span><span class="fl-mobile-copy">写下一个想法，一起把它变成文章。<br>从选题到排版，一步一步来。</span></p>' +
           '<div class="fl-ask">' +
-            '<textarea id="folio-ask" placeholder="你想写点什么？比如：写一篇让 50 岁以上读者心里发紧的情感文"></textarea>' +
+            '<textarea id="folio-ask" aria-label="创作要求：主题、读者和已有素材" placeholder="想写什么、写给谁？也可以粘贴已有素材"></textarea>' +
             '<div class="fl-ask-row">' +
               '<span class="fl-tip"><span class="fl-desktop-copy">回车发送 · 会调用完整 Skill</span><span class="fl-mobile-copy">先说说你想写什么</span></span>' +
               '<button class="fl-send" id="folio-send" type="button">发送 →</button>' +
@@ -473,7 +473,7 @@
     var box = $('#folio-ask', landing);
     if (sendBtn) sendBtn.addEventListener('click', send);
     if (box) box.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+      if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); }
     });
     Array.prototype.forEach.call(landing.querySelectorAll('.fl-starts a'), function (a) {
       a.addEventListener('click', function () {

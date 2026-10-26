@@ -7,6 +7,29 @@
 .normalized-conversation .conversation-panel,
 .normalized-conversation .article-canvas { min-height: calc(100vh - 190px); }
 .normalized-conversation .conversation-panel { position: relative; }
+.normalized-conversation .artifact-history {
+  width: 100%; max-width: 720px; margin: 0 auto; color: var(--fp-ink, #26352f);
+  font: 13.5px/1.6 system-ui, sans-serif;
+}
+.normalized-conversation .artifact-history > summary {
+  min-height: 44px; display: list-item; align-content: center; cursor: pointer;
+}
+.normalized-conversation .artifact-history > summary:focus-visible {
+  outline: 2px solid currentColor; outline-offset: 2px;
+}
+.normalized-conversation #workbench-version-list {
+  max-height: min(360px, 45vh); overflow: auto; overscroll-behavior: contain;
+}
+.normalized-conversation #workbench-version-list button {
+  width: 100%; min-height: 44px; color: inherit; font: inherit; text-align: left;
+  border: 1px solid transparent; border-radius: 8px; background: transparent;
+  cursor: pointer; padding: 8px 10px;
+}
+.normalized-conversation #workbench-version-list button:hover,
+.normalized-conversation #workbench-version-list button.current { background: #e6f2eb; }
+.normalized-conversation #workbench-version-list [data-more-artifacts] { color: #276b4b; }
+.normalized-conversation #workbench-version-list .version-item { grid-template-columns: 90px minmax(0, 1fr); }
+.normalized-conversation #workbench-version-list .version-item span { font-size: 13px; }
 .normalized-conversation .conversation-history-popover {
   position: absolute; z-index: 20; top: 66px; right: 16px; width: min(320px, calc(100% - 32px));
   max-height: 360px; overflow: auto; padding: 8px; border: 1px solid var(--line, #e5e7eb);

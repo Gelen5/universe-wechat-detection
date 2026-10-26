@@ -79,7 +79,8 @@ class AgentOrchestrator:
         return json.dumps(value, ensure_ascii=False, indent=2)
 
     def _persist_tool_artifacts(self, run_id: str, user_id: str,
-                                outputs: tuple[ArtifactOutput, ...], tool_call_id: str) -> list[dict]:
+                                outputs: tuple[ArtifactOutput, ...], tool_call_id: str,
+                                task_id: str | None = None) -> list[dict]:
         artifacts: list[dict] = []
         for index, output in enumerate(outputs):
             if output.type == "image":
@@ -99,6 +100,7 @@ class AgentOrchestrator:
                         content=output.content, content_json=metadata, storage_key=stored.key,
                         storage_url=stored.url,
                         source_key=f"{tool_call_id}:{output.type}:{index}",
+                        task_id=task_id,
                     ))
                     continue
             storage_url = output.storage_url
@@ -111,6 +113,7 @@ class AgentOrchestrator:
                 content=output.content, content_json=output.content_json,
                 storage_url=storage_url,
                 source_key=f"{tool_call_id}:{output.type}:{index}",
+                task_id=task_id,
             ))
         return artifacts
 
@@ -212,7 +215,7 @@ class AgentOrchestrator:
 
             def persist_result(result: ToolResult, tool_call_id: str) -> dict:
                 created = self._persist_tool_artifacts(
-                    run_id, user_id, result.artifacts, tool_call_id,
+                    run_id, user_id, result.artifacts, tool_call_id, task_id=task_id,
                 )
                 tool_artifacts.extend(created)
                 return self._compact_tool_result(result, created)
@@ -289,6 +292,7 @@ class AgentOrchestrator:
                     run_id, user_id, artifact_type, title=conversation["title"], content=answer,
                     content_json={"skill_id": decision.skill_id},
                     source_key=f"{run_id}:final",
+                    task_id=task_id,
                 )
             conversation_repository.record_run_event(run_id, user_id, "assistant.completed", {
                 "message_id": message["id"],
