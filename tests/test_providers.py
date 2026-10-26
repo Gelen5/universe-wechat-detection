@@ -89,6 +89,21 @@ class ProviderTests(unittest.TestCase):
         self.assertEqual("search_topics", result.tool_calls[0].name)
         self.assertEqual({"query": "AI"}, result.tool_calls[0].arguments)
 
+    def test_responses_completion_does_not_wait_for_relay_disconnect(self):
+        class KeepAliveResponse(FakeResponse):
+            closed = False
+            def iter_lines(self):
+                yield b'data: ' + json.dumps({'type': 'response.completed', 'response': self.data}).encode()
+                raise AssertionError('terminal response must not read another stream event')
+            def close(self):
+                self.closed = True
+        response = KeepAliveResponse({'status': 'completed', 'output': [
+            {'type': 'message', 'content': [{'type': 'output_text', 'text': 'done'}]}]})
+        provider = OpenAICompatibleProvider(api_key='test', base_url='https://example.test/v1',
+            text_model='gpt-6.1-sol', session=FakeSession([response]))
+        self.assertEqual('done', provider.create_response([{'role': 'user', 'content': 'review'}]).text)
+        self.assertTrue(response.closed)
+
     def test_responses_api_tool_call_and_followup(self):
         session = FakeSession([
             FakeResponse({"status": "completed", "output": [{"type": "function_call", "call_id": "call-1",

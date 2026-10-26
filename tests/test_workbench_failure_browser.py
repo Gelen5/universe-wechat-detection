@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import pytest
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -14,7 +15,8 @@ FAILURE_TEXT = ("「选题」这一步没有跑完。\n原因：抓取热点的�
                 "本轮积分已自动退回，已完成的阶段不会丢。可以点下面的「重试这一步」。")
 
 
-def test_failed_stage_is_visible_and_retryable():
+@pytest.mark.parametrize('silent_stream', [False, True])
+def test_failed_stage_is_visible_and_retryable(silent_stream):
     messages = []
     sent = []
     runs = {}
@@ -77,6 +79,9 @@ def test_failed_stage_is_visible_and_retryable():
             page = browser.new_page(viewport={"width": 1440, "height": 900})
             errors = []
             page.on("pageerror", lambda error: errors.append(str(error)))
+            if silent_stream:
+                # Connection stays open but no terminal event or onerror arrives.
+                page.add_init_script("window.EventSource = class { addEventListener() {} close() {} }")
             page.route("http://workbench.test/**", route_request)
             page.goto("http://workbench.test/workbench")
             page.evaluate("document.querySelector('#auth-modal').hidden = true; setActiveView('workbench')")

@@ -114,6 +114,9 @@ class OpenAICompatibleProvider(ModelProvider):
                     raise ProviderRequestError("provider returned invalid stream event", code="invalid_response") from exc
                 if event.get("type") == "response.completed":
                     data = event.get("response")
+                    # A relay may keep SSE alive after the terminal event.
+                    # Completion is defined by the protocol, not TCP EOF.
+                    break
                 elif event.get("type") in {"response.failed", "response.incomplete", "error"}:
                     detail = event.get("response") or event
                     message = self._error(detail) or "provider stream failed"

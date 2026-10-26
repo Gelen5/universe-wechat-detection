@@ -139,6 +139,7 @@
   let conversation = null;
   let activeRun = null;
   let source = null;
+  let runStatusTimer = null;
   let selectedMode = 'manual';
   let selectedSkill = 'wechat_writer';
   let renderedEventIds = new Set();
@@ -711,7 +712,7 @@
     } catch (error) { historyPopover.innerHTML = `<p class="empty-artifact">${escapeHtml(error.message)}</p>`; }
   }
 
-  function closeEvents() { source?.close(); source = null; }
+  function closeEvents() { source?.close(); source = null; clearInterval(runStatusTimer); runStatusTimer = null; }
 
   function watchRun(runId) {
     closeEvents(); activeRun = runId; localStorage.setItem(keyRun, runId);
@@ -722,6 +723,7 @@
       'tool.failed', 'artifact.created', 'artifact.updated', 'assistant.completed',
       'run.completed', 'run.failed', 'run.cancelled'];
     types.forEach(type => source.addEventListener(type, async event => {
+      if (activeRun !== runId) return;
       let payload = {};
       try { payload = JSON.parse(event.data || '{}').payload || {}; } catch { /* non-fatal */ }
       if (type === 'stage.resolved') {
@@ -783,9 +785,13 @@
         if (type === 'run.completed' && window.matchMedia('(max-width: 1100px)').matches) setOutputOpen(true);
       }
     }));
-    source.onerror = async () => {
+    let checkingStatus = false;
+    const reconcileStatus = async () => {
+      if (checkingStatus || activeRun !== runId) return;
+      checkingStatus = true;
       try {
-        const run = (await api(`/api/runs/${encodeURIComponent(runId)}`)).run;
+        const run = (await api(`/api/runs/${encodeURIComponent(runId)}`, { signal: AbortSignal.timeout(10000) })).run;
+        if (activeRun !== runId) return;
         if (['completed', 'failed', 'cancelled', 'waiting_input'].includes(run.status)) {
           if (run.status === 'failed') {
             const message = failureText(run);
@@ -793,8 +799,13 @@
           }
           closeEvents(); activeRun = null; localStorage.removeItem(keyRun); setBusy(false); await refresh();
         }
-      } catch { /* persisted replay handles transient disconnects */ }
+      } catch { /* Next poll and persisted replay can recover transient failures. */ }
+      finally { checkingStatus = false; }
     };
+    source.onerror = reconcileStatus;
+    // An open SSE connection does not prove terminal events were delivered.
+    runStatusTimer = setInterval(reconcileStatus, 8000);
+    reconcileStatus();
   }
 
   async function submit(content = input.value.trim(), stage = activeStage, options = {}) {

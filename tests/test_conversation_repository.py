@@ -45,6 +45,20 @@ class ConversationRepositoryTests(unittest.TestCase):
         finished = repo.finish_tool_call(tool['id'], run['id'], 'user-a', error='late failure')
         self.assertEqual('cancelled', finished['status'])
 
+    def test_failed_run_closes_tools_from_all_recovered_attempts(self):
+        from server.models import ToolCall
+        conversation = repo.create_conversation('user-a')
+        _, run, _ = repo.create_message_run(conversation['id'], 'user-a', 'review', 'failed-tool-test')
+        tools = [repo.create_tool_call(run['id'], 'user-a', call_id=str(i), skill_id='wechat_writer',
+            tool_name='review_article', arguments={}, idempotency_key=f'failed-tool-{i}')[0]
+            for i in range(2)]
+        repo.transition_run(run['id'], 'user-a', 'failed', error_message='deadline exceeded')
+        with database.session_scope() as db:
+            for item in tools:
+                tool = db.get(ToolCall, item['id'])
+                self.assertEqual('failed', tool.status)
+                self.assertIsNotNone(tool.finished_at)
+
     def test_manual_conversation_requires_skill(self):
         with self.assertRaises(ValueError):
             repo.create_conversation("user-a", mode="manual")

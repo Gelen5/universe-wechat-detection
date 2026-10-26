@@ -380,6 +380,14 @@ def transition_run(run_id: str, user_id: str, status: str, *, error_code: str | 
         if status in {"completed", "failed", "cancelled"}:
             row.finished_at = row.finished_at or now
             row.heartbeat_at = now
+        if status in {"completed", "failed", "cancelled"}:
+            # A recovered attempt can leave earlier tool rows running. Close
+            # every unfinished row in the same transaction as its parent run.
+            for tool in db.scalars(select(ToolCall).where(
+                    ToolCall.run_id == row.id, ToolCall.status.in_(["queued", "running"]))):
+                tool.status = "cancelled" if status == "cancelled" else "failed"
+                tool.finished_at = now
+                tool.error_message = error_message or "run ended before tool completion"
         if status == "completed":
             _settle_usage_locked(db, row)
         elif status in {"failed", "cancelled"}:

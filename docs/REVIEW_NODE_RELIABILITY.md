@@ -11,3 +11,5 @@
 - 无任何外部 AI 检测调用，不承诺检测分数。
 
 验证：tests/test_review_delivery.py、原有复核回归、provider、任务取消与积分测试。
+
+2026-10-26：Responses 流收到 response.completed 后立即关闭连接，避免等待中转 EOF；Run 进入终态时事务性关闭旧尝试残留的工具；前端每 8 秒核对 Run 状态，即使 SSE 未断开也能恢复终态。新增完成后持续连接、失败任务残留工具、静默 SSE 的回归检查。
