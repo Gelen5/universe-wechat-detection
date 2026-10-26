@@ -72,7 +72,7 @@ def ui(browser):
         if path.startswith("/static/"):
             file = ROOT / path.lstrip("/")
         else:
-            name = "bookshelf.html" if path.startswith("/bookshelf") else "market.html" if path == "/market" else "qihaoshou.html" if path == "/qihaoshou" else "index.html"
+            name = "bookshelf.html" if path.startswith("/bookshelf") else "qihaoshou.html" if path == "/qihaoshou" else "index.html"
             file = ROOT / "static" / name
         if not file.is_file():
             route.fulfill(status=404, body="")

@@ -4,6 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>宇宙第一工作台</title>
+    <script src="/static/app-navigation.js?v=20261026-market-nav-1"></script>
+    <style>
+      /* A direct resource URL must never paint the homepage while app.js loads. */
+      html[data-initial-view]:not([data-initial-view="home"]) #home { display:none !important; }
+    </style>
     <link rel="stylesheet" href="/static/fonts.css?v=20261024-type-a" />
     <link rel="stylesheet" href="/static/style.css?v=20260901-v3-merge" />
     <link rel="stylesheet" href="/static/taste-chatgpt.css?v=20260901-v3-merge" />
@@ -888,7 +893,7 @@
 
     <script src="/static/vendor/lucide.min.js"></script>
     <script src="/static/market.js?v=20261026-loading-1" defer></script>
-<script src="/static/app.js?v=20261026-wallet-1"></script>
+<script src="/static/app.js?v=20261026-market-nav-1"></script>
     <script src="/static/flow.js?v=20260904-tools-1"></script>
     <script src="/static/studio-tools.js?v=20260904-1"></script>
     <link rel="stylesheet" href="/static/creator-chat.css?v=20260906-conversation-1">
@@ -1005,6 +1010,7 @@
       // 内部路由 delegate：拦截 <a href="/..."> 走 SPA，避免刷新
       (function () {
         document.addEventListener('click', (e) => {
+          if (e.defaultPrevented) return;
           const a = e.target.closest('a[href]');
           if (!a) return;
           if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || e.button !== 0) return;

@@ -1425,6 +1425,7 @@ window.addEventListener('popstate', () => setActiveView(pathToView(location.path
 
 const initialView = pathToView(location.pathname);
 setActiveView(initialView);
+window.dispatchEvent(new Event('app-nav-ready'));
 refreshConfigStatus();
 paintWorkflow();
 loadAccount();
