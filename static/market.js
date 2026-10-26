@@ -30,16 +30,24 @@
   const chevron = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
 
   async function api(path, options = {}) {
-    const response = await fetch(path, {
-      credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
-      ...options,
-    });
-    if (!response.ok) {
-      const detail = await response.text().catch(() => '');
-      throw new Error(detail.slice(0, 160) || `请求失败（${response.status}）`);
-    }
-    return response.json();
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    try {
+      const response = await fetch(path, {
+        signal: controller.signal,
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        ...options,
+      });
+      if (!response.ok) {
+        const detail = await response.text().catch(() => '');
+        throw new Error(detail.slice(0, 160) || `请求失败（${response.status}）`);
+      }
+      return await response.json();
+    } catch (error) {
+      if (error.name === 'AbortError') throw new Error('加载超时，请重试');
+      throw error;
+    } finally { clearTimeout(timeout); }
   }
 
   function formatNumber(value) {
@@ -160,7 +168,7 @@
     } catch (error) {
       list.innerHTML = `<div class="market-empty"><strong>索引暂时读不到</strong>${escapeHtml(error.message)}<button type="button" data-market-retry>重新加载</button></div>`;
       more.hidden = true;
-      return;
+      return false;
     }
     state.total = data.total;
     state.pages = data.pages || 1;
@@ -172,6 +180,7 @@
       list.innerHTML = `<div class="market-empty"><strong>没有匹配的 skill</strong>换个关键词，或切回「全部」分类看看。</div>`;
     }
     more.hidden = state.page >= state.pages;
+    return true;
   }
 
   function refresh(reset = true) {
@@ -272,13 +281,23 @@
 
   // 工作台里的一个视图：第一次切到「AI 超市」时才拉数据，切走不销毁。
   let booted = false;
+  let loading = null;
   async function ensureLoaded() {
+    if (loading) return loading;
     if (booted) return;
-    booted = true;
-    await loadSession();
-    await loadMeta();
-    await loadFeatured();
-    await loadList();
+    // Public results must not wait for account, metadata or featured requests.
+    skeleton();
+    loadMeta();
+    loadFeatured();
+    loading = loadList().then(success => { booted = success; }).finally(() => { loading = null; });
+    loadSession().then(() => {
+      // Admin actions may become available after public results have rendered.
+      if (isAdmin) {
+        if (loading) loading.then(() => loadList());
+        else loadList();
+      }
+    });
+    return loading;
   }
   list.addEventListener('click', event => { if (event.target.closest('[data-market-retry]')) { booted = false; ensureLoaded(); } });
   window.MarketView = { ensureLoaded };
