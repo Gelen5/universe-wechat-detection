@@ -25,6 +25,10 @@ class InsufficientPoints(ValueError):
         self.balance = balance
 
 
+class ArtifactVersionConflict(ValueError):
+    pass
+
+
 class IdempotencyConflict(ValueError):
     """The same idempotency key was reused for a different request.
 
@@ -364,6 +368,14 @@ def get_run(run_id: str, user_id: str) -> dict[str, Any] | None:
         return _run_view(row) if row else None
 
 
+def find_request_run(conversation_id: str, user_id: str, key: str) -> dict[str, Any] | None:
+    with session_scope() as db:
+        row = db.scalar(select(AgentRun).where(
+            AgentRun.conversation_id == conversation_id, AgentRun.user_id == user_id,
+            AgentRun.idempotency_key == key))
+        return _run_view(row) if row else None
+
+
 def transition_run(run_id: str, user_id: str, status: str, *, error_code: str | None = None,
                    error_message: str | None = None, task_id: str | None = None) -> dict[str, Any]:
     allowed = {"queued", "running", "waiting_input", "completed", "failed", "cancelled"}
@@ -665,12 +677,16 @@ def create_tool_call(run_id: str, user_id: str, *, call_id: str, skill_id: str |
 def finish_tool_call(tool_call_id: str, run_id: str, user_id: str, *,
                      result: dict[str, Any] | None = None, error: str | None = None) -> dict[str, Any]:
     with session_scope() as db:
-        row = db.scalar(select(ToolCall).join(AgentRun, AgentRun.id == ToolCall.run_id).where(
-            ToolCall.id == tool_call_id, ToolCall.run_id == run_id, AgentRun.user_id == user_id,
+        # cancel_run locks run before updating tools; use the same order.
+        run = db.scalar(select(AgentRun).where(
+            AgentRun.id == run_id, AgentRun.user_id == user_id).with_for_update())
+        if not run:
+            raise KeyError('run not found')
+        row = db.scalar(select(ToolCall).where(
+            ToolCall.id == tool_call_id, ToolCall.run_id == run_id,
         ).with_for_update())
         if not row:
             raise KeyError("tool call not found")
-        run = db.get(AgentRun, run_id)
         # A Run that already reached a terminal state must not accept fresh
         # output from a worker that lost its lease (cancel/refund race).
         if not error and run is not None and run.status in {"cancelled", "failed"}:
@@ -703,9 +719,12 @@ def finish_tool_call(tool_call_id: str, run_id: str, user_id: str, *,
 def replace_tool_call_result(tool_call_id: str, run_id: str, user_id: str,
                              result: dict[str, Any]) -> dict[str, Any]:
     with session_scope() as db:
-        row = db.scalar(select(ToolCall).join(AgentRun, AgentRun.id == ToolCall.run_id).where(
+        run = db.scalar(select(AgentRun).where(
+            AgentRun.id == run_id, AgentRun.user_id == user_id).with_for_update())
+        if not run:
+            raise KeyError('run not found')
+        row = db.scalar(select(ToolCall).where(
             ToolCall.id == tool_call_id, ToolCall.run_id == run_id,
-            AgentRun.user_id == user_id,
         ).with_for_update())
         if not row:
             raise KeyError("tool call not found")
@@ -720,10 +739,21 @@ def create_artifact(run_id: str, user_id: str, artifact_type: str, *, title: str
                     storage_key: str | None = None, storage_url: str | None = None,
                     source_key: str | None = None, task_id: str | None = None) -> dict[str, Any]:
     with session_scope() as db:
+        conversation_id = db.scalar(select(AgentRun.conversation_id).where(
+            AgentRun.id == run_id, AgentRun.user_id == user_id))
+        if not conversation_id:
+            raise KeyError("run not found")
+        # All conversation writes acquire conversation before run. Reversing
+        # these locks can deadlock with revision event FK checks in PostgreSQL.
+        conversation = db.scalar(select(Conversation).where(
+            Conversation.id == conversation_id, Conversation.user_id == user_id,
+        ).with_for_update())
+        if not conversation:
+            raise KeyError("conversation not found")
         run = db.scalar(select(AgentRun).where(
             AgentRun.id == run_id, AgentRun.user_id == user_id).with_for_update())
         if not run:
-            raise KeyError("run not found")
+            raise KeyError('run not found')
         if task_id is not None and (run.status != 'running' or run.celery_task_id != task_id):
             raise RuntimeError('run execution lease changed')
         # Artifact writes are the last thing a worker does, well after its final
@@ -732,11 +762,6 @@ def create_artifact(run_id: str, user_id: str, artifact_type: str, *, title: str
         if run.status in {"cancelled", "failed"}:
             raise RuntimeError(
                 f"run {run_id} is {run.status}; refusing to persist new artifacts")
-        conversation = db.scalar(select(Conversation).where(
-            Conversation.id == run.conversation_id, Conversation.user_id == user_id,
-        ).with_for_update())
-        if not conversation:
-            raise KeyError("conversation not found")
         if source_key:
             existing = db.scalar(select(Artifact).where(
                 Artifact.source_key == source_key, Artifact.user_id == user_id,
@@ -760,7 +785,8 @@ def create_artifact_version(artifact_id: str, user_id: str, *, title: str | None
                             content: str | None = None,
                             content_json: dict[str, Any] | None = None,
                             storage_key: str | None = None,
-                            storage_url: str | None = None) -> dict[str, Any]:
+                            storage_url: str | None = None,
+                            expected_current_id: str | None = None) -> dict[str, Any]:
     with session_scope() as db:
         source = db.scalar(select(Artifact).where(
             Artifact.id == artifact_id, Artifact.user_id == user_id,
@@ -772,6 +798,17 @@ def create_artifact_version(artifact_id: str, user_id: str, *, title: str | None
         ).with_for_update())
         if not conversation:
             raise KeyError("conversation not found")
+        if expected_current_id is not None:
+            latest = db.scalar(select(Artifact).where(
+                Artifact.conversation_id == source.conversation_id, Artifact.type == source.type,
+                Artifact.user_id == user_id).order_by(Artifact.version.desc()).limit(1))
+            if latest and latest.id != expected_current_id:
+                # A response can be lost after committing a content-only save.
+                # Accept its exact replay rather than creating another version.
+                if (content is not None and latest.content == content and title is None
+                        and content_json is None and storage_key is None and storage_url is None):
+                    return _artifact_view(latest)
+                raise ArtifactVersionConflict('a newer artifact version exists')
         version = (db.scalar(select(func.max(Artifact.version)).where(
             Artifact.conversation_id == source.conversation_id, Artifact.type == source.type,
         )) or 0) + 1

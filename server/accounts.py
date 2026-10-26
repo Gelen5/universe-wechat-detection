@@ -380,7 +380,8 @@ def create_session(user_id: str, response: Response, *, impersonator_id: str | N
         token,
         max_age=SESSION_DAYS * 86400,
         httponly=True,
-        secure=os.getenv("CREATOR_COOKIE_SECURE", "1" if os.getenv("APP_ENV", "").lower() == "production" else "0") == "1",
+        secure=(os.getenv("APP_ENV", "").lower() in {"production", "prod"}
+                or os.getenv("CREATOR_COOKIE_SECURE") == "1"),
         samesite="lax",
         path="/",
     )

@@ -30,6 +30,7 @@ services:
     build: .
     environment: &app-env
       APP_ENV: production
+      FORWARDED_ALLOW_IPS: ${TRUSTED_PROXY_IPS:-127.0.0.1}
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-universe}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-universe}
       REDIS_URL: redis://redis:6379/0
       WECHAT_PUBLISHER_SKILL_DIR: ${WECHAT_PUBLISHER_SKILL_DIR:-/app/vendor/skills/weChat-autoCreate}

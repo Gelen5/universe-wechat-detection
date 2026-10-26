@@ -26,6 +26,7 @@ from .market import router as market_router
 from .hotspots import router as hotspots_router
 from .workflow_events import redis_ready
 from .observability import event as log_event
+from .auth_rate_limit import check_auth_attempt, record_auth_result, client_ip
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -572,16 +573,37 @@ def health_ready():
     return {"status": "ready", "checks": checks}
 
 
+def _check_auth_limit(action: str, identity: str, ip: str):
+    result = check_auth_attempt(action, identity, ip)
+    if not result.allowed:
+        raise HTTPException(status_code=429, detail=f'操作过于频繁，请 {result.retry_after} 秒后重试',
+                            headers={'Retry-After': str(result.retry_after)})
+
+
 @app.post("/api/auth/register")
-def register_account(payload: RegisterRequest, response: Response):
-    user = accounts.register(payload.email, payload.password, payload.display_name)
+def register_account(payload: RegisterRequest, response: Response, request: Request):
+    ip = client_ip(request)
+    _check_auth_limit('register', payload.email, ip)
+    try:
+        user = accounts.register(payload.email, payload.password, payload.display_name)
+    except HTTPException:
+        record_auth_result('register', payload.email, ip, False)
+        raise
+    record_auth_result('register', payload.email, ip, True)
     accounts.create_session(user["id"], response)
     return {"status": "success", "user": user, "wallet": accounts.wallet_summary(user["id"])}
 
 
 @app.post("/api/auth/login")
-def login_account(payload: AuthRequest, response: Response):
-    user = accounts.authenticate(payload.email, payload.password)
+def login_account(payload: AuthRequest, response: Response, request: Request):
+    ip = client_ip(request)
+    _check_auth_limit('login', payload.email, ip)
+    try:
+        user = accounts.authenticate(payload.email, payload.password)
+    except HTTPException:
+        record_auth_result('login', payload.email, ip, False)
+        raise
+    record_auth_result('login', payload.email, ip, True)
     accounts.create_session(user["id"], response)
     return {"status": "success", "user": user, "wallet": accounts.wallet_summary(user["id"])}
 

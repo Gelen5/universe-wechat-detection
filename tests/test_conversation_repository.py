@@ -13,6 +13,27 @@ from server.models import AgentRun, Base, ProviderCall, UsageRecord, users_table
 
 
 class ConversationRepositoryTests(unittest.TestCase):
+    def test_conflicting_editor_cannot_silently_overwrite_newer_version(self):
+        conversation = repo.create_conversation('user-a')
+        _, run, _ = repo.create_message_run(conversation['id'], 'user-a', 'write', 'edit-conflict')
+        first = repo.create_artifact(run['id'], 'user-a', 'article', content='original')
+        second = repo.create_artifact_version(first['id'], 'user-a', content='tab A', expected_current_id=first['id'])
+        with self.assertRaises(repo.ArtifactVersionConflict):
+            repo.create_artifact_version(first['id'], 'user-a', content='tab B', expected_current_id=first['id'])
+        replay = repo.create_artifact_version(first['id'], 'user-a', content='tab A', expected_current_id=first['id'])
+        self.assertEqual(second['id'], replay['id'])
+        self.assertEqual(2, len(repo.list_artifacts(conversation['id'], 'user-a')))
+        merged = repo.create_artifact_version(first['id'], 'user-a', content='merged', expected_current_id=second['id'])
+        self.assertEqual(3, merged['version'])
+
+    def test_request_lookup_is_scoped_to_owner_and_conversation(self):
+        conversation = repo.create_conversation('user-a')
+        other = repo.create_conversation('user-a')
+        _, run, _ = repo.create_message_run(conversation['id'], 'user-a', 'write', 'lost-response-key')
+        self.assertEqual(run['id'], repo.find_request_run(conversation['id'], 'user-a', 'lost-response-key')['id'])
+        self.assertIsNone(repo.find_request_run(conversation['id'], 'user-b', 'lost-response-key'))
+        self.assertIsNone(repo.find_request_run(other['id'], 'user-a', 'lost-response-key'))
+
     def test_workspace_pages_metadata_without_old_bodies_and_preserves_legacy_access(self):
         conversation = repo.create_conversation('user-a')
         _, run, _ = repo.create_message_run(conversation['id'], 'user-a', 'write', 'history-workspace')

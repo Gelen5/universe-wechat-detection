@@ -11,6 +11,25 @@ from server.main import app
 
 
 class AccountAndBillingTests(unittest.TestCase):
+    def test_login_limit_precedes_password_verification_and_returns_retry_after(self):
+        from server.rate_limit import LimitResult
+        with patch.object(main_module, 'check_auth_attempt', return_value=LimitResult(False, 'ip', 17)), \
+             patch.object(accounts, 'authenticate') as authenticate:
+            response = self.client.post('/api/auth/login', json={
+                'email': 'unknown@example.com', 'password': 'guessing'}, headers={'X-Forwarded-For': 'spoofed'})
+        self.assertEqual(429, response.status_code)
+        self.assertEqual('17', response.headers['retry-after'])
+        authenticate.assert_not_called()
+
+    def test_failed_login_records_failure_for_verified_peer_not_forwarded_input(self):
+        from server.rate_limit import LimitResult
+        with patch.object(main_module, 'check_auth_attempt', return_value=LimitResult(True)), \
+             patch.object(main_module, 'record_auth_result') as record:
+            response = self.client.post('/api/auth/login', json={
+                'email': 'unknown@example.com', 'password': 'guessing'}, headers={'X-Forwarded-For': 'spoofed'})
+        self.assertEqual(401, response.status_code)
+        self.assertEqual(('login', 'unknown@example.com', 'testclient', False), record.call_args.args)
+
     def test_production_session_cookie_defaults_to_secure(self):
         from fastapi import Response
         with patch.dict(os.environ, {'APP_ENV': 'production'}):
@@ -21,6 +40,14 @@ class AccountAndBillingTests(unittest.TestCase):
         self.assertIn('secure', cookie)
         self.assertIn('httponly', cookie)
         self.assertIn('samesite=lax', cookie)
+
+    def test_production_does_not_allow_a_stale_cookie_override_to_disable_secure(self):
+        from fastapi import Response
+        for environment in ('production', 'prod'):
+            with patch.dict(os.environ, {'APP_ENV': environment, 'CREATOR_COOKIE_SECURE': '0'}):
+                response = Response()
+                accounts.create_session(self.user['id'], response)
+            self.assertIn('secure', response.headers['set-cookie'].lower())
 
     def setUp(self):
         self.client = TestClient(app)

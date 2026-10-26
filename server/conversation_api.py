@@ -19,6 +19,7 @@ from .agent_events import async_client, channel, notify
 from .skills.registry import get_registry
 from .storage import get_storage
 from .rate_limit import check_agent_submission
+from .auth_rate_limit import client_ip
 
 
 router = APIRouter(tags=["conversations"])
@@ -41,6 +42,7 @@ class ArtifactRevisionCreate(BaseModel):
     title: str | None = Field(default=None, max_length=240)
     content: str | None = Field(default=None, max_length=500000)
     content_json: dict[str, Any] | None = None
+    expected_current_id: str | None = Field(default=None, min_length=1, max_length=64)
 
 
 @router.get("/api/skills")
@@ -108,10 +110,8 @@ def send_message(conversation_id: str, payload: MessageCreate, request: Request,
         if not conversation:
             raise KeyError("conversation not found")
         manifest = get_registry().executable(conversation["skill_id"]) if conversation["skill_id"] else None
-        forwarded = request.headers.get("x-forwarded-for", "").split(",", 1)[0].strip()
-        client_ip = forwarded or (request.client.host if request.client else "unknown")
         limit = check_agent_submission(
-            user_id=user_id, ip=client_ip,
+            user_id=user_id, ip=client_ip(request),
             skill_id=conversation["skill_id"] or "auto",
         )
         if not limit.allowed:
@@ -172,6 +172,15 @@ def run_snapshot(run_id: str, request: Request):
     return {"run": row}
 
 
+@router.get('/api/conversations/{conversation_id}/requests/{idempotency_key}')
+def request_snapshot(conversation_id: str, idempotency_key: str, request: Request):
+    row = conversation_repository.find_request_run(
+        conversation_id, request.state.user['id'], idempotency_key)
+    if not row:
+        raise HTTPException(status_code=404, detail='此请求尚未记录')
+    return {'run': row}
+
+
 @router.post("/api/runs/{run_id}/cancel", status_code=202)
 def cancel(run_id: str, request: Request):
     try:
@@ -222,9 +231,12 @@ def create_artifact_version(artifact_id: str, payload: ArtifactRevisionCreate, r
         row = conversation_repository.create_artifact_version(
             artifact_id, request.state.user["id"], title=payload.title,
             content=payload.content, content_json=payload.content_json,
+            expected_current_id=payload.expected_current_id,
         )
         notify(row["run_id"])
         return {"artifact": row}
+    except conversation_repository.ArtifactVersionConflict as exc:
+        raise HTTPException(status_code=409, detail='其他页面已保存了新版本；当前修改仍在编辑框中，请先复制保留，再读取最新版本并合并') from exc
     except KeyError as exc:
         _not_found(exc)
 

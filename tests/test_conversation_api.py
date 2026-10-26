@@ -23,6 +23,39 @@ from server.skills.tool_result import ArtifactOutput, ToolResult
 
 
 class ConversationApiTests(unittest.TestCase):
+    def test_uncertain_request_can_be_looked_up_only_by_its_owner(self):
+        conversation = self.create()
+        key = uuid.uuid4().hex
+        with patch('server.conversation_api.dispatch_run', return_value='task'):
+            posted = self.client.post(f"/api/conversations/{conversation['id']}/messages",
+                headers={'Idempotency-Key': key}, json={'content': 'write'})
+        self.assertEqual(202, posted.status_code)
+        path = f"/api/conversations/{conversation['id']}/requests/{key}"
+        self.assertEqual(posted.json()['run_id'], self.client.get(path).json()['run']['id'])
+        anonymous = TestClient(app)
+        self.assertEqual(401, anonymous.get(path).status_code)
+        registered = anonymous.post('/api/auth/register', json={
+            'email': f'{uuid.uuid4().hex}@example.test', 'password': 'testing-pass-123', 'display_name': 'Other'})
+        self.assertEqual(200, registered.status_code)
+        self.assertEqual(404, anonymous.get(path).status_code)
+        another = self.create()
+        self.assertEqual(404, self.client.get(f"/api/conversations/{another['id']}/requests/{key}").status_code)
+        anonymous.close()
+
+    def test_http_revision_conflict_is_explicit_and_does_not_charge_points(self):
+        conversation = self.create()
+        _, run, _ = conversation_repository.create_message_run(
+            conversation['id'], self.user_id, 'write', uuid.uuid4().hex)
+        first = conversation_repository.create_artifact(run['id'], self.user_id, 'article', content='original')
+        path = f"/api/artifacts/{first['id']}/versions"
+        before = self.client.get('/api/wallet').json()['wallet']['balance']
+        second = self.client.post(path, json={'content': 'tab A', 'expected_current_id': first['id']})
+        self.assertEqual(201, second.status_code)
+        self.assertEqual(409, self.client.post(path, json={'content': 'tab B', 'expected_current_id': first['id']}).status_code)
+        replay = self.client.post(path, json={'content': 'tab A', 'expected_current_id': first['id']})
+        self.assertEqual(second.json()['artifact']['id'], replay.json()['artifact']['id'])
+        self.assertEqual(before, self.client.get('/api/wallet').json()['wallet']['balance'])
+
     def setUp(self):
         engine = database.build_engine()
         Base.metadata.create_all(engine, checkfirst=True)

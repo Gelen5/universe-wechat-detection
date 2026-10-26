@@ -48,6 +48,7 @@
   });
   const keyConversation = 'universe.conversation.workbench';
   const keyRun = 'universe.conversation.activeRun';
+  const keyPending = 'universe.conversation.pendingRequest';
   const stageKey = id => `universe.conversation.stage.${id}`;
   const directionKey = id => `universe.conversation.direction.${id}`;
   const stages = [
@@ -163,6 +164,75 @@
   let deferredRefresh = false;
   let saving = Promise.resolve();
   let pendingSubmission = null;
+  let pendingPersisted = true;
+  const savedHeads = new Map();
+
+  function retainSubmission(record) {
+    pendingSubmission = record;
+    pendingPersisted = true;
+    // Tab-local draft state, cleared on identity changes. Never store tokens or
+    // provider credentials. The server independently checks ownership/replays.
+    try {
+      if (record) sessionStorage.setItem(keyPending, JSON.stringify(record));
+      else sessionStorage.removeItem(keyPending);
+    } catch { pendingPersisted = !record; }
+  }
+
+  async function findPendingRun(record) {
+    try {
+      return (await api(`/api/conversations/${encodeURIComponent(record.conversationId)}/requests/${encodeURIComponent(record.key)}`)).run || null;
+    } catch (error) {
+      if (error.status === 404) return null;
+      throw error;
+    }
+  }
+
+  async function recoverPendingSubmission() {
+    let record;
+    try { record = JSON.parse(sessionStorage.getItem(keyPending) || 'null'); } catch { return; }
+    if (!record || record.conversationId !== conversation?.id || !record.key || !record.contentJson) return;
+    retainSubmission(record);
+    try {
+      const run = await findPendingRun(record);
+      if (!run) {
+        input.value = record.content;
+        status.textContent = '上次提交尚未确认；重发原指令会沿用同一请求';
+        return;
+      }
+      retainSubmission(null);
+      if (run.stage) selectStage(run.stage);
+      if (['queued', 'running'].includes(run.status)) watchRun(run.id);
+      else {
+        localStorage.removeItem(keyRun);
+        await refresh();
+        status.textContent = run.status === 'failed' ? failureText(run) : '已找回上次任务及结果';
+      }
+    } catch (error) { appendNotice(`正在保留上次提交记录：${error.message}`); }
+  }
+
+  function showSaveConflict() {
+    let controls = root.querySelector('.draft-recovery');
+    if (!controls) {
+      controls = document.createElement('span');
+      controls.className = 'draft-recovery';
+      const copy = document.createElement('button');
+      copy.type = 'button'; copy.textContent = '复制未保存正文';
+      copy.addEventListener('click', async () => {
+        try { await navigator.clipboard.writeText(editor.value); saveState.textContent = '当前修改已复制；读取最新版本后可合并'; }
+        catch { saveState.textContent = '浏览器未允许复制，请在编辑框内全选并复制后再读取最新版本'; }
+      });
+      const reload = document.createElement('button');
+      reload.type = 'button'; reload.textContent = '读取最新版本';
+      reload.addEventListener('click', async () => {
+        if (savingEdits || !window.confirm('将用最新版本替换编辑框。请先复制保留当前修改，确认继续？')) return;
+        clearTimeout(saveTimer); pendingEdit = null; editSequence++; saving = Promise.resolve();
+        savedHeads.clear(); controls.hidden = true;
+        try { await refresh(); } catch (error) { appendNotice(error.message); }
+      });
+      controls.append(copy, reload); saveState.after(controls);
+    }
+    controls.hidden = false;
+  }
 
   async function flushEdits() {
     const epoch = accountEpoch;
@@ -629,6 +699,10 @@
 
   function showArtifact(item) {
     if (!item) return;
+    // Busy/status rendering must never replace a dirty editor with the saved
+    // body while its save is pending or has failed.
+    if ((pendingEdit || savingEdits) && currentArtifact?.id === item.id
+        && editor.value !== (currentArtifact.content || '')) return;
     currentArtifact = item;
     artifactIndex = editableArtifacts.findIndex(candidate => candidate.id === item.id);
     title.textContent = item.title || artifactKind(item);
@@ -662,6 +736,10 @@
     const ordered = [...artifacts].sort((a, b) =>
       String(a.updated_at || a.created_at || '').localeCompare(String(b.updated_at || b.created_at || '')));
     allArtifacts = ordered;
+    for (const item of ordered) {
+      const previous = savedHeads.get(item.type);
+      if (!previous || item.version > previous.version) savedHeads.set(item.type, item);
+    }
     editableArtifacts = ordered.filter(item => ['article', 'outline', 'markdown', 'html', 'report', 'topic'].includes(item.type));
     const current = editableArtifacts.at(-1) || ordered.at(-1);
     if (!current) {
@@ -741,11 +819,14 @@
     try {
       const data = await api(`/api/artifacts/${encodeURIComponent(artifact.id)}/versions`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content, expected_current_id: savedHeads.get(artifact.type)?.id || artifact.id }),
         signal: AbortSignal.timeout(15000),
       });
-      if (sequence !== editSequence) return;
+      if (epoch !== accountEpoch) return;
+      savedHeads.set(artifact.type, data.artifact);
+      if (sequence !== editSequence) { deferredRefresh = true; return; }
       currentArtifact = data.artifact;
+      root.querySelector('.draft-recovery')?.setAttribute('hidden', '');
       artifactTotal++;
       saveState.textContent = '已保存新版本';
       renderArtifacts([...allArtifacts.filter(item => item.id !== data.artifact.id), data.artifact]);
@@ -753,6 +834,7 @@
       if (sequence === editSequence) {
         pendingEdit = [sequence, artifact, content];
         saveState.textContent = `保存失败：${error.message}；请重试，尚未执行下一步`;
+        if (error.status === 409) showSaveConflict();
       }
       throw error;
     } finally {
@@ -782,6 +864,7 @@
   async function openConversation(conversationId) {
     try { await flushEdits(); } catch (error) { appendNotice(error.message); return; }
     closeEvents(); activeRun = null; localStorage.removeItem(keyRun);
+    savedHeads.clear();
     currentArtifact = null;
     conversation = (await api(`/api/conversations/${encodeURIComponent(conversationId)}`)).conversation;
     activeStage = localStorage.getItem(stageKey(conversation.id)) || 'topic';
@@ -925,7 +1008,7 @@
       if (direction) localStorage.setItem(directionKey(conversation.id), direction);
       else localStorage.removeItem(directionKey(conversation.id));
     }
-    const contentJson = { workflow_stage: stage, stage_explicit: explicit };
+    let contentJson = { workflow_stage: stage, stage_explicit: explicit };
     if (stage === 'topic' && direction) contentJson.topic_direction = direction;
     if (selectedTopic) contentJson.selected_topic = selectedTopic;
     if (options.intent) contentJson.intent = options.intent;
@@ -936,10 +1019,23 @@
       await flushEdits();
       if (epoch !== accountEpoch) return;
       await ensureConversation();
-
+      if (pendingSubmission?.conversationId === conversation.id && pendingSubmission.content === content) {
+        contentJson = pendingSubmission.contentJson;
+        stage = pendingSubmission.stage;
+      }
       const fingerprint = JSON.stringify([conversation.id, content, contentJson]);
+      if (pendingSubmission && pendingSubmission.fingerprint !== fingerprint) {
+        const previous = await findPendingRun(pendingSubmission);
+        if (!previous) throw new Error('上次提交尚未确认，请先重发原指令；暂未创建新任务');
+        retainSubmission(null);
+        if (['queued', 'running'].includes(previous.status)) {
+          if (previous.conversation_id && previous.conversation_id !== conversation.id) await openConversation(previous.conversation_id);
+          watchRun(previous.id);
+          return;
+        }
+      }
       if (!pendingSubmission || pendingSubmission.fingerprint !== fingerprint) {
-        pendingSubmission = {fingerprint, key: uuid()};
+        retainSubmission({fingerprint, key: uuid(), conversationId: conversation.id, content, contentJson, stage});
       }
       idempotencyKey = pendingSubmission.key;
       input.value = '';
@@ -947,20 +1043,23 @@
       const data = await api(`/api/conversations/${encodeURIComponent(conversation.id)}/messages`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey },
         body: JSON.stringify({ content, content_json: contentJson }),
+        signal: AbortSignal.timeout(30000),
       });
-      pendingSubmission = null;
+      retainSubmission(null);
       watchRun(data.run_id);
       await refresh().catch(error => appendNotice(error.message));
     } catch (error) {
       if (epoch !== accountEpoch) return;
       // A definite 4xx means no new paid task was accepted. Transport failures
       // and 5xx responses retain the key because the commit may have succeeded.
-      if (error.status >= 400 && error.status < 500) pendingSubmission = null;
+      if (error.status >= 400 && error.status < 500) retainSubmission(null);
       setBusy(false);
       input.value = draftInput;
       appendNotice(error.message);
+      if (pendingSubmission && pendingPersisted) appendNotice('提交结果尚未确认，记录已保留。刷新页面或重发原指令会继续确认同一请求。');
+      if (pendingSubmission && !pendingPersisted) appendNotice('浏览器无法保留刷新后的重试记录，请先留在本页确认提交结果。');
     } finally {
-      submitting = false;
+      if (epoch === accountEpoch) submitting = false;
     }
   }
 
@@ -993,6 +1092,7 @@
         await refresh();
       } catch { conversation = null; localStorage.removeItem(keyConversation); }
     } else { renderMessages([]); renderArtifacts([]); }
+    await recoverPendingSubmission();
     const runId = conversation?.active_run?.id || localStorage.getItem(keyRun);
     if (runId && conversation) {
       try {
@@ -1072,6 +1172,7 @@
   captureClick('#new-workbench-chat', async () => {
     try { await flushEdits(); } catch (error) { appendNotice(error.message); return; }
     closeEvents(); conversation = null; activeRun = null; renderedEventIds = new Set();
+    savedHeads.clear();
     localStorage.removeItem(keyConversation); localStorage.removeItem(keyRun);
     activeStage = 'topic'; selectedTopic = ''; direction = ''; allArtifacts = []; lastMessages = [];
     submitting = false; setBusy(false); input.value = ''; renderMessages([]); renderArtifacts([]); status.textContent = '等待你的想法';
@@ -1191,7 +1292,7 @@
     if (next === accountId) return;
     accountId = next; accountEpoch++;
     closeEvents(); endProgress(); clearTimeout(saveTimer);
-    pendingEdit = null; pendingSubmission = null; editSequence++;
+    pendingEdit = null; retainSubmission(null); savedHeads.clear(); editSequence++;
     savingEdits = 0; deferredRefresh = false;
     conversation = null; activeRun = null; currentArtifact = null;
     allArtifacts = []; editableArtifacts = []; lastMessages = [];
@@ -1199,6 +1300,7 @@
     selectedTopic = ''; direction = ''; activeStage = 'topic';
     localStorage.removeItem(keyConversation); localStorage.removeItem(keyRun);
     input.value = ''; htmlPreview.srcdoc = ''; renderedEventIds.clear();
+    root.querySelector('.draft-recovery')?.setAttribute('hidden', '');
     root.querySelectorAll('.folio-doc').forEach(node => { node.textContent = ''; });
     const landingInput = root.querySelector('#folio-ask');
     if (landingInput) landingInput.value = '';
@@ -1210,7 +1312,7 @@
     setBusy(false); renderMessages([]); renderArtifacts([]); syncSkillPicker();
   });
   window.addEventListener('beforeunload', event => {
-    if (!pendingEdit && !savingEdits) return;
+    if (!pendingEdit && !savingEdits && (!pendingSubmission || pendingPersisted)) return;
     event.preventDefault(); event.returnValue = '';
   });
   syncSkillPicker();
