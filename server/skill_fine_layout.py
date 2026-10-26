@@ -42,6 +42,8 @@ def validate_fragment(fragment: str, source: str) -> str:
     if visible_text(str(soup)) != visible_text(source):
         raise ValueError('排版与原文文字不一致，未交付缺失或改写的正文')
     expected = BeautifulSoup(source, 'html.parser')
+    if [tag.get_text().strip('\n') for tag in soup.find_all('pre')] != [tag.get_text().strip('\n') for tag in expected.find_all('pre')]:
+        raise ValueError('排版代码块的缩进、换行或内容与原文不一致')
     if [tag.get('href') for tag in soup.find_all('a')] != [tag.get('href') for tag in expected.find_all('a')]:
         raise ValueError('排版链接与原文不一致')
     images = soup.find_all('img')
@@ -71,6 +73,24 @@ def validate_fragment(fragment: str, source: str) -> str:
             if style:
                 node['style'] = style
     return str(soup)
+
+
+def code_wrap_allowance(fragment: str, source: str) -> bool:
+    """Waive only pre-wrap on intact source code blocks, using the Skill API."""
+    soup = BeautifulSoup(fragment, 'html.parser')
+    original = BeautifulSoup(source, 'html.parser')
+    codes = original.find_all('pre')
+    if not codes or [tag.get_text().strip('\n') for tag in codes] != [tag.get_text().strip('\n') for tag in soup.find_all('pre')]:
+        return False
+    found = False
+    for tag in soup.find_all(style=True):
+        for value in re.findall(r'white-space\s*:\s*([\w-]+)', tag['style'], re.I):
+            if not value.lower().startswith('pre'):
+                continue
+            if value.lower() != 'pre-wrap' or not (tag.name == 'pre' or (tag.name == 'code' and tag.find_parent('pre'))):
+                return False
+            found = True
+    return found
 
 
 def render(session, *, skill_root: Path, output_dir: Path, source_markdown: str, instructions: str, generate):
@@ -125,7 +145,11 @@ def render(session, *, skill_root: Path, output_dir: Path, source_markdown: str,
     check_path = output_dir / 'article.html'
     check_path.write_text(fragment, encoding='utf-8')
     import json, sys
-    for script, args in [('layout_quality_check.py', []), ('wechat_compliance_check.py', ['--strict', '--allow', 'div_tag'])]:
+    allowances = ['--strict', '--allow', 'div_tag']
+    if code_wrap_allowance(fragment, source):
+        allowances += ['--allow', 'css_white_space_pre']
+        session['compliance_allowances'] = {'css_white_space_pre': 'Only pre-wrap on original code blocks; exact indentation, newlines and content verified.'}
+    for script, args in [('layout_quality_check.py', []), ('wechat_compliance_check.py', allowances)]:
         checked = subprocess.run([sys.executable, str(skill_root / 'scripts' / script), str(check_path), '--format', 'json', *args], capture_output=True, text=True, encoding='utf-8', timeout=60)
         try:
             report = json.loads(checked.stdout)
