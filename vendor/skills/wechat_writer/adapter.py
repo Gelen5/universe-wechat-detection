@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+import re
 import shutil
 from server.providers import call_context
 
@@ -136,6 +137,16 @@ def create_tools():
                    "theme": str(args.get("theme") or "default"), "image_plan": {}, "images": [],
                    "skill_runs": [], "brief": str(args.get("requirements") or ""),
                    "typeset_html": "", "preview_document": ""}
+        heading = re.search(r'^#\s+(.+)$', article, flags=re.M)
+        saved_title = (saved_article or {}).get('title')
+        if heading:
+            session['topic'] = heading.group(1).strip()
+        elif saved_title and saved_title not in {'公众号文章', '修订稿', '正文'}:
+            session['topic'] = saved_title
+        previous = latest_artifact(context, 'html', artifacts)
+        previous_meta = (previous or {}).get('content_json') or {}
+        session['previous_layout'] = previous_meta.get('article_html', '')[:6000]
+        session['previous_layout_hash'] = previous_meta.get('layout_html_hash')
         latest_article = max((item for item in artifacts if item["type"] == "article"
                               and item.get("run_id") != context.run_id),
                              key=lambda item: item["created_at"], default=None)
@@ -162,7 +173,9 @@ def create_tools():
         preview = session.get("preview_document", "") or html
         progress_for(context)("generated", {"label": "排版已完成", "count": len(preview)})
         return ToolResult({"html": html, "preview_document": preview}, (
-            ArtifactOutput(type="html", title="排版结果", content=preview),
+            ArtifactOutput(type="html", title=session['topic'], content=preview,
+                           content_json={'article_html': html, 'layout_variant': session.get('layout_variant'),
+                                         'layout_html_hash': session.get('layout_html_hash'), 'reading_mode': 'publisher-components'}),
         ))
 
     return {"search_topics": search_topics, "create_outline": create_outline,

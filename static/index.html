@@ -423,7 +423,7 @@
             <section id="workbench-decision" class="current-work-card" aria-live="polite"><strong>先告诉我，你想写什么</strong><p>在对话区输入主题、目标读者和已有素材。先确认选题，再确定框架；每一步确认后继续。</p></section>
             <section id="studio-stage-output" aria-label="当前步骤产物"></section>
             <div id="workbench-stage-choices" class="workbench-stage-choices"></div>
-            <iframe id="workbench-html-preview" class="workbench-html-preview" title="公众号排版预览" sandbox="" hidden></iframe>
+            <iframe id="workbench-html-preview" class="workbench-html-preview" title="公众号排版预览" sandbox="allow-same-origin" hidden></iframe>
             <div class="editor-wrap"><div class="editor-head"><span>当前输出</span><span id="score-label">可直接编辑，也可选中一段再让 AI 重写</span></div><textarea id="article-editor" aria-label="当前文章正文" placeholder="文章会在这里持续更新"></textarea><div class="selection-actions"><button data-rewrite-selection="改短一点" type="button">改短一点</button><button data-rewrite-selection="换成故事开头" type="button">换成故事开头</button><button data-rewrite-selection="重写这一段" type="button">重写这一段</button></div></div>
             <div id="score-report" class="score-report" hidden></div>
             <div id="generated-images" class="generated-images" hidden></div>
@@ -1030,7 +1030,8 @@
         });
       })();
     </script>
-    <script src="/static/conversation-workbench.js?v=20261026-run-status-1"></script>
+    <script src="/static/publisher-copy.js?v=20261027-layout-1"></script>
+<script src="/static/conversation-workbench.js?v=20261027-layout-1"></script>
     <script src="/static/atelier.js?v=20261024-shell-1"></script>
     <script src="/static/design-parity.js?v=20261026-wallet-1" defer></script>
     <script src="/static/folio.js?v=mobile-1-20261025-folio-18" defer></script>

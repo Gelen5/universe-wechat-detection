@@ -39,6 +39,13 @@
   const stageRerun = root.querySelector('#workbench-stage-rerun');
   const stageChoices = root.querySelector('#workbench-stage-choices');
   const htmlPreview = root.querySelector('#workbench-html-preview');
+  htmlPreview.addEventListener('load', () => {
+    const doc = htmlPreview.contentDocument;
+    if (!doc) return;
+    const resize = () => htmlPreview.style.setProperty('height', Math.max(360, doc.documentElement.scrollHeight) + 'px', 'important');
+    resize();
+    doc.querySelectorAll('img').forEach(image => image.addEventListener('load', resize, {once:true}));
+  });
   const keyConversation = 'universe.conversation.workbench';
   const keyRun = 'universe.conversation.activeRun';
   const stageKey = id => `universe.conversation.stage.${id}`;
@@ -468,7 +475,11 @@
     editorWrap.hidden = !hasText;
     htmlPreview.hidden = stage.id !== 'typeset' || !item;
     stageChoices.innerHTML = '';
-    if (stage.id === 'typeset' && item) htmlPreview.srcdoc = item.content || '';
+    if (stage.id === 'typeset' && item) {
+      currentArtifact = item;
+      try { htmlPreview.srcdoc = window.PublisherCopy.preview(item); }
+      catch (error) { htmlPreview.srcdoc = '<p style="font:16px/1.8 system-ui;padding:24px">' + escapeHtml(error.message) + '</p>'; }
+    }
     if (stage.id === 'topic' && item) {
       const topics = item.content_json?.topics || [];
       if (Array.isArray(topics) && topics.length) {
@@ -584,7 +595,7 @@
       html = `<strong>这篇稿子已经排好版</strong>
         <p>复制到公众号后台即可。要改正文就点「查看作品」直接编辑，改动会自动保存成新版本；说「重新排版」可以再来一次。</p>
         <div class="chat-action-row">
-          <button type="button" class="chat-action-primary" data-copy-html>复制 HTML</button>
+          <button type="button" class="chat-action-primary" data-copy-html>复制排版</button>
           <button type="button" class="chat-action-ghost" data-workbench-view-toggle>查看作品</button>
         </div>`;
     }
@@ -934,9 +945,9 @@
     const item = stageArtifact('typeset');
     if (!item) { status.textContent = '还没有可复制的排版结果'; return; }
     try {
-      await navigator.clipboard.writeText(item.content || '');
-      status.textContent = 'HTML 已复制，粘贴到公众号后台即可';
-    } catch { status.textContent = '浏览器未允许复制，请到作品区手动复制'; }
+      await window.PublisherCopy.copy(item);
+      status.textContent = '已复制完整排版，请粘贴到公众号后台预览';
+    } catch (error) { status.textContent = error.message; appendNotice(error.message); }
   });
   captureClick('#workbench-stage-next', () => {
     const index = stages.findIndex(item => item.id === activeStage);
@@ -997,14 +1008,15 @@
   captureClick('#copy-current-artifact', async () => {
     if (!currentArtifact) return;
     try {
-      await navigator.clipboard.writeText(editor.value || currentArtifact.content || '');
+      if (currentArtifact.type === 'html') await window.PublisherCopy.copy(currentArtifact);
+      else await navigator.clipboard.writeText(editor.value || currentArtifact.content || '');
       saveState.textContent = '已复制当前作品';
-    } catch { saveState.textContent = '浏览器未允许复制'; }
+    } catch (error) { saveState.textContent = error.message || '浏览器未允许复制'; }
   });
   captureClick('#download-current-artifact', () => {
     if (!currentArtifact) return;
     const extension = currentArtifact.type === 'html' ? 'html' : currentArtifact.type === 'markdown' ? 'md' : 'txt';
-    const blob = new Blob([editor.value || currentArtifact.content || ''], {
+    const blob = new Blob([currentArtifact.type === 'html' ? currentArtifact.content : (editor.value || currentArtifact.content || '')], {
       type: currentArtifact.type === 'html' ? 'text/html;charset=utf-8' : 'text/plain;charset=utf-8',
     });
     const link = document.createElement('a');

@@ -1270,7 +1270,7 @@ def _skill_dsl_article(article: str, plan: dict[str, Any] | None) -> str:
     return "\n\n".join(result)
 
 
-def _build_article_markdown(session: dict[str, Any]) -> str:
+def _build_article_markdown(session: dict[str, Any], *, fine_layout: bool = False) -> str:
     """Build a portable Markdown source for the installed Skill.
 
     The browser asset route is authenticated and cannot be resolved by the
@@ -1360,7 +1360,8 @@ def _build_article_markdown(session: dict[str, Any]) -> str:
                   for ordinal, body in enumerate(body_images)]
     for insertion, body_image in sorted(placements, key=lambda item: item[0], reverse=True):
         article = f"{article[:insertion].rstrip()}\n\n{body_image}\n\n{article[insertion:].lstrip()}"
-    article = _skill_dsl_article(article, session.get("layout_plan"))
+    if not fine_layout:
+        article = _skill_dsl_article(article, session.get("layout_plan"))
     return (
         f"---\ntitle: '{session['topic'].replace(chr(39), '')}'\ntheme: {session['theme']}\n"
         f"---\n{heading}\n\n{cover}\n\n{article}"
@@ -1391,6 +1392,32 @@ def _apply_dbs_wechat_theme(fragment: str, requested_theme: str) -> tuple[str, s
 
 
 def _typeset(session: dict[str, Any]) -> str:
+    """Run the installed publisher's mode A with its real references and gates."""
+    from .skill_fine_layout import render
+    _require_skill()
+    heading = re.search(r'^#\s+(.+)$', session['article'], flags=re.M)
+    if heading:
+        session['topic'] = heading.group(1).strip()
+    references = ('references/components.md', 'references/article-template.html',
+                  'references/mobile-layout-quality.md', 'references/wechat-html-spec.md')
+    instructions, manifest = skill_runtime.context(SKILL_DIR, references)
+    inherited = dict(call_context.current())
+    inherited['deadline'] = min(inherited.get('deadline') or float('inf'),
+                                time.monotonic() + max(60, int(_setting('WECHAT_LAYOUT_TIMEOUT', '240'))))
+    with call_context.bind(**inherited):
+        result = render(session, skill_root=SKILL_DIR,
+                        output_dir=OUTPUT_DIR / session['id'],
+                        source_markdown=_build_article_markdown(session, fine_layout=True),
+                        instructions=instructions,
+                        generate=lambda prompt: _text(prompt, model=_setting('WECHAT_LAYOUT_MODEL') or None))
+    session['typeset_article_sha256'] = skill_runtime.digest(session['article'])
+    _record_skill(session, 6, '公众号 Skill 模式 A：组件化精排版与复制检查', manifest,
+                  ['leaf_autofix.py', 'layout_quality_check.py', 'wechat_compliance_check.py'],
+                  'passed', '按组件库手写 HTML；正文、链接、图片完整性检查通过')
+    return result
+
+
+def _typeset_dsl(session: dict[str, Any]) -> str:
     """第6步排版：严格执行 weChat-autoCreate 的 DSL、转换器、主题和质检。"""
     _require_skill()
     instructions, manifest = skill_runtime.context(SKILL_DIR, ('references/mobile-layout-quality.md', 'references/wechat-html-spec.md', 'references/components.md', 'references/article-template.html'))
