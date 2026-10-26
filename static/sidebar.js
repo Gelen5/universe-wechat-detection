@@ -22,6 +22,34 @@
   const wrap = document.getElementById('nav-menu-wrap');
   const avatar = document.getElementById('nav-avatar');
   const menu = document.getElementById('settings-menu');
+  // The phone layout hides the entire sidebar footer. Mirror its existing
+  // actions into More, keeping the original controls as the permission source.
+  const moreMenu = document.getElementById('shell-more-menu');
+  if (menu && moreMenu) {
+    const section = document.createElement('section');
+    section.className = 'shell-account-actions';
+    section.setAttribute('aria-label', '账号管理');
+    const heading = document.createElement('h3'); heading.textContent = '账号与设置';
+    const actions = document.createElement('div');
+    section.append(heading, actions); moreMenu.append(section);
+    const pairs = [...menu.querySelectorAll(':scope > button, :scope > a')].map(source => {
+      const button = document.createElement('button'); button.type = 'button';
+      button.addEventListener('click', () => {
+        if (source.hidden || source.disabled) return;
+        moreMenu.close(); source.click();
+      });
+      actions.append(button);
+      return {source, button};
+    });
+    const syncActions = () => pairs.forEach(({source, button}) => {
+      button.textContent = source.textContent.trim();
+      button.hidden = source.hidden;
+      button.disabled = !!source.disabled;
+    });
+    new MutationObserver(syncActions).observe(menu, {subtree:true, childList:true,
+      characterData:true, attributes:true, attributeFilter:['hidden', 'disabled']});
+    syncActions();
+  }
   let settingsToggle;
   if (wrap && avatar && menu) {
     settingsToggle = document.createElement('button');

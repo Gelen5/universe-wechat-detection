@@ -51,3 +51,33 @@ def test_standalone_settings_link_opens_existing_account_panel(ui):
     page.locator('#settings-menu').get_by_role('menuitem',name='我的积分').click()
     expect(page.locator('#wallet-modal')).to_be_visible()
     assert 'sidebar=' not in page.url
+
+
+@pytest.mark.parametrize('path', ['/', '/workbench', '/bookshelf', '/market', '/qihaoshou'])
+def test_phone_more_menu_has_working_account_settings(ui, path):
+    page, _ = ui
+    page.set_viewport_size({'width':390,'height':844})
+    page.goto('http://ui.test'+path)
+    page.get_by_role('button',name='更多',exact=True).click()
+    account=page.get_by_role('region',name='账号管理')
+    expect(account.get_by_role('button',name='设置',exact=True)).to_be_visible()
+    expect(account.get_by_role('button',name='API 设置',exact=True)).to_be_hidden()
+    expect(account.get_by_role('button',name='用户统计',exact=True)).to_be_hidden()
+    account.get_by_role('button',name='设置',exact=True).click()
+    expect(page.locator('#wallet-modal')).to_be_visible()
+    assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
+
+
+def test_phone_admin_actions_follow_account_permission_changes(ui):
+    page, _ = ui
+    user={'id':'owner','email':'gelen5@163.com','display_name':'管理员','role':'admin'}
+    page.route('**/api/auth/me',lambda route:route.fulfill(json={'user':user,'wallet':{'balance':100}}))
+    page.goto('http://ui.test/')
+    page.wait_for_function("!document.getElementById('api-settings-button').hidden")
+    page.get_by_role('button',name='更多',exact=True).click()
+    account=page.get_by_role('region',name='账号管理')
+    expect(account.get_by_role('button',name='API 设置',exact=True)).to_be_visible()
+    user.update(email='other-admin@example.com')
+    page.evaluate('loadAccount()')
+    expect(account.get_by_role('button',name='API 设置',exact=True)).to_be_hidden()
+    expect(account.get_by_role('button',name='用户统计',exact=True)).to_be_hidden()

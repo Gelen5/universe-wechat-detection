@@ -50,16 +50,18 @@ def test_owner_settings_keep_real_controls_and_readable_width(ui, width):
     page.route('**/api/**', api)
     page.goto('http://ui.test/')
     for action, modal in [('api-settings-button', 'api-settings'), ('admin-users-button', 'admin-users'), ('wallet-settings-button', 'wallet')]:
-        # Desktop exercises the visible gear. At phone width this test covers
-        # dialog layout through the same handlers; the legacy header is hidden.
         if width > 1100:
             page.get_by_role('button', name='打开设置菜单').click()
         else:
             page.wait_for_function("!document.getElementById('api-settings-button').hidden")
+            page.get_by_role('button', name='更多', exact=True).click()
         if width > 1100:
             page.locator('#' + action).click()
         else:
-            page.locator('#' + action).dispatch_event('click')
+            label = {'api-settings-button':'API 设置', 'admin-users-button':'用户统计',
+                     'wallet-settings-button':'我的积分'}[action]
+            page.get_by_role('region', name='账号管理').get_by_role('button', name=label, exact=True).click()
+            expect(page.locator('#shell-more-menu')).not_to_be_visible()
         dialog = page.locator('#' + modal + '-modal [role=dialog]')
         expect(dialog).to_be_visible()
         box = dialog.bounding_box()

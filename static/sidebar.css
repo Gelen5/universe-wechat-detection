@@ -1,4 +1,10 @@
 /* Shared desktop navigation only. Page interiors retain their existing themes. */
+.shell-menu .shell-account-actions { margin-top:20px; padding-top:16px; border-top:1px solid #dce7df; }
+.shell-menu .shell-account-actions h3 { margin:0 0 10px; font-size:14px; color:#526b5c; }
+.shell-menu .shell-account-actions > div { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+.shell-menu .shell-account-actions button { display:flex; align-items:center; min-height:44px; padding:10px 12px; border:0; border-radius:10px; background:#edf5ef; color:#254d36; font:inherit; text-align:left; cursor:pointer; }
+.shell-menu .shell-account-actions button[hidden] { display:none !important; }
+.shell-menu .shell-account-actions button:hover { background:#dfeee3; }
 @media (min-width:1101px) {
  body.atelier:not(.embedded) { --shell-content-offset:310px; }
  body.atelier:not(.embedded) .app-shell { margin-left:310px !important; }
