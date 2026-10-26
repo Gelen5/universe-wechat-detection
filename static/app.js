@@ -206,18 +206,28 @@ function renderWallet(wallet = {}) {
 }
 
 function showAuth() {
-  if (authModal) authModal.hidden = false;
+  if (authModal && authModal.hidden) {
+    authModal.hidden = false;
+    document.body.classList.add('auth-open');
+    // Keep the keyboard closed on touch devices until a field is chosen.
+    authModal.querySelector('[data-auth-mode].active')?.focus({ preventScroll: true });
+  }
 }
 
 function hideAuth() {
   if (authModal) authModal.hidden = true;
+  document.body.classList.remove('auth-open');
 }
 
 function setAuthMode(mode) {
   const register = mode === 'register';
-  document.querySelectorAll('[data-auth-mode]').forEach(button => button.classList.toggle('active', button.dataset.authMode === mode));
+  document.querySelectorAll('[data-auth-mode]').forEach(button => {
+    button.classList.toggle('active', button.dataset.authMode === mode);
+    button.setAttribute('aria-pressed', String(button.dataset.authMode === mode));
+  });
   document.querySelector('#display-name-field').hidden = !register;
-  document.querySelector('#auth-title').textContent = register ? '创建你的创作账号' : '登录你的创作工作台';
+  document.querySelector('#auth-title').textContent = register ? '创建你的账号' : '欢迎回来';
+  document.querySelector('#auth-description').textContent = register ? '从一个想法，开始你的创作。' : '登录，继续你的创作。';
   document.querySelector('#auth-submit').textContent = register ? '注册并进入工作台' : '登录';
   document.querySelector('#auth-password').autocomplete = register ? 'new-password' : 'current-password';
   document.querySelector('#auth-form').dataset.mode = mode;
@@ -226,11 +236,28 @@ function setAuthMode(mode) {
 
 document.querySelectorAll('[data-auth-mode]').forEach(button => button.addEventListener('click', () => setAuthMode(button.dataset.authMode)));
 
+document.querySelector('#auth-password-toggle')?.addEventListener('click', event => {
+  const input = document.querySelector('#auth-password');
+  const visible = input.type === 'password';
+  input.type = visible ? 'text' : 'password';
+  event.currentTarget.textContent = visible ? '隐藏' : '显示';
+  event.currentTarget.setAttribute('aria-label', visible ? '隐藏密码' : '显示密码');
+  event.currentTarget.setAttribute('aria-pressed', String(visible));
+});
+authModal?.addEventListener('keydown', event => {
+  if (event.key !== 'Tab') return;
+  const controls = [...authModal.querySelectorAll('a[href], button:not(:disabled), input:not(:disabled)')].filter(el => el.getClientRects().length);
+  const first = controls[0], last = controls.at(-1);
+  if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+  else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+});
+
 document.querySelector('#auth-form')?.addEventListener('submit', async event => {
   event.preventDefault();
   const mode = event.currentTarget.dataset.mode || 'login';
   const submit = document.querySelector('#auth-submit');
   const error = document.querySelector('#auth-error');
+  error.hidden = true;
   const finish = beginButton(submit, mode === 'register' ? '正在注册…' : '正在登录…');
   try {
     const response = await fetch(`/api/auth/${mode}`, {
