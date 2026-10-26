@@ -102,6 +102,52 @@ def test_legacy_framework_drafts_without_an_extra_strategy_request():
     assert '①' in result and text.call_count==1 and extra.call_count==0
 
 
+@pytest.mark.parametrize('article_type,name,outline', [
+    ('tutorial','从一个行动项完成交接',['读出交付物','让缺失字段留空','对照原句确认']),
+    ('opinion','反例推动论证',['这个判断漏了什么','换一种条件还成立吗']),
+    ('story','两次决定之间',['第一次拒绝','没有说出口的话','重新作出的选择']),
+    ('news','变化及其证据',['此次更新改了哪里','已确认与尚待确认']),
+])
+def test_content_specific_structure_is_not_replaced_by_a_fixed_framework(article_type,name,outline):
+    captured=[]
+    with patch.object(w,'_require_skill'), patch.object(w,'_record_skill'), \
+         patch.object(w,'_json_text', side_effect=lambda prompt, **kwargs: (
+             captured.append(prompt) or {'name':name,'outline':outline,
+                 'writing_strategy':{'article_type':article_type}})), \
+         patch.object(w,'_text',return_value='# 本篇文章\n\n按已确认材料展开。') as draft:
+        frame=w._framework('本篇文章','职场作者','按提供的材料写作',
+            session={'selected_topic':{'type':article_type},'topic_research':{'sources':[{'url':'https://example.com'}]}})
+        w._draft('本篇文章',frame,'职场作者','按提供的材料写作')
+    assert frame['name']==name and frame['outline']==outline
+    assert f'）：{article_type}' in captured[0]
+    assert '只能从 SCQA' not in captured[0]
+    prompt=draft.call_args.args[0]
+    assert all(part in prompt for part in outline)
+    assert '全文尽量有一个具体的人' not in prompt
+    assert '不新增“尚未实测声明—测试清单—留待记录”' in prompt
+    assert draft.call_count==1
+
+
+def test_unspecified_framework_name_does_not_silently_become_scqa():
+    with patch.object(w,'_require_skill'), patch.object(w,'_record_skill'), \
+         patch.object(w,'_json_text',return_value={'outline':['具体问题','具体解释']}):
+        frame=w._framework('说明','作者',session={'selected_topic':None,
+            'topic_research':{'sources':[{'url':'https://example.com'}]}})
+    assert frame['name']=='按材料组织'
+
+
+def test_one_click_writer_shares_genre_rules_without_fetching_or_model_calls():
+    from server import qihaoshou
+    data=qihaoshou.Draft(topic='把纪要变成行动项',instructions='写一篇教程').model_dump()
+    with patch.object(qihaoshou.workbench,'_text') as model, \
+         patch.object(qihaoshou.workbench_research,'fetch_source') as fetch:
+        prompt=qihaoshou.draft_prompt(data)
+    assert skill_runtime.node_rules('draft')[0] in prompt
+    assert '不要输出写作过程' in prompt
+    assert '资料台账' not in prompt  # no fabricated research payload
+    assert not model.called and not fetch.called
+
+
 def test_older_model_response_does_not_force_an_article_type_or_retry():
     with patch.object(w,'_require_skill'), patch.object(w,'_record_skill'), \
          patch.object(w,'_json_text',return_value={'name':'时间线','outline':['开始','结束']}) as model:

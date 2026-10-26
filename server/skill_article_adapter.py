@@ -54,7 +54,7 @@ def hydrate_session(session: dict[str, Any], article_payload: dict[str, Any]) ->
         if lines:
             strategy = state.writing_strategy if isinstance(state.writing_strategy, dict) else {}
             session["framework"] = {
-                "name": str(strategy.get("name") or "SCQA"),
+                "name": str(strategy.get("name") or "按材料组织"),
                 "reason": "来自 ArticleState",
                 "outline": lines,
                 "source": "article_state",

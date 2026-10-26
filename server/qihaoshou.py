@@ -253,7 +253,9 @@ def draft_prompt(data):
         if not source.get('content'):
             raise workbench.ProviderError('参考链接无法获取正文，请粘贴原文后重试')
         reference=source['content']
+    editorial_rules, _ = workbench.skill_runtime.node_rules('draft')
     return f'''围绕主题写一篇完整中文公众号文章，不要输出写作过程或说明。
+表达与文体约束：{editorial_rules}
 主题：{data['topic']}
 读者：{data['audience']}；语气：{STYLES[data['style']]}；目标约{data['length']}字。
 风格执行要求：{STYLE_GUIDES[data['style']]}
