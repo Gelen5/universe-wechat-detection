@@ -140,12 +140,15 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(edits['retained_issue_indexes'], [])
         self.assertEqual(revised, '这句说得更具体。下一句也空泛。')
 
-    def test_review_rejects_edit_that_glues_sentences(self):
+    def test_review_restores_missing_original_sentence_boundary(self):
         article = '第一句。第二句。'
         payload = {'edits': [{'issue_index': 0, 'after': '改过的第一句'}],
                    'retained_issue_indexes': []}
-        with patch.object(w, '_json_text', return_value=payload), self.assertRaises(w.ProviderError):
-            w._validated_local_edits(article, 'prompt', True, anchors=['第一句。'])
+        with patch.object(w, '_json_text', return_value=payload) as generate:
+            edits, revised = w._validated_local_edits(article, 'prompt', True, anchors=['第一句。'])
+        self.assertEqual('改过的第一句。第二句。', revised)
+        self.assertTrue(edits['edits'][0]['punctuation_restored'])
+        self.assertEqual(1, generate.call_count)
 
     def test_review_retries_empty_replacement_instead_of_crashing(self):
         invalid = {'edits': [{'issue_index': 0, 'after': ''}], 'retained_issue_indexes': []}

@@ -395,6 +395,10 @@ def _text(prompt: str, *, reasoning: str | None = None, model: str | None = None
             if left <= 0:
                 raise ProviderError('执行时间预算已用完，请重试；原稿已保留')
             request_timeout = min(request_timeout, left)
+            if REVIEW_REASONING.get() and attempt < attempts - 1:
+                # Reserve time for a retry instead of consuming the entire
+                # remaining budget on the first unavailable relay request.
+                request_timeout = max(1, min(request_timeout, int((left - 3) / 2)))
         try:
             response = service.create_response(
                 messages, timeout=request_timeout, idempotency_key=idempotency_key,
@@ -1112,6 +1116,9 @@ def _validated_local_edits(
             if not isinstance(before, str) or not before or not isinstance(after, str):
                 errors.append('before或after格式错误')
                 continue
+            if after and not after.strip():
+                errors.append('after不能只包含空白')
+                continue
             if not after and before.strip('，：,: ') not in _AI_PHRASES and issue_index not in (deletable_indexes or set()):
                 errors.append('after不能为空（无信息量的模板过渡除外）；其余片段须保留事实边界')
                 continue
@@ -1122,9 +1129,12 @@ def _validated_local_edits(
             if lost_quotes:
                 errors.append('after丢失引号内原话：' + '、'.join(lost_quotes))
                 continue
-            if after and before[-1] in '。！？.!?' and after[-1] not in '。！？.!?':
-                errors.append('after丢失句末标点')
-                continue
+            if after and before[-1] in '。！？.!?' and after.rstrip()[-1] not in '。！？.!?':
+                # Restore the original sentence boundary locally. Do not spend
+                # another model call fixing a missing full stop/question mark.
+                after = after.rstrip() + before[-1]
+                edit['after'] = after
+                edit['punctuation_restored'] = True
             updated = revised.replace(before, after, 1)
             if not updated.strip():
                 errors.append('不能删除整篇正文')

@@ -41,7 +41,9 @@ def _provider_text(message: str) -> str:
         return "文字模型额度不足。"
     if "provider connection failed" in lower or "remote end closed" in lower or "connection reset" in lower:
         return "与文字模型的连接被中断。"
-    if "timed out" in lower or "timeout" in lower:
+    if any(marker in lower for marker in ('http 502', 'http 503', 'http 504', 'bad gateway', 'service unavailable')):
+        return "文字模型中转服务暂时不可用，自动重试后仍未恢复。"
+    if "timed out" in lower or "timeout" in lower or "time budget" in lower:
         return "模型调用超时。"
     return "模型服务返回了错误。"
 
@@ -77,6 +79,21 @@ def describe(exc: BaseException) -> dict[str, Any]:
             marker in message.lower() for marker in ("insufficient balance", "insufficient_quota")):
         return info("provider_balance", "文字模型额度不足。", False,
                     "需要管理员充值后才能继续。")
+    if "局部修改连续两次无法安全定位" in message:
+        return info("review_validation", "模型返回的修改没有通过原文定位或保真检查，原文已保留。", True,
+                    "可指定需要修改的段落后重试。")
+    if "执行时间预算" in message or "time budget" in message.lower():
+        return info("timeout", "模型处理超过本次时间预算，原稿已保留。", True, "稍后重试，或缩小修改范围。")
+    cause = exc
+    for _ in range(5):
+        if isinstance(cause, ProviderRequestError):
+            return info("provider", _provider_text(message), bool(cause.transient),
+                        "原稿已保留；稍后可重试这一步。")
+        cause = getattr(cause, '__cause__', None)
+        if cause is None:
+            break
+    if "text API 请求失败" in message:
+        return info("provider", _provider_text(message), True, "原稿已保留；稍后可重试这一步。")
     if isinstance(exc, ProviderRequestError) or code in {"http_error", "transport", "invalid_response",
                                                         "provider_unavailable", "timeout"}:
         retryable = bool(getattr(exc, "transient", True))

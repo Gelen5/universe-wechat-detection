@@ -71,6 +71,25 @@ class ReviewDeliveryTests(unittest.TestCase):
         finally:
             w.REVIEW_REASONING.reset(token)
 
+    def test_missing_question_mark_is_restored_without_changing_sentence_kind(self):
+        payload = {'edits': [{'issue_index': 0, 'after': '你准备好了'}]}
+        with patch.object(w, '_json_text', return_value=payload):
+            _, revised = w._validated_local_edits('你真的准备好了吗？下一句。', 'edit', True,
+                                                   anchors=['你真的准备好了吗？'])
+        self.assertEqual('你准备好了？下一句。', revised)
+
+    def test_wrapped_relay_502_has_actionable_failure(self):
+        from server.agent.failures import describe
+        from server.providers import ProviderRequestError
+        try:
+            raise w.ProviderError('text API 请求失败：provider HTTP 502') from ProviderRequestError(
+                'provider HTTP 502', code='http_error', transient=True)
+        except w.ProviderError as exc:
+            detail = describe(exc)
+        self.assertEqual('provider', detail['error_kind'])
+        self.assertIn('中转服务暂时不可用', detail['reason'])
+        self.assertTrue(detail['retryable'])
+
     def test_empty_replacement_can_remove_only_a_formulaic_transition(self):
         with patch.object(w, '_json_text', return_value={'edits': [{'issue_index': 0, 'after': ''}]}):
             _, revised = w._validated_local_edits('值得注意的是，正文。', 'edit', anchors=['值得注意的是，'], require_edits=True)
