@@ -131,16 +131,18 @@
   function wrapPoints() {
     $$('.v3-topbar .right .stat').forEach(function (el) {
       if (el.dataset.pdWrapped) return;
+      // Keep the live balance node: app.js updates this ID after async requests.
+      var balance = el.querySelector('#wallet-balance');
       var raw = (el.textContent || '').replace(/\s+/g, ' ').trim();
       var m = raw.match(/^([\d,]+)\s*(.*)$/);
-      if (!m) return;
+      if (!balance && !m) return;
       el.dataset.pdWrapped = '1';
       el.textContent = '';
       var lb = document.createElement('span');
       lb.className = 'pd-pl';
       lb.textContent = '本月积分';
-      var b = document.createElement('b');
-      b.textContent = m[1];
+      var b = balance || document.createElement('b');
+      if (!balance) b.textContent = m[1];
       el.appendChild(lb);
       el.appendChild(b);
     });

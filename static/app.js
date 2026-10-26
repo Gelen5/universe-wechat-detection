@@ -189,7 +189,8 @@ async function readApiResponse(response) {
 }
 
 function setWalletBalance(balance) {
-  currentWallet.balance = Number(balance || 0);
+  if (balance === null || balance === undefined || String(balance).trim() === '' || !Number.isFinite(Number(balance))) return;
+  currentWallet.balance = Number(balance);
   const top = document.querySelector('#wallet-balance');
   const modal = document.querySelector('#wallet-modal-balance');
   if (top) top.textContent = number(currentWallet.balance);
