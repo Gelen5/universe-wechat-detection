@@ -79,6 +79,19 @@ def describe(exc: BaseException) -> dict[str, Any]:
             marker in message.lower() for marker in ("insufficient balance", "insufficient_quota")):
         return info("provider_balance", "文字模型额度不足。", False,
                     "需要管理员充值后才能继续。")
+    if 'Skill 精排版自动修复后仍未通过' in message or 'Skill 排版检查未通过' in message:
+        reason = ("排版后的代码块内容或缩进与原文不一致。" if '代码块' in message
+                  else "排版结果未完整保留原文。" if '文字不一致' in message
+                  else "排版结果中的图片或链接与原文不一致。" if ('图片' in message or '链接' in message)
+                  else "排版使用了公众号不支持的字号或行距。" if ('font_size_out_of_range' in message or 'line_height_out_of_range' in message)
+                  else "排版的图片地址不符合公众号要求。" if 'image_host_not_wechat' in message
+                  else "排版使用了公众号不支持的样式。" if 'css_' in message
+                  else "排版结果未通过公众号兼容检查。")
+        return info("layout_validation", reason + "原文已保留。", True,
+                    "已自动尝试修复；可稍后重试或调整排版要求。")
+    if '复制版图片' in message or '图片格式与内容不匹配' in message:
+        return info("layout_image", "文章图片无法安全复制到公众号，原文已保留。", True,
+                    "请检查图片格式和大小后重新排版。")
     if "局部修改连续两次无法安全定位" in message:
         return info("review_validation", "模型返回的修改没有通过原文定位或保真检查，原文已保留。", True,
                     "可指定需要修改的段落后重试。")

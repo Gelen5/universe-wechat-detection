@@ -139,7 +139,7 @@ def create_tools():
                    "theme": str(args.get("theme") or "default"), "image_plan": {}, "images": [],
                    "skill_runs": [], "brief": str(args.get("requirements") or ""),
                    "typeset_html": "", "preview_document": ""}
-        heading = re.search(r'^#\s+(.+)$', article, flags=re.M)
+        heading = re.match(r'^\s*#\s+([^\n]+)', article)
         saved_title = (saved_article or {}).get('title')
         if heading:
             session['topic'] = heading.group(1).strip()
@@ -171,13 +171,16 @@ def create_tools():
             session["image_plan"].setdefault("images", []).append(
                 {"kind": kind, "caption": caption})
         progress_for(context)("generating", {"label": "生成公众号 HTML"})
+        session['_layout_progress'] = progress_for(context)
         html = with_provider(lambda: workbench._typeset(session))
         preview = session.get("preview_document", "") or html
         progress_for(context)("generated", {"label": "排版已完成", "count": len(preview)})
         return ToolResult({"html": html, "preview_document": preview}, (
             ArtifactOutput(type="html", title=session['topic'], content=preview,
                            content_json={'article_html': html, 'layout_variant': session.get('layout_variant'),
-                                         'layout_html_hash': session.get('layout_html_hash'), 'reading_mode': 'publisher-components'}),
+                                         'layout_html_hash': session.get('layout_html_hash'), 'reading_mode': 'publisher-components',
+                                         'layout_repair_trace': session.get('layout_repair_trace', []),
+                                         'compliance_allowances': session.get('compliance_allowances', {})}),
         ))
 
     return {"search_topics": search_topics, "create_outline": create_outline,

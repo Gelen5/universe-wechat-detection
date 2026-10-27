@@ -510,6 +510,8 @@
     provider_balance: '文本 API 额度不足，请联系管理员充值；本轮积分已退还',
     provider_connection: '模型服务暂时断开，稍后重试即可；本轮积分已退还',
     provider: '模型服务出错了，稍后重试即可；本轮积分已退还',
+    layout_validation: '排版自动修复后仍未通过完整性或兼容检查，原稿已保留；本轮积分已退还',
+    layout_image: '图片无法安全复制，请检查图片格式和大小；本轮积分已退还',
     skill_missing: '服务端缺少公众号 Skill 文件，请联系管理员；本轮积分已退还',
     stage_tool_missing: '当前版本缺少这个阶段的执行工具，请换个阶段；本轮积分已退还',
     topic_source: '抓取热点超时或被网络拦截，重试即可；本轮积分已退还',
