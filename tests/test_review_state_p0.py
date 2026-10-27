@@ -83,6 +83,19 @@ def test_structural_problem_does_not_turn_fidelity_pass_into_overall_pass():
     assert '结构问题待处理' in final['summary']
 
 
+def test_pending_editorial_issues_do_not_report_success_when_unchanged():
+    article = '# 标题\n\n正文。'
+    report = {'gate': 'passed', 'changed': False, 'article_sha256': skill_runtime.digest(article),
+              'rounds': [], 'pending_review_notes': [{'reason': '重复问题尚未处理'}],
+              'summary': '已复核，正文无需修改'}
+    with patch.object(workbench, '_review_impl', return_value=(article, report)):
+        result, final = workbench._review(article, {})
+    assert result == article and final['gate'] == 'passed'
+    assert final['fidelity_gate']['status'] == 'passed'
+    assert final['editorial_quality']['status'] == 'needs_review'
+    assert '正文未修改' in final['summary'] and '待处理' in final['summary']
+
+
 def test_failed_semantic_or_numeric_check_preserves_original():
     original = '# 标题\n\n每周3次，先征得双方同意。'
     session = {'id': 'deep', 'brief': '深度重构'}

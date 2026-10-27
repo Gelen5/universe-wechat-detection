@@ -792,6 +792,10 @@ def _review(article: str, session: dict[str, Any], progress=None) -> tuple[str, 
                                  + '。请核对改稿，不代表检测器结果。')
         if structural:
             report['summary'] = (report.get('summary') or '已完成局部复核') + ' 文章结构问题待处理；可明确要求深度重构。'
+        elif report.get('pending_review_notes') and revised == article:
+            report['summary'] = '局部审校已执行，正文未修改；仍有问题待处理，请查看复核报告。'
+        elif revised == article and report.get('gate') == 'passed':
+            report['summary'] = '局部审校已执行，正文未修改；未发现可安全应用的修改，不代表文章质量已确认。'
         return revised, report
 
 
