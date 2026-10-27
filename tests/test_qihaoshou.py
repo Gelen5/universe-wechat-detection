@@ -72,6 +72,14 @@ class WritingStudioTests(unittest.TestCase):
         self.assertIn('不得冒充真实人物',prompt)
         self.assertEqual(q.Draft(topic='普通主题').writing_goal,'')
 
+    def test_source_roles_and_uncertain_fields_are_not_automatically_assigned(self):
+        data=q.Draft(topic='整理会议纪要',reference='甲负责字段清单，评审人未说明。').model_dump()
+        prompt=q.draft_prompt(data)
+        self.assertIn('甲负责字段清单，评审人未说明',prompt)
+        self.assertIn('不能把交付物所有者自动当成审核人',prompt)
+        self.assertIn('缺失时写待确认',prompt)
+        self.assertIn('概括或改写不得用引号冒充原句',prompt)
+
     def test_editor_sanitization_preserves_format_but_not_active_content(self):
         raw='<script>alert(1)</script><p onclick="x()" style="text-align:center;color:red;background:url(http://x)">正文<b>加粗</b></p><img src="https://example.com/track"><iframe src="x"></iframe>'
         value=q.clean_html(raw,self.data['id'])
@@ -114,6 +122,31 @@ class WritingStudioTests(unittest.TestCase):
         self.assertIn('"error"',result.text);self.assertNotIn('"done": true',result.text)
         self.assertEqual(self.balance(),before)
         self.assertEqual(self.client.get('/api/qihaoshou/sessions/'+self.data['id']).json()['html'],self.data['html'])
+
+    def test_new_generation_clears_old_review_only_after_success(self):
+        old_review={'before_html':'<p>原稿</p>','after_html':self.data['html'],
+                    'changes':[{'before':'旧句','after':'新句'}]}
+        self.data['deai_review']=old_review
+        accounts.save_workbench_session(self.user['id'],self.data)
+        def fail(prompt,cancel):
+            yield '# 不完整稿\n'
+            raise workbench.ProviderError('连接中断')
+        with patch.object(q,'provider_ready'),patch.object(q,'text_stream',side_effect=fail):
+            response=self.client.post('/api/qihaoshou/generate',json=self.op())
+        self.assertIn('"error"',response.text)
+        preserved=self.client.get('/api/qihaoshou/sessions/'+self.data['id']).json()
+        self.assertEqual(preserved['html'],self.data['html'])
+        self.assertEqual(preserved['deai_review'],old_review)
+        self.assertEqual(self.balance(),100)
+        def succeed(prompt,cancel):
+            yield '# 新文章\n\n'+'新正文内容。'*15
+        with patch.object(q,'provider_ready'),patch.object(q,'text_stream',side_effect=succeed):
+            response=self.client.post('/api/qihaoshou/generate',json=self.op(preserved))
+        self.assertIn('"done": true',response.text)
+        updated=self.client.get('/api/qihaoshou/sessions/'+self.data['id']).json()
+        self.assertNotIn('deai_review',updated)
+        self.assertIn('新文章',updated['html'])
+        self.assertEqual(self.balance(),90)
 
     def test_missing_points_blocks_provider(self):
         with accounts.DB_LOCK,accounts._connect() as c:

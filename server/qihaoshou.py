@@ -393,6 +393,9 @@ def generate(payload: Operation,request: Request):
                 current['title']=(title.get_text(strip=True) if title else current['topic'])[:120]
                 current['revision']+=1
                 current['messages']=(current.get('messages',[])+[{'role':'user','content':current['topic']},{'role':'assistant','content':text}])[-10:]
+                # A comparison belongs to the previous article. Do not show it
+                # beside an unrelated newly generated body; failed runs leave it intact.
+                current.pop('deai_review', None)
                 save(current,uid)
                 if usage:accounts.settle_usage(usage,200,int((time.monotonic()-started)*1000))
                 accounts.update_workbench_job(job['id'],'completed');ok=True
