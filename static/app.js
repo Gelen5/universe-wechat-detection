@@ -29,6 +29,39 @@ const walletModal = document.querySelector('#wallet-modal');
 const walletSettingsButton = document.querySelector('#wallet-settings-button');
 const logoutButton = document.querySelector('#logout-button');
 let currentAccount = null;
+let accountReadSequence = 0;
+let publishedAccountId;
+let resolveInitialAccount;
+const initialAccountReady = new Promise(resolve => { resolveInitialAccount = resolve; });
+window.AccountLifecycle = {
+  async checkResponse(response) {
+    const owner = response.headers.get('X-Account-ID');
+    if (!owner) return;
+    await initialAccountReady;
+    if (owner !== currentAccount?.id) throw new Error('账号已切换，已忽略之前的响应');
+  },
+};
+const accountSignalKey = 'universe.account.changed';
+window.addEventListener('account-changed', () => {
+  ++accountReadSequence;
+  const next = currentAccount?.id || null;
+  if (next === publishedAccountId) return;
+  const previous = publishedAccountId;
+  publishedAccountId = next;
+  if (previous !== undefined) {
+    document.querySelectorAll('#wallet-modal, #api-settings-modal, #admin-users-modal').forEach(node => { node.hidden = true; });
+    document.querySelectorAll('#wallet-transactions, #admin-users-list, #admin-user-detail, #xhs-result, #tie-result, #hit-result').forEach(node => { node.textContent = ''; });
+    document.querySelectorAll('#xhs-result, #tie-result, #hit-result').forEach(node => { node.hidden = true; });
+    document.querySelectorAll('#api-settings-modal input').forEach(node => { node.value = ''; });
+  }
+  try { localStorage.setItem(accountSignalKey, globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`); } catch { /* Storage may be disabled. */ }
+});
+window.addEventListener('storage', event => {
+  if (event.key === accountSignalKey) loadAccount();
+});
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') loadAccount();
+});
 let currentWallet = { balance: 0, trial: 0, bonus: 0, paid: 0 };
 const sharedKeys = {
   text: 'shared_text_api_key_v1',
@@ -114,6 +147,7 @@ async function openAdminUsers() {
 async function switchToUser(userId) {
   if (!window.confirm('切换后将以该用户的积分和权限使用工作台。所有切换行为都会记录，是否继续？')) return;
   try {
+    await prepareAccountChange();
     const data = await readApiResponse(await fetch('/api/admin/impersonate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: userId }) }));
     currentAccount = data.user;
     window.dispatchEvent(new Event('account-changed'));
@@ -126,6 +160,7 @@ async function switchToUser(userId) {
 
 async function stopImpersonation() {
   try {
+    await prepareAccountChange();
     const data = await readApiResponse(await fetch('/api/auth/stop-impersonation', { method: 'POST' }));
     currentAccount = data.user;
     window.dispatchEvent(new Event('account-changed'));
@@ -172,6 +207,7 @@ function showToast(message, type = 'success') {
 }
 
 async function readApiResponse(response) {
+  await window.AccountLifecycle.checkResponse(response);
   const contentType = response.headers.get('content-type') || '';
   if (!contentType.includes('application/json')) {
     if ([502, 503, 504].includes(response.status)) {
@@ -358,8 +394,18 @@ document.querySelector('#wallet-chip')?.addEventListener('click', openWallet);
 document.querySelector('#wallet-close')?.addEventListener('click', () => { walletModal.hidden = true; });
 document.querySelector('#wallet-refresh')?.addEventListener('click', () => refreshWallet());
 walletModal?.addEventListener('click', event => { if (event.target === walletModal) walletModal.hidden = true; });
+async function prepareAccountChange() {
+  const pending = [];
+  window.dispatchEvent(new CustomEvent('before-account-change', { detail: { pending } }));
+  await Promise.all(pending);
+}
+
 logoutButton?.addEventListener('click', async () => {
-  await fetch('/api/auth/logout', { method: 'POST' });
+  try {
+    await prepareAccountChange();
+    const response = await fetch('/api/auth/logout', { method: 'POST' });
+    if (!response.ok) throw new Error('退出未确认，请稍后重试');
+  } catch (error) { showToast(error.message, 'error'); return; }
   currentAccount = null;
   window.dispatchEvent(new Event('account-changed'));
   syncAdminVisibility();
@@ -369,12 +415,24 @@ logoutButton?.addEventListener('click', async () => {
 });
 
 async function loadAccount() {
+  const sequence = ++accountReadSequence;
   const publicView = ['home', 'market', 'hotspots'].includes(pathToView(location.pathname));
   try {
     const response = await fetch('/api/auth/me');
+    if (sequence !== accountReadSequence) return;
     // 首页与公开资源无需登录；创作页面继续沿用原登录校验。
-    if (!response.ok) { if (!publicView) showAuth(); return; }
+    if (!response.ok) {
+      if (response.status === 401) {
+        currentAccount = null;
+        window.dispatchEvent(new Event('account-changed'));
+        syncAdminVisibility();
+        renderWallet({ balance: 0, trial: 0, bonus: 0, paid: 0 });
+        if (!publicView) showAuth();
+      }
+      return;
+    }
     const data = await readApiResponse(response);
+    if (sequence !== accountReadSequence) return;
     currentAccount = data.user;
     window.dispatchEvent(new Event('account-changed'));
     syncAdminVisibility();
@@ -382,7 +440,8 @@ async function loadAccount() {
     document.querySelector('#wallet-user-line').textContent = `${currentAccount.display_name} · ${currentAccount.email}`;
     document.querySelector('.api-live-dot')?.classList.remove('offline');
     restoreDurableWorkflow();
-  } catch { if (!publicView) showAuth(); }
+  } catch { if (!publicView && !currentAccount) showAuth(); }
+  finally { resolveInitialAccount(); }
 }
 
 function toggleSettingsMenu(force) {

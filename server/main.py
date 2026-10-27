@@ -69,6 +69,8 @@ async def request_observability(request: Request, call_next):
                   latency_ms=latency_ms)
         if response is not None:
             response.headers["X-Request-ID"] = request_id
+            if user and request.url.path.startswith('/api/') and not request.url.path.startswith('/api/auth/'):
+                response.headers['X-Account-ID'] = str(user['id'])
 
 
 async def disable_frontend_cache(request, call_next):

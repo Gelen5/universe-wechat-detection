@@ -405,6 +405,7 @@
     catch (error) {
       throw new Error(error.name === 'TimeoutError' ? '请求响应较慢，请稍后确认结果' : '网络连接暂时中断，请检查网络后重试');
     }
+    await window.AccountLifecycle?.checkResponse(response);
     const type = response.headers.get('content-type') || '';
     if (!type.includes('application/json')) {
       const error = new Error(`服务响应异常（${response.status}），请稍后确认结果`);
@@ -1478,6 +1479,9 @@
     skillPicker.parentElement.hidden = selectedMode === 'auto';
   }
 
+  window.addEventListener('before-account-change', event => {
+    event.detail.pending.push(flushEdits());
+  });
   window.addEventListener('account-changed', () => {
     const next = typeof currentAccount !== 'undefined' ? currentAccount?.id || null : null;
     if (accountId === undefined) { accountId = next; return; }
@@ -1495,6 +1499,7 @@
     artifactTotal = 0; artifactCursor = null;
     selectedTopic = ''; direction = ''; activeStage = 'topic';
     localStorage.removeItem(keyConversation); localStorage.removeItem(keyRun);
+    rememberConversationUrl(null);
     input.value = ''; htmlPreview.srcdoc = ''; renderedEventIds.clear();
     root.querySelector('.draft-recovery')?.setAttribute('hidden', '');
     root.querySelectorAll('.folio-doc').forEach(node => { node.textContent = ''; });

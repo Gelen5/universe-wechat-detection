@@ -33,3 +33,15 @@ def test_unauthenticated_api_response_cannot_be_cached_for_the_next_login():
         response = client.get('/api/runs')
         assert response.status_code == 401
         assert response.headers['cache-control'] == 'private, no-store, max-age=0'
+
+
+def test_private_response_identifies_request_owner_for_stale_ui_guard():
+    with TestClient(app) as client:
+        login = client.post('/api/auth/login', json={
+            'email': 'admin@example.com', 'password': 'testing-pass-123'})
+        assert login.status_code == 200
+        response = client.get('/api/runs')
+        assert response.status_code == 200
+        assert response.headers['X-Account-ID'] == login.json()['user']['id']
+        # Identity bootstrap cannot wait on the identity it is establishing.
+        assert 'X-Account-ID' not in client.get('/api/auth/me').headers
