@@ -121,7 +121,18 @@ def create_tools():
         with workbench.provider_overrides(), call_context.bind(
             **{key: inherited.get(key) for key in ('run_id', 'user_id', 'usage_recorder', 'cost_policy', 'idempotency_key')},
             deadline=inherited.get("deadline"), is_cancelled=context.is_cancelled):
-            reviewed, report = workbench._review(article, session, progress=progress)
+            run = conversation_repository.get_run(context.run_id, context.user_id)
+            trigger = (conversation_repository.get_message(context.conversation_id, context.user_id,
+                        run['trigger_message_id']) if run else None) or {}
+            user_text = str(trigger.get('content') or '')
+            deep_terms = ('深度重构', '深度内容重构', '结构重构', '重构结构',
+                          '重构全文结构', '调整全文结构', '重新组织全文')
+            explicit_deep = any(
+                not re.search(r'(?:不要|无需|禁止|不做|不需要|别|不必)\s*$', user_text[max(0, match.start() - 8):match.start()])
+                for term in deep_terms for match in re.finditer(re.escape(term), user_text)
+            )
+            reviewed, report = (workbench._deep_structure_review(article, session, progress=progress)
+                                if explicit_deep else workbench._review(article, session, progress=progress))
         report.setdefault('summary', '复核仍有待办，请查看报告；当前稿已保留' if report.get('gate') != 'passed' else ('已完成局部改稿并通过检查' if report.get('changed') else '已复核，正文未修改；未发现可安全执行的修改，详情见报告'))
         progress_for(context)("generated", {"label": report["summary"], "count": len(reviewed)})
         return ToolResult({"title": session["topic"], "article": reviewed, "review": report}, (
@@ -134,6 +145,19 @@ def create_tools():
         artifacts = reader() if reader else conversation_repository.list_artifacts(context.conversation_id, context.user_id)
         saved_article = latest_artifact(context, "article", artifacts)
         article = (saved_article or {}).get("content") or required_text(args, "article")
+        matching_review = next((item for item in artifacts if item.get('type') == 'report'
+                                and item.get('run_id') == (saved_article or {}).get('run_id')
+                                and (item.get('content_json') or {}).get('source') in
+                                    {'universe-delete-ai-skill', 'structural_rewrite'}), None)
+        if matching_review:
+            review = matching_review.get('content_json') or {}
+            fidelity = review.get('fidelity_gate') or {}
+            editorial = review.get('editorial_quality') or {}
+            if (review.get('gate') != 'passed'
+                    or (fidelity and fidelity.get('status') != 'passed')
+                    or editorial.get('outcome') == 'structure_needs_review'
+                    or review.get('article_sha256') != workbench.skill_runtime.digest(article)):
+                raise workbench.ProviderError('当前正文的复核未通过或版本已变更，请先处理复核问题再排版')
         session = {"id": uuid.uuid4().hex, "topic": str(args.get("title") or "公众号文章"),
                    "article": article,
                    "theme": str(args.get("theme") or "default"), "image_plan": {}, "images": [],

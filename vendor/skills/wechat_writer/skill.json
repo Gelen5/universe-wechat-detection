@@ -87,7 +87,8 @@
         "properties": {
           "title": {"type": "string"},
           "article": {"type": "string", "description": "当前文章全文"},
-          "requirements": {"type": "string", "description": "文章要求与复核重点"}
+          "requirements": {"type": "string", "description": "文章要求与复核重点"},
+          "review_mode": {"type": "string", "enum": ["local", "deep_structure"], "description": "仅用户明确要求结构重构时选 deep_structure；默认 local"}
         },
         "required": ["article"],
         "additionalProperties": false

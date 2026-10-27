@@ -6,6 +6,27 @@ import unicodedata
 from collections import Counter
 
 
+def repeated_editing_cues(article: str) -> list[dict]:
+    """Find repeated instructional lead-ins as review clues, never as verdicts."""
+    pattern = re.compile(r'(?:示范表达|示范(?:语句|说法)|可以这样(?:说|开口)|可以借用[^\n]{0,10}表达)')
+    snippets = []
+    seen_lines = set()
+    for match in pattern.finditer(article):
+        start = article.rfind('\n', 0, match.start()) + 1
+        end = article.find('\n', match.end())
+        line = article[start:end if end >= 0 else len(article)].strip()
+        if not line or line.startswith(('#', '>', '“', '「', '"')) or len(line) > 120:
+            continue
+        if start not in seen_lines:
+            seen_lines.add(start)
+            snippets.append(line)
+    if len(snippets) < 3:
+        return []
+    return [{'kind': 'repeated_example_leadins', 'occurrences': len(snippets),
+             'examples': snippets[:8],
+             'note': '仅供结合上下文判断是否重复；示范内容和必要引语应保留'}]
+
+
 def revision_evidence(before: str, after: str) -> dict:
     def words(value):
         return ''.join(c for c in value if not c.isspace()

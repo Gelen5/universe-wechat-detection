@@ -253,6 +253,9 @@ class ReviewStateTests(unittest.TestCase):
         state = wf.new_article_state("写一篇关于老店关闭的文章", topic="老店为什么关了")
         state.draft = draft
         state.nodes["review"].status = "passed" if passed else "blocked"
+        state.quality_report['platform_review'] = {'gate': 'passed' if passed else 'needs_review',
+            'article_sha256': workbench.skill_runtime.digest(draft)}
+        state.quality_report['fidelity_gate'] = {'status': 'passed' if passed else 'needs_review'}
         return state.to_dict()
 
     def test_matching_draft_reports_fresh(self):

@@ -445,8 +445,8 @@ class PipelineTests(unittest.TestCase):
                 else:
                     with self.assertRaises(w.ProviderError): w._review(candidate,{'id':'test'})
 
-    def test_model_opinion_does_not_block_delivery(self):
-        """模型的推断/可读性意见只记录，不阻断；确定性检查仍阻断。"""
+    def test_unresolved_fidelity_opinion_preserves_original_and_needs_review(self):
+        """模型的保真疑点不当作已解决；原文仍完整保留。"""
         article = '# 标题\n\n正文提到房租可能是共同原因。'
         diagnosis = {'issues': [{'quote': '共同原因', 'reason': '推断强度过高', 'fix': '改成可能'}],
                      'reason': '推断强度过高，现有条件不足以支撑', 'fidelity_ok': False, 'readability_ok': True}
@@ -461,9 +461,9 @@ class PipelineTests(unittest.TestCase):
              patch.object(w, '_validated_local_edits', return_value=({'edits': [], 'retained_issue_indexes': [0]}, article)), \
              patch.dict('os.environ', {'WECHAT_REVIEW_ROUNDS': '1'}):
             revised, report = w._review(article, {'id': 'opinion', 'brief': '审稿'})
-        self.assertEqual(report['gate'], 'passed')
+        self.assertEqual(report['gate'], 'needs_review')
         self.assertEqual(revised, article)
-        self.assertEqual(1, len(report['pending_review_notes']))
+        self.assertTrue(any(item.get('kind') == 'fidelity_opinion' for item in report['pending_review_notes']))
 
     def test_title_only_issues_do_not_block_the_article(self):
         """复核改不了标题，只针对标题的意见应转为待办而不是让整篇失败。"""

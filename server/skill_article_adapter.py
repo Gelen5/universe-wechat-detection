@@ -98,9 +98,20 @@ def review_state(article_payload: dict[str, Any]) -> dict[str, Any]:
     """
     article_state, _workflow = _skill_modules()
     state = article_state.ArticleState.from_dict(article_payload)
+    current_hash = workbench.skill_runtime.digest(state.draft or "")
+    platform = (state.quality_report or {}).get('platform_review') or {}
+    fidelity = (state.quality_report or {}).get('fidelity_gate') or {}
+    editorial = (state.quality_report or {}).get('editorial_quality') or {}
+    reviewed_hash = platform.get('article_sha256')
     return {
-        "passed": state.nodes["review"].status == "passed",
-        "article_sha256": workbench.skill_runtime.digest(state.draft or ""),
+        "passed": (state.nodes["review"].status == "passed"
+                   and platform.get('gate') == 'passed'
+                   and fidelity.get('status') == 'passed'
+                   and editorial.get('outcome') != 'structure_needs_review'
+                   and bool(reviewed_hash) and reviewed_hash == current_hash),
+        "article_sha256": reviewed_hash,
+        "current_article_sha256": current_hash,
+        "gate": platform.get('gate', 'unknown'),
     }
 
 
@@ -173,15 +184,39 @@ def apply_node(article_payload: dict[str, Any], node_name: str,
         workflow.apply_host_result(state, "review", {
             "revision_plan": _revision_plan_from(result.get("review")),
             "revised_draft": result.get("article") or state.draft,
+            # This host path did not run a new reader simulation. Never carry
+            # a previous review's reader verdict into a new draft or run.
+            "reader_simulation": [],
         })
-        workflow.run_node(state, "review")
+        review = result.get('review') or {}
+        article_hash = workbench.skill_runtime.digest(state.draft or '')
+        incoming_fidelity = review.get('fidelity_gate') or {}
+        incoming_editorial = review.get('editorial_quality') or {}
+        valid = (review.get('gate') == 'passed'
+                 and incoming_fidelity.get('status') == 'passed'
+                 and incoming_editorial.get('outcome') != 'structure_needs_review'
+                 and review.get('article_sha256') == article_hash)
+        if valid:
+            workflow.run_node(state, "review")
+        else:
+            state.quality_report = {'hard_gate': {'status': 'not_run'}}
         node = state.nodes["review"]
-        if node.status == "awaiting_host":
-            # The hard gate passed, but no reader simulation was produced.
-            # Record that honestly instead of inventing reader verdicts.
-            node.status = "passed"
-            node.message = "硬门禁已通过；读者模拟未独立执行（由平台复核链路替代，记为 skipped）"
-            state.log("node:review:skipped", node.message)
+        hard_passed = valid and not (state.quality_report.get('hard_gate') or {}).get('blocked', True)
+        state.quality_report['platform_review'] = {'gate': review.get('gate', 'unknown'),
+                                                   'article_sha256': review.get('article_sha256')}
+        state.quality_report['fidelity_gate'] = review.get('fidelity_gate') or {
+            'status': 'passed' if valid else 'needs_review', 'scope': 'deterministic_checks_only'}
+        state.quality_report['editorial_quality'] = review.get('editorial_quality') or {
+            'status': 'needs_review' if review.get('pending_review_notes') else 'not_assessed'}
+        state.quality_report['human_review_status'] = 'not_performed'
+        state.quality_report['reader_simulation_status'] = 'performed' if state.reader_simulation else 'skipped'
+        if not valid or not hard_passed:
+            node.status = 'needs_review'
+            node.message = '平台复核未通过、正文版本不匹配或硬门禁未通过，需人工处理'
+        elif node.status == 'awaiting_host':
+            node.status = 'passed'
+            node.message = '确定性检查通过；读者模拟和人工复核未执行，文章质量尚待判断'
+        state.log('node:review:status', node.message)
         result["quality_report"] = state.quality_report
     elif node_name == "visual":
         plan = result.get("image_plan") or {}

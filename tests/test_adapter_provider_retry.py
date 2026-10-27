@@ -85,6 +85,52 @@ class AdapterProviderRetryTests(unittest.TestCase):
                 {"title": "测试标题", "article": "正文"}, context)
         self.assertEqual(result.data["html"], "<p>正文</p>")
 
+    def test_deep_review_requires_user_request_not_model_tool_arguments(self):
+        context = SimpleNamespace(conversation_id='conv', user_id='user', run_id='run',
+            input_artifacts=lambda: [{'type': 'article', 'content': '原稿', 'created_at': '1'}],
+            is_cancelled=lambda: False, emit=lambda *_args: None)
+        report = {'gate': 'passed', 'changed': False, 'summary': '复核完成'}
+        with patch('vendor.skills.wechat_writer.adapter.conversation_repository.get_run', return_value={'trigger_message_id': 'm'}), \
+             patch('vendor.skills.wechat_writer.adapter.conversation_repository.get_message', return_value={'content': '正常去 AI'}), \
+             patch('vendor.skills.wechat_writer.adapter.workbench.provider_overrides', return_value=nullcontext()), \
+             patch('vendor.skills.wechat_writer.adapter.workbench._review', return_value=('原稿', report)) as local, \
+             patch('vendor.skills.wechat_writer.adapter.workbench._deep_structure_review') as deep:
+            create_tools()['review_article']({'article': '原稿', 'review_mode': 'deep_structure'}, context)
+        local.assert_called_once()
+        deep.assert_not_called()
+
+    def test_negated_deep_review_stays_local(self):
+        context = SimpleNamespace(conversation_id='conv', user_id='user', run_id='run',
+            input_artifacts=lambda: [{'type': 'article', 'content': '原稿', 'created_at': '1'}],
+            is_cancelled=lambda: False, emit=lambda *_args: None)
+        with patch('vendor.skills.wechat_writer.adapter.conversation_repository.get_run', return_value={'trigger_message_id': 'm'}), \
+             patch('vendor.skills.wechat_writer.adapter.conversation_repository.get_message', return_value={'content': '不要深度重构，只做局部审校'}), \
+             patch('vendor.skills.wechat_writer.adapter.workbench.provider_overrides', return_value=nullcontext()), \
+             patch('vendor.skills.wechat_writer.adapter.workbench._review', return_value=('原稿', {'gate': 'passed'})) as local, \
+             patch('vendor.skills.wechat_writer.adapter.workbench._deep_structure_review') as deep:
+            create_tools()['review_article']({'article': '原稿'}, context)
+        local.assert_called_once()
+        deep.assert_not_called()
+
+    def test_explicit_deep_review_and_pending_review_cannot_be_typeset(self):
+        context = SimpleNamespace(conversation_id='conv', user_id='user', run_id='run',
+            input_artifacts=lambda: [{'type': 'article', 'content': '原稿', 'created_at': '1'}],
+            is_cancelled=lambda: False, emit=lambda *_args: None)
+        report = {'gate': 'passed', 'changed': True, 'summary': '重构完成'}
+        with patch('vendor.skills.wechat_writer.adapter.conversation_repository.get_run', return_value={'trigger_message_id': 'm'}), \
+             patch('vendor.skills.wechat_writer.adapter.conversation_repository.get_message', return_value={'content': '请深度重构'}), \
+             patch('vendor.skills.wechat_writer.adapter.workbench.provider_overrides', return_value=nullcontext()), \
+             patch('vendor.skills.wechat_writer.adapter.workbench._deep_structure_review', return_value=('新稿', report)) as deep:
+            result = create_tools()['review_article']({'article': '原稿'}, context)
+        deep.assert_called_once()
+        self.assertEqual(result.artifacts[0].content, '新稿')
+        pending = SimpleNamespace(conversation_id='conv', user_id='user', run_id='typeset',
+            input_artifacts=lambda: [
+                {'type':'article', 'content':'原稿', 'run_id':'review', 'created_at':'1'},
+                {'type':'report', 'run_id':'review', 'content_json':{'source':'structural_rewrite', 'gate':'needs_review'}, 'created_at':'2'}])
+        with self.assertRaises(workbench.ProviderError):
+            create_tools()['typeset_article']({'article': '原稿'}, pending)
+
     def test_typeset_uses_the_submitted_article_snapshot_and_records_source(self):
         from server.skill_runtime import digest
         old = {"type": "article", "id": "old", "version": 1, "content": "旧正文。",

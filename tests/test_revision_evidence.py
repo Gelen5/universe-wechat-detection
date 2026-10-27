@@ -1,7 +1,8 @@
 import unittest
 from unittest.mock import patch
 from server import workbench as w
-from server.revision_evidence import orphaned_list_error, revision_evidence, introduced_duplicate_error
+from server.revision_evidence import (orphaned_list_error, revision_evidence, introduced_duplicate_error,
+                                      repeated_editing_cues)
 
 
 class RevisionEvidenceTests(unittest.TestCase):
@@ -41,3 +42,13 @@ class RevisionEvidenceTests(unittest.TestCase):
                 w._validated_local_edits(article, 'edit', True, anchors=['这段需要精简。'])
         repeated = next_paragraph + '\n\n' + next_paragraph
         self.assertIsNone(introduced_duplicate_error(repeated, repeated))
+
+    def test_repeated_example_introductions_are_only_review_clues(self):
+        article = ('可以借用这样的示范表达：\n\n“先听清楚。”\n\n'
+                   '下面是示范表达：\n\n“这件事怎么做？”\n\n'
+                   '示范表达可以是：\n\n“我需要一点时间。”')
+        cues = repeated_editing_cues(article)
+        self.assertEqual(cues[0]['occurrences'], 3)
+        self.assertNotIn('先听清楚', str(cues))
+        self.assertEqual([], repeated_editing_cues('示范表达：\n\n“这是一处示范。”'))
+        self.assertEqual(repeated_editing_cues('示范表达：\n\n示范表达：\n\n示范表达：')[0]['occurrences'], 3)

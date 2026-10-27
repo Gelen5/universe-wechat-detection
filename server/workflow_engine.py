@@ -110,9 +110,17 @@ def _execute_node(workflow: dict[str, Any], node_name: str) -> dict[str, Any]:
         session = workbench.step(workflow_id, 4, user_id=user_id)
         result = {"article": session.get("article", ""), "review": session.get("review"), "score": session.get("score")}
     elif node_name == "visual":
+        verdict = skill_article_adapter.review_state(state_payload or {})
+        session = _legacy_session(workflow)
+        if not verdict['passed'] or verdict['article_sha256'] != workbench.skill_runtime.digest(session.get('article') or ''):
+            raise workbench.ProviderError('当前正文尚未通过有效复核，已保留原稿，请先处理复核问题')
         session = workbench.step(workflow_id, 5, user_id=user_id)
         result = {"image_plan": session.get("image_plan"), "image_policy": session.get("image_policy", "auto")}
     elif node_name == "delivery":
+        verdict = skill_article_adapter.review_state(state_payload or {})
+        session = _legacy_session(workflow)
+        if not verdict['passed'] or verdict['article_sha256'] != workbench.skill_runtime.digest(session.get('article') or ''):
+            raise workbench.ProviderError('当前正文尚未通过有效复核，不能进入交付')
         visual_decision = decisions.get("visual") or {}
         if visual_decision.get("image_policy") == "none":
             session = _legacy_session(workflow)

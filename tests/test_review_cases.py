@@ -52,10 +52,11 @@ class ReviewCaseReplay(unittest.TestCase):
         self.assertEqual('passed', report['gate'])
         self.assertTrue(report['pending_review_notes'])
 
-    def test_inference_strength_opinion_delivers_instead_of_failing(self):
+    def test_inference_strength_opinion_remains_pending_without_losing_article(self):
         case = _load('case_inference_strength.json')
-        _article, report = self._replay(case)
-        self.assertEqual('passed', report['gate'])
+        article, report = self._replay(case)
+        self.assertEqual('needs_review', report['gate'])
+        self.assertEqual(case['article'], article)
         self.assertTrue(report['pending_review_notes'])
 
     def test_lost_quotation_still_blocks(self):

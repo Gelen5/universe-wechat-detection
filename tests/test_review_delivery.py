@@ -45,6 +45,25 @@ class ReviewDeliveryTests(unittest.TestCase):
         self.assertIn('未修改', report['summary'])
         self.assertTrue(report['pending_review_notes'])
 
+    def test_partially_applied_diagnosis_is_reported_as_pending(self):
+        article = '第一句空泛。第二句重复。'
+        diagnosis = {'issues': [{'quote': '第一句空泛。', 'reason': '空泛', 'fix': '改具体'},
+                                {'quote': '第二句重复。', 'reason': '重复', 'fix': '精简'}],
+                     'reason': '两处阅读问题', 'fidelity_ok': True, 'readability_ok': True}
+        audit = {'status': 'success', 'complete_sentence_ratio': 1, 'missing_protected_spans': {}}
+        with tempfile.TemporaryDirectory() as directory, \
+             patch.object(w, 'OUTPUT_DIR', Path(directory)), \
+             patch.object(w, '_review_skill_context', return_value=('rules', [])), \
+             patch.object(skill_runtime, 'script', return_value={}), \
+             patch.object(skill_runtime, 'length_issue', return_value=None), \
+             patch.object(w, '_json_text', return_value=diagnosis), \
+             patch.object(w, '_anti_ai_audit', return_value=audit), \
+             patch.object(w, '_validated_local_edits', return_value=({'edits': [{'issue_index': 0, 'after': '第一句具体。'}, {'issue_index': 1, 'after': '第二句重复。'}]}, '第一句具体。第二句重复。')), \
+             patch.dict('os.environ', {'WECHAT_REVIEW_ROUNDS': '1'}):
+            _, report = w._review(article, {'id': 'pending', 'brief': '审稿'})
+        self.assertEqual(report['pending_review_notes'][0]['quote'], '第二句重复。')
+        self.assertIn('部分问题仍待处理', report['summary'])
+
     def test_fact_loss_after_edit_cannot_be_marked_passed(self):
         with self.assertRaises(w.ProviderError):
             self.run_review(missing=True)

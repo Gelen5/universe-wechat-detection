@@ -48,6 +48,48 @@ class WorkflowRepositoryTests(unittest.TestCase):
             self.assertEqual(1, len(nodes))
             self.assertEqual("queued", nodes[0].status)
 
+    def test_review_state_survives_database_reload_and_invalidates_modified_draft(self):
+        import json
+        import os
+        import subprocess
+        import sys
+        from unittest.mock import patch
+        from server import skill_article_adapter, skill_runtime
+        from tests.test_human_writing_nodes import native_modules
+        module, native = native_modules()
+        state = native.new_article_state('测试')
+        state.draft = '# 标题\n\n原稿正文。'
+        for name in ('intent', 'topic', 'research', 'strategy', 'draft'):
+            state.nodes[name].status = 'passed'
+        review = {'gate': 'needs_review', 'article_sha256': skill_runtime.digest(state.draft)}
+        with tempfile.TemporaryDirectory() as path, \
+             patch.object(skill_article_adapter, '_skill_modules', return_value=(module, native)):
+            payload = skill_article_adapter.apply_node(state.to_dict(), 'review',
+                {'article': state.draft, 'review': review}, Path(path))
+            task = self.create(key='review-restart')
+            repo.claim_node(task['id'], 'intent', 'task')
+            repo.complete_node(task['id'], 'intent', {'article_state': payload})
+            restored = repo.get_workflow(task['id'], 'user-a')['state']['article_state']
+            self.assertEqual(restored['nodes']['review']['status'], 'needs_review')
+            self.assertFalse(skill_article_adapter.review_state(restored)['passed'])
+            # Read the same durable row from a fresh Python process, as after a
+            # worker restart, rather than reusing in-memory state.
+            env = dict(os.environ, DATABASE_URL=str(database.ENGINE.url), PYTHONDONTWRITEBYTECODE='1',
+                       WECHAT_PUBLISHER_SKILL_DIR=str(Path(__file__).resolve().parents[1] / 'vendor/skills/weChat-autoCreate'))
+            program = ("import json,sys; from server import workflow_repository as r,skill_article_adapter as a; "
+                       "p=r.get_workflow(sys.argv[1],'user-a')['state']['article_state']; "
+                       "print(json.dumps({'status':p['nodes']['review']['status'],'passed':a.review_state(p)['passed']}))")
+            process = subprocess.run([sys.executable, '-c', program, task['id']], env=env,
+                                     capture_output=True, text=True, timeout=30, check=True)
+            self.assertEqual(json.loads(process.stdout), {'status': 'needs_review', 'passed': False})
+            # A separately reviewed revision does not authorize later edits.
+            restored['nodes']['review']['status'] = 'passed'
+            restored['quality_report']['platform_review']['gate'] = 'passed'
+            restored['quality_report']['fidelity_gate']['status'] = 'passed'
+            self.assertTrue(skill_article_adapter.review_state(restored)['passed'])
+            restored['draft'] += ' 后续人工修改。'
+            self.assertFalse(skill_article_adapter.review_state(restored)['passed'])
+
     def test_owner_isolation(self):
         workflow = self.create()
         self.assertIsNone(repo.get_workflow(workflow["id"], "user-b"))
