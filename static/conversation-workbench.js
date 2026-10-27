@@ -31,6 +31,19 @@
   const skillPicker = root.querySelector('#workbench-skill-picker');
   const viewToggle = root.querySelector('#workbench-view-toggle');
   const historyPopover = root.querySelector('#workbench-chat-history');
+  const taskButton = document.createElement('button');
+  taskButton.type = 'button'; taskButton.id = 'active-workbench-runs';
+  taskButton.className = 'new-chat-button pd-ghost'; taskButton.textContent = '任务';
+  taskButton.setAttribute('aria-expanded', 'false'); taskButton.setAttribute('aria-controls', 'workbench-task-list');
+  const headerActions = root.querySelector('.pd-pageact') || document.createElement('nav');
+  headerActions.className = 'pd-pageact runtime-tools'; headerActions.setAttribute('aria-label', '创作操作');
+  root.querySelector('.studio-heading').append(headerActions);
+  headerActions.append(taskButton);
+  const taskList = document.createElement('section');
+  taskList.id = 'workbench-task-list'; taskList.className = 'conversation-history-popover task-list';
+  taskList.hidden = true; taskList.setAttribute('aria-label', '我的活动任务');
+  root.append(taskList);
+  progress.setAttribute('aria-hidden', 'true');
   const stageNav = root.querySelector('#workbench-stage-nav');
   const stageTitle = root.querySelector('#workbench-stage-title');
   const stageHint = root.querySelector('#workbench-stage-hint');
@@ -86,6 +99,23 @@
   let progressNote = '';
   let progressStartedAt = 0;
   let progressTimer = null;
+  let runtimeState = null;
+
+  function runtimeTitle() { return window.RunPresentation.title(runtimeState, stageLabel(progressStage)); }
+
+  function applyRuntime(action) {
+    if (!runtimeState) return;
+    const previous = runtimeState;
+    runtimeState = window.RunPresentation.reduce(runtimeState, action);
+    if (runtimeState === previous) return;
+    root.dataset.runPhase = runtimeState.phase;
+    if (runtimeState.stage !== previous.stage && stages.some(item => item.id === runtimeState.stage)) {
+      selectStage(runtimeState.stage);
+      if (!progress.hidden) beginProgress(runtimeState.stage);
+    }
+    if (runtimeState.createdAt) progressStartedAt = runtimeState.createdAt;
+    tickProgress(); renderStage(); renderActionCard();
+  }
 
   function formatElapsed(ms) {
     const total = Math.max(0, Math.round(ms / 1000));
@@ -99,7 +129,7 @@
     const failed = progressSteps.find(step => stepState[step.key] === 'failed');
     const pct = Math.round((done / progressSteps.length) * 100);
     if (progress && !progress.hidden) {
-      progressTitle.textContent = `正在执行：${stageLabel(progressStage)}`;
+      progressTitle.textContent = runtimeTitle();
       progressBar.style.width = `${Math.max(6, Math.min(100, pct))}%`;
       const elapsed = `已等待 ${formatElapsed(Date.now() - progressStartedAt)}`;
     const state = failed ? '这一步失败了' : (progressNote || (active ? `${active.label}…` : '即将完成'));
@@ -116,7 +146,7 @@
     stepState = Object.fromEntries(progressSteps.map(step => [step.key, 'pending']));
     stepState[progressSteps[0].key] = 'active';
     progressNote = '';
-    progressStartedAt = Date.now();
+    progressStartedAt = runtimeState?.createdAt || Date.now();
     clearInterval(progressTimer);
     progressTimer = setInterval(tickProgress, 1000);
     tickProgress();
@@ -146,6 +176,8 @@
 
   let accountEpoch = 0;
   let accountId;
+  let navigationSequence = 0;
+  let taskRows = [], taskCursor = null, taskReadSequence = 0;
   let conversation = null;
   let activeRun = null;
   let source = null;
@@ -201,7 +233,7 @@
       }
       retainSubmission(null);
       if (run.stage) selectStage(run.stage);
-      if (['queued', 'running'].includes(run.status)) watchRun(run.id);
+      if (['queued', 'running'].includes(run.status)) watchRun(run.id, run);
       else {
         localStorage.removeItem(keyRun);
         await refresh();
@@ -368,9 +400,21 @@
 
   async function api(path, options = {}) {
     const epoch = accountEpoch;
-    const response = await fetch(path, options);
+    let response;
+    try { response = await fetch(path, options); }
+    catch (error) {
+      throw new Error(error.name === 'TimeoutError' ? '请求响应较慢，请稍后确认结果' : '网络连接暂时中断，请检查网络后重试');
+    }
     const type = response.headers.get('content-type') || '';
-    const data = type.includes('application/json') ? await response.json() : { detail: await response.text() };
+    if (!type.includes('application/json')) {
+      const error = new Error(`服务响应异常（${response.status}），请稍后确认结果`);
+      error.status = response.ok ? 502 : response.status;
+      throw error;
+    }
+    let data;
+    try { data = await response.json(); }
+    catch { throw new Error('响应未完整接收，请稍后重试'); }
+    if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('响应格式异常，请稍后确认结果');
     if (epoch !== accountEpoch) throw new Error('账号已切换，已忽略之前的响应');
     window.PointsNotice?.fromResponse(response, data);
     if (!response.ok) {
@@ -563,7 +607,8 @@
     if (placeholders[stage.id]) input.placeholder = placeholders[stage.id];
     stageNav.innerHTML = stages.map((entry, position) => {
       const done = Boolean(stageArtifact(entry.id));
-      const state = send.disabled && entry.id === progressStage ? (done ? '更新中' : '执行中') : isStale(entry.id) ? '需更新' : done ? '已完成' : position === index ? '当前阶段' : '待开始';
+      const runningLabel = ({saving: '保存中', submitting: '提交中', queued: '排队中', reconnecting: '重连中', cancelling: '取消中'})[runtimeState?.phase] || (done ? '更新中' : '执行中');
+      const state = send.disabled && entry.id === progressStage ? runningLabel : isStale(entry.id) ? '需更新' : done ? '已完成' : position === index ? '当前阶段' : '待开始';
       return `<button type="button" data-workbench-stage="${entry.id}" ${position === index ? 'aria-current="step"' : ''}>
         <span>${String(position + 1).padStart(2, '0')} ${entry.label}</span><small>${state}</small></button>`;
     }).join('');
@@ -625,6 +670,7 @@
   // 阶段不再由前端按关键词猜：一句话交给后端的意图调度（server/agent/intent.py），
   // 由模型结合当前进度判断；按钮/标签点击才是显式指定阶段。
   function renderActionCard() {
+    const follow = thread.scrollHeight - thread.scrollTop - thread.clientHeight < 100;
     thread.querySelector('#workbench-action-card')?.remove();
     const card = document.createElement('article');
     card.id = 'workbench-action-card';
@@ -639,10 +685,26 @@
         .map(step => `<li data-state="${stepState[step.key] || 'pending'}">${escapeHtml(step.label)}</li>`)
         .join('');
       const elapsed = formatElapsed(Date.now() - (progressStartedAt || Date.now()));
-      html = `<strong>正在执行：${escapeHtml(stageLabel(progressStage || activeStage))}</strong>
+      const phase = runtimeState?.phase;
+      const explanation = phase === 'queued' ? '等待执行资源；尚未开始生成正文。'
+        : phase === 'reconnecting' ? '暂时无法获取最新进度；任务可能仍在执行，正在核对状态。'
+        : phase === 'cancelling' ? (runtimeState?.cancelUnconfirmed ? '尚未确认服务端是否停止，可再次确认取消。' : '已请求停止，正在确认结果。确认前不会创建新任务。')
+        : phase === 'saving' ? '先保存当前修改，保存成功后才会提交任务。'
+        : phase === 'submitting' ? '正在确认请求是否已接收，请勿重复提交。'
+        : '离开后，可在「任务」找回进度。';
+      html = `<strong role="status" aria-live="polite">${escapeHtml(runtimeTitle())}</strong>
         <ol class="chat-steps">${steps}</ol>
         <p><span id="chat-elapsed">已等待 ${elapsed}</span>${progressNote ? ` · ${escapeHtml(progressNote)}` : ''}</p>
-        <p class="chat-steps-hint">这一步通常要 1–4 分钟，可以离开页面，任务不会丢。</p>`;
+        <p class="chat-steps-hint">${explanation}</p>
+        ${activeRun ? `<button type="button" data-cancel-run ${runtimeState?.cancelRequested && !runtimeState.cancelUnconfirmed ? 'disabled' : ''}>${runtimeState?.cancelUnconfirmed ? '再次确认取消' : runtimeState?.cancelRequested ? '正在确认取消' : '取消任务'}</button>` : ''}`;
+    } else if (pendingSubmission && !activeRun) {
+      html = '<strong>上次提交待确认</strong><p>记录已保留。先确认原请求，再开始新任务。</p><button type="button" data-resume-pending>继续确认上次提交</button>';
+    } else if (runtimeState?.status === 'failed' && !failure) {
+      html = `<strong>本轮未完成</strong><p>已有作品保留。请查看上方错误说明和账户积分记录。</p><button type="button" data-retry-stage="${escapeHtml(runtimeState.stage || activeStage)}">重试本阶段</button>`;
+    } else if (['cancelled', 'waiting_input'].includes(runtimeState?.status)) {
+      html = `<strong>${escapeHtml(runtimeTitle())}</strong><p>${runtimeState.status === 'cancelled'
+        ? '任务已停止，已有作品保留。积分状态可在账户账单中查看。'
+        : '请在输入框补充要求后继续，已有作品保留。'}</p>`;
     } else if (failure) {
       const meta = messageMeta(failure);
       const stage = meta.stage || activeStage;
@@ -694,7 +756,7 @@
     }
     card.innerHTML = html;
     thread.append(card);
-    thread.scrollTop = thread.scrollHeight;
+    if (follow) thread.scrollTop = thread.scrollHeight;
   }
 
   function showArtifact(item) {
@@ -744,10 +806,13 @@
     const current = editableArtifacts.at(-1) || ordered.at(-1);
     if (!current) {
       currentArtifact = null;
+      images.hidden = true; images.replaceChildren();
       viewToggle.hidden = true;
       renderStage();
       title.textContent = '作品会在这里出现'; editor.value = '';
       editor.readOnly = true;
+      saveState.textContent = '等待生成当前阶段作品';
+      versionLabel.textContent = '尚无作品'; changeLabel.textContent = '生成后会保留历史版本';
       artifactList.innerHTML = '<p class="empty-artifact">当前对话还没有作品</p>';
       return;
     }
@@ -803,6 +868,7 @@
       api(`/api/conversations/${encodeURIComponent(conversation.id)}/messages`),
       api(`/api/conversations/${encodeURIComponent(conversation.id)}/artifacts?view=workspace`),
     ]);
+    if (!Array.isArray(messages.messages) || !Array.isArray(artifacts.artifacts)) throw new Error('作品读取未完成，已保留当前内容，请稍后重试');
     if (epoch !== accountEpoch || conversation?.id !== conversationId) return;
     if (pendingEdit || savingEdits || sequence !== editSequence) {
       deferredRefresh = true;
@@ -822,6 +888,7 @@
         body: JSON.stringify({ content, expected_current_id: savedHeads.get(artifact.type)?.id || artifact.id }),
         signal: AbortSignal.timeout(15000),
       });
+      if (!data.artifact?.id) throw new Error('保存结果未完整返回，当前修改仍保留在编辑框');
       if (epoch !== accountEpoch) return;
       savedHeads.set(artifact.type, data.artifact);
       if (sequence !== editSequence) { deferredRefresh = true; return; }
@@ -858,15 +925,20 @@
     });
     conversation = data.conversation;
     localStorage.setItem(keyConversation, conversation.id);
+    rememberConversationUrl(conversation.id);
     return conversation;
   }
 
   async function openConversation(conversationId) {
+    const navigation = ++navigationSequence;
     try { await flushEdits(); } catch (error) { appendNotice(error.message); return; }
+    const next = (await api(`/api/conversations/${encodeURIComponent(conversationId)}`)).conversation;
+    if (navigation !== navigationSequence) return;
     closeEvents(); activeRun = null; localStorage.removeItem(keyRun);
+    runtimeState = null; root.removeAttribute('data-run-phase'); setBusy(false);
     savedHeads.clear();
     currentArtifact = null;
-    conversation = (await api(`/api/conversations/${encodeURIComponent(conversationId)}`)).conversation;
+    conversation = next;
     activeStage = localStorage.getItem(stageKey(conversation.id)) || 'topic';
     selectedTopic = localStorage.getItem(`universe.conversation.topic.${conversation.id}`) || '';
     direction = localStorage.getItem(directionKey(conversation.id)) || '';
@@ -878,12 +950,53 @@
     ));
     localStorage.setItem(keyConversation, conversation.id);
     historyPopover.hidden = true;
+    rememberConversationUrl(conversation.id);
+    taskList.hidden = true; taskButton.setAttribute('aria-expanded', 'false');
     await refresh();
     status.textContent = '已恢复历史对话';
-    if (conversation.active_run && ['queued', 'running'].includes(conversation.active_run.status)) watchRun(conversation.active_run.id);
+    if (conversation.active_run) restoreRun(conversation.active_run);
+  }
+
+  function rememberConversationUrl(id) {
+    if (location.pathname !== '/workbench') return;
+    const url = new URL(location.href);
+    if (id) url.searchParams.set('conversation', id); else url.searchParams.delete('conversation');
+    history.replaceState(null, '', url);
+  }
+
+  function restoreRun(run) {
+    if (['queued', 'running'].includes(run.status)) watchRun(run.id, run);
+    else if (run.status === 'waiting_input') {
+      runtimeState = window.RunPresentation.create(run.id, run.stage || activeStage);
+      applyRuntime({kind: 'snapshot', run}); setBusy(false);
+    }
+  }
+
+  async function loadTaskList(more = false) {
+    const epoch = accountEpoch;
+    const sequence = ++taskReadSequence;
+    taskList.innerHTML = '<p>正在读取任务…</p>';
+    try {
+      const data = await api('/api/runs?limit=50' + (more && taskCursor ? '&before=' + encodeURIComponent(taskCursor) : ''));
+      if (epoch !== accountEpoch || sequence !== taskReadSequence) return;
+      taskRows = more ? [...new Map([...taskRows, ...(data.runs || [])].map(run => [run.id, run])).values()] : data.runs || [];
+      taskCursor = data.next_cursor || null;
+      const rows = taskRows;
+      taskList.innerHTML = '<h3>我的活动任务</h3><button type="button" data-refresh-runs>刷新状态</button>' + (rows.length ? rows.map(run => `
+        <article><strong>${escapeHtml(run.conversation_title || '创作任务')}</strong>
+        <p>${escapeHtml(stageLabel(run.stage))} · ${escapeHtml(({queued:'排队中',running:'执行中',waiting_input:'待补充'})[run.status] || run.status)}</p>
+        <button type="button" data-conversation-id="${escapeHtml(run.conversation_id)}">进入任务</button>
+        <button type="button" data-cancel-task="${escapeHtml(run.id)}">取消任务</button></article>`).join('')
+        : '<p>当前没有待处理任务。已完成的作品可在「最近对话」中查看。</p>')
+        + (taskCursor ? '<button type="button" data-more-runs>读取更早任务</button>' : '');
+    } catch (error) {
+      if (epoch !== accountEpoch || sequence !== taskReadSequence) return;
+      taskList.innerHTML = `<p>${escapeHtml(error.message)}</p><button type="button" data-refresh-runs>重新读取</button>`;
+    }
   }
 
   async function toggleConversationHistory() {
+    taskList.hidden = true; taskButton.setAttribute('aria-expanded', 'false');
     if (!historyPopover.hidden) { historyPopover.hidden = true; return; }
     historyPopover.hidden = false;
     historyPopover.innerHTML = '<p class="empty-artifact">正在读取最近对话…</p>';
@@ -899,18 +1012,35 @@
 
   function closeEvents() { source?.close(); source = null; clearInterval(runStatusTimer); runStatusTimer = null; }
 
-  function watchRun(runId) {
+  async function finishWatching(runId) {
+    if (activeRun !== runId) return;
+    closeEvents(); activeRun = null; localStorage.removeItem(keyRun); setBusy(false);
+    await refresh().catch(error => appendNotice(error.message));
+    if (runtimeState?.status === 'completed' && window.matchMedia('(max-width: 1100px)').matches) setOutputOpen(true);
+  }
+
+  function watchRun(runId, snapshot = null) {
     closeEvents(); activeRun = runId; localStorage.setItem(keyRun, runId);
+    if (runtimeState?.id !== runId) runtimeState = window.RunPresentation.create(
+      runId, activeStage, runtimeState?.id == null ? runtimeState?.createdAt : undefined);
+    if (snapshot) applyRuntime({kind: 'snapshot', run: snapshot});
     setBusy(true, `正在生成${stages.find(item => item.id === activeStage)?.label || '当前成果'}`);
+    setStep('submit', 'done');
     source = new EventSource(`/api/runs/${encodeURIComponent(runId)}/events`);
-    const types = ['run.created', 'run.queued', 'run.started', 'run.running', 'run.waiting_input',
+    const types = ['run.created', 'run.queued', 'run.recovered', 'run.started', 'run.running', 'run.waiting_input',
       'skill.selected', 'stage.resolved', 'tool.started', 'tool.progress', 'tool.completed',
       'tool.failed', 'artifact.created', 'artifact.updated', 'assistant.completed',
       'run.completed', 'run.failed', 'run.cancelled'];
     types.forEach(type => source.addEventListener(type, async event => {
       if (activeRun !== runId) return;
       let payload = {};
-      try { payload = JSON.parse(event.data || '{}').payload || {}; } catch { /* non-fatal */ }
+      let record = {};
+      try { record = JSON.parse(event.data || '{}'); payload = record.payload || {}; } catch { /* non-fatal */ }
+      const previous = runtimeState;
+      applyRuntime({kind: 'event', id: runId, type, payload, eventId: event.lastEventId, createdAt: record.created_at});
+      if (previous === runtimeState && (event.lastEventId || record.created_at)) return;
+      if (type === 'run.recovered') beginProgress(runtimeState.stage);
+      if (type === 'run.started') { setStep('submit', 'done'); setStep('intent', 'active'); }
       if (type === 'stage.resolved') {
         // 模型决定了这一步做什么：切到对应标签并解释原因，避免"莫名跳 tab"。
         if (payload.stage && stages.some(item => item.id === payload.stage)) {
@@ -919,7 +1049,6 @@
           // 重新出选题时旧的"已选方向"作废，避免拿旧标题去写大纲。
           if (payload.stage === 'topic' && payload.source === 'model') selectedTopic = '';
           selectStage(payload.stage);
-          if (!progress.hidden) beginProgress(payload.stage);
           setStep('submit', 'done');
           setStep('intent', 'done');
           activateNextStep();
@@ -949,7 +1078,6 @@
           setStep('generating', 'done', payload.label || `已生成 ${payload.count ?? ''}`);
           setStep('saving', 'active');
         }
-        appendProgress(progressNote || '正在执行', event.lastEventId);
         status.textContent = progressNote || '正在执行';
         return;
       }
@@ -963,11 +1091,10 @@
         const active = progressSteps.find(step => stepState[step.key] === 'active');
         if (active) setStep(active.key, 'failed');
       }
-      appendProgress(eventText(type, payload), event.lastEventId); status.textContent = eventText(type, payload);
+      if (type.startsWith('run.') && window.RunPresentation.terminal(type.slice(4))) appendProgress(eventText(type, payload), event.lastEventId);
+      status.textContent = eventText(type, payload);
       if (['run.completed', 'run.failed', 'run.cancelled', 'run.waiting_input'].includes(type)) {
-        closeEvents(); activeRun = null; localStorage.removeItem(keyRun); setBusy(false);
-        await refresh().catch(error => appendNotice(error.message));
-        if (type === 'run.completed' && window.matchMedia('(max-width: 1100px)').matches) setOutputOpen(true);
+        await finishWatching(runId);
       }
     }));
     let checkingStatus = false;
@@ -977,18 +1104,22 @@
       try {
         const run = (await api(`/api/runs/${encodeURIComponent(runId)}`, { signal: AbortSignal.timeout(10000) })).run;
         if (activeRun !== runId) return;
-        if (run.stage && stages.some(item => item.id === run.stage)) selectStage(run.stage);
+        applyRuntime({kind: 'snapshot', run});
         if (['completed', 'failed', 'cancelled', 'waiting_input'].includes(run.status)) {
           if (run.status === 'failed') {
             const message = failureText(run);
             appendProgress(message); status.textContent = message;
           }
-          closeEvents(); activeRun = null; localStorage.removeItem(keyRun); setBusy(false); await refresh();
+          await finishWatching(runId);
         }
       } catch { /* Next poll and persisted replay can recover transient failures. */ }
       finally { checkingStatus = false; }
     };
-    source.onerror = reconcileStatus;
+    source.onopen = () => { if (activeRun === runId) applyRuntime({kind: 'connection.open'}); };
+    source.onerror = () => {
+      if (activeRun !== runId) return;
+      applyRuntime({kind: 'connection.lost'}); reconcileStatus();
+    };
     // An open SSE connection does not prove terminal events were delivered.
     runStatusTimer = setInterval(reconcileStatus, 8000);
     reconcileStatus();
@@ -998,6 +1129,8 @@
     if (!content || send.disabled || submitting) return;
     const epoch = accountEpoch;
     submitting = true;
+    runtimeState = window.RunPresentation.create(null, stage);
+    applyRuntime({kind: 'saving'});
     const explicit = options.explicit === true;
     // 只有用户在选题里真的写了方向才更新；按钮用的固定句、模型判定都不覆盖。
     const canned = Object.values(defaultPrompt).includes(content);
@@ -1018,6 +1151,7 @@
     try {
       await flushEdits();
       if (epoch !== accountEpoch) return;
+      applyRuntime({kind: 'submitting'});
       await ensureConversation();
       if (pendingSubmission?.conversationId === conversation.id && pendingSubmission.content === content) {
         contentJson = pendingSubmission.contentJson;
@@ -1045,6 +1179,7 @@
         body: JSON.stringify({ content, content_json: contentJson }),
         signal: AbortSignal.timeout(30000),
       });
+      if (typeof data.run_id !== 'string' || !data.run_id) throw new Error('任务接收状态未确认，请稍后重试原请求');
       retainSubmission(null);
       watchRun(data.run_id);
       await refresh().catch(error => appendNotice(error.message));
@@ -1076,11 +1211,14 @@
   }
 
   async function restore() {
+    const navigation = ++navigationSequence;
     localStorage.removeItem('universe.activeWorkflowId');
     const conversationId = new URLSearchParams(location.search).get('conversation') || localStorage.getItem(keyConversation);
     if (conversationId) {
       try {
-        conversation = (await api(`/api/conversations/${encodeURIComponent(conversationId)}`)).conversation;
+        const next = (await api(`/api/conversations/${encodeURIComponent(conversationId)}`)).conversation;
+        if (navigation !== navigationSequence) return;
+        conversation = next;
         localStorage.setItem(keyConversation, conversation.id);
         activeStage = localStorage.getItem(stageKey(conversation.id)) || 'topic';
         selectedTopic = localStorage.getItem(`universe.conversation.topic.${conversation.id}`) || '';
@@ -1097,7 +1235,7 @@
     if (runId && conversation) {
       try {
         const run = (await api(`/api/runs/${encodeURIComponent(runId)}`)).run;
-        if (['queued', 'running'].includes(run.status)) watchRun(run.id);
+        if (['queued', 'running', 'waiting_input'].includes(run.status)) restoreRun(run);
         else {
           localStorage.removeItem(keyRun);
           if (run.status === 'failed') status.textContent = failureText(run);
@@ -1170,8 +1308,11 @@
   captureClick('#workbench-stage-rerun', () => runStage(activeStage));
   captureClick('#workbench-view-toggle', () => setOutputOpen(!outputOpen));
   captureClick('#new-workbench-chat', async () => {
+    ++navigationSequence;
     try { await flushEdits(); } catch (error) { appendNotice(error.message); return; }
     closeEvents(); conversation = null; activeRun = null; renderedEventIds = new Set();
+    runtimeState = null; root.removeAttribute('data-run-phase');
+    rememberConversationUrl(null);
     savedHeads.clear();
     localStorage.removeItem(keyConversation); localStorage.removeItem(keyRun);
     activeStage = 'topic'; selectedTopic = ''; direction = ''; allArtifacts = []; lastMessages = [];
@@ -1179,12 +1320,61 @@
     syncSkillPicker();
   });
   captureClick('#recent-workbench-chats', () => toggleConversationHistory());
-  captureClick('[data-conversation-id]', button => openConversation(button.dataset.conversationId));
-  captureClick('#cancel-workbench', async () => {
-    if (!activeRun) return;
-    try { await api(`/api/runs/${encodeURIComponent(activeRun)}/cancel`, { method: 'POST' }); }
-    catch (error) { appendNotice(error.message); }
+  captureClick('#active-workbench-runs', async () => {
+    const open = taskList.hidden;
+    historyPopover.hidden = true; taskList.hidden = !open;
+    taskButton.setAttribute('aria-expanded', String(open));
+    if (open) taskList.style.top = `${taskButton.getBoundingClientRect().bottom - root.getBoundingClientRect().top + 8}px`;
+    if (open) await loadTaskList();
   });
+  captureClick('[data-refresh-runs]', () => loadTaskList());
+  captureClick('[data-more-runs]', () => loadTaskList(true));
+  captureClick('[data-cancel-task]', async button => {
+    button.disabled = true;
+    try {
+      if (button.dataset.cancelTask === activeRun) await cancelCurrentRun();
+      else {
+        const data = await api(`/api/runs/${encodeURIComponent(button.dataset.cancelTask)}/cancel`, {method:'POST'});
+        if (runtimeState?.id === button.dataset.cancelTask) {
+          applyRuntime({kind:'snapshot', run:data.run}); setBusy(false); await refresh();
+        }
+      }
+      await loadTaskList();
+    } catch (error) { appendNotice(error.message); button.disabled = false; }
+  });
+  captureClick('[data-resume-pending]', async () => {
+    const record = pendingSubmission;
+    if (!record) return;
+    if (conversation?.id !== record.conversationId) await openConversation(record.conversationId);
+    if (conversation?.id === record.conversationId) submit(record.content, record.stage);
+  });
+  captureClick('[data-conversation-id]', button => openConversation(button.dataset.conversationId));
+  document.addEventListener('keydown', event => {
+    if (event.key !== 'Escape') return;
+    if (!taskList.hidden) { taskList.hidden = true; taskButton.setAttribute('aria-expanded', 'false'); taskButton.focus(); }
+    else if (!historyPopover.hidden) { historyPopover.hidden = true; root.querySelector('#recent-workbench-chats').focus(); }
+  });
+  document.addEventListener('click', event => {
+    if (!taskList.contains(event.target) && !taskButton.contains(event.target)) {
+      taskList.hidden = true; taskButton.setAttribute('aria-expanded', 'false');
+    }
+  });
+  async function cancelCurrentRun() {
+    if (!activeRun || (runtimeState?.cancelRequested && !runtimeState.cancelUnconfirmed)) return;
+    const id = activeRun;
+    applyRuntime({kind: 'cancel.requested'});
+    try {
+      const data = await api(`/api/runs/${encodeURIComponent(id)}/cancel`, {method: 'POST', signal: AbortSignal.timeout(10000)});
+      if (activeRun !== id) return;
+      applyRuntime({kind: 'snapshot', run: data.run});
+      if (window.RunPresentation.terminal(runtimeState.status)) await finishWatching(id);
+    } catch (error) {
+      if (activeRun !== id || window.RunPresentation.terminal(runtimeState?.status)) return;
+      applyRuntime({kind:'cancel.unconfirmed'});
+      if (error.status === 401 || error.status === 403) appendNotice('登录状态已变化，请重新登录后核对取消结果。');
+    }
+  }
+  captureClick('#cancel-workbench, [data-cancel-run]', () => cancelCurrentRun());
   captureClick('#workbench-regenerate-topics', () => {
     // 「换一批方向」要真的换一批：先切回选题阶段，再沿用原方向重跑。
     selectStage('topic');
@@ -1291,10 +1481,14 @@
     if (accountId === undefined) { accountId = next; return; }
     if (next === accountId) return;
     accountId = next; accountEpoch++;
+    ++navigationSequence;
     closeEvents(); endProgress(); clearTimeout(saveTimer);
     pendingEdit = null; retainSubmission(null); savedHeads.clear(); editSequence++;
     savingEdits = 0; deferredRefresh = false;
     conversation = null; activeRun = null; currentArtifact = null;
+    taskList.hidden = true; taskList.textContent = ''; taskButton.setAttribute('aria-expanded', 'false');
+    taskRows = []; taskCursor = null; ++taskReadSequence;
+    runtimeState = null; root.removeAttribute('data-run-phase');
     allArtifacts = []; editableArtifacts = []; lastMessages = [];
     artifactTotal = 0; artifactCursor = null;
     selectedTopic = ''; direction = ''; activeStage = 'topic';

@@ -13,6 +13,24 @@ from server.models import AgentRun, Base, ProviderCall, UsageRecord, users_table
 
 
 class ConversationRepositoryTests(unittest.TestCase):
+    def test_activity_list_includes_only_owners_unfinished_runs(self):
+        first = repo.create_conversation('user-a', title='First task')
+        second = repo.create_conversation('user-a', title='Second task')
+        other = repo.create_conversation('user-b', title='Private other task')
+        _, one, _ = repo.create_message_run(first['id'], 'user-a', 'write', 'active-one')
+        _, two, _ = repo.create_message_run(second['id'], 'user-a', 'write', 'active-two')
+        repo.create_message_run(other['id'], 'user-b', 'write', 'other-task')
+        self.assertEqual({one['id'], two['id']}, {row['id'] for row in repo.list_active_runs('user-a')})
+        page = repo.list_active_runs('user-a', limit=1)
+        older = repo.list_active_runs('user-a', limit=1, before=page[0]['id'])
+        self.assertEqual({one['id'], two['id']}, {page[0]['id'], older[0]['id']})
+        with self.assertRaises(ValueError):
+            repo.list_active_runs('user-b', before=one['id'])
+        repo.cancel_run(one['id'], 'user-a')
+        active = repo.list_active_runs('user-a')
+        self.assertEqual([two['id']], [row['id'] for row in active])
+        self.assertEqual('Second task', active[0]['conversation_title'])
+
     def test_conflicting_editor_cannot_silently_overwrite_newer_version(self):
         conversation = repo.create_conversation('user-a')
         _, run, _ = repo.create_message_run(conversation['id'], 'user-a', 'write', 'edit-conflict')

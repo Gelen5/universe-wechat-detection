@@ -57,6 +57,8 @@ def test_editor_saves_before_submit_and_identity_change_clears_the_workspace(bro
     user = {'id': 'a', 'display_name': 'A', 'email': 'a@example.test', 'role': 'user'}
     items = [dict(id='article-1', type='article', title='Private draft A', content='Original draft',
                   content_json={}, version=1, run_id='old', created_at='2026-10-27T00:00:00Z')]
+    items.insert(0, dict(id='image-a', type='image', title='Private image A', content='', content_json={},
+        version=1, run_id='old', created_at='2026-10-27T00:00:00Z', storage_url='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jE8sAAAAASUVORK5CYII='))
 
     def serve(route):
         path = urlparse(route.request.url).path
@@ -105,6 +107,7 @@ def test_editor_saves_before_submit_and_identity_change_clears_the_workspace(bro
         page.goto('http://trust.test/workbench?conversation=c', wait_until='networkidle')
         # Restoring an article-only conversation must open its existing writing stage.
         expect(page.locator('#article-editor')).to_have_value('Original draft')
+        expect(page.locator('#generated-images img')).to_have_count(1)
         expect(page.locator('#workbench-action-card [data-next-stage="deai"]')).to_be_visible()
         page.locator('#edit-current').click()
         expect(page.locator('#article-editor')).to_be_visible()
@@ -129,6 +132,8 @@ def test_editor_saves_before_submit_and_identity_change_clears_the_workspace(bro
         page.evaluate('loadAccount()')
         expect(page.locator('#article-editor')).to_have_value('')
         assert 'Private draft A' not in page.locator('#workbench').inner_text()
+        expect(page.locator('#generated-images img')).to_have_count(0)
+        expect(page.locator('#generated-images')).not_to_be_visible()
         assert page.evaluate('localStorage.getItem("universe.conversation.activeRun")') is None
         assert not errors, errors
     finally:

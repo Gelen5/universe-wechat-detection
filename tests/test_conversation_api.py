@@ -23,6 +23,21 @@ from server.skills.tool_result import ArtifactOutput, ToolResult
 
 
 class ConversationApiTests(unittest.TestCase):
+    def test_active_task_endpoint_is_private_paged_and_has_utc_timestamps(self):
+        from datetime import datetime
+        conversation = self.create()
+        created = [conversation_repository.create_message_run(conversation['id'], self.user_id,
+                   'write', uuid.uuid4().hex)[1]['id'] for _ in range(3)]
+        first = self.client.get('/api/runs?limit=2')
+        self.assertEqual(200, first.status_code)
+        self.assertEqual('private, no-store, max-age=0', first.headers['cache-control'])
+        page = first.json()
+        self.assertEqual(set(created[-2:]), {run['id'] for run in page['runs']})
+        self.assertIsNotNone(datetime.fromisoformat(page['runs'][0]['created_at']).tzinfo)
+        second = self.client.get('/api/runs?limit=2&before=' + page['next_cursor']).json()
+        self.assertIn(created[0], {run['id'] for run in second['runs']})
+        self.assertEqual(401, TestClient(app).get('/api/runs').status_code)
+
     def test_uncertain_request_can_be_looked_up_only_by_its_owner(self):
         conversation = self.create()
         key = uuid.uuid4().hex

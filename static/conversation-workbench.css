@@ -7,6 +7,30 @@
 .normalized-conversation .conversation-panel,
 .normalized-conversation .article-canvas { min-height: calc(100vh - 190px); }
 .normalized-conversation .conversation-panel { position: relative; }
+#workbench.normalized-conversation { position: relative; }
+#workbench.normalized-conversation .workbench-progress { display: none; }
+#workbench.normalized-conversation .chat-action-card > strong[role="status"] {
+  position: sticky; top: 0; z-index: 2; background: #f3fbf5;
+}
+#workbench.normalized-conversation .chat-action-card > strong[role="status"]::before {
+  content: ''; position: absolute; inset: -20px 0 100%; background: inherit;
+}
+#workbench.normalized-conversation #start-workbench:disabled { opacity: .5; cursor: wait; }
+#workbench.normalized-conversation .chat-action-card > button {
+  min-height: 44px; max-width: 100%; padding: 8px 12px; margin-top: 8px;
+  border: 1px solid #abcdb9; border-radius: 8px; background: #f5fbf7;
+  color: #24573d; cursor: pointer; font: inherit; overflow-wrap: anywhere;
+}
+#workbench.normalized-conversation .chat-action-card > button:disabled { opacity: .65; cursor: wait; }
+#workbench.normalized-conversation .task-list {
+  max-height: min(480px, 65dvh); width: min(360px, calc(100% - 24px));
+  overflow: auto; overscroll-behavior: contain; font: 13.5px/1.6 system-ui, sans-serif;
+}
+#workbench.normalized-conversation .task-list h3 { margin: 8px 10px; font-size: 15px; }
+#workbench.normalized-conversation .task-list article { padding: 10px; border-bottom: 1px solid #dce8df; }
+#workbench.normalized-conversation .task-list article strong { overflow-wrap: anywhere; }
+#workbench.normalized-conversation .task-list button { min-height: 44px; }
+#workbench.normalized-conversation .task-list p { margin: 6px 0; }
 .normalized-conversation .draft-recovery { display: flex; flex-wrap: wrap; gap: 8px; }
 .normalized-conversation .draft-recovery[hidden] { display: none; }
 .normalized-conversation .draft-recovery button {

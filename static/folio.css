@@ -96,8 +96,8 @@ body.atelier #workbench .pd-pageact #new-workbench-chat{
   color:var(--fp-ink) !important;
   font-size:11px !important;
   height:auto !important;
-  min-height:0 !important;
-  padding:2px 0 3px !important;
+  min-height:44px !important;
+  padding:6px 10px !important;
 }
 
 /* =========================================================
@@ -576,7 +576,7 @@ body.atelier #workbench .fl-flow li em{ grid-column:2;font-style:normal;font-siz
   body.atelier #workbench .fl-side{ display:none; }
 }
 body.atelier #workbench[data-folio-empty="1"] .conversation-workbench-layout{ display:none !important; }
-body.atelier #workbench[data-folio-empty="1"] .studio-heading{ visibility:hidden !important; }
+body.atelier #workbench[data-folio-empty="1"] .studio-heading > div:first-child{ visibility:hidden !important; }
 body.atelier #workbench[data-folio-empty="1"] #workbench-stage-nav,
 body.atelier #workbench[data-folio-empty="1"] #workflow-steps,
 body.atelier #workbench[data-folio-empty="1"] .pd-phline,

@@ -26,3 +26,10 @@ def test_public_static_cache_contract_and_no_session_lookup(monkeypatch):
         versioned = client.get('/static/wechat-mint.css?v=test-release')
         assert versioned.status_code == 200
         assert versioned.headers['cache-control'] == 'public, max-age=31536000, immutable'
+
+
+def test_unauthenticated_api_response_cannot_be_cached_for_the_next_login():
+    with TestClient(app) as client:
+        response = client.get('/api/runs')
+        assert response.status_code == 401
+        assert response.headers['cache-control'] == 'private, no-store, max-age=0'

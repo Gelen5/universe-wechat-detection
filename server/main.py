@@ -52,7 +52,6 @@ app.include_router(market_router)
 app.include_router(hotspots_router)
 
 
-@app.middleware("http")
 async def request_observability(request: Request, call_next):
     request_id = request.headers.get("X-Request-ID", "").strip()[:128] or uuid.uuid4().hex
     request.state.request_id = request_id
@@ -72,13 +71,15 @@ async def request_observability(request: Request, call_next):
             response.headers["X-Request-ID"] = request_id
 
 
-@app.middleware("http")
 async def disable_frontend_cache(request, call_next):
     response = await call_next(request)
     is_html = response.headers.get("content-type", "").split(";", 1)[0].strip() == "text/html"
     if is_html:
         response.headers["Cache-Control"] = "no-store, max-age=0"
         response.headers["Pragma"] = "no-cache"
+    elif request.url.path.startswith('/api/'):
+        response.headers['Cache-Control'] = 'private, no-store, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
     elif request.url.path.startswith("/static/"):
         # HTML carries the release manifest. Unversioned nested assets still
         # revalidate; versioned URLs can be reused without a network request.
@@ -135,6 +136,12 @@ async def account_and_points_gate(request: Request, call_next):
             response.headers["X-Points-Refunded"] = str(rule["points"])
         response.headers["X-Points-Balance"] = str(accounts.wallet_summary(user["id"])["balance"])
     return response
+
+
+# Register outer guards after auth so early 401/402 responses receive the same
+# cache policy and request tracing as responses from the endpoint itself.
+app.middleware('http')(disable_frontend_cache)
+app.middleware('http')(request_observability)
 
 
 class DiagnoseRequest(BaseModel):

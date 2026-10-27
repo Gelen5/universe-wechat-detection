@@ -49,6 +49,13 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _utc_iso(value: datetime | None) -> str | None:
+    # SQLite strips timezone metadata; all runtime dates are written in UTC.
+    if value is None:
+        return None
+    return (value if value.tzinfo else value.replace(tzinfo=timezone.utc)).isoformat()
+
+
 def _reserve_run_usage(db, run: AgentRun, points: int, feature: str) -> None:
     now = _now().isoformat()
     allocation: dict[str, int] = {}
@@ -366,6 +373,24 @@ def get_run(run_id: str, user_id: str) -> dict[str, Any] | None:
     with session_scope() as db:
         row = db.scalar(select(AgentRun).where(AgentRun.id == run_id, AgentRun.user_id == user_id))
         return _run_view(row) if row else None
+
+
+def list_active_runs(user_id: str, *, limit: int = 50, before: str | None = None) -> list[dict[str, Any]]:
+    with session_scope() as db:
+        query = select(AgentRun, Conversation.title).join(
+            Conversation, Conversation.id == AgentRun.conversation_id).where(
+            AgentRun.user_id == user_id, Conversation.user_id == user_id,
+            AgentRun.status.in_(('queued', 'running', 'waiting_input')),
+        )
+        if before:
+            cursor = db.scalar(select(AgentRun).where(AgentRun.id == before, AgentRun.user_id == user_id))
+            if not cursor:
+                raise ValueError('invalid task cursor')
+            query = query.where((AgentRun.created_at < cursor.created_at) |
+                ((AgentRun.created_at == cursor.created_at) & (AgentRun.id < cursor.id)))
+        rows = db.execute(query.order_by(AgentRun.created_at.desc(), AgentRun.id.desc())
+                          .limit(min(max(limit, 1), 101))).all()
+        return [{**_run_view(run), 'conversation_title': title} for run, title in rows]
 
 
 def find_request_run(conversation_id: str, user_id: str, key: str) -> dict[str, Any] | None:
@@ -995,6 +1020,8 @@ def _run_view(row: AgentRun) -> dict[str, Any]:
             "celery_task_id": row.celery_task_id, "attempt": row.attempt,
             "heartbeat_at": row.heartbeat_at.isoformat() if row.heartbeat_at else None,
             "stage": row.stage,
+            "created_at": _utc_iso(row.created_at), "updated_at": _utc_iso(row.updated_at),
+            "started_at": _utc_iso(row.started_at), "finished_at": _utc_iso(row.finished_at),
             "error_kind": error_kind, "error_code": row.error_code}
 
 
@@ -1015,4 +1042,4 @@ def _tool_call_view(row: ToolCall) -> dict[str, Any]:
 def _event_view(row: RunEvent) -> dict[str, Any]:
     return {"id": row.id, "run_id": row.run_id, "conversation_id": row.conversation_id,
             "type": row.event_type, "payload": row.payload_json,
-            "created_at": row.created_at.isoformat()}
+            "created_at": _utc_iso(row.created_at)}

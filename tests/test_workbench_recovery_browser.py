@@ -17,7 +17,8 @@ def writing_page(page):
 
 
 @pytest.mark.parametrize('committed', [False, True])
-def test_refresh_recovers_uncertain_post_without_creating_another_task(ui, committed):
+@pytest.mark.parametrize('response_loss', ['connection', 'html_gateway', 'missing_run_id'])
+def test_refresh_recovers_uncertain_post_without_creating_another_task(ui, committed, response_loss):
     page, _ = ui
     writing_page(page)
     posts = []
@@ -32,7 +33,9 @@ def test_refresh_recovers_uncertain_post_without_creating_another_task(ui, commi
         if len(posts) == 1:
             if committed:
                 accepted.append(run)
-            route.abort('connectionfailed')
+            if response_loss == 'connection': route.abort('connectionfailed')
+            elif response_loss == 'html_gateway': route.fulfill(status=200, body='<html>gateway</html>', content_type='text/html')
+            else: route.fulfill(json={})
         else:
             accepted.append(run)
             route.fulfill(json={'run_id': run['id']})
