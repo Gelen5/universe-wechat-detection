@@ -12,6 +12,17 @@ from vendor.skills.wechat_writer.adapter import create_tools
 
 
 class AdapterProviderRetryTests(unittest.TestCase):
+    def test_write_article_keeps_authoritative_user_prohibitions(self):
+        context = SimpleNamespace(conversation_id='c', user_id='u', run_id='r',
+            input_artifacts=lambda: [], emit=lambda *_args: None)
+        frame = {'name': '观点', 'outline': ['一', '二']}
+        with patch('vendor.skills.wechat_writer.adapter.conversation_repository.get_run', return_value={'trigger_message_id': 'm'}), \
+             patch('vendor.skills.wechat_writer.adapter.conversation_repository.get_message', return_value={'content': '不得编造对白和心理活动'}), \
+             patch('vendor.skills.wechat_writer.adapter.with_provider', side_effect=lambda fn: fn()), \
+             patch('vendor.skills.wechat_writer.adapter.workbench._draft', return_value='# 标题\n正文') as draft:
+            create_tools()['write_article']({'title': '标题', 'requirements': '写观点', 'framework': frame}, context)
+        self.assertIn('不得编造对白和心理活动', draft.call_args.args[3])
+
     def test_outline_uses_existing_skill_and_creates_editable_artifact(self):
         frame = {"name": "SCQA", "outline": ["场景", "冲突"], "research": {}}
         with patch("vendor.skills.wechat_writer.adapter.with_provider", side_effect=lambda call: call()), patch(

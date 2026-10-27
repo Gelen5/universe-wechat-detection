@@ -18,6 +18,24 @@ def draft_quality_rules() -> str:
         return ''
     return DRAFT_QUALITY_RULES
 
+
+def draft_strategy_v2(strategy: dict, requirements: str = '') -> str:
+    """Short genre guidance; explicit user instructions always take precedence."""
+    kind = str(strategy.get('article_type') or '').lower()
+    mode = str(strategy.get('expression_mode') or '')
+    text = requirements + ' ' + mode
+    if kind in {'tutorial', 'guide'}:
+        return '教程：围绕读者要完成的任务组织，保留必要步骤、命令、条件和限制；未验证的结果不能声称实测。'
+    if kind in {'news', 'explainer', 'science'}:
+        return '资讯或科普：先交代可核实的信息或读者问题，解释依据、影响和适用边界，不把猜测写成事实。'
+    if kind in {'story', 'narrative', 'memoir'}:
+        return '叙事：仅依据用户真实提供或可靠来源叙述，不编造亲历；用户明确要求虚构时可虚构但不冒充事实。'
+    if kind in {'emotional_opinion', 'emotion'} or (kind == 'opinion' and any(x in text for x in ('情感观点', '婚姻观点', '家庭关系', '夫妻关系'))):
+        return '情感观点：从有依据的关系矛盾、困惑或判断切入，围绕一个观点自然推进；不自动写成沟通步骤、分类清单或虚构故事。用户要求沟通指南时以其要求为准。'
+    if kind in {'opinion', 'commentary'}:
+        return '观点：从有依据的判断或具体问题展开；每段增加理由、区别、反例或限定，不把观点写成操作清单。'
+    return '根据用户要求、现有材料与读者问题选择文体，可混合形式；不要预设固定章节。'
+
 GUIDANCE = """先判断读者想完成的事、文章形式与现有材料，再选择适合本篇的组织方式；行业和风格不等于文体。
 教程可用步骤、结果与卡点推进；观点可从判断和依据展开；故事靠人物行动和变化；资讯先说明已知事实；评测比较实际体验、参数及适用条件；科普解释读者问题。其他形式自主组织，不必强套上述分类。
 用户明确指定的文体、结构和表达优先；没有指定时自行判断，允许混合形式，不强制固定章节、相同数量的小标题或统一结尾。

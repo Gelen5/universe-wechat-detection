@@ -72,6 +72,15 @@ def create_tools():
         if not title:
             raise ValueError("title or topic is required")
         persona, requirements = str(args.get("persona") or "深度观察者"), str(args.get("requirements") or "")
+        # The tool arguments are model-generated; retain the authoritative
+        # user request so explicit prohibitions cannot disappear in routing.
+        if context and getattr(context, 'run_id', None):
+            run = conversation_repository.get_run(context.run_id, context.user_id)
+            trigger = (conversation_repository.get_message(context.conversation_id, context.user_id,
+                       run['trigger_message_id']) if run else None) or {}
+            user_request = str(trigger.get('content') or '').strip()
+            if user_request and user_request not in requirements:
+                requirements += '\n用户当次原始要求（优先于工具转述）：\n' + user_request
         frame = args.get("framework")
         saved_outline = latest_artifact(context, "outline")
         if saved_outline:
