@@ -34,13 +34,21 @@ def create_tools():
             required_text(args, "topic"), str(args.get("persona") or "深度观察者"), session,
             progress_for(context)))
         research = session.get("topic_research") or {}
+        square = session.get("square_hotspots") or {}
+        square_items = square.get("items") or []
         evidence = {
             "checked_at": research.get("checked_at"),
             "search_status": research.get("status", "unavailable"),
             "hotspot_status": session.get("hotspot_status", "unavailable"),
             "search_queries": research.get("queries") or [],
             "fetched_pages": research.get("fetched_count", 0),
+            "square_hotspot_status": square.get("status", "unavailable"),
             "search_sources": [{
+                "provider": '热点广场缓存/' + item.get('platform_zh', item.get('platform', '')),
+                "title": item.get('title', ''), "url": item.get('url', ''),
+                "published_at": '', "observed_at": item.get('observed_at'),
+                "rank": item.get('rank'), "verification": "cached_headline_not_verified",
+            } for item in square_items[:10] if item.get('url', '').startswith('https://')] + [{
                 "provider": source.get("provider", "search"),
                 "title": source.get("title", ""),
                 "url": source.get("url", ""),
@@ -48,6 +56,9 @@ def create_tools():
                 "verification": "search_excerpt_only",
             } for source in (research.get("sources") or [])[:20] if source.get("url", "").startswith("https://")],
             "platform_hotspots": [{
+                "title": item.get('title', ''), "platforms": [item.get('platform_zh', item.get('platform', ''))],
+                "url": item.get('url', ''), "observed_at": item.get('observed_at'), "rank": item.get('rank'),
+            } for item in square_items[:10] if item.get('title')] + [{
                 "title": item.get("title", ""), "platforms": item.get("sources") or [],
             } for item in (session.get("skill_hotspots") or [])[:10] if item.get("title")],
         }

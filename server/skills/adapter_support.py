@@ -42,7 +42,8 @@ def topics_result(topics: Any, evidence: dict[str, Any] | None = None) -> ToolRe
     sources = evidence.get("search_sources") or []
     lines.append("搜索线索（摘要未核实原文）：" if sources else "未获取到可引用的近期搜索来源。")
     for source in sources:
-        lines.append(f"- [{source['provider']}] {source['title']} | {source['published_at'] or '发布日期未提供'} | {source['url']}")
+        observed = f" | 榜单采集时间 {source['observed_at']}" if source.get('observed_at') else ''
+        lines.append(f"- [{source['provider']}] {source['title']} | {source['published_at'] or '发布日期未提供'}{observed} | {source['url']}")
     hotspots = evidence.get("platform_hotspots") or []
     if hotspots:
         lines.append("平台榜单采集（采集时间不是内容发布日期）：")

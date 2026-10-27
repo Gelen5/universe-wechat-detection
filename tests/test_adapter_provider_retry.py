@@ -51,6 +51,22 @@ class AdapterProviderRetryTests(unittest.TestCase):
         self.assertIn("摘要未核实原文", result.artifacts[0].content)
         self.assertIn("采集时间不是内容发布日期", result.artifacts[0].content)
 
+    def test_square_hotspot_evidence_preserves_url_rank_and_observation_time(self):
+        def fake_suggestions(topic, persona, session, progress=None):
+            session['square_hotspots'] = {'status': 'matched', 'items': [
+                {'title': 'AI 工具', 'url': 'https://example.com/hot', 'platform': 'douyin',
+                 'platform_zh': '抖音', 'rank': 3, 'observed_at': '2026-10-28T00:00:00+00:00'}]}
+            return [{'title': '方向'}]
+        with patch('vendor.skills.wechat_writer.adapter.with_provider', side_effect=lambda call: call()), \
+             patch('vendor.skills.wechat_writer.adapter.workbench._suggestions', side_effect=fake_suggestions):
+            result = create_tools()['search_topics']({'topic': 'AI'}, None)
+        evidence = result.data['evidence']
+        assert evidence['square_hotspot_status'] == 'matched'
+        assert evidence['search_sources'][0]['published_at'] == ''
+        assert evidence['search_sources'][0]['observed_at'] == '2026-10-28T00:00:00+00:00'
+        assert evidence['platform_hotspots'][0]['rank'] == 3
+        assert 'https://example.com/hot' in result.artifacts[0].content
+
     def test_transient_error_retries_only_failing_tool(self):
         calls = 0
 
