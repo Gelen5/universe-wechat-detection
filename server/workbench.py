@@ -1315,7 +1315,7 @@ def _build_article_markdown(session: dict[str, Any], *, fine_layout: bool = Fals
     body_images = [item for item in image_markdown if item[4] != 'cover']
     article = str(session.get("article") or "").strip()
     heading = f"# {session['topic']}"
-    if article.startswith("#"):
+    if re.match(r'^#\s+[^\n]+(?:\n|$)', article):
         article = article.split("\n", 1)[1].lstrip() if "\n" in article else ""
     # Keep the cover below the title and place body art at the paragraph it
     # explains. Positions are calculated against the original article, then
@@ -1395,7 +1395,7 @@ def _typeset(session: dict[str, Any]) -> str:
     """Run the installed publisher's mode A with its real references and gates."""
     from .skill_fine_layout import render
     _require_skill()
-    heading = re.search(r'^#\s+(.+)$', session['article'], flags=re.M)
+    heading = re.match(r'^\s*#\s+([^\n]+)', session['article'])
     if heading:
         session['topic'] = heading.group(1).strip()
     references = ('references/components.md', 'references/article-template.html',
