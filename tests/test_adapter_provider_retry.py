@@ -85,6 +85,27 @@ class AdapterProviderRetryTests(unittest.TestCase):
                 {"title": "测试标题", "article": "正文"}, context)
         self.assertEqual(result.data["html"], "<p>正文</p>")
 
+    def test_typeset_uses_the_submitted_article_snapshot_and_records_source(self):
+        from server.skill_runtime import digest
+        old = {"type": "article", "id": "old", "version": 1, "content": "旧正文。",
+               "run_id": "old-run", "created_at": "2026-01-01T00:00:00+00:00"}
+        revised = {"type": "article", "id": "revised", "version": 2, "content": "复核后的正文。",
+                   "run_id": "review-run", "created_at": "2026-01-02T00:00:00+00:00"}
+        context = SimpleNamespace(conversation_id="conversation", user_id="user", run_id="run",
+                                  input_artifacts=lambda: [old, revised])
+        def fake_typeset(session):
+            self.assertEqual(session['article'], revised['content'])
+            return '<p>复核后的正文。</p>'
+        with patch('vendor.skills.wechat_writer.adapter.with_provider', side_effect=lambda fn: fn()), \
+             patch('vendor.skills.wechat_writer.adapter.workbench._typeset', side_effect=fake_typeset), \
+             patch('vendor.skills.wechat_writer.adapter.conversation_repository.list_artifacts') as live:
+            result = create_tools()['typeset_article']({'article': '模型误传旧稿'}, context)
+        live.assert_not_called()
+        meta = result.artifacts[0].content_json
+        self.assertEqual(meta['source_article_id'], 'revised')
+        self.assertEqual(meta['source_article_version'], 2)
+        self.assertEqual(meta['source_article_sha256'], digest(revised['content']))
+
     def test_typeset_reuses_only_current_article_images(self):
         with TemporaryDirectory() as directory:
             root = Path(directory)

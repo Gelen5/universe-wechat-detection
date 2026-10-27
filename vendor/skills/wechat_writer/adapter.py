@@ -178,6 +178,9 @@ def create_tools():
         return ToolResult({"html": html, "preview_document": preview}, (
             ArtifactOutput(type="html", title=session['topic'], content=preview,
                            content_json={'article_html': html, 'layout_variant': session.get('layout_variant'),
+                                         'source_article_id': (saved_article or {}).get('id'),
+                                         'source_article_version': (saved_article or {}).get('version'),
+                                         'source_article_sha256': workbench.skill_runtime.digest(article),
                                          'layout_html_hash': session.get('layout_html_hash'), 'reading_mode': 'publisher-components',
                                          'layout_repair_trace': session.get('layout_repair_trace', []),
                                          'compliance_allowances': session.get('compliance_allowances', {})}),

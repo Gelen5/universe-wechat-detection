@@ -30,6 +30,8 @@ from .providers import call_context
 from . import accounts
 from . import skill_runtime
 from . import workbench_research
+from .revision_evidence import revision_evidence, orphaned_list_error, introduced_duplicate_error
+from .observability import event as log_event
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -606,9 +608,11 @@ def _draft(title: str, frame: dict[str, Any], persona: str, requirements: str = 
     research_for_prompt = frame.get('research') or {}
     if _setting("WECHAT_DRAFT_RESEARCH", "compact").lower() != 'full':
         research_for_prompt = workbench_research.compact(research_for_prompt)
+    quality_rules = writing_guidance.draft_quality_rules()
     prompt = f"""{instructions}
 当前只执行写作节点。用户明确要求和事实边界优先于 Skill 的风格示例；不能照抄示例中的人物经历。
 {writing_guidance.GUIDANCE}
+{quality_rules}
 完整需求：{requirements}
 你是「{persona}」型微信公众号作者。请按 wechat-publisher-ultimate Skill 的写作规范，完成一篇可以继续编辑的中文公众号长文。
 标题：{title}
@@ -635,18 +639,31 @@ def _draft(title: str, frame: dict[str, Any], persona: str, requirements: str = 
     # Now that the argument is honoured, keep the default behaviour (send no
     # reasoning field) and expose the choice as an operator setting instead of
     # silently making the slowest node slower.
-    article = _text(prompt, reasoning=_setting("WECHAT_DRAFT_REASONING") or None,
-                    model=_setting("WECHAT_DRAFT_MODEL") or None)
-    for _ in range(2):
+    started = time.monotonic()
+    article = ''
+    status = 'failed'
+    try:
+        article = _text(prompt, reasoning=_setting("WECHAT_DRAFT_REASONING") or None,
+                        model=_setting("WECHAT_DRAFT_MODEL") or None)
+        for _ in range(2):
+            issue = skill_runtime.length_issue(article, requirements)
+            if not issue:
+                break
+            article = _text(prompt + f'\n上次结果未通过篇幅检查：{issue}。只调整篇幅、保持事实边界。\n上次正文：\n{article}')
         issue = skill_runtime.length_issue(article, requirements)
-        if not issue:
-            break
-        article = _text(prompt + f'\n上次结果未通过篇幅检查：{issue}。只调整篇幅、保持事实边界。\n上次正文：\n{article}')
-    issue = skill_runtime.length_issue(article, requirements)
-    if issue:
-        raise ProviderError('写作未通过需求检查：' + issue)
-    if not article.strip():
-        raise ProviderError('写作未返回正文')
+        if issue:
+            raise ProviderError('写作未通过需求检查：' + issue)
+        if not article.strip():
+            raise ProviderError('写作未返回正文')
+        status = 'completed'
+    finally:
+        attribution = call_context.current()
+        log_event('writing.draft', run_id=attribution.get('run_id'), user_id=attribution.get('user_id'),
+                  node_name='draft', prompt_version=writing_guidance.PROMPT_VERSION if quality_rules else 'legacy',
+                  model_name=_setting('WECHAT_DRAFT_MODEL') or _setting('WECHAT_TEXT_MODEL') or None,
+                  input_version_hash=skill_runtime.digest(prompt),
+                  output_version_hash=skill_runtime.digest(article) if status == 'completed' else None,
+                  duration_ms=int((time.monotonic() - started) * 1000), status=status)
     _record_skill(session, 3, '写作 Skill：按框架、平台规则与事实边界生成正文', manifest, [], 'passed', '正文已通过篇幅与空值检查')
     return article
 
@@ -729,7 +746,15 @@ def _review(article: str, session: dict[str, Any], progress=None) -> tuple[str, 
                    time.monotonic() + max(60, int(_setting('WECHAT_REVIEW_TIMEOUT', '240'))))
     with call_context.bind(**{key: inherited.get(key) for key in (
             'run_id', 'user_id', 'usage_recorder', 'cost_policy', 'idempotency_key', 'is_cancelled')}, deadline=deadline):
-        return _review_impl(article, session, progress)
+        revised, report = _review_impl(article, session, progress)
+        evidence = revision_evidence(article, revised)
+        report['revision_evidence'] = evidence
+        if revised != article:
+            report['summary'] = (f"已执行局部复核：删除/替换 {evidence['removed_chars']} 字符，"
+                                 f"新增/替换 {evidence['added_chars']} 字符；"
+                                 + ('含正文文字变化' if evidence['text_changed'] else '仅格式或标点变化')
+                                 + '。请核对改稿，不代表检测器结果。')
+        return revised, report
 
 
 def _review_impl(article: str, session: dict[str, Any], progress=None) -> tuple[str, dict[str, Any]]:
@@ -955,6 +980,10 @@ issue_index 对应以下已由复核定位、逐字来自当前稿的片段列�
             final_missing = {key: values for key, values in (final_audit.get('missing_protected_spans') or {}).items() if values and not (key == 'quoted_text' and all(str(value).strip('“”‘’\"\'') in candidate for value in values))}
             # A fresh local audit must validate the changed text; an old diagnosis
             # cannot certify the new candidate. No extra model round is needed.
+            continuity_error = (orphaned_list_error(article, candidate)
+                                or introduced_duplicate_error(article, candidate))
+            if continuity_error:
+                raise ProviderError(continuity_error + '。原稿已保留。')
             if final_audit.get('status') == 'success' and not final_missing and final_audit.get('complete_sentence_ratio', 0) >= .9 and not skill_runtime.length_issue(candidate, skill_runtime.brief(session)):
                 records[-1]['post_edit_audit'] = final_audit
                 changed = candidate != article
@@ -985,9 +1014,9 @@ issue_index 对应以下已由复核定位、逐字来自当前稿的片段列�
         _record_skill(session, 4, '反 AI Skill 复核：确定性检查未通过，已保留原文',
                       manifest, ['check_ai_tone_signals.py', 'check_natural_prose.py', 'audit_revision.py'],
                       'degraded', detail[:200])
-        delivered = candidate if candidate.strip() else article
+        delivered = article
         return delivered, {'source': 'universe-delete-ai-skill', 'model': _setting('WECHAT_TEXT_MODEL'),
-                         'action': '确定性检查未通过，交付当前修订稿', 'audit': {}, 'gate': 'needs_review',
+                         'action': '确定性检查未通过，保留原稿', 'audit': {}, 'gate': 'needs_review',
                          'article_sha256': skill_runtime.digest(delivered),
                          'changed': delivered != article,
                          'manifest': manifest, 'rounds': records,
@@ -1153,6 +1182,10 @@ def _validated_local_edits(
                 errors.append('不能删除整篇正文')
                 continue
             revised = updated
+        continuity_error = (orphaned_list_error(candidate, revised)
+                            or introduced_duplicate_error(candidate, revised))
+        if continuity_error:
+            errors.append(continuity_error)
         if not errors:
             return payload, revised
     raise ProviderError('去 AI 局部修改连续两次无法安全定位，已保留原文：' + '；'.join(errors))

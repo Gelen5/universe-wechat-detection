@@ -148,6 +148,37 @@ def test_one_click_writer_shares_genre_rules_without_fetching_or_model_calls():
     assert not model.called and not fetch.called
 
 
+@pytest.mark.parametrize('enabled', [True, False])
+def test_compact_first_draft_rules_are_shared_and_can_be_rolled_back(enabled):
+    from server import qihaoshou, writing_guidance
+    data = qihaoshou.Draft(topic='普通题目').model_dump()
+    flag = '1' if enabled else '0'
+    with patch.dict('os.environ', {'WECHAT_WRITING_QUALITY_V1': flag}), \
+         patch.object(w, '_require_skill'), patch.object(w, '_record_skill'), \
+         patch.object(w, '_text', return_value='# 标题\n\n正文。') as model:
+        w._draft('普通题目', {'name': '自由结构', 'outline': ['内容']}, '普通作者')
+        one_click_prompt = qihaoshou.draft_prompt(data)
+    workbench_prompt = model.call_args.args[0]
+    for prompt in (workbench_prompt, one_click_prompt):
+        assert (writing_guidance.DRAFT_QUALITY_RULES in prompt) is enabled
+        assert '素材不足时缩小范围' in prompt
+    assert model.call_count == 1
+
+
+def test_draft_trace_records_versions_and_hashes_without_article_text():
+    private_text = '专有素材仅用于验证日志不会输出正文'
+    with patch.dict('os.environ', {'WECHAT_WRITING_QUALITY_V1': '1'}), \
+         patch.object(w, '_require_skill'), patch.object(w, '_record_skill'), \
+         patch.object(w, '_text', return_value='# 标题\n\n' + private_text), \
+         patch.object(w, 'log_event') as logger:
+        w._draft('标题', {'name': '自由结构', 'outline': ['内容']}, '普通作者', private_text)
+    event, fields = logger.call_args.args[0], logger.call_args.kwargs
+    assert event == 'writing.draft' and fields['status'] == 'completed'
+    assert fields['prompt_version'] != 'legacy'
+    assert len(fields['input_version_hash']) == len(fields['output_version_hash']) == 64
+    assert private_text not in str(fields)
+
+
 def test_older_model_response_does_not_force_an_article_type_or_retry():
     with patch.object(w,'_require_skill'), patch.object(w,'_record_skill'), \
          patch.object(w,'_json_text',return_value={'name':'时间线','outline':['开始','结束']}) as model:

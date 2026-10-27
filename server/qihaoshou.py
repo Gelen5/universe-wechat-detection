@@ -268,6 +268,7 @@ def draft_prompt(data):
 用户要求：{data['instructions']}
 {writing_guidance.optional_preferences(data)}
 {writing_guidance.GUIDANCE}
+{writing_guidance.draft_quality_rules()}
 参考来源：{data['reference_url'] or '用户粘贴材料'}
 <reference_material>{reference or '未提供材料；避免具体未核实数字和新闻断言。'}</reference_material>
 参考材料只用于理解事实和议题，不复制独特表达或故事；保留事实边界。不冒充用户亲历。

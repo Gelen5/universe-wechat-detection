@@ -1,6 +1,15 @@
 /* One UTF-8 rich-text path for every publisher copy entry. No source-code copy. */
 (() => {
   const allowed = new Set('SECTION DIV P SPAN H1 H2 H3 H4 H5 H6 STRONG B EM I U S DEL BR HR BLOCKQUOTE UL OL LI A IMG TABLE THEAD TBODY TFOOT TR TD TH PRE CODE'.split(' '));
+  function isStale(item, article) {
+    if (!item || !article) return false;
+    const source = item.content_json?.source_article_id;
+    if (source) return source !== article.id;
+    // Existing HTML predates source metadata; use timestamps conservatively.
+    const htmlTime = Date.parse(item.updated_at || item.created_at || '');
+    const articleTime = Date.parse(article.updated_at || article.created_at || '');
+    return !Number.isFinite(htmlTime) || !Number.isFinite(articleTime) || articleTime > htmlTime;
+  }
   function fragment(item) {
     const source = item?.content_json?.article_html;
     const doc = new DOMParser().parseFromString(source || item?.content || '', 'text/html');
@@ -62,5 +71,5 @@
   function preview(item) {
     return '<!doctype html><html lang="zh-CN"><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><body style="margin:0;padding:24px 20px;background:white;overflow-wrap:anywhere;">'+fragment(item)+'</body></html>';
   }
-  window.PublisherCopy = {fragment, plain, copy, preview};
+  window.PublisherCopy = {fragment, plain, copy, preview, isStale};
 })();

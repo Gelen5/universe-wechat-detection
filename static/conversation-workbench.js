@@ -579,6 +579,7 @@
   function isStale(stage) {
     const index = stages.findIndex(item => item.id === stage);
     if (index < 1 || !stageArtifact(stage)) return false;
+    if (stage === 'typeset' && window.PublisherCopy.isStale(stageArtifact(stage), latestOf('article'))) return true;
     const previous = stageArtifact(stages[index - 1].id);
     return Boolean(previous && previous.updated_at > stageArtifact(stage).updated_at);
   }
@@ -748,6 +749,13 @@
         <div class="chat-action-row">
           <button type="button" class="chat-action-primary" data-next-stage="${next}">继续：${escapeHtml(stageLabel(next))}</button>
           ${directTypeset}
+        </div>`;
+    } else if (window.PublisherCopy.isStale(stageArtifact('typeset'), latestOf('article'))) {
+      html = `<strong>正文已更新，排版需要更新</strong>
+        <p>重新排版后才能复制最新正文；历史版本仍可查看。</p>
+        <div class="chat-action-row">
+          <button type="button" class="chat-action-primary" data-next-stage="typeset">重新排版</button>
+          <button type="button" class="chat-action-ghost" data-workbench-view-toggle>查看作品</button>
         </div>`;
     } else {
       html = `<strong>这篇稿子已经排好版</strong>
@@ -1295,8 +1303,13 @@
     stageChoices.querySelector('[data-topic-choice]')?.focus({ preventScroll: true });
   });
   captureClick('[data-copy-html]', async () => {
+    await flushEdits();
     const item = stageArtifact('typeset');
     if (!item) { status.textContent = '还没有可复制的排版结果'; return; }
+    if (window.PublisherCopy.isStale(item, latestOf('article'))) {
+      status.textContent = '正文已更新，请重新排版后复制';
+      return;
+    }
     try {
       await window.PublisherCopy.copy(item);
       status.textContent = '已复制完整排版，请粘贴到公众号后台预览';
@@ -1418,6 +1431,11 @@
   captureClick('#copy-current-artifact', async () => {
     await flushEdits();
     if (!currentArtifact) return;
+    if (currentArtifact.type === 'html' && currentArtifact.id === stageArtifact('typeset')?.id &&
+        window.PublisherCopy.isStale(currentArtifact, latestOf('article'))) {
+      saveState.textContent = '正文已更新，请重新排版后复制';
+      return;
+    }
     try {
       if (currentArtifact.type === 'html') await window.PublisherCopy.copy(currentArtifact);
       else await navigator.clipboard.writeText(editor.value || currentArtifact.content || '');

@@ -8,13 +8,15 @@ from server.providers import call_context, OpenAICompatibleProvider
 from tests.test_providers import FakeSession, FakeResponse
 
 class ReviewDeliveryTests(unittest.TestCase):
-    def run_review(self, *, missing=False, unchanged=False):
+    def run_review(self, *, missing=False, unchanged=False, failed_audit=False):
         original = '这段文字值得注意的是，表达重复。'
         revised = original if unchanged else '这段文字表达重复。'
         diagnosis = {'issues': [{'quote': '值得注意的是，', 'reason': '模板过渡', 'fix': '删除过渡'}],
                      'reason': '定位到模板表达', 'fidelity_ok': True, 'readability_ok': True}
         audit = {'status': 'success', 'complete_sentence_ratio': 1, 'missing_protected_spans': {}}
         post = dict(audit, missing_protected_spans={'quoted_text': ['真实原话']} if missing else {})
+        if failed_audit:
+            post['status'] = 'unavailable'
         progress = []
         with tempfile.TemporaryDirectory() as directory, \
              patch.object(w, 'OUTPUT_DIR', Path(directory)), \
@@ -47,9 +49,20 @@ class ReviewDeliveryTests(unittest.TestCase):
         with self.assertRaises(w.ProviderError):
             self.run_review(missing=True)
 
+    def test_failed_post_edit_audit_delivers_original_instead_of_unverified_candidate(self):
+        result, report = self.run_review(failed_audit=True)
+        self.assertEqual('这段文字值得注意的是，表达重复。', result)
+        self.assertEqual('needs_review', report['gate'])
+        self.assertFalse(report['changed'])
+
     def test_review_budget_applies_without_agent_wrapper(self):
-        with patch.object(w, '_review_impl', side_effect=lambda *args: call_context.remaining_seconds()) as impl:
-            left = w._review('正文。', {})
+        remaining = []
+        def review(*args):
+            remaining.append(call_context.remaining_seconds())
+            return args[0], {}
+        with patch.object(w, '_review_impl', side_effect=review) as impl:
+            w._review('正文。', {})
+        left = remaining[0]
         self.assertLessEqual(left, 240)
         self.assertGreater(left, 0)
         self.assertEqual(impl.call_count, 1)

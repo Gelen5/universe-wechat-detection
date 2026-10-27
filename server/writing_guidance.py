@@ -1,5 +1,23 @@
 """Shared editorial guidance; no model calls, routing lock-in or extra charges."""
 
+import os
+
+PROMPT_VERSION = 'human-writing-compact-20261027-v1'
+
+# A small, task-specific synthesis. It is loaded once with this module and does
+# not read or execute external Skills during a request.
+DRAFT_QUALITY_RULES = """成稿前先辨认题目能由哪些已提供的材料或可靠来源支撑，再选择适合这一篇的推进方式。素材不足时缩小论点或篇幅，照常交付，不虚构细节补足。
+让段落推进读者的问题：可用事实、操作、条件、理由、区别或后果推动；不要把同一判断换词反复解释。重要判断说明依据和适用范围，无依据的效果保持不确定。
+开头尽快回应本篇问题；例子、人物、引用和具体数字只使用本篇有依据的材料。虚构作品按用户设定展开；没有经历时不冒充亲历。
+句段节奏由内容决定，意思已经讲清时收束；教程的编号、必要术语、列表和真实引语可以保留。用户明确指定的文体、语气、结构和篇幅优先。"""
+
+
+def draft_quality_rules() -> str:
+    """Feature flag for the compact first-draft addition, default enabled."""
+    if os.getenv('WECHAT_WRITING_QUALITY_V1', '1').strip().lower() in {'0', 'false', 'off', 'no'}:
+        return ''
+    return DRAFT_QUALITY_RULES
+
 GUIDANCE = """先判断读者想完成的事、文章形式与现有材料，再选择适合本篇的组织方式；行业和风格不等于文体。
 教程可用步骤、结果与卡点推进；观点可从判断和依据展开；故事靠人物行动和变化；资讯先说明已知事实；评测比较实际体验、参数及适用条件；科普解释读者问题。其他形式自主组织，不必强套上述分类。
 用户明确指定的文体、结构和表达优先；没有指定时自行判断，允许混合形式，不强制固定章节、相同数量的小标题或统一结尾。
