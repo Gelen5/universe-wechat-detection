@@ -149,6 +149,20 @@
           <label>建议大纲<textarea id="q-outline" rows="3" maxlength="3000" placeholder="可选：按顺序写下要讲的几个要点"></textarea></label>
           <p id="q-selection-note" class="hint" role="status"></p>
         </div>
+        <details id="q-writing-options">
+          <summary>文章目标与素材（选填）</summary>
+          <p class="hint">不填写也可以直接开始写作，系统会根据主题和要求判断。</p>
+          <label>希望读者看完后<select id="q-writing_goal">
+            <option value="">自动判断</option><option>学会操作</option><option>理解观点</option>
+            <option>参与讨论</option><option>了解并选择</option><option>产生情感共鸣</option>
+          </select></label>
+          <label>内容形式<select id="q-content_form">
+            <option value="">自动判断</option><option>实操教程</option><option>观点评论</option>
+            <option>案例拆解</option><option>故事</option><option>资讯报道</option><option>产品评测</option><option>知识科普</option>
+          </select></label>
+          <p id="q-material-hint" class="hint" role="status">有现成素材时可以补充；没有也能直接写作。</p>
+          <label>补充素材<textarea id="q-author_material" rows="4" maxlength="6000" placeholder="选填：经历、观点、事实或资料；虚构创作可写人物和设定"></textarea></label>
+        </details>
         <details id="q-reference-details">
           <summary>参考文章与写作要求</summary>
           <label
@@ -281,7 +295,7 @@
       <iframe id="q-theme-preview-frame" sandbox="" title="排版主题预览"></iframe>
       <p class="hint">预览使用示例正文。点击“将主题应用到正文”才会更新文章排版。</p>
     </dialog>
-    <script type="module" src="/static/qihaoshou.js?v=20261025-points-1"></script>
+    <script type="module" src="/static/qihaoshou.js?v=20261027-writing-quality-1"></script>
     <script src="/static/design-parity.js?v=20261025-parity-2" defer></script>
 <script src="/static/sidebar.js?v=20261026-mobile-settings-1" defer></script>
 </body>

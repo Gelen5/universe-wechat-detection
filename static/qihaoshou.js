@@ -19,11 +19,26 @@ const fields = [
   "length",
   "reference",
   "instructions",
+  "writing_goal",
+  "content_form",
+  "author_material",
   "mode",
   "angle",
   "outline",
   "source_notes",
 ];
+const materialHints = {
+  "实操教程": "可以补充要解决的问题、操作步骤或已有结果；没有也能直接生成。",
+  "观点评论": "可以补充你的判断、支持理由或不同看法；没有也能直接生成。",
+  "案例拆解": "可以补充案例来源、经过和结果；没有也能直接生成。",
+  "故事": "可以补充真实经历，或说明虚构人物和设定；没有也能直接生成。",
+  "资讯报道": "可以补充消息来源、时间和已确认的变化；没有也能直接生成。",
+  "产品评测": "可以补充使用体验、产品资料和适用人群；没有也能直接生成。",
+  "知识科普": "可以补充读者最困惑的问题和可靠资料；没有也能直接生成。",
+};
+function updateMaterialHint() {
+  $("q-material-hint").textContent = materialHints[$("q-content_form").value] || "有现成素材时可以补充；没有也能直接写作。";
+}
 const body = () => frame.contentDocument?.body;
 const op = () => ({
   session_id: current.id,
@@ -69,6 +84,7 @@ function fill(data) {
     $("q-deai-changes").append(before, after);
   }
   for (const key of fields) $("q-" + key).value = data[key] ?? "";
+  updateMaterialHint();
   $("q-source-url").value = data.reference_url || "";
   if (body()) body().innerHTML = data.html || "";
   $("q-save-state").textContent = "已保存 · 版本 " + data.revision;
@@ -227,6 +243,7 @@ $("q-font").addEventListener("change", () => {
 });
 for (const key of [...fields, "source-url"])
   $("q-" + key).addEventListener("input", backup);
+$("q-content_form").addEventListener("change", updateMaterialHint);
 $("q-save").onclick = () =>
   task(async () => {
     await save();

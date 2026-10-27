@@ -46,6 +46,32 @@ class WritingStudioTests(unittest.TestCase):
         self.assertEqual(self.client.put('/api/qihaoshou/sessions/'+self.data['id'],json=self.data).status_code,409)
         self.assertEqual(self.client.get('/api/qihaoshou/sessions').json()['sessions'][0]['title'],'已经保存')
 
+    def test_optional_writing_choices_survive_old_client_and_reach_generation(self):
+        choices={'writing_goal':'学会操作','content_form':'实操教程','author_material':'已有素材：字段清单'}
+        saved=self.client.put('/api/qihaoshou/sessions/'+self.data['id'],json={**self.data,**choices}).json()
+        legacy={k:v for k,v in saved.items() if k not in choices}
+        legacy['title']='旧版编辑'
+        saved=self.client.put('/api/qihaoshou/sessions/'+self.data['id'],json=legacy).json()
+        self.assertEqual({k:saved[k] for k in choices},choices)
+        captured=[]
+        def tokens(prompt,cancel):
+            captured.append(prompt)
+            yield '# 标题\n\n'+'依据给定材料解释步骤。'*10
+        with patch.object(q,'provider_ready'),patch.object(q,'text_stream',side_effect=tokens):
+            result=self.client.post('/api/qihaoshou/generate',json=self.op(saved))
+        self.assertIn('"done": true',result.text)
+        for value in choices.values(): self.assertIn(value,captured[0])
+        restored=self.client.get('/api/qihaoshou/sessions/'+self.data['id']).json()
+        self.assertEqual({k:restored[k] for k in choices},choices)
+
+    def test_empty_optional_choices_and_explicit_fiction_keep_writing_path(self):
+        draft=q.Draft(topic='创作一个虚构故事',content_form='故事').model_dump()
+        prompt=q.draft_prompt(draft)
+        self.assertIn('可选读者目标：自动判断',prompt)
+        self.assertIn('用户明确要求小说、虚构故事',prompt)
+        self.assertIn('不得冒充真实人物',prompt)
+        self.assertEqual(q.Draft(topic='普通主题').writing_goal,'')
+
     def test_editor_sanitization_preserves_format_but_not_active_content(self):
         raw='<script>alert(1)</script><p onclick="x()" style="text-align:center;color:red;background:url(http://x)">正文<b>加粗</b></p><img src="https://example.com/track"><iframe src="x"></iframe>'
         value=q.clean_html(raw,self.data['id'])
