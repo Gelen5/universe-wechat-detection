@@ -280,7 +280,7 @@ class ConversationApiTests(unittest.TestCase):
         self.assertNotIn("event: run.created", response.text)
         self.assertIn("event: run.queued", response.text)
         self.assertIn("event: run.completed", response.text)
-        self.assertEqual("no-cache, no-transform", response.headers["cache-control"])
+        self.assertEqual("private, no-store, no-transform, max-age=0", response.headers["cache-control"])
 
     def test_artifact_revision_is_append_only_and_owner_isolated(self):
         conversation = self.create()

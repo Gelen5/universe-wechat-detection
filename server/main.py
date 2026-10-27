@@ -80,7 +80,10 @@ async def disable_frontend_cache(request, call_next):
         response.headers["Cache-Control"] = "no-store, max-age=0"
         response.headers["Pragma"] = "no-cache"
     elif request.url.path.startswith('/api/'):
-        response.headers['Cache-Control'] = 'private, no-store, max-age=0'
+        response.headers['Cache-Control'] = (
+            'private, no-store, no-transform, max-age=0'
+            if response.headers.get('content-type', '').startswith('text/event-stream')
+            else 'private, no-store, max-age=0')
         response.headers['Pragma'] = 'no-cache'
     elif request.url.path.startswith("/static/"):
         # HTML carries the release manifest. Unversioned nested assets still

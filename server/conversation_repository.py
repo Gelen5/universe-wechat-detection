@@ -184,7 +184,7 @@ def bind_conversation_skill(conversation_id: str, user_id: str, skill_id: str) -
     with session_scope() as db:
         row = db.scalar(select(Conversation).where(
             Conversation.id == conversation_id, Conversation.user_id == user_id,
-        ).with_for_update())
+        ).with_for_update(key_share=True))
         if not row:
             raise KeyError("conversation not found")
         row.skill_id = skill_id
@@ -200,7 +200,7 @@ def add_message(conversation_id: str, user_id: str, role: str, content: str, *,
     with session_scope() as db:
         conversation = db.scalar(select(Conversation).where(
             Conversation.id == conversation_id, Conversation.user_id == user_id,
-        ).with_for_update())
+        ).with_for_update(key_share=True))
         if not conversation:
             raise KeyError("conversation not found")
         now = _now()
@@ -311,7 +311,7 @@ def create_message_run(conversation_id: str, user_id: str, content: str,
                 return _message_view(message), _run_view(existing), True
             conversation = db.scalar(select(Conversation).where(
                 Conversation.id == conversation_id, Conversation.user_id == user_id,
-            ).with_for_update())
+            ).with_for_update(key_share=True))
             if not conversation:
                 raise KeyError("conversation not found")
             existing = db.scalar(select(AgentRun).where(
@@ -833,9 +833,11 @@ def create_artifact(run_id: str, user_id: str, artifact_type: str, *, title: str
             raise KeyError("run not found")
         # All conversation writes acquire conversation before run. Reversing
         # these locks can deadlock with revision event FK checks in PostgreSQL.
+        # NO KEY UPDATE still serializes conversation writes, while permitting
+        # FK KEY SHARE checks from a concurrent Run cancellation.
         conversation = db.scalar(select(Conversation).where(
             Conversation.id == conversation_id, Conversation.user_id == user_id,
-        ).with_for_update())
+        ).with_for_update(key_share=True))
         if not conversation:
             raise KeyError("conversation not found")
         run = db.scalar(select(AgentRun).where(
@@ -883,7 +885,7 @@ def create_artifact_version(artifact_id: str, user_id: str, *, title: str | None
             raise KeyError("artifact not found")
         conversation = db.scalar(select(Conversation).where(
             Conversation.id == source.conversation_id, Conversation.user_id == user_id,
-        ).with_for_update())
+        ).with_for_update(key_share=True))
         if not conversation:
             raise KeyError("conversation not found")
         if expected_current_id is not None:
