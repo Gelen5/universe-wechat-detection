@@ -151,11 +151,12 @@ class DraftHumanVoiceTests(unittest.TestCase):
         with mock.patch.object(workbench, "_require_skill", lambda: None), \
              mock.patch.object(workbench.skill_runtime, "context", lambda *a, **k: ("规则", [])), \
              mock.patch.object(workbench.skill_runtime, "brief", lambda s: ""), \
+             mock.patch.object(workbench.skill_runtime, "length_issue", return_value=None), \
              mock.patch.object(workbench, "_record_skill", lambda *a, **k: None), \
              mock.patch.object(workbench, "_text", fake_text):
             workbench._draft("标题", {"name": "SCQA", "outline": ["一"]}, "人格", "", session=_session())
-        self.assertIn("不得虚构", captured["prompt"])
-        self.assertIn("段落长短要错落", captured["prompt"])
+        self.assertIn("不凭空创造人物", captured["prompt"])
+        self.assertIn("句段长短由信息复杂度决定", captured["prompt"])
 
 
 class ImageDegradationTests(unittest.TestCase):
@@ -218,6 +219,7 @@ class DraftPromptSizeTests(unittest.TestCase):
         with mock.patch.object(workbench, "_require_skill", lambda: None), \
              mock.patch.object(workbench.skill_runtime, "context", lambda *a, **k: ("规则", [])), \
              mock.patch.object(workbench.skill_runtime, "brief", lambda s: ""), \
+             mock.patch.object(workbench.skill_runtime, "length_issue", return_value=None), \
              mock.patch.object(workbench, "_record_skill", lambda *a, **k: None), \
              mock.patch.object(workbench, "_text", fake_text), \
              mock.patch.dict("os.environ", {"WECHAT_DRAFT_RESEARCH": mode}):

@@ -19,6 +19,7 @@ def test_v2_uses_genre_and_preserves_user_requirements(kind, requirements, expec
     with patch.object(workbench, '_require_skill'), \
          patch.object(workbench.skill_runtime, 'node_rules', return_value=('DRAFT_RULES', [])), \
          patch.object(workbench.skill_runtime, 'context', side_effect=AssertionError('unneeded full context')), \
+         patch.object(workbench.skill_runtime, 'length_issue', return_value=None), \
          patch.object(workbench, '_record_skill'), \
          patch.object(workbench, '_text', side_effect=lambda p, **kw: prompts.append(p) or '# 标题\n正文'):
         result = workbench._draft('主题', frame, '语气', requirements,
@@ -63,6 +64,7 @@ def test_unresolved_forbidden_thought_fails_without_overwriting():
     article = '# 标题\n\n一方想说的是：“你从来不听。”'
     with patch.object(workbench, '_require_skill'), \
          patch.object(workbench.skill_runtime, 'node_rules', return_value=('规则', [])), \
+         patch.object(workbench.skill_runtime, 'length_issue', return_value=None), \
          patch.object(workbench, '_record_skill'), \
          patch.object(workbench, '_text', side_effect=[article, '{"edits":[]}']):
         with pytest.raises(workbench.ProviderError, match='一方想说'):
@@ -82,3 +84,26 @@ def test_emotional_opinion_framework_does_not_require_steps():
         result = workbench._framework('夫妻', '观点', '情感观点文', {'_draft_strategy_version': 'v2'})
     assert result['writing_strategy']['article_type'] == 'emotional_opinion'
     assert '情感观点不是沟通教程或故事' in captured[0]
+
+
+def test_default_length_retries_and_accepts_1000_to_1200():
+    frame = {'name': '观点', 'outline': ['一', '二'], 'writing_strategy': {'article_type': 'opinion'}, 'research': {}}
+    short = '# 标题\n' + '文' * 400
+    long_enough = '# 标题\n' + '文' * 1000
+    with patch.object(workbench, '_require_skill'), \
+         patch.object(workbench.skill_runtime, 'node_rules', return_value=('规则', [])), \
+         patch.object(workbench, '_record_skill'), \
+         patch.object(workbench, '_text', side_effect=[short, long_enough]) as writer:
+        result = workbench._draft('主题', frame, '语气', '只填主题', {'_draft_strategy_version': 'v2'})
+    assert result == long_enough and writer.call_count == 2
+    assert '1000–1200字' in writer.call_args_list[0].args[0]
+
+
+def test_user_length_does_not_get_default_range():
+    frame = {'name': '观点', 'outline': ['一', '二'], 'writing_strategy': {'article_type': 'opinion'}, 'research': {}}
+    with patch.object(workbench, '_require_skill'), \
+         patch.object(workbench.skill_runtime, 'node_rules', return_value=('规则', [])), \
+         patch.object(workbench, '_record_skill'), \
+         patch.object(workbench, '_text', return_value='# 标题\n短文') as writer:
+        workbench._draft('主题', frame, '语气', '正文约500字', {'_draft_strategy_version': 'v2'})
+    assert '1000–1200字' not in writer.call_args.args[0]
