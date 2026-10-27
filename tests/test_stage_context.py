@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 from sqlalchemy import create_engine
@@ -14,6 +15,38 @@ from server.models import Base, users_table
 
 
 class StageContextTests(unittest.TestCase):
+    def test_writer_adapter_consumes_submitted_outline_after_later_edit(self):
+        from server.skills.executor import ToolContext
+        from vendor.skills.wechat_writer import adapter
+
+        _, run, _ = conversation_repository.create_message_run(
+            self.conversation['id'], 'user-a', 'Write this outline', 'adapter-pinned')
+        outline = next(row for row in conversation_repository.list_artifacts(
+            self.conversation['id'], 'user-a') if row['type'] == 'outline')
+        conversation_repository.create_artifact_version(
+            outline['id'], 'user-a', content='1. Future first\n2. Future second')
+        context = ToolContext(
+            user_id='user-a', conversation_id=self.conversation['id'], run_id=run['id'],
+            skill_id='wechat_writer', tool_call_id='call', idempotency_key='call-key',
+            storage=None, model_service=None, emit=lambda *_: None,
+            is_cancelled=lambda: False, heartbeat=lambda: True, remaining_seconds=lambda: 60)
+        with patch.object(adapter, 'with_provider', side_effect=lambda invoke: invoke()), \
+             patch.object(adapter.workbench, '_draft', return_value='Saved article') as draft:
+            adapter.create_tools()['write_article']({'title': 'Title'}, context)
+        self.assertEqual(draft.call_args.args[1]['outline'], ['开头', '结尾'])
+
+    def test_run_context_does_not_include_post_submission_changes(self):
+        _, run, _ = conversation_repository.create_message_run(
+            self.conversation['id'], 'user-a', 'Write from submitted outline', 'pinned-context')
+        prior = next(row for row in conversation_repository.list_artifacts(self.conversation['id'], 'user-a') if row['type'] == 'outline')
+        conversation_repository.create_artifact_version(prior['id'], 'user-a', content='Future outline must not be used')
+        conversation_repository.add_message(self.conversation['id'], 'user-a', 'user', 'Unrelated later instruction')
+        body = '\n'.join(row['content'] for row in stage_messages(
+            self.conversation['id'], 'user-a', stage='writing', run_id=run['id']))
+        self.assertIn('1. 开头', body)
+        self.assertNotIn('Future outline', body)
+        self.assertNotIn('Unrelated later instruction', body)
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         engine = create_engine(f"sqlite:///{Path(self.temp.name, 'ctx.db').as_posix()}",

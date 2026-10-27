@@ -337,9 +337,23 @@ def create_message_run(conversation_id: str, user_id: str, content: str,
                 _event(db, waiting, "run.cancelled", {
                     "reason": "superseded_by_input",
                 })
+            ranks = select(Artifact.id.label('id'), func.row_number().over(
+                partition_by=Artifact.type, order_by=Artifact.version.desc()).label('rank')).where(
+                Artifact.conversation_id == conversation_id, Artifact.user_id == user_id).subquery()
+            input_artifacts = list(db.scalars(select(ranks.c.id).where(ranks.c.rank == 1)))
+            image_ids = db.scalars(select(Artifact.id).where(
+                Artifact.conversation_id == conversation_id, Artifact.user_id == user_id,
+                Artifact.type == 'image').order_by(Artifact.created_at.desc(), Artifact.id.desc()).limit(8)).all()
+            input_artifacts = list(dict.fromkeys([*input_artifacts, *image_ids]))
+            history_ids = db.scalars(select(ConversationMessage.id).where(
+                ConversationMessage.conversation_id == conversation_id).order_by(
+                ConversationMessage.created_at.desc(), ConversationMessage.id.desc()).limit(39)).all()
             message = ConversationMessage(id=uuid.uuid4().hex, conversation_id=conversation_id,
                 role="user", content=content, content_json=content_json or {},
-                metadata_json=metadata or {}, created_at=now)
+                metadata_json={**(metadata or {}), '_input_snapshot_v': 1,
+                    '_input_artifact_ids': input_artifacts,
+                    '_input_message_ids': [*reversed(history_ids), None]}, created_at=now)
+            message.metadata_json['_input_message_ids'][-1] = message.id
             db.add(message)
             # PostgreSQL checks this FK when each statement executes. Flush the
             # referenced message before adding a Run that points at it.
@@ -373,6 +387,55 @@ def get_run(run_id: str, user_id: str) -> dict[str, Any] | None:
     with session_scope() as db:
         row = db.scalar(select(AgentRun).where(AgentRun.id == run_id, AgentRun.user_id == user_id))
         return _run_view(row) if row else None
+
+
+def run_inputs(run_id: str, user_id: str, *, artifacts: bool = True,
+               messages: bool = True) -> dict[str, Any]:
+    """Frozen submission inputs plus genuine worker outputs from this same Run.
+
+    Human revisions use artifact.updated and must not enter a running worker's
+    inputs through an inherited run_id. Legacy Runs without a snapshot keep
+    their pre-upgrade read contract until drained.
+    """
+    with session_scope() as db:
+        run = db.scalar(select(AgentRun).where(AgentRun.id == run_id, AgentRun.user_id == user_id))
+        if not run:
+            raise KeyError('run not found')
+        trigger = db.get(ConversationMessage, run.trigger_message_id)
+        snapshot = trigger.metadata_json if trigger else {}
+        if not snapshot or snapshot.get('_input_snapshot_v') != 1:
+            return {'artifacts': list_artifacts(run.conversation_id, user_id) if artifacts else [],
+                    'messages': list_messages(run.conversation_id, user_id, limit=40) if messages else []}
+        result = {'artifacts': [], 'messages': []}
+        if artifacts:
+            ids = snapshot.get('_input_artifact_ids')
+            if not isinstance(ids, list):
+                raise RuntimeError('invalid input snapshot')
+            owned = list(db.scalars(select(Artifact).where(
+                Artifact.id.in_(ids), Artifact.user_id == user_id, Artifact.conversation_id == run.conversation_id)))
+            if len(owned) != len(set(ids)):
+                raise RuntimeError('input artifact snapshot is unavailable')
+            output_ids = [payload.get('artifact_id') for payload in db.scalars(select(RunEvent.payload_json).where(
+                RunEvent.run_id == run_id, RunEvent.event_type == 'artifact.created'))]
+            outputs = list(db.scalars(select(Artifact).where(
+                Artifact.id.in_(output_ids), Artifact.user_id == user_id, Artifact.run_id == run_id)))
+            completed_tools = set(db.scalars(select(ToolCall.id).where(
+                ToolCall.run_id == run_id, ToolCall.status == 'completed')))
+            outputs = [item for item in outputs if item.source_key
+                       and item.source_key.split(':', 1)[0] in completed_tools]
+            unique = {item.id: item for item in [*owned, *outputs]}
+            result['artifacts'] = [_artifact_view(item) for item in sorted(unique.values(), key=lambda item: (item.created_at, item.version))]
+        if messages:
+            ids = snapshot.get('_input_message_ids')
+            if not isinstance(ids, list):
+                raise RuntimeError('invalid message snapshot')
+            rows = db.scalars(select(ConversationMessage).where(
+                ConversationMessage.id.in_(ids), ConversationMessage.conversation_id == run.conversation_id)).all()
+            by_id = {row.id: row for row in rows}
+            if set(ids) != set(by_id):
+                raise RuntimeError('input message snapshot is unavailable')
+            result['messages'] = [_message_view(by_id[message_id]) for message_id in ids]
+        return result
 
 
 def list_active_runs(user_id: str, *, limit: int = 50, before: str | None = None) -> list[dict[str, Any]]:

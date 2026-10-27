@@ -13,6 +13,40 @@ from server.models import AgentRun, Base, ProviderCall, UsageRecord, users_table
 
 
 class ConversationRepositoryTests(unittest.TestCase):
+    def test_run_inputs_freeze_body_and_history_but_allow_completed_tool_outputs(self):
+        conversation = repo.create_conversation('user-a')
+        _, seed, _ = repo.create_message_run(conversation['id'], 'user-a', 'initial draft', 'input-seed')
+        original = repo.create_artifact(seed['id'], 'user-a', 'article', content='Submitted body')
+        trigger, run, _ = repo.create_message_run(conversation['id'], 'user-a', 'review this', 'input-freeze')
+        repo.create_artifact_version(original['id'], 'user-a', content='Later human edit')
+        repo.add_message(conversation['id'], 'user-a', 'user', 'Future unrelated request')
+        inputs = repo.run_inputs(run['id'], 'user-a')
+        self.assertEqual([original['id']], [row['id'] for row in inputs['artifacts']])
+        self.assertEqual('review this', inputs['messages'][-1]['content'])
+        self.assertNotIn('Future unrelated request', [row['content'] for row in inputs['messages']])
+        tool, _ = repo.create_tool_call(run['id'], 'user-a', call_id='one', skill_id='wechat_writer',
+                                      tool_name='review_article', arguments={})
+        output = repo.create_artifact(run['id'], 'user-a', 'article', content='Worker result',
+                                     source_key=tool['id'] + ':article:0')
+        self.assertNotIn(output['id'], [row['id'] for row in repo.run_inputs(run['id'], 'user-a')['artifacts']])
+        repo.finish_tool_call(tool['id'], run['id'], 'user-a', result={'saved': True})
+        human = repo.create_artifact_version(output['id'], 'user-a', content='Another tab changed worker output')
+        ids = [row['id'] for row in repo.run_inputs(run['id'], 'user-a')['artifacts']]
+        self.assertIn(output['id'], ids)
+        self.assertNotIn(human['id'], ids)
+        replayed, _, replay = repo.create_message_run(conversation['id'], 'user-a', 'review this', 'input-freeze')
+        self.assertTrue(replay)
+        self.assertEqual(trigger['metadata'], replayed['metadata'])
+        with self.assertRaises(KeyError):
+            repo.run_inputs(run['id'], 'user-b')
+
+    def test_empty_submission_snapshot_does_not_fall_back_to_future_artifacts(self):
+        conversation = repo.create_conversation('user-a')
+        _, run, _ = repo.create_message_run(conversation['id'], 'user-a', 'start', 'empty-snapshot')
+        _, other, _ = repo.create_message_run(conversation['id'], 'user-a', 'later', 'later-snapshot')
+        repo.create_artifact(other['id'], 'user-a', 'article', content='Must not enter old task')
+        self.assertEqual([], repo.run_inputs(run['id'], 'user-a')['artifacts'])
+
     def test_activity_list_includes_only_owners_unfinished_runs(self):
         first = repo.create_conversation('user-a', title='First task')
         second = repo.create_conversation('user-a', title='Second task')

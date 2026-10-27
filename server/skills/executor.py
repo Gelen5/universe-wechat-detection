@@ -23,5 +23,9 @@ class ToolContext:
     heartbeat: Callable[[], bool]
     remaining_seconds: Callable[[], int]
 
+    def input_artifacts(self) -> list[dict[str, Any]]:
+        from .. import conversation_repository
+        return conversation_repository.run_inputs(self.run_id, self.user_id, messages=False)['artifacts']
+
 
 ToolExecutor = Callable[[dict[str, Any], ToolContext], ToolResult]

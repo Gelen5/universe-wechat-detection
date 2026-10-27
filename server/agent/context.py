@@ -5,10 +5,11 @@ from typing import Any
 from .. import conversation_repository
 
 
-def conversation_messages(conversation_id: str, user_id: str, *, limit: int = 40) -> list[dict[str, Any]]:
-    history = conversation_repository.list_messages(conversation_id, user_id, limit=limit)
+def conversation_messages(conversation_id: str, user_id: str, *, limit: int = 40, run_id: str | None = None) -> list[dict[str, Any]]:
+    inputs = conversation_repository.run_inputs(run_id, user_id) if run_id else None
+    history = inputs['messages'][-limit:] if inputs else conversation_repository.list_messages(conversation_id, user_id, limit=limit)
     messages = [{"role": item["role"], "content": item["content"]} for item in history]
-    artifacts = conversation_repository.list_artifacts(conversation_id, user_id)
+    artifacts = inputs['artifacts'] if inputs else conversation_repository.list_artifacts(conversation_id, user_id)
     latest: dict[str, dict[str, Any]] = {}
     for artifact in artifacts:
         current = latest.get(artifact["type"])
@@ -28,7 +29,7 @@ def conversation_messages(conversation_id: str, user_id: str, *, limit: int = 40
                 break
         messages.insert(0, {
             "role": "system",
-            "content": "以下是当前对话中最新的作品版本。用户要求修改、配图或排版时，必须基于这些作品，不要另起无关内容。\n\n"
+            "content": "以下是本轮可使用的作品版本。用户要求修改、配图或排版时，必须基于这些作品，不要另起无关内容。\n\n"
                        + "\n\n".join(sections),
         })
     return messages
@@ -53,7 +54,7 @@ def _clip(value, limit: int) -> str:
 
 
 def stage_messages(conversation_id: str, user_id: str, *, stage: str | None,
-                   limit: int = 12) -> list[dict[str, Any]]:
+                   limit: int = 12, run_id: str | None = None) -> list[dict[str, Any]]:
     """History trimmed to what this stage actually needs.
 
     Long conversations used to send the last 40 messages plus up to 60k chars of
@@ -61,11 +62,12 @@ def stage_messages(conversation_id: str, user_id: str, *, stage: str | None,
     "写作" stage failed with a provider error). Per-stage budgets keep the prompt
     small and the cost predictable.
     """
-    history = conversation_repository.list_messages(conversation_id, user_id, limit=200)
+    inputs = conversation_repository.run_inputs(run_id, user_id) if run_id else None
+    history = inputs['messages'] if inputs else conversation_repository.list_messages(conversation_id, user_id, limit=200)
     tail = [item for item in history if item.get("role") in {"user", "assistant"}][-limit:]
     messages = [{"role": item["role"], "content": _clip(item.get("content"), 800)} for item in tail]
 
-    artifacts = conversation_repository.list_artifacts(conversation_id, user_id)
+    artifacts = inputs['artifacts'] if inputs else conversation_repository.list_artifacts(conversation_id, user_id)
     latest: dict[str, dict[str, Any]] = {}
     for artifact in artifacts:
         current = latest.get(artifact["type"])

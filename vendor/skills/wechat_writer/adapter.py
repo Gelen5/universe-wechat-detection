@@ -23,7 +23,8 @@ def create_tools():
 
     def latest_artifact(context, artifact_type, items=None):
         if items is None:
-            items = conversation_repository.list_artifacts(context.conversation_id, context.user_id)
+            reader = getattr(context, 'input_artifacts', None)
+            items = reader() if reader else conversation_repository.list_artifacts(context.conversation_id, context.user_id)
         return max((item for item in items if item["type"] == artifact_type),
                    key=lambda item: (item.get("created_at", ""), item.get("version", 0)), default=None)
 
@@ -129,7 +130,8 @@ def create_tools():
         ))
 
     def typeset_article(args, context):
-        artifacts = conversation_repository.list_artifacts(context.conversation_id, context.user_id)
+        reader = getattr(context, 'input_artifacts', None)
+        artifacts = reader() if reader else conversation_repository.list_artifacts(context.conversation_id, context.user_id)
         saved_article = latest_artifact(context, "article", artifacts)
         article = (saved_article or {}).get("content") or required_text(args, "article")
         session = {"id": uuid.uuid4().hex, "topic": str(args.get("title") or "公众号文章"),

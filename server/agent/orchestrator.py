@@ -143,7 +143,7 @@ class AgentOrchestrator:
         conversation = conversation_repository.get_conversation(run["conversation_id"], user_id)
         if not conversation:
             raise KeyError("conversation not found")
-        history = conversation_messages(conversation["id"], user_id)
+        history = conversation_messages(conversation["id"], user_id, run_id=run_id)
         trigger_message = conversation_repository.get_message(
             conversation["id"], user_id, run["trigger_message_id"])
         if not trigger_message:
@@ -184,7 +184,7 @@ class AgentOrchestrator:
                 model_service=self.intent_service,
                 text=trigger,
                 stage_hint=hint,
-                artifacts=conversation_repository.list_artifacts(conversation["id"], user_id),
+                artifacts=conversation_repository.run_inputs(run_id, user_id, messages=False)['artifacts'],
                 recent=history,
                 run_id=run_id, user_id=user_id,
                 explicit_stage=hint if content_json.get("stage_explicit") else None,
@@ -249,7 +249,7 @@ class AgentOrchestrator:
                                  and stage in WECHAT_STAGE_TO_TOOL else None)
                 if workbench:
                     # Only the resolved stage's inputs are sent (server/agent/context.py).
-                    history = stage_messages(conversation["id"], user_id, stage=stage)
+                    history = stage_messages(conversation["id"], user_id, stage=stage, run_id=run_id)
                     if stage is None:
                         # The user asked a question instead of asking for a stage:
                         # answer it, do not run a tool or mint an artifact.
