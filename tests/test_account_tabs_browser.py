@@ -89,3 +89,19 @@ def test_account_switch_waits_for_save_and_stops_on_failure(ui):
     page.evaluate('finishTestSave()')
     page.wait_for_function('currentAccount === null')
     assert len(logout_requests) == 1
+
+
+@pytest.mark.parametrize('status', [200, 401, 500])
+def test_logout_accepts_expired_session_but_does_not_hide_server_failure(ui, status):
+    page, _ = ui
+    page.goto('http://ui.test/workbench', wait_until='networkidle')
+    page.route('**/api/auth/logout', lambda route: route.fulfill(status=status, json={}))
+    page.evaluate("document.querySelector('#logout-button').click()")
+    if status == 500:
+        expect(page.get_by_text('退出未确认，请稍后重试', exact=True)).to_be_visible()
+        assert page.evaluate('currentAccount.id') == 'test-user'
+    else:
+        page.wait_for_function('currentAccount === null')
+        expect(page.locator('#auth-modal')).to_be_visible()
+        assert page.evaluate('currentWallet.balance') == 0
+        expect(page.get_by_text('退出未确认，请稍后重试', exact=True)).to_have_count(0)

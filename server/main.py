@@ -107,7 +107,9 @@ async def account_and_points_gate(request: Request, call_next):
     public_market = request.method == "GET" and (path.startswith("/api/market/")
                      or path.startswith("/api/hotspots"))
     public_refresh = request.method == "POST" and path == "/api/hotspots/refresh"
-    public_api = path in {"/api/auth/register", "/api/auth/login"} or public_market or public_refresh
+    # Logout also clears expired/revoked cookies. Requiring an active session
+    # prevents a stale browser from ever completing that cleanup.
+    public_api = path in {"/api/auth/register", "/api/auth/login", "/api/auth/logout"} or public_market or public_refresh
     user = accounts.user_from_request(request)
     request.state.user = user
     if path.startswith("/api/") and not public_api and not user:

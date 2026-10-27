@@ -66,6 +66,38 @@ class AccountAndBillingTests(unittest.TestCase):
         response = anonymous.get("/api/wallet")
         self.assertEqual(response.status_code, 401)
 
+    def test_logout_revokes_session_and_is_safe_to_repeat(self):
+        token = self.client.cookies.get(accounts.COOKIE_NAME)
+        response = self.client.post('/api/auth/logout')
+        self.assertEqual(200, response.status_code)
+        self.assertIn('Max-Age=0', response.headers['set-cookie'])
+        self.assertEqual(401, self.client.get('/api/auth/me').status_code)
+        self.client.cookies.set(accounts.COOKIE_NAME, token)
+        self.assertEqual(401, self.client.get('/api/auth/me').status_code)
+        repeated = self.client.post('/api/auth/logout')
+        self.assertEqual(200, repeated.status_code)
+        self.assertIn('no-store', repeated.headers['cache-control'])
+
+    def test_logout_clears_expired_session_without_requiring_login(self):
+        balance = accounts.wallet_summary(self.user['id'])['balance']
+        with accounts.DB_LOCK, accounts._connect() as connection:
+            connection.execute('UPDATE sessions SET expires_at=? WHERE user_id=?',
+                               ('2000-01-01T00:00:00+00:00', self.user['id']))
+        self.assertEqual(401, self.client.get('/api/auth/me').status_code)
+        response = self.client.post('/api/auth/logout')
+        self.assertEqual(200, response.status_code)
+        self.assertIn('Max-Age=0', response.headers['set-cookie'])
+        self.assertEqual(balance, accounts.wallet_summary(self.user['id'])['balance'])
+
+    def test_logout_clears_invalid_or_missing_cookie(self):
+        with TestClient(app) as anonymous:
+            for token in (None, 'expired-or-invalid-token'):
+                if token:
+                    anonymous.cookies.set(accounts.COOKIE_NAME, token)
+                response = anonymous.post('/api/auth/logout')
+                self.assertEqual(200, response.status_code)
+                self.assertIn('Max-Age=0', response.headers['set-cookie'])
+
     def test_non_owner_cannot_recharge_points(self):
         response = self.client.post("/api/admin/recharge", json={
             "user_id": self.user["id"], "points": 100, "bucket": "trial", "note": "越权测试",

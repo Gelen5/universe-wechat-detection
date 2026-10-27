@@ -404,7 +404,9 @@ logoutButton?.addEventListener('click', async () => {
   try {
     await prepareAccountChange();
     const response = await fetch('/api/auth/logout', { method: 'POST' });
-    if (!response.ok) throw new Error('退出未确认，请稍后重试');
+    // A previous server release can answer 401 when this session has already
+    // expired. That is an unauthenticated state, not a failed logout.
+    if (!response.ok && response.status !== 401) throw new Error('退出未确认，请稍后重试');
   } catch (error) { showToast(error.message, 'error'); return; }
   currentAccount = null;
   window.dispatchEvent(new Event('account-changed'));
