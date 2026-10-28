@@ -675,6 +675,14 @@ def admin_overview(request: Request):
     return {"status": "success", "overview": accounts.admin_overview()}
 
 
+@app.get("/api/admin/provider-health")
+def admin_provider_health(request: Request):
+    """Run the configured-model probe now; the beat task logs it every 10 min."""
+    accounts.require_admin(request)
+    from .provider_health import probe_text_provider
+    return {"status": "success", "check": probe_text_provider(timeout=120)}
+
+
 @app.get("/api/admin/agent-metrics")
 def admin_agent_metrics(request: Request, hours: int = 24):
     accounts.require_admin(request)

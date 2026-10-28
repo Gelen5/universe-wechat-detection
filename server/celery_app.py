@@ -9,7 +9,8 @@ from celery.schedules import crontab
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 celery_app = Celery("universe_creator", broker=REDIS_URL, backend=REDIS_URL,
-                    include=["server.workflow_tasks", "server.agent_tasks", "server.hotspots"])
+                    include=["server.workflow_tasks", "server.agent_tasks", "server.hotspots",
+                             "server.provider_health"])
 celery_app.conf.update(
     task_serializer="json", result_serializer="json", accept_content=["json"],
     task_acks_late=True, task_reject_on_worker_lost=True,
@@ -24,6 +25,7 @@ celery_app.conf.update(
         "agent.recover_stale": {"queue": "chat"},
         "market.sync": {"queue": "text"},
         "hotspot.sync": {"queue": "text"},
+        "provider.health": {"queue": "text"},
     },
     worker_concurrency=max(1, int(os.getenv("CELERY_WORKER_CONCURRENCY", "4"))),
     beat_schedule={
@@ -38,6 +40,11 @@ celery_app.conf.update(
         },
         "hotspot-sync": {
             "task": "hotspot.sync", "schedule": 600.0,
+        },
+        # A relay can fail for hours; deploy-time probing only covers deploys.
+        "provider-health": {
+            "task": "provider.health",
+            "schedule": max(60.0, float(os.getenv("PROVIDER_HEALTH_INTERVAL", "600"))),
         },
     },
 )
