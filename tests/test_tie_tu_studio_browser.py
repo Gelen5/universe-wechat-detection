@@ -12,7 +12,7 @@ def test_tie_tu_studio_renders_plan_and_responsive_layout(ui, width):
     page.set_viewport_size({'width': width, 'height': 900})
     page.goto('http://ui.test/tie-tu')
     expect(page.locator('#tie-tu .creator-conversation textarea')).to_be_visible()
-    expect(page.locator('#tie-tu .empty-head h2')).to_contain_text('一张封面')
+    expect(page.locator('#tie-tu .empty-head h2')).to_contain_text('你的卡片会显示在这里')
     assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
     if os.getenv('TIE_TU_SCREENSHOT_DIR'):
         page.screenshot(path=str(Path(os.environ['TIE_TU_SCREENSHOT_DIR']) / f'tie-tu-{width}.png'), full_page=True)

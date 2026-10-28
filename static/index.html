@@ -538,8 +538,8 @@
         <div class="skill-shell">
           <div class="skill-form-col">
             <span class="micro-label"><span class="line"></span><span>图文创作 / TIE TU</span></span>
-            <h1>把一个想法，<br>做成一组<span class="serif">好图文</span><span class="blue">。</span></h1>
-            <p>说说主题和想表达的内容，先生成卡片计划，再决定怎么做图。</p>
+            <h1>开始创作</h1>
+            <p>输入主题和要求，生成可调整的卡片计划。</p>
 
             <form id="tie-form" class="skill-form">
               <div class="form-section">
@@ -568,17 +568,17 @@
           <div class="skill-output-col" aria-live="polite">
             <div id="tie-empty" class="skill-empty skill-empty-grid">
               <div class="empty-head">
-                <span class="tag">YOUR STORYBOARD / 图文计划</span>
-                <h2>从一张封面开始，<br>把内容<span class="serif">慢慢展开</span>。</h2>
-                <p>计划会显示每张卡片的文字和画面构想，确认后再生成图片。</p>
+                <span class="tag">图文计划 <span class="tie-status-dot"></span> 等待创建</span>
+                <h2>你的卡片会显示在这里</h2>
+                <p>先生成计划，确认内容后再逐步生成图片。</p>
               </div>
               <div class="empty-grid">
                 <article class="empty-preview empty-preview-tietu">
-                  <header><span class="ep-tag">卡片构想</span><em class="ep-meta">3:4 竖版</em></header>
+                  <header><span class="ep-tag">卡片预览</span><em class="ep-meta">3:4 竖版</em></header>
                   <div class="tietu-board">
-                    <div class="tietu-card tc-1"><span class="tc-n">01 / COVER</span><span class="tc-t">让好想法<br>被看见<span class="tie-dot">.</span></span><span class="tie-card-foot">封面 · 一个清晰主题</span></div>
-                    <div class="tietu-card tc-2"><span class="tc-n">02 / CONTENT</span><span class="tc-t">一张图，<br>一个重点</span><span class="tie-card-foot">内容 · 从这里展开</span></div>
-                    <div class="tietu-card tc-3"><span class="tc-n">03 / NEXT</span><span class="tc-t">接下来<br>由你决定</span><span class="tie-card-foot">更多卡片 · 按需创建</span></div>
+                    <div class="tietu-card tc-1"><span class="tc-n">01</span><span class="tie-card-icon" aria-hidden="true">✳</span><span class="tie-card-foot">封面</span></div>
+                    <div class="tietu-card tc-2"><span class="tc-n">02</span><span class="tie-card-icon" aria-hidden="true">◫</span><span class="tie-card-foot">内容</span></div>
+                    <div class="tietu-card tc-3"><span class="tc-n">03</span><span class="tie-card-icon" aria-hidden="true">＋</span><span class="tie-card-foot">更多</span></div>
                   </div>
                 </article>
                 <article class="empty-preview empty-preview-style">
@@ -592,22 +592,8 @@
                     <button type="button" class="style-chip" data-style="国风手绘 · 水墨 + 留白">国风手绘</button>
                   </div>
                 </article>
-                <article class="empty-preview empty-preview-portrait">
-                  <header><span class="ep-tag">人物模式</span><em class="ep-meta">人物一致性</em></header>
-                  <div class="portrait-row">
-                    <span class="portrait-dot portrait-off"></span><strong>保持同一人物</strong><p>同系列图片保持人物面部与服饰一致。</p>
-                  </div>
-                </article>
-                <article class="empty-preview empty-preview-tip">
-                  <header><span class="ep-tag">生成策略</span><em class="ep-meta">plan · generate</em></header>
-                  <ul class="tip-list">
-                    <li><span class="tip-n">01</span><strong>先建分镜</strong><small>确认每张讲什么再批量生图</small></li>
-                    <li><span class="tip-n">02</span><strong>逐张调整</strong><small>对单张重做不影响其他卡片</small></li>
-                    <li><span class="tip-n">03</span><strong>保持系统</strong><small>人物/调性一致是贴图号最值钱的部分</small></li>
-                  </ul>
-                </article>
               </div>
-              <footer class="empty-foot"><span>先确认计划，再逐步生成图片</span><small>IDEA → STORYBOARD → IMAGE</small></footer>
+              <footer class="empty-foot"><span>计划 → 试图 → 其余图片</span><small>每一步都可以先确认</small></footer>
             </div>
             <div id="tie-result" class="tie-result" hidden></div>
           </div>
@@ -894,7 +880,7 @@
     <script src="/static/flow.js?v=20260904-tools-1"></script>
     <script src="/static/studio-tools.js?v=20261028-tietu-1"></script>
     <link rel="stylesheet" href="/static/creator-chat.css?v=20260906-conversation-1">
-    <link rel="stylesheet" href="/static/tie-tu-studio.css?v=20261028-1">
+  <link rel="stylesheet" href="/static/tie-tu-studio.css?v=20261028-2">
     <script src="/static/creator-chat.js?v=20261028-tietu-1"></script>
     <script src="/static/notion-workspace.js?v=20261024-ui5"></script>
 <script src="/static/hotspots.js?v=20261025-stable-filter-1"></script>
