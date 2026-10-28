@@ -1211,6 +1211,7 @@ async function submitQueuedTask(type, payload, signal, onAccepted) {
     try {
       await new Promise(resolve => setTimeout(resolve, 700));
       const state = await readApiResponse(await fetch(`/api/tasks/${encodeURIComponent(jobId)}`, { signal }));
+      onAccepted?.(state.job);
       if (state.job.status === 'succeeded') return state.job.result;
       if (['failed', 'canceled'].includes(state.job.status)) throw new Error(state.job.error || '任务未完成');
     } finally {

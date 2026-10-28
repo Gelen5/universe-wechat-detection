@@ -745,6 +745,9 @@ def create_task(payload: TaskCreateRequest, request: Request):
     if job['type'] == 'workbench_step' and job['status'] == 'queued':
         from .task_worker import dispatch_workbench_job
         dispatch_workbench_job(job['id'])
+    elif job['type'] == 'creator_chat' and job['status'] == 'queued':
+        from .task_worker import dispatch_creator_chat_job
+        dispatch_creator_chat_job(job['id'])
     return {"status": "accepted", "job": _public_job(job), "idempotent_replay": job.get("usage_id") != usage_id}
 
 

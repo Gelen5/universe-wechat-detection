@@ -57,10 +57,12 @@ class CreatorApiIntegrationTests(unittest.TestCase):
 
     def test_creator_chat_queue_worker_and_session_retrieval(self):
         import uuid
-        response = self.client.post('/api/tasks', json={'type': 'creator_chat',
-            'idempotency_key': uuid.uuid4().hex, 'payload': {'skill':'morning','message':'hello','user_id':'forged'}})
+        with patch.object(task_worker, 'dispatch_creator_chat_job') as dispatch:
+            response = self.client.post('/api/tasks', json={'type': 'creator_chat',
+                'idempotency_key': uuid.uuid4().hex, 'payload': {'skill':'morning','message':'hello','user_id':'forged'}})
         self.assertEqual(response.status_code, 202, response.text)
         job_id = response.json()['job']['id']
+        dispatch.assert_called_once_with(job_id)
         session_id = response.json()['job']['session_id']
         job = accounts.claim_job(['text'], job_id=job_id)
         self.assertNotEqual(job['user_id'], 'forged')
@@ -76,6 +78,15 @@ class CreatorApiIntegrationTests(unittest.TestCase):
         restored = self.client.get('/api/creator/chat/' + session_id)
         self.assertEqual(restored.status_code, 200)
         self.assertEqual(restored.json()['session']['conversation'][-1]['content'], 'hello')
+
+    def test_creator_chat_dispatch_claims_only_requested_job(self):
+        with patch.object(task_worker.accounts, 'job', return_value={'type':'creator_chat', 'lane':'text'}), \
+             patch.object(task_worker.accounts, 'claim_job', return_value={'id':'wanted'}) as claim, \
+             patch.object(task_worker, '_run') as run, \
+             patch.object(task_worker.CREATOR_EXECUTOR, 'submit', side_effect=lambda fn: fn()):
+            task_worker.dispatch_creator_chat_job('wanted')
+        claim.assert_called_once_with(['text'], job_id='wanted')
+        run.assert_called_once_with({'id':'wanted'})
 
     def test_creator_chat_requires_login(self):
         with TestClient(app) as anonymous:

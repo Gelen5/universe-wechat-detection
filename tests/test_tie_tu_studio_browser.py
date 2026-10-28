@@ -41,6 +41,23 @@ def test_style_chip_opens_form_and_fills_style(ui):
     page.locator('#tie-tu .style-chip').first.click()
     expect(page.locator('#tie-style')).to_have_value('赛博朋克 · 霓虹紫 + 故障感')
     expect(page.locator('#tie-form')).to_be_visible()
+    assert page.locator('#tie-form').evaluate("el => getComputedStyle(el).borderRadius") == '18px'
+    assert page.locator('#tie-topic').evaluate("el => parseFloat(getComputedStyle(el).fontSize)") >= 14
+
+
+@pytest.mark.parametrize('width', [390, 2560])
+def test_form_is_usable_at_phone_and_wide_desktop(ui, width):
+    page, _ = ui
+    page.set_viewport_size({'width': width, 'height': 1200})
+    page.goto('http://ui.test/tie-tu')
+    page.locator('#tie-tu .creator-form-mode summary').click()
+    expect(page.locator('#tie-topic')).to_be_visible()
+    expect(page.locator('#tie-plan')).to_be_visible()
+    assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+    if width == 2560:
+        assert page.locator('#tie-tu .skill-form-col').bounding_box()['width'] >= 410
+    if os.getenv('TIE_TU_SCREENSHOT_DIR'):
+        page.screenshot(path=str(Path(os.environ['TIE_TU_SCREENSHOT_DIR']) / f'tie-form-{width}.png'), full_page=True)
 
 
 def test_form_batch_retry_skips_images_already_generated(ui):

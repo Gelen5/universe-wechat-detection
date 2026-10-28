@@ -149,10 +149,11 @@
       if (controller || restoring || !input.value.trim()) return;
       controller = new AbortController(); button.disabled = true; reset.disabled = true; cancel.hidden = false; progress.hidden = false;
       const requestOwner = owner;
-      const started = Date.now(); status.textContent = '正在提交…';
-      const timer = setInterval(() => { status.textContent = `正在处理 · ${Math.floor((Date.now()-started)/1000)} 秒`; }, 1000);
+      const started = Date.now(); let jobStatus = 'queued'; status.textContent = '正在提交…';
+      const timer = setInterval(() => { status.textContent = `${jobStatus === 'queued' ? '等待任务执行' : '正在处理'} · ${Math.floor((Date.now()-started)/1000)} 秒`; }, 1000);
       try {
         const data = await submitQueuedTask('creator_chat', {skill, message: input.value.trim(), session_id: session?.id || null}, controller.signal, job => {
+          jobStatus = job.status || jobStatus;
           if (job.session_id && owner === requestOwner) {
             session = session || {id: job.session_id};
             if (owner) localStorage.setItem(storageKey(), job.session_id);
