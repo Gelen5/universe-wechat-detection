@@ -42,6 +42,31 @@ class CreatorToolsTests(unittest.TestCase):
         self.assertEqual(len(result["cards"]), 4)
         self.assertEqual(result["cards"][1]["card_brief"]["action"], "动作2")
 
+    def test_tie_tu_rejects_person_when_user_requests_no_people(self):
+        enriched = {'cards': [{'index': 1, 'overlay_text': '封面', 'caption': '文字',
+                              'visual_subject': '成年女性在窗边', 'composition': '3:4'}]}
+        with patch.object(creator_tools.workbench, '_json_text', return_value=enriched):
+            with self.assertRaisesRegex(creator_tools.workbench.ProviderError, '不使用人物'):
+                creator_tools.tie_tu_plan('生活方式', '下班休息', '', 'list', 1, '', '', 'off')
+
+    def test_tie_tu_repairs_only_visual_when_portrait_disabled(self):
+        original = {'copy': '原文案', 'cards': [{'index': 1, 'overlay_text': '保留标题', 'caption': '保留短句',
+                    'visual_subject': '成年女性在窗边', 'composition': '3:4'}]}
+        repaired = {'cards': [{'index': 1, 'visual_subject': '桌上的茶杯', 'scene': '暖光客厅', 'action': '茶杯静置'}]}
+        with patch.object(creator_tools.workbench, '_json_text', side_effect=[original, repaired]) as model:
+            result = creator_tools.tie_tu_plan('生活方式', '下班休息', '', 'list', 1, '', '', 'off')
+        self.assertEqual(model.call_count, 2)
+        self.assertEqual(result['cards'][0]['overlay_text'], '保留标题')
+        self.assertEqual(result['cards'][0]['visual_subject'], '桌上的茶杯')
+        self.assertEqual(result['copy'], '原文案')
+
+    def test_tie_tu_rejects_missing_or_duplicate_cards(self):
+        enriched = {'cards': [{'index': 1, 'overlay_text': '封面', 'caption': '文字',
+                              'visual_subject': '茶杯', 'composition': '3:4'}]}
+        with patch.object(creator_tools.workbench, '_json_text', return_value=enriched):
+            with self.assertRaisesRegex(creator_tools.workbench.ProviderError, '数量'):
+                creator_tools.tie_tu_plan('生活方式', '下班休息', '', 'list', 2, '', '', 'off')
+
     def test_image_generation_saves_api_result(self):
         png = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=")
         with tempfile.TemporaryDirectory() as folder:
@@ -53,6 +78,16 @@ class CreatorToolsTests(unittest.TestCase):
                 result = creator_tools.generate_card_image("tie-tu", "session123", {"index": 1, "overlay_text": "早安"}, "温暖")
             self.assertGreater(result["bytes"], 0)
             self.assertIn("/api/creator-tools/assets/tie-tu/session123/card-01.png", result["url"])
+
+    def test_tie_tu_no_people_is_carried_to_image_prompt(self):
+        png = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=")
+        with tempfile.TemporaryDirectory() as folder, patch.object(creator_tools, 'OUTPUT_DIR', Path(folder)), patch.object(
+            image_provider, 'generate', return_value={'data': [{'b64_json': base64.b64encode(png).decode('ascii')}]}
+        ) as generate:
+            creator_tools.generate_card_image('tie-tu', 'session', {'index': 1, 'overlay_text': '休息', 'portrait_enabled': False})
+        prompt = generate.call_args.args[0]['prompt']
+        self.assertIn('Do not depict people', prompt)
+        self.assertNotIn('Keep the same fictional adult person', prompt)
 
     def test_hit_detector_returns_editorial_gate(self):
         body = "退休以后，先记录真实开支，再和家人确认生活计划。\n\n" * 30

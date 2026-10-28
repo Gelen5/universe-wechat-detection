@@ -2,6 +2,7 @@
 import uuid
 import time
 import json
+import re
 
 from . import accounts, creator_tools, skill_runtime, workbench, diagnosis_service
 from .conversation_agent import run_turn
@@ -45,6 +46,7 @@ def _chat(skill, message, user_id, session_id, check_cancelled):
     instructions, manifest = skill_runtime.context(
         creator_tools.ROOT / 'vendor' / 'skills' / SKILLS[skill], references)
     session['skill_manifest'] = manifest
+    prior_tie_plan = (session.get('artifacts') or {}).get('draft') if skill == 'tie-tu' else None
 
     def diagnose(state, args):
         if set(args) != {'account_name'} or not isinstance(args['account_name'], str) or not 1 <= len(args['account_name'].strip()) <= 80:
@@ -134,6 +136,17 @@ def _chat(skill, message, user_id, session_id, check_cancelled):
         if any(i not in by_index for i in indices):
             raise ValueError('图片序号超出当前计划')
         completed = draft.setdefault('images', [])
+        if skill == 'tie-tu':
+            if not prior_tie_plan or prior_tie_plan.get('session_id') != draft.get('session_id'):
+                raise ValueError('请先查看卡片计划，确认后再生成试图')
+            first_index = cards[0]['index']
+            pilot_done = any(image.get('index') == first_index for image in completed)
+            if not pilot_done:
+                if not re.search(r'(确认|确定|同意).{0,12}(计划|试图|第\s*1\s*张|首图)', message):
+                    raise ValueError('请确认卡片计划后再生成首张试图')
+                indices = [first_index]
+            elif not re.search(r'(确认|确定|同意|认可|满意).{0,12}(试图|首图|第一张)|(试图|首图|第一张).{0,12}(确认|认可|满意|可以)', message):
+                raise ValueError('请确认首张试图后再生成其余图片')
         for index in dict.fromkeys(indices):
             check_cancelled()
             if any(image['index'] == index for image in completed):
@@ -145,13 +158,37 @@ def _chat(skill, message, user_id, session_id, check_cancelled):
             started = time.perf_counter()
             try:
                 image = creator_tools.generate_card_image(
-                    skill, draft['session_id'], by_index[index], state.get('parameters', {}).get('style', ''),
+                    skill, draft['session_id'], {**by_index[index], **({'portrait_enabled': draft.get('portrait_enabled')} if skill == 'tie-tu' else {})}, state.get('parameters', {}).get('style', ''),
                     size=state.get('parameters', {}).get('size', '768x1024'))
             except Exception:
                 accounts.refund_usage(usage, 502, int((time.perf_counter()-started)*1000))
                 raise
             accounts.settle_usage(usage, 200, int((time.perf_counter()-started)*1000))
             completed.append(image)
+            if skill == 'tie-tu':
+                # Record only confirmations and images that actually happened.
+                # Older drafts may lack the optional skill state dictionaries.
+                from vendor.skills.wechat_tie_tu.toolkit.contracts import utc_now
+                approvals = [draft.setdefault('approval_state', {})]
+                brief = draft.get('content_brief')
+                if isinstance(brief, dict):
+                    approvals.append(brief.setdefault('approval', {}))
+                def approve(stage):
+                    for approval in approvals:
+                        stages = approval.setdefault('stages', {})
+                        if stages.get(stage) != 'approved':
+                            stages[stage] = 'approved'
+                            approval.setdefault('history', []).append({'stage': stage, 'status': 'approved', 'note': '用户在对话中确认', 'at': utc_now()})
+                if not pilot_done:
+                    approve('card_plan')
+                generation = draft.setdefault('generation_state', {})
+                generation.setdefault('cards', {})[str(index)] = {'status': 'generated', 'image_path': image.get('url', ''), 'error': '', 'at': utc_now()}
+                if index == first_index:
+                    generation['pilot_card'] = first_index
+                    generation['pilot_status'] = 'generated'
+                else:
+                    approve('pilot_image')
+                    generation['batch_status'] = 'completed' if all(any(i.get('index') == card['index'] for i in completed) for card in cards) else 'running'
             # Preserve paid, completed images even if a later image fails.
             accounts.save_workbench_session(user_id, state)
         return {'images': completed, 'count': len(completed)}

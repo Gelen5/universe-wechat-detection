@@ -1232,7 +1232,7 @@ function renderSkillProgress(root, total) {
 }
 
 let imageGenerationController = null;
-async function generateSkillImages(tool, sessionId, cards, style, grid) {
+async function generateSkillImages(tool, sessionId, cards, style, grid, onImage = null) {
   imageGenerationController?.abort();
   imageGenerationController = new AbortController();
   const progress = renderSkillProgress(grid.parentElement, cards.length);
@@ -1240,6 +1240,7 @@ async function generateSkillImages(tool, sessionId, cards, style, grid) {
   try {
     for (let index = 0; index < cards.length; index += 1) {
       const data = await postCreator('/api/creator-tools/image', { tool, sessionId, card: cards[index], style }, imageGenerationController.signal);
+      onImage?.(data.image);
       const target = grid.querySelector(`[data-card-index="${data.image.index}"]`);
       if (target) {
         target.classList.add('generated');
@@ -1253,6 +1254,7 @@ async function generateSkillImages(tool, sessionId, cards, style, grid) {
     progress.querySelector('strong').textContent = '图片生成完成';
     progress.querySelector('.cancel-generation').remove();
     showToast(`已生成 ${cards.length} 张图片`);
+    return true;
   } catch (error) {
     if (error.name === 'AbortError') {
       progress.querySelector('strong').textContent = '已取消生成';
@@ -1314,16 +1316,35 @@ function renderTiePlan(plan) {
   document.querySelector('#tie-empty').hidden = true;
   root.hidden = false;
   const cards = plan.cards || [];
-  root.innerHTML = `<div class="output-head"><div><span class="result-status pending">待确认计划</span><h2>${esc(plan.title)}</h2><p>${esc(plan.content_type_label)} · ${esc(plan.angle)}</p></div><button id="tie-images" class="primary-action compact" type="button"><i data-lucide="images"></i>确认并生成 ${cards.length} 张</button></div>
+  const completed = new Set((plan.images || []).map(image => Number(image.index)));
+  let pilotDone = cards.length > 0 && completed.has(Number(cards[0].index));
+  const remaining = () => cards.filter(card => !completed.has(Number(card.index)));
+  const buttonLabel = () => pilotDone ? `确认试图并生成剩余 ${remaining().length} 张` : '确认计划并生成第 1 张试图';
+  root.innerHTML = `<div class="output-head"><div><span class="result-status pending">${cards.length && !remaining().length ? '图片已生成' : pilotDone ? '试图待确认' : '计划待确认'}</span><h2>${esc(plan.title)}</h2><p>${esc(plan.content_type_label)} · ${esc(plan.angle)}</p></div><button id="tie-images" class="primary-action compact" type="button">${buttonLabel()}</button></div>
     <div class="plan-summary"><div><span>画幅</span><strong>${esc(plan.ratio)}</strong></div><div><span>图片</span><strong>${cards.length} 张</strong></div><div><span>人物一致性</span><strong>${plan.portrait_enabled ? '已启用' : '未启用'}</strong></div></div>
     <section class="result-section"><div class="result-section-title"><strong>卡片计划</strong><span>文字、动作和场景均可生成前检查</span></div><div class="creator-card-grid">${cards.map(card => `<article class="creator-output-card" data-card-index="${Number(card.index)}"><div class="card-image-slot"><span>${String(card.index).padStart(2, '0')}</span><small>等待生成</small></div><div class="creator-card-copy"><span>${esc(card.role)}</span><strong>${esc(card.overlay_text)}</strong><p>${esc(card.visual_subject)}</p><small>${esc(card.card_brief?.scene || '')} · ${esc(card.card_brief?.action || '')}</small></div></article>`).join('')}</div></section>
     <section class="result-section"><div class="result-section-title"><strong>配套文案</strong><button class="copy-result" data-copy-target="tie-copy" type="button"><i data-lucide="copy"></i>复制</button></div><textarea id="tie-copy" class="result-editor compact">${esc(plan.copy || '')}</textarea><p class="cta-line">${esc(plan.cta || '')}</p></section>`;
-  root.querySelector('#tie-images').hidden = cards.length === 0;
+  root.querySelector('#tie-images').hidden = cards.length === 0 || remaining().length === 0;
   root.querySelector('.plan-summary').hidden = cards.length === 0;
   root.querySelector('.creator-card-grid').closest('.result-section').hidden = cards.length === 0;
-  root.querySelector('#tie-images').addEventListener('click', () => plan.conversation_id
-    ? window.dispatchEvent(new CustomEvent('creator-chat-send', {detail: {skill: 'tie-tu', message: '确认当前计划，生成全部未生成图片'}}))
-    : generateSkillImages('tie-tu', plan.session_id, cards, document.querySelector('#tie-style').value.trim(), root.querySelector('.creator-card-grid')));
+  root.querySelector('#tie-images').addEventListener('click', async event => {
+    const selected = pilotDone ? remaining() : [cards[0]];
+    if (!selected.length) return;
+    if (plan.conversation_id) {
+      const message = pilotDone ? '确认试图，生成剩余未生成的图片' : `确认当前卡片计划，只生成第 ${cards[0].index} 张试图`;
+      window.dispatchEvent(new CustomEvent('creator-chat-send', {detail: {skill: 'tie-tu', message}}));
+      return;
+    }
+    event.currentTarget.disabled = true;
+    await generateSkillImages('tie-tu', plan.session_id, selected.map(card => ({...card, portrait_enabled: plan.portrait_enabled})), document.querySelector('#tie-style').value.trim(), root.querySelector('.creator-card-grid'), image => completed.add(Number(image.index)));
+    event.currentTarget.disabled = false;
+    if (completed.size) {
+      pilotDone = completed.has(Number(cards[0].index));
+      event.currentTarget.hidden = !remaining().length;
+      event.currentTarget.textContent = buttonLabel();
+      root.querySelector('.result-status').textContent = remaining().length ? '试图待确认' : '图片已生成';
+    }
+  });
   renderConversationImages(root, plan.images);
   bindCopyButtons(root);
   window.lucide?.createIcons();

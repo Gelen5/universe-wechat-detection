@@ -1,0 +1,59 @@
+/* 贴图号：沿用工作台的奶白与浅绿，不影响其他创作工具。 */
+body.atelier #tie-tu.tie-studio { --tie-ink:#173b2f; --tie-muted:#66796e; --tie-line:#d6e5d8; --tie-mint:#d9efdc; }
+body.atelier #tie-tu .skill-shell { align-items:start; gap:18px; }
+body.atelier #tie-tu .skill-form-col,
+body.atelier #tie-tu .skill-output-col { border:1px solid var(--tie-line) !important; border-radius:22px !important; }
+body.atelier #tie-tu .skill-form-col { background:#f4f9f0 !important; padding:28px !important; }
+body.atelier #tie-tu .skill-form-col > .micro-label { display:flex; }
+body.atelier #tie-tu .skill-form-col > h1, body.atelier #tie-tu .skill-form-col > p { display:block; }
+body.atelier #tie-tu .skill-output-col { background:#fcfdf9 !important; padding:28px !important; min-width:0; height:auto !important; position:static; max-height:none; overflow:visible; }
+body.atelier #tie-tu .skill-form-col h1 { color:var(--tie-ink); font-size:clamp(25px,2.2vw,33px); line-height:1.22; letter-spacing:-.035em; margin:16px 0 12px; }
+body.atelier #tie-tu .skill-form-col > p { color:var(--tie-muted); line-height:1.75; max-width:32em; }
+body.atelier #tie-tu .micro-label, body.atelier #tie-tu .v3-meta { color:#577664; letter-spacing:.08em; }
+body.atelier #tie-tu .creator-conversation { margin:22px 0 8px; }
+body.atelier #tie-tu .creator-conversation textarea { min-height:120px; background:#fff; border:1px solid #cbded0; border-radius:14px; padding:14px; line-height:1.6; }
+body.atelier #tie-tu .creator-conversation textarea:focus-visible { outline:3px solid #7abf98; outline-offset:2px; }
+body.atelier #tie-tu .creator-conversation .primary-action { background:#286d4b !important; color:#fff !important; border-radius:10px !important; }
+body.atelier #tie-tu .creator-form-mode { border-top:1px solid var(--tie-line); margin-top:18px; }
+body.atelier #tie-tu .creator-form-mode summary { color:#54705e; font-size:13px; }
+body.atelier #tie-tu .skill-empty { display:block !important; width:100%; min-width:0; padding:0 !important; background:transparent; border:0; box-shadow:none; text-align:left !important; }
+body.atelier #tie-tu .skill-empty[hidden] { display:none !important; }
+body.atelier #tie-tu .skill-empty::before { display:none !important; }
+body.atelier #tie-tu .empty-head .tag { color:#40785a; font-size:11px; letter-spacing:.12em; }
+body.atelier #tie-tu .empty-head h2 { color:var(--tie-ink); font-size:clamp(25px,2.3vw,36px) !important; line-height:1.25; letter-spacing:-.03em; margin:18px 0 10px !important; }
+body.atelier #tie-tu .empty-head p { color:var(--tie-muted); line-height:1.7; }
+body.atelier #tie-tu .skill-output-col .empty-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)) !important; gap:12px; margin-top:24px; width:100%; }
+body.atelier #tie-tu .empty-preview { border:1px solid #dfebe0; border-radius:15px; background:#f9fcf7; box-shadow:none; padding:15px; }
+body.atelier #tie-tu .empty-preview-tietu { grid-column:1 / -1; background:#e9f4e8; }
+body.atelier #tie-tu .empty-preview header { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:13px; }
+body.atelier #tie-tu .ep-tag, body.atelier #tie-tu .ep-meta { color:#65806c; font-size:11px; font-style:normal; }
+body.atelier #tie-tu .tietu-board { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+body.atelier #tie-tu .tietu-card { position:relative; aspect-ratio:3 / 4; min-height:0; display:flex; flex-direction:column; align-items:flex-start; justify-content:space-between; padding:clamp(11px,1.6vw,20px); border-radius:10px; overflow:hidden; background:#fffdf3; color:#214c36; cursor:default; }
+body.atelier #tie-tu .empty-preview-tietu .tietu-card:nth-child(1) { background:#fffdf3 !important; }
+body.atelier #tie-tu .empty-preview-tietu .tietu-card:nth-child(2) { background:#cfe6c9 !important; }
+body.atelier #tie-tu .empty-preview-tietu .tietu-card:nth-child(3) { background:#f3e4c8 !important; }
+body.atelier #tie-tu .tc-n, body.atelier #tie-tu .tie-card-foot { font-size:10px; color:#56765e; letter-spacing:.04em; }
+body.atelier #tie-tu .empty-preview-tietu .tietu-card .tc-n { position:static; }
+body.atelier #tie-tu .tc-t { font-size:clamp(15px,1.5vw,22px); font-weight:700; line-height:1.35; }
+body.atelier #tie-tu .tie-dot { color:#de8a60; }
+body.atelier #tie-tu .style-chip-row { display:flex; flex-wrap:wrap; gap:7px; }
+body.atelier #tie-tu .style-chip { border:1px solid #d5e6d7; border-radius:999px; background:white; color:#43694e; padding:6px 10px; font-size:12px; }
+body.atelier #tie-tu .style-chip:focus-visible { outline:3px solid #7abf98; }
+body.atelier #tie-tu .empty-foot { margin-top:20px; padding-top:16px; border-top:1px solid #dceade; color:#60796a; }
+body.atelier #tie-tu .empty-foot small { color:#809689; }
+body.atelier #tie-tu .tie-result .creator-card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; }
+body.atelier #tie-tu .tie-result .creator-output-card { border:1px solid var(--tie-line); border-radius:14px; overflow:hidden; background:#fff; }
+body.atelier #tie-tu .tie-result .card-image-slot { background:#e9f4e8; aspect-ratio:3 / 4; }
+body.atelier #tie-tu .tie-result .card-image-slot img { width:100%; height:100%; object-fit:contain; }
+body.atelier #tie-tu .tie-result .creator-card-copy { padding:14px; }
+@media(max-width:768px) {
+  body.atelier #tie-tu .skill-form-col, body.atelier #tie-tu .skill-output-col { padding:20px !important; }
+  body.atelier #tie-tu .skill-output-col .empty-grid { grid-template-columns:minmax(0,1fr) !important; }
+  body.atelier #tie-tu .empty-preview-tietu { grid-column:auto; }
+  body.atelier #tie-tu .tietu-board { gap:6px; }
+  body.atelier #tie-tu .tietu-card { padding:8px; }
+  body.atelier #tie-tu .tc-t { font-size:13px; }
+  body.atelier #tie-tu .tc-n { font-size:8px; }
+  body.atelier #tie-tu .tie-card-foot { font-size:9px; }
+  body.atelier #tie-tu .empty-foot small { display:none; }
+}

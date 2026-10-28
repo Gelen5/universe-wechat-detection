@@ -78,6 +78,7 @@
     const history = document.createElement('div'); history.className = 'creator-chat-history'; history.setAttribute('role', 'log'); history.setAttribute('aria-label', '创作对话');
     const label = document.createElement('label'); label.textContent = '告诉我你想做什么';
     const input = document.createElement('textarea'); input.required = true; input.maxLength = 4000; input.rows = 3; label.append(input);
+    if (skill === 'tie-tu') input.placeholder = '例如：做 3 张关于下班后放松的图文，风格温暖清晰';
     const button = document.createElement('button'); button.type = 'submit'; button.className = 'primary-action'; button.textContent = '发送';
     const cancel = document.createElement('button'); cancel.type = 'button'; cancel.className = 'secondary-action'; cancel.textContent = '取消'; cancel.hidden = true; cancel.onclick = () => controller?.abort();
     const reset = document.createElement('button'); reset.type = 'button'; reset.className = 'secondary-action'; reset.textContent = '新对话';
@@ -100,6 +101,16 @@
       const details = document.createElement('details'); details.className = 'creator-form-mode';
       const summary = document.createElement('summary'); summary.textContent = '表单模式';
       legacy.before(details); details.append(summary, legacy);
+    }
+    if (skill === 'tie-tu') {
+      document.querySelectorAll('#tie-tu .style-chip').forEach(chip => chip.addEventListener('click', () => {
+        const style = document.querySelector('#tie-style');
+        if (!style) return;
+        style.value = chip.dataset.style || '';
+        const details = style.closest('details');
+        if (details) details.open = true;
+        style.focus();
+      }));
     }
     const storageKey = () => `creator-chat:${owner}:${skill}`;
     function show(next) {

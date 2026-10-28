@@ -14,10 +14,12 @@
     const p = document.createElement('p'); p.textContent = path;
     heading.append(h1,p); page.prepend(heading);
     const empty = document.getElementById(prefix+'-empty');
-    empty.replaceChildren();
-    const h2 = document.createElement('h2'); h2.textContent = outTitle;
-    const description = document.createElement('p'); description.textContent = hint;
-    empty.append(h2,description);
+    if (id !== 'tie-tu') {
+      empty.replaceChildren();
+      const h2 = document.createElement('h2'); h2.textContent = outTitle;
+      const description = document.createElement('p'); description.textContent = hint;
+      empty.append(h2,description);
+    }
     const output = page.querySelector('.skill-output-col');
     const result = document.getElementById(prefix+'-result');
     const form = page.querySelector('form');
