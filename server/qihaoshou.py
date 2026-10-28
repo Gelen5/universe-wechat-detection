@@ -22,6 +22,8 @@ from PIL import Image
 from pydantic import BaseModel, Field
 
 from . import accounts, creator_tools, image_provider, skill_runtime, workbench, workbench_research, writing_guidance
+from .observability import event as log_event
+from .providers.base import USER_UNAVAILABLE_MESSAGE
 from .providers.openai_compatible_provider import OpenAICompatibleProvider
 
 router = APIRouter()
@@ -190,9 +192,15 @@ def text_stream(prompt: str, cancel: threading.Event):
             with client.post(base+endpoint,headers=workbench._headers('text'),json=body,stream=True,
                              timeout=(15,90),verify=workbench._verify_ssl()) as response:
                 if not response.ok:
-                    raise workbench.ProviderError(f'模型服务返回 HTTP {response.status_code}，请管理员检查凭据、模型权限与IP白名单')
+                    log_event('provider.text_stream_error', status=response.status_code,
+                              endpoint=endpoint, model=body.get('model'),
+                              upstream=(response.text or '')[:300])
+                    raise workbench.ProviderError(USER_UNAVAILABLE_MESSAGE)
                 if 'text/event-stream' not in response.headers.get('Content-Type',''):
-                    raise workbench.ProviderError('模型未返回流式响应，请管理员选择支持流式的模型')
+                    log_event('provider.text_stream_not_streaming',
+                              content_type=response.headers.get('Content-Type'),
+                              endpoint=endpoint, model=body.get('model'))
+                    raise workbench.ProviderError(USER_UNAVAILABLE_MESSAGE)
                 response.encoding='utf-8'
                 complete=False
                 started=time.monotonic()

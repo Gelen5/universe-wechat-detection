@@ -5,6 +5,21 @@ from dataclasses import dataclass, field
 from typing import Any
 
 
+# User-facing text for an upstream failure. Operators get the status code and
+# body in the log; the person using the product gets an actionable line instead
+# of a credential and IP-allowlist checklist they cannot act on.
+USER_UNAVAILABLE_MESSAGE = "模型服务暂时不可用，请稍后重试。本次任务未完成，不会扣除积分。"
+
+
+def unavailable(status: Any) -> bool:
+    """Whether a provider status is an outage rather than a request mistake."""
+    try:
+        code = int(status)
+    except (TypeError, ValueError):
+        return False
+    return code == 429 or code >= 500
+
+
 class ProviderRequestError(RuntimeError):
     def __init__(self, message: str, *, code: str = "provider_error", transient: bool = False,
                  status_code: int | None = None):

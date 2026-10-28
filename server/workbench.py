@@ -275,6 +275,11 @@ def _post(channel: str, path: str, payload: dict[str, Any], timeout: int) -> dic
     if not response.ok:
         error = data.get("error") or {}
         message = error.get("message") if isinstance(error, dict) else str(error)
+        from .providers.base import USER_UNAVAILABLE_MESSAGE, unavailable
+        log_event("provider.http_error", channel=channel, path=path,
+                  status=response.status_code, upstream=str(message or "")[:300])
+        if unavailable(response.status_code):
+            raise ProviderError(USER_UNAVAILABLE_MESSAGE)
         raise ProviderError(f"{channel} API HTTP {response.status_code}：{message or '请求失败'}")
     return data
 
