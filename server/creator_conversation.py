@@ -227,6 +227,8 @@ def _chat(skill, message, user_id, session_id, check_cancelled):
             tools['generate_draft']['description'] = '生成早安文案和图片计划。字段 topic,image_count(首次必填，0到8),copy_count(1到8),style,mode(article或sticker),columns(1到4),image_at(1到8),image_position(before或after),size(像素字符串，例如768x1024为3:4，720x1280为9:16；只能用半角x，宽高各256到4096且必须为16的倍数),requirements。未指定尺寸时省略size使用默认768x1024。省略字段保留。'
             tools['change_layout'] = {'description': '只调整现有内容排版，不改文案或图片。字段mode(article/sticker),columns(1到4),image_at(1到8),image_position(before/after)。', 'execute': layout}
         tools['generate_images'] = {'description': '仅用户明确要求生成或确认图片时使用已有计划生图。字段indices可选整数数组，省略时完成全部未生成图片。每张单独扣图片积分；已有图片复用。不要在只要文案或讨论时调用。', 'execute': images}
+        if skill == 'tie-tu':
+            tools['generate_draft']['description'] += ' content_type 使用 tutorial、before_after、list、industry_view、city_change、emotional_story；未指定可省略。portrait_mode 使用 auto、required、off；未指定可省略。'
     with workbench.provider_overrides():
         updated = run_turn(session, message, instructions, workbench._json_text, tools,
                            max_calls=3, check_cancelled=check_cancelled)

@@ -50,9 +50,12 @@ def test_form_is_usable_at_phone_and_wide_desktop(ui, width):
     page, _ = ui
     page.set_viewport_size({'width': width, 'height': 1200})
     page.goto('http://ui.test/tie-tu')
+    expect(page.locator('#tie-tu .creator-form-mode summary')).to_have_text('填写详细创作要求')
+    assert page.locator('#tie-tu .creator-form-mode summary').evaluate("el => parseFloat(getComputedStyle(el).fontSize)") >= 16
     page.locator('#tie-tu .creator-form-mode summary').click()
     expect(page.locator('#tie-topic')).to_be_visible()
     expect(page.locator('#tie-plan')).to_be_visible()
+    assert page.locator('#tie-tu .skill-shell').evaluate("el => el.getBoundingClientRect().bottom >= document.querySelector('#tie-tu .skill-form-col').getBoundingClientRect().bottom - 1")
     assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
     if width == 2560:
         assert page.locator('#tie-tu .skill-form-col').bounding_box()['width'] >= 410

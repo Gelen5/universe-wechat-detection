@@ -99,7 +99,7 @@
     const legacy = skill === 'morning' ? document.querySelector('#morning-generator .morning-frame-wrap') : existing;
     if (legacy) {
       const details = document.createElement('details'); details.className = 'creator-form-mode';
-      const summary = document.createElement('summary'); summary.textContent = '表单模式';
+      const summary = document.createElement('summary'); summary.textContent = skill === 'tie-tu' ? '填写详细创作要求' : '表单模式';
       legacy.before(details); details.append(summary, legacy);
     }
     if (skill === 'tie-tu') {

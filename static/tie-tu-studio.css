@@ -65,3 +65,15 @@ body.atelier #tie-tu #tie-form :is(input,select,textarea) { width:100%!important
 body.atelier #tie-tu #tie-form textarea { min-height:110px; }
 body.atelier #tie-tu #tie-form .skill-primary { min-height:44px; border-radius:12px!important; }
 @media(max-width:480px) { body.atelier #tie-tu #tie-form .field-grid { grid-template-columns:minmax(0,1fr); } body.atelier #tie-tu .creator-form-mode #tie-form { padding:16px!important; } }
+
+/* 展开创作要求时背景随文档延伸；入口保持可读且易点。 */
+body.atelier:has(#tie-tu:not([hidden])) { height:auto!important; min-height:100vh!important; }
+body.atelier:has(#tie-tu:not([hidden])) .app-shell { height:auto!important; min-height:100vh!important; }
+body.atelier #tie-tu .creator-form-mode > summary { display:flex!important; align-items:center; gap:10px; min-height:48px; padding:12px 14px!important; border:1px solid rgba(123,170,140,.26); border-radius:12px; background:rgba(255,255,255,.48); color:#28543d!important; font-size:16px!important; font-weight:600!important; line-height:1.4; list-style:none; }
+body.atelier #tie-tu .creator-form-mode > summary::-webkit-details-marker { display:none; }
+body.atelier #tie-tu .creator-form-mode > summary::before { content:'＋'; font-size:19px; line-height:1; color:#438462; }
+body.atelier #tie-tu .creator-form-mode[open] > summary::before { content:'－'; }
+body.atelier #tie-tu .creator-form-mode > summary:focus-visible { outline:3px solid #68aa83; outline-offset:2px; }
+html:has(body.atelier #tie-tu:not([hidden])) { background:linear-gradient(178deg,#fafbf7 0%,#f0f3ec 52%,#e8eee6 100%) fixed!important; }
+body.atelier #tie-tu .skill-shell { height:auto!important; max-height:none!important; }
+body.atelier #tie-tu .skill-form-col { height:auto!important; max-height:none!important; overflow:visible!important; }

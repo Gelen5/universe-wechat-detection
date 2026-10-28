@@ -42,6 +42,19 @@ class CreatorToolsTests(unittest.TestCase):
         self.assertEqual(len(result["cards"]), 4)
         self.assertEqual(result["cards"][1]["card_brief"]["action"], "动作2")
 
+    def test_tie_tu_accepts_all_display_labels_and_empty_portrait_mode(self):
+        for canonical, label in creator_tools.CONTENT_TYPES.items():
+            with self.subTest(label=label):
+                enriched = {'cards': [{'index': 1, 'overlay_text': '标题', 'caption': '文字',
+                                       'visual_subject': '茶杯', 'composition': '留白'}]}
+                with patch.object(creator_tools.workbench, '_json_text', return_value=enriched):
+                    result = creator_tools.tie_tu_plan('生活', '主题', '', label, 1, '', '', '')
+                self.assertEqual(result['content_type'], canonical)
+
+    def test_tie_tu_does_not_silently_accept_unknown_type(self):
+        with self.assertRaisesRegex(ValueError, '不支持的贴图号内容类型'):
+            creator_tools.tie_tu_plan('生活', '主题', '', '未知类型', 1, '', '', 'auto')
+
     def test_tie_tu_rejects_person_when_user_requests_no_people(self):
         enriched = {'cards': [{'index': 1, 'overlay_text': '封面', 'caption': '文字',
                               'visual_subject': '成年女性在窗边', 'composition': '3:4'}]}

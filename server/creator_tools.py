@@ -14,6 +14,7 @@ import requests
 
 from . import workbench, skill_runtime
 from vendor.skills.wechat_tie_tu.toolkit.tie_tu.planner import build_plan
+from vendor.skills.wechat_tie_tu.toolkit.tie_tu.models import CONTENT_TYPES
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -128,6 +129,11 @@ def tie_tu_plan(
         return {'session_id': uuid.uuid4().hex, 'title': title or topic,
                 'copy': str(data.get('copy') or ''), 'cta': str(data.get('cta') or ''),
                 'cards': [], 'content_type_label': '纯文案', 'angle': '', 'ratio': ''}
+    # The model may return the human-readable label shown in the UI; the
+    # planner consumes canonical IDs. Map only exact supported labels.
+    requested_type = (content_type or '').strip()
+    content_type = {label: key for key, label in CONTENT_TYPES.items()}.get(requested_type, requested_type) or None
+    portrait_mode = (portrait_mode or '').strip() or 'auto'
     plan = build_plan(
         industry=industry,
         topic=topic,
