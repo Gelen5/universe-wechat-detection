@@ -124,7 +124,8 @@ def test_content_specific_structure_is_not_replaced_by_a_fixed_framework(article
     prompt=draft.call_args.args[0]
     assert all(part in prompt for part in outline)
     assert '全文尽量有一个具体的人' not in prompt
-    assert '不新增“尚未实测声明—测试清单—留待记录”' in prompt
+    from server import writing_guidance
+    assert writing_guidance.GUIDANCE in prompt
     assert draft.call_count==1
 
 
@@ -159,8 +160,11 @@ def test_compact_first_draft_rules_are_shared_and_can_be_rolled_back(enabled):
         w._draft('普通题目', {'name': '自由结构', 'outline': ['内容']}, '普通作者')
         one_click_prompt = qihaoshou.draft_prompt(data)
     workbench_prompt = model.call_args.args[0]
+    # The flag governs the one-click compact addition; the V2 agent draft has a
+    # fixed compact contract that must not change when the flag flips.
+    assert (writing_guidance.DRAFT_QUALITY_RULES in one_click_prompt) is enabled
+    assert writing_guidance.DRAFT_QUALITY_RULES not in workbench_prompt
     for prompt in (workbench_prompt, one_click_prompt):
-        assert (writing_guidance.DRAFT_QUALITY_RULES in prompt) is enabled
         assert '素材不足时缩小范围' in prompt
     assert model.call_count == 1
 

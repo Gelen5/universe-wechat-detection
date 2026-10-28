@@ -127,7 +127,7 @@ class SkillRuntimeTests(unittest.TestCase):
             with self.assertRaises(w.ProviderError): w._review('原稿。',{'id':'test'})
 
     def test_draft_passes_requirements_and_retries_length(self):
-        with patch.object(r,'context',return_value=('REAL SKILL CONTENT',[])), patch.object(w,'_text',side_effect=['字'*1100,'字'*900]) as call:
+        with patch.object(r,'node_rules',return_value=('REAL SKILL CONTENT',[])), patch.object(w,'_text',side_effect=['字'*1100,'字'*900]) as call:
             article=w._draft('标题',{},'作者','800—1000字，不能编造')
             self.assertEqual(len(article),900)
             self.assertIn('REAL SKILL CONTENT',call.call_args_list[0].args[0])

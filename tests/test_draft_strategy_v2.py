@@ -22,8 +22,7 @@ def test_v2_uses_genre_and_preserves_user_requirements(kind, requirements, expec
          patch.object(workbench.skill_runtime, 'length_issue', return_value=None), \
          patch.object(workbench, '_record_skill'), \
          patch.object(workbench, '_text', side_effect=lambda p, **kw: prompts.append(p) or '# 标题\n正文'):
-        result = workbench._draft('主题', frame, '语气', requirements,
-                                  {'_draft_strategy_version': 'v2'})
+        result = workbench._draft('主题', frame, '语气', requirements)
     assert result == '# 标题\n正文'
     assert expected in prompts[0] and requirements in prompts[0]
     assert '仅有用户素材' in prompts[0]
@@ -34,20 +33,6 @@ def test_guide_and_opinion_remain_distinct():
     assert '教程' in writing_guidance.draft_strategy_v2({'article_type': 'tutorial'}, '婚姻沟通指南')
     assert '情感观点' in writing_guidance.draft_strategy_v2({'article_type': 'emotional_opinion'}, '')
     assert '用户要求沟通指南时以其要求为准' in writing_guidance.draft_strategy_v2({'article_type': 'emotional_opinion'}, '')
-
-
-def test_v1_remains_available_and_loads_original_rules():
-    frame = {'name': '原框架', 'outline': ['一', '二'], 'research': {}}
-    prompts = []
-    with patch.object(workbench, '_require_skill'), \
-         patch.object(workbench.skill_runtime, 'node_rules', return_value=('DRAFT_RULES', [])), \
-         patch.object(workbench.skill_runtime, 'context', return_value=('OLD_CONTEXT', [])) as context, \
-         patch.object(workbench, '_record_skill'), \
-         patch.object(workbench, '_text', side_effect=lambda p, **kw: prompts.append(p) or '# 标题\n正文'):
-        workbench._draft('主题', frame, '语气', '', {'_draft_strategy_version': 'v1'})
-    context.assert_called_once()
-    assert 'OLD_CONTEXT' in prompts[0]
-    assert '硬性要求：' in prompts[0]
 
 
 def test_contract_detects_unprovided_thought_but_preserves_evidenced_quote():
@@ -68,7 +53,7 @@ def test_unresolved_forbidden_thought_fails_without_overwriting():
          patch.object(workbench, '_record_skill'), \
          patch.object(workbench, '_text', side_effect=[article, '{"edits":[]}']):
         with pytest.raises(workbench.ProviderError, match='一方想说'):
-            workbench._draft('主题', frame, '语气', '不编造对白或心理活动', {'_draft_strategy_version': 'v2'})
+            workbench._draft('主题', frame, '语气', '不编造对白或心理活动')
 
 
 def test_emotional_opinion_framework_does_not_require_steps():
@@ -81,22 +66,33 @@ def test_emotional_opinion_framework_does_not_require_steps():
          patch.object(workbench.workbench_research, 'search', return_value={}), \
          patch.object(workbench, '_record_skill'), \
          patch.object(workbench, '_json_text', side_effect=lambda p, **kw: captured.append(p) or frame):
-        result = workbench._framework('夫妻', '观点', '情感观点文', {'_draft_strategy_version': 'v2'})
+        result = workbench._framework('夫妻', '观点', '情感观点文')
     assert result['writing_strategy']['article_type'] == 'emotional_opinion'
     assert '情感观点不是沟通教程或故事' in captured[0]
 
 
-def test_default_length_retries_and_accepts_1000_to_1200():
+def test_default_length_is_guidance_and_never_costs_a_rewrite():
     frame = {'name': '观点', 'outline': ['一', '二'], 'writing_strategy': {'article_type': 'opinion'}, 'research': {}}
     short = '# 标题\n' + '文' * 400
-    long_enough = '# 标题\n' + '文' * 1000
+    with patch.object(workbench, '_require_skill'), \
+         patch.object(workbench.skill_runtime, 'node_rules', return_value=('规则', [])), \
+         patch.object(workbench, '_record_skill'), \
+         patch.object(workbench, '_text', side_effect=[short]) as writer:
+        result = workbench._draft('主题', frame, '语气', '只填主题')
+    assert result == short and writer.call_count == 1
+    assert '1000–1200字' in writer.call_args_list[0].args[0]
+
+
+def test_explicit_user_length_is_still_enforced_with_retry():
+    frame = {'name': '观点', 'outline': ['一', '二'], 'writing_strategy': {'article_type': 'opinion'}, 'research': {}}
+    short = '# 标题\n' + '文' * 400
+    long_enough = '# 标题\n' + '文' * 900
     with patch.object(workbench, '_require_skill'), \
          patch.object(workbench.skill_runtime, 'node_rules', return_value=('规则', [])), \
          patch.object(workbench, '_record_skill'), \
          patch.object(workbench, '_text', side_effect=[short, long_enough]) as writer:
-        result = workbench._draft('主题', frame, '语气', '只填主题', {'_draft_strategy_version': 'v2'})
+        result = workbench._draft('主题', frame, '语气', '800—1000字')
     assert result == long_enough and writer.call_count == 2
-    assert '1000–1200字' in writer.call_args_list[0].args[0]
 
 
 def test_user_length_does_not_get_default_range():
@@ -105,5 +101,5 @@ def test_user_length_does_not_get_default_range():
          patch.object(workbench.skill_runtime, 'node_rules', return_value=('规则', [])), \
          patch.object(workbench, '_record_skill'), \
          patch.object(workbench, '_text', return_value='# 标题\n短文') as writer:
-        workbench._draft('主题', frame, '语气', '正文约500字', {'_draft_strategy_version': 'v2'})
+        workbench._draft('主题', frame, '语气', '正文约500字')
     assert '1000–1200字' not in writer.call_args.args[0]
