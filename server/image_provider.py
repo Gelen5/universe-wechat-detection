@@ -1,6 +1,10 @@
 """Reusable server-side image provider call for synchronous routes and workers."""
 from __future__ import annotations
 
+import base64
+import io
+import math
+import re
 import time
 from typing import Any
 
@@ -33,6 +37,13 @@ def generate(payload: dict[str, Any]) -> dict[str, Any]:
         }
         if not body["prompt"].strip():
             raise ImageProviderError("图片提示词不能为空")
+        # Relay image models (e.g. gpt-image-2.5 on latentide) pick the output
+        # aspect ratio from the prompt and ignore the `size` field, so a square
+        # or 3:4 request comes back landscape. State the ratio inside the prompt
+        # and then force the exact pixel size on the way out.
+        hint = _ratio_hint(body["size"])
+        if hint:
+            body["prompt"] = f"{body['prompt'].strip()}\n\n{hint}"
         from .providers import ModelService, OpenAICompatibleProvider, ProviderRequestError
         from .providers import call_context
         # Image work triggered from inside a tool belongs to that Run too; the
@@ -50,7 +61,7 @@ def generate(payload: dict[str, Any]) -> dict[str, Any]:
         if remaining is not None:
             image_timeout = max(1, min(image_timeout, remaining))
         try:
-            return ModelService(
+            result = ModelService(
                 provider,
                 usage_recorder=attribution.get("usage_recorder"),
                 cost_policy=attribution.get("cost_policy"),
@@ -62,6 +73,96 @@ def generate(payload: dict[str, Any]) -> dict[str, Any]:
             )
         except ProviderRequestError as exc:
             raise ImageProviderError(f"图片接口请求失败：{exc}") from exc
+        return _fit_images(result, body["size"])
+
+
+_SIZE_PATTERN = re.compile(r"^\s*(\d{2,5})\s*[xX*]\s*(\d{2,5})\s*$")
+_STANDARD_RATIOS = ((1, 1), (3, 4), (4, 3), (2, 3), (3, 2), (9, 16), (16, 9))
+
+
+def _size_pair(size: str) -> tuple[int, int] | None:
+    match = _SIZE_PATTERN.match(size or "")
+    if not match:
+        return None
+    width, height = int(match.group(1)), int(match.group(2))
+    return (width, height) if width > 0 and height > 0 else None
+
+
+def _ratio_label(width: int, height: int) -> str:
+    ratio = width / height
+    for label_width, label_height in _STANDARD_RATIOS:
+        if abs(ratio - label_width / label_height) <= 0.02:
+            return f"{label_width}:{label_height}"
+    divisor = math.gcd(width, height)
+    return f"{width // divisor}:{height // divisor}"
+
+
+def _ratio_hint(size: str) -> str:
+    pair = _size_pair(size)
+    if not pair:
+        return ""
+    width, height = pair
+    label = _ratio_label(width, height)
+    shape = "square" if width == height else ("vertical" if width < height else "horizontal")
+    return (f"Composition: exact {label} {shape} aspect ratio ({width}x{height}). "
+            f"Keep the subject and any text inside safe margins; do not crop or letterbox.")
+
+
+def _fit_images(result: dict[str, Any], size: str) -> dict[str, Any]:
+    """Force every returned image to exactly the requested pixel size.
+
+    Models that honour `size` pass through untouched; models that only follow
+    the ratio hint get scaled, and anything still off-ratio is centre-cropped
+    first so cards never come back landscape when 3:4 was requested.
+    """
+    pair = _size_pair(size)
+    items = result.get("data") if isinstance(result, dict) else None
+    if not pair or not isinstance(items, list) or not items:
+        return result
+    try:
+        from PIL import Image
+    except Exception:
+        return result
+    target_width, target_height = pair
+    target_ratio = target_width / target_height
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        try:
+            if item.get("b64_json"):
+                raw = base64.b64decode(item["b64_json"])
+            elif item.get("url"):
+                response = requests.get(str(item["url"]), timeout=(10, 90))
+                response.raise_for_status()
+                raw = response.content
+            else:
+                continue
+            with Image.open(io.BytesIO(raw)) as decoded:
+                decoded.load()
+                width, height = decoded.size
+                if (width, height) == (target_width, target_height):
+                    continue
+                image = decoded.convert("RGB")
+                if abs(width / height - target_ratio) > 0.01:
+                    if width / height > target_ratio:
+                        crop_width = max(1, round(height * target_ratio))
+                        left = (width - crop_width) // 2
+                        image = image.crop((left, 0, left + crop_width, height))
+                    else:
+                        crop_height = max(1, round(width / target_ratio))
+                        top = (height - crop_height) // 2
+                        image = image.crop((0, top, width, top + crop_height))
+                image = image.resize((target_width, target_height), Image.LANCZOS)
+                buffer = io.BytesIO()
+                image.save(buffer, format="PNG")
+            item["b64_json"] = base64.b64encode(buffer.getvalue()).decode("ascii")
+            item.pop("url", None)
+            item.pop("image_url", None)
+            item["width"], item["height"] = target_width, target_height
+        except Exception:
+            # Never fail a paid generation because post-processing hiccuped.
+            continue
+    return result
 
 
 def _image_api_url(base_url: str) -> str:
