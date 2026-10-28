@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 from . import accounts, diagnosis_service, image_provider
 from . import creator_tools, creator_conversation
 from . import workbench
+from . import legacy_routes
 from . import conversation_repository, database
 from .workflow_api import router as workflow_router
 from .conversation_api import router as conversation_router
@@ -114,6 +115,18 @@ async def account_and_points_gate(request: Request, call_next):
     request.state.user = user
     if path.startswith("/api/") and not public_api and not user:
         return JSONResponse(status_code=401, content={"detail": "请先登录"})
+
+    # Superseded workbench APIs: the browser has used /api/conversations since
+    # the normalized workbench shipped. Gate runs before the billing rule lookup
+    # so a blocked call never reserves points.
+    if legacy_routes.matches(path):
+        gate_mode = legacy_routes.mode()
+        log_event("legacy.route_blocked" if gate_mode == "gone" else "legacy.route_hit",
+                  request_id=getattr(request.state, "request_id", None),
+                  user_id=user["id"] if user else None, method=request.method, path=path)
+        if gate_mode == "gone":
+            return JSONResponse(status_code=410, content={
+                "detail": "该接口已停止使用，请刷新页面后使用新版创作台"})
 
     # The long-running full workbench owns billing in its background job so a
     # later provider failure can refund points after the HTTP response returned.
