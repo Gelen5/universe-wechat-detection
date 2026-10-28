@@ -10,7 +10,7 @@ from unittest.mock import Mock, patch
 from fastapi.testclient import TestClient
 
 from tests import support  # noqa: F401 - isolated account database
-from server import celery_app as celery_module, provider_health, workbench
+from server import celery_app as celery_module, provider_health, qihaoshou, workbench
 from server.main import app
 from server.providers.base import ProviderRequestError
 
@@ -118,6 +118,71 @@ class TextFailoverTests(unittest.TestCase):
                 workbench._text('prompt')
         self.assertEqual(USER_UNAVAILABLE_MESSAGE, str(caught.exception))
         self.assertTrue(any('backup' in base for base in seen))
+
+
+class StreamFailoverTests(unittest.TestCase):
+    """A finished primary stream must not be replayed on the fallback relay."""
+
+    def _stream(self, responses):
+        """Serve one scripted SSE body per provider and record which ran."""
+        calls = []
+
+        class FakeResponse:
+            def __init__(self, status, payload, headers):
+                self.status_code = status
+                self.text = payload
+                self.headers = headers
+                self.ok = status == 200
+                self.encoding = None
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+            def iter_lines(self, **kwargs):
+                return iter(responses.pop(0))
+
+        class FakeSession:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+            def post(self, url, **kwargs):
+                calls.append(url)
+                return FakeResponse(200, '', {'Content-Type': 'text/event-stream'})
+
+        settings = {
+            'WECHAT_TEXT_API_BASE_URL': 'https://primary.example',
+            'WECHAT_TEXT_API_KEY': 'k1', 'WECHAT_TEXT_MODEL': 'gpt-6.1-sol',
+            'WECHAT_TEXT_FALLBACK_API_BASE_URL': 'https://backup.example',
+            'WECHAT_TEXT_FALLBACK_API_KEY': 'k2',
+        }
+        import threading
+        with patch.object(workbench, '_setting', side_effect=_settings(settings)), \
+             patch.object(workbench, '_headers', return_value={'Authorization': 'Bearer x'}), \
+             patch.object(workbench, '_verify_ssl', return_value=True), \
+             patch.object(qihaoshou.requests, 'Session', FakeSession):
+            tokens = list(qihaoshou.text_stream('prompt', threading.Event()))
+        return tokens, calls
+
+    def test_primary_success_returns_without_touching_the_fallback(self):
+        from server import qihaoshou
+        body = [
+            'data: {"type":"response.output_text.delta","delta":"hello "}',
+            'data: {"type":"response.output_text.delta","delta":"world"}',
+            'data: {"type":"response.completed","response":{"status":"completed","output":[]}}',
+        ]
+        tokens, calls = self._stream([body])
+        self.assertEqual(['hello ', 'world'], tokens)
+        self.assertEqual(1, len(calls))
+        self.assertIn('primary', calls[0])
 
 
 class HealthMonitorTests(unittest.TestCase):

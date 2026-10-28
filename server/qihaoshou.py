@@ -274,6 +274,10 @@ def text_stream(prompt: str, cancel: threading.Event):
                             break
                     if not complete:
                         raise workbench.ProviderError('模型流意外中断，原稿已保留')
+                    # Success: stop iterating providers. Falling through here
+                    # would run the fallback relay over a finished stream and
+                    # let its failure replace a good result.
+                    return
 
 
 def enforce_length(text, target, regenerate, on_progress=None):
