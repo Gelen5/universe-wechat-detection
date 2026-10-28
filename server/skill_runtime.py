@@ -2,6 +2,7 @@
 import hashlib
 import importlib.util
 import json
+import os
 import re
 import subprocess
 import sys
@@ -9,6 +10,22 @@ from pathlib import Path
 
 
 SCRIPT_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*\.py$")
+
+# An explicit range wins over a single target; the target accepts a tolerance
+# band because a requested "1200字" never lands on exactly 1200 characters.
+_LENGTH_RANGE = re.compile(r'(\d{2,5})\s*[—–\-~～至到]\s*(\d{2,5})\s*字')
+_LENGTH_TARGET = re.compile(
+    r'(不超过|最多|不多于|不少于|至少|不低于)?\s*约?\s*(\d{2,5})\s*个?\s*字\s*'
+    r'(左右|上下|出头|以内|以下|以上)?')
+DEFAULT_LENGTH_TOLERANCE = 0.2
+
+
+def _length_tolerance() -> float:
+    try:
+        value = float(os.getenv('WECHAT_LENGTH_TOLERANCE', str(DEFAULT_LENGTH_TOLERANCE)))
+    except (TypeError, ValueError):
+        return DEFAULT_LENGTH_TOLERANCE
+    return value if 0 <= value <= 0.5 else DEFAULT_LENGTH_TOLERANCE
 
 
 def digest(text):
@@ -68,10 +85,40 @@ def brief(session):
     return str(original) + '\n后续要求（冲突时以最新明确要求为准）：\n' + '\n'.join(changes[1:])
 
 
-def length_issue(article, requirements):
-    ranges = list(re.finditer(r'(\d{2,5})\s*[—–\-~～至到]\s*(\d{2,5})\s*字', requirements))
-    if not ranges:
+def length_bounds(requirements):
+    """Return ``(low, high, description)`` for the requested body length.
+
+    An explicit range (``800—1000字``) is exact. A single target (``1200字``,
+    ``1200 字左右``) becomes a tolerance band. Open-ended forms
+    (``不超过800字``, ``至少1500字``) leave one side unbounded; ``high`` is
+    ``None`` when only a floor applies.
+    """
+    ranges = list(_LENGTH_RANGE.finditer(requirements or ''))
+    if ranges:
+        low, high = map(int, ranges[-1].groups())
+        return low, high, f'要求 {low}—{high} 字'
+    matches = list(_LENGTH_TARGET.finditer(requirements or ''))
+    if not matches:
         return None
-    low, high = map(int, ranges[-1].groups())
+    match = matches[-1]
+    prefix, raw, suffix = match.group(1) or '', int(match.group(2)), match.group(3) or ''
+    if prefix in ('不超过', '最多', '不多于') or suffix in ('以内', '以下'):
+        return 1, raw, f'要求不超过 {raw} 字'
+    if prefix in ('不少于', '至少', '不低于') or suffix == '以上':
+        return raw, None, f'要求不少于 {raw} 字'
+    tolerance = _length_tolerance()
+    low = max(1, round(raw * (1 - tolerance)))
+    high = round(raw * (1 + tolerance))
+    return low, high, f'目标 {raw} 字（可接受 {low}—{high} 字）'
+
+
+def length_issue(article, requirements):
+    """Describe how the body misses the requested length, or ``None`` when it fits."""
+    bounds = length_bounds(requirements)
+    if not bounds:
+        return None
+    low, high, description = bounds
     count = len(re.findall(r'[\u4e00-\u9fff]', article))
-    return f'正文汉字数 {count}，要求 {low}—{high} 字' if not low <= count <= high else None
+    if count < low or (high is not None and count > high):
+        return f'正文汉字数 {count}，{description}'
+    return None

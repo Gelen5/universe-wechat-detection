@@ -21,7 +21,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 from PIL import Image
 from pydantic import BaseModel, Field
 
-from . import accounts, creator_tools, image_provider, workbench, workbench_research, writing_guidance
+from . import accounts, creator_tools, image_provider, skill_runtime, workbench, workbench_research, writing_guidance
 from .providers.openai_compatible_provider import OpenAICompatibleProvider
 
 router = APIRouter()
@@ -247,6 +247,25 @@ def text_stream(prompt: str, cancel: threading.Event):
                     raise workbench.ProviderError('模型流意外中断，原稿已保留')
 
 
+def enforce_length(text, target, regenerate, on_progress=None):
+    """Rewrite once when the body misses the requested length.
+
+    One-click writing had no length check at all: a "1200字" request produced
+    1986 characters and still reported success. The first attempt is kept unless
+    the rewrite returns a usable body, so a failed retry never costs the user
+    the draft they already have. Never raises on a short rewrite.
+    """
+    issue = skill_runtime.length_issue(text, target)
+    if not issue:
+        return text, None
+    if on_progress:
+        on_progress(f'{issue}，正在按目标篇幅重写')
+    candidate = (regenerate(issue) or '').strip()
+    if len(candidate) < 40:
+        return text, issue
+    return candidate, None
+
+
 def draft_prompt(data):
     reference=data['reference']
     if data.get('mode') == 'rewrite' and not reference.strip() and not data['reference_url'].strip():
@@ -389,6 +408,17 @@ def generate(payload: Operation,request: Request):
                 if cancel.is_set():raise RuntimeError('客户端中止生成，原稿已保留')
                 text=''.join(chunks).strip()
                 if len(text)<40:raise workbench.ProviderError('模型正文过短，原稿已保留')
+                def rewrite(issue):
+                    prompt=draft_prompt(current)+f'\n上次结果未通过篇幅检查：{issue}。只调整篇幅与段落紧凑度，保持事实、结构与用户要求。\n上次正文：\n{text}'
+                    pieces=[]
+                    for token in text_stream(prompt,cancel):
+                        if cancel.is_set():break
+                        pieces.append(token)
+                    return ''.join(pieces)
+                text,_unmet_length=enforce_length(text,f"{current['length']}字",rewrite,
+                    on_progress=lambda message:emit({'progress':message}))
+                if cancel.is_set():raise RuntimeError('客户端中止生成，原稿已保留')
+                emit({'progress':f'正文已生成 {len(re.findall(r"[\u4e00-\u9fff]",text))} 字，正在排版'})
                 current['html']=render(text,current['theme'],current['id'])
                 title=BeautifulSoup(current['html'],'html.parser').find('h1')
                 current['title']=(title.get_text(strip=True) if title else current['topic'])[:120]

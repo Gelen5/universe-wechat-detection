@@ -100,6 +100,6 @@ def test_user_length_does_not_get_default_range():
     with patch.object(workbench, '_require_skill'), \
          patch.object(workbench.skill_runtime, 'node_rules', return_value=('规则', [])), \
          patch.object(workbench, '_record_skill'), \
-         patch.object(workbench, '_text', return_value='# 标题\n短文') as writer:
+         patch.object(workbench, '_text', return_value='# Title\n' + '文' * 500) as writer:
         workbench._draft('主题', frame, '语气', '正文约500字')
     assert '1000–1200字' not in writer.call_args.args[0]
