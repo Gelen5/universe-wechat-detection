@@ -112,6 +112,22 @@ def length_bounds(requirements):
     return low, high, f'目标 {raw} 字（可接受 {low}—{high} 字）'
 
 
+def length_instruction(requirements):
+    """One prompt line stating the acceptable body length, or ``''``.
+
+    Stating the band up front is cheaper than discovering the miss afterwards:
+    a first draft told "960—1440 字" lands in range far more often than one told
+    "约1200字", and every avoided miss saves a whole regeneration.
+    """
+    bounds = length_bounds(requirements)
+    if not bounds:
+        return ''
+    low, high, _description = bounds
+    if high is None:
+        return f'篇幅：正文不少于 {low} 字，按内容需要收束，不注水。'
+    return f'篇幅：正文需在 {low}—{high} 字之间，超出范围会被退回重写。'
+
+
 def length_issue(article, requirements):
     """Describe how the body misses the requested length, or ``None`` when it fits."""
     bounds = length_bounds(requirements)

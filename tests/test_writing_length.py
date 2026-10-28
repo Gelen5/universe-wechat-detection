@@ -51,6 +51,34 @@ class LengthBoundsTests(unittest.TestCase):
         self.assertIsNone(skill_runtime.length_issue(body(1200), '1200字左右'))
 
 
+class LengthInstructionTests(unittest.TestCase):
+    """The band is stated up front so a first draft rarely needs a rewrite."""
+
+    def test_instruction_names_the_band(self):
+        self.assertEqual('篇幅：正文需在 960—1440 字之间，超出范围会被退回重写。',
+                         skill_runtime.length_instruction('1200字左右'))
+        self.assertEqual('篇幅：正文不少于 1500 字，按内容需要收束，不注水。',
+                         skill_runtime.length_instruction('至少1500字'))
+        self.assertEqual('', skill_runtime.length_instruction('随便写一篇'))
+
+    def test_one_click_prompt_states_the_band(self):
+        prompt = qihaoshou.draft_prompt(qihaoshou.Draft(topic='题目', length=1200).model_dump())
+        self.assertIn('960—1440', prompt)
+
+    def test_agent_draft_prompt_states_the_band_only_for_an_explicit_length(self):
+        frame = {'name': '结构', 'outline': ['一'], 'research': {},
+                 'writing_strategy': {'article_type': 'opinion'}}
+        prompts = []
+        with patch.object(qihaoshou.workbench, '_require_skill'), \
+             patch.object(qihaoshou.workbench, '_record_skill'), \
+             patch.object(qihaoshou.workbench, '_text',
+                          side_effect=lambda p, **kw: prompts.append(p) or body(1200)):
+            qihaoshou.workbench._draft('题目', frame, '语气', '1200字左右')
+            qihaoshou.workbench._draft('题目', frame, '语气', '随便写')
+        self.assertIn('960—1440', prompts[0])
+        self.assertNotIn('篇幅：正文需在', prompts[1])
+
+
 class OneClickLengthEnforcementTests(unittest.TestCase):
     def test_in_band_body_is_not_rewritten(self):
         calls = []

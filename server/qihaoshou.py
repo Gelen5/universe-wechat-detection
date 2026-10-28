@@ -279,7 +279,8 @@ def draft_prompt(data):
     return f'''围绕主题写一篇完整中文公众号文章，不要输出写作过程或说明。
 表达与文体约束：{editorial_rules}
 主题：{data['topic']}
-读者：{data['audience']}；语气：{STYLES[data['style']]}；目标约{data['length']}字。
+读者：{data['audience']}；语气：{STYLES[data['style']]}。
+{skill_runtime.length_instruction(f"{data['length']}字")}
 风格执行要求：{STYLE_GUIDES[data['style']]}
 写作模式：{data.get('mode','custom')}；rewrite模式只借鉴议题和结构，独立组织表达，不复制独特措辞、不编造案例。
 切入角度：{data.get('angle','')}；建议大纲：{data.get('outline','')}
