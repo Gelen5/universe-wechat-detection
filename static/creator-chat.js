@@ -99,8 +99,13 @@
     const legacy = skill === 'morning' ? document.querySelector('#morning-generator .morning-frame-wrap') : existing;
     if (legacy) {
       const details = document.createElement('details'); details.className = 'creator-form-mode';
-      const summary = document.createElement('summary'); summary.textContent = skill === 'tie-tu' ? '填写详细创作要求' : '表单模式';
+      const summary = document.createElement('summary'); summary.textContent = skill === 'tie-tu' ? '用表单创建计划' : '表单模式';
       legacy.before(details); details.append(summary, legacy);
+      if (skill === 'tie-tu') {
+        const hint = document.createElement('p'); hint.className = 'tie-form-hint';
+        hint.textContent = '也可以填写下方表单单独生成计划，表单设置不会自动应用到对话。';
+        summary.after(hint);
+      }
     }
     if (skill === 'tie-tu') {
       document.querySelectorAll('#tie-tu .style-chip').forEach(chip => chip.addEventListener('click', () => {
