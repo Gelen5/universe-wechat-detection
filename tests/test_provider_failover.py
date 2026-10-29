@@ -78,6 +78,7 @@ class TextFailoverTests(unittest.TestCase):
             'WECHAT_TEXT_API_KEY': 'k1', 'WECHAT_TEXT_MODEL': 'm1',
             'WECHAT_TEXT_FALLBACK_API_BASE_URL': 'https://backup.example',
             'WECHAT_TEXT_FALLBACK_API_KEY': 'k2',
+            'WECHAT_TEXT_ATTEMPTS': '1',
         }
         seen = []
 
@@ -101,6 +102,7 @@ class TextFailoverTests(unittest.TestCase):
             'WECHAT_TEXT_API_KEY': 'k1', 'WECHAT_TEXT_MODEL': 'm1',
             'WECHAT_TEXT_FALLBACK_API_BASE_URL': 'https://backup.example',
             'WECHAT_TEXT_FALLBACK_API_KEY': 'k2',
+            'WECHAT_TEXT_ATTEMPTS': '1',
         }
         seen = []
 
@@ -224,3 +226,4 @@ class HealthMonitorTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+

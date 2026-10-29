@@ -451,7 +451,10 @@ def _text(prompt: str, *, reasoning: str | None = None, model: str | None = None
                 transient = bool(getattr(exc, "transient", False))
                 outage = unavailable(getattr(exc, "status_code", None)) or \
                     str(getattr(exc, "code", "")) in {"provider_unavailable", "transport", "http_error"}
-                if outage and index + 1 < len(profiles):
+                # An overloaded primary is often transient: spend its retry
+                # budget before switching vendors, otherwise a one-second blip
+                # sends every request to a fallback that may be worse.
+                if outage and index + 1 < len(profiles) and attempt == attempts - 1:
                     log_event("provider.failover", reason=str(exc)[:200],
                               from_base=profile["base_url"], to_base=profiles[index + 1]["base_url"],
                               run_id=attribution.get("run_id"))
