@@ -295,6 +295,23 @@ def _ensure_same_request(db, run: AgentRun, conversation_id: str, content: str,
         raise IdempotencyConflict("idempotency key reused for a different message payload")
 
 
+def conversation_points_charged(conversation_id: str, user_id: str) -> int:
+    """Points this conversation has actually cost, ignoring refunded runs.
+
+    A conversation is billed per message, so one article that takes four messages
+    used to cost four times its headline price. The cap needs the charged total
+    to know when to stop; refunded runs must not consume the budget, or a user
+    who hit a provider outage would lose the message they never got.
+    """
+    with session_scope() as db:
+        total = db.scalar(select(func.coalesce(func.sum(UsageRecord.points), 0)).where(
+            UsageRecord.conversation_id == conversation_id,
+            UsageRecord.user_id == user_id,
+            UsageRecord.status != "refunded",
+        ))
+    return int(total or 0)
+
+
 def create_message_run(conversation_id: str, user_id: str, content: str,
                        idempotency_key: str, *, content_json: dict[str, Any] | None = None,
                        metadata: dict[str, Any] | None = None, reserve_points: int = 0,

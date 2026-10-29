@@ -84,10 +84,20 @@ def conversations(request: Request, limit: int = Query(default=50, ge=1, le=100)
 
 @router.get("/api/conversations/{conversation_id}")
 def conversation(conversation_id: str, request: Request):
-    row = conversation_repository.get_conversation(conversation_id, request.state.user["id"])
+    user_id = request.state.user["id"]
+    row = conversation_repository.get_conversation(conversation_id, user_id)
     if not row:
         raise HTTPException(status_code=404, detail="对话不存在或不属于当前用户")
-    return {"conversation": row}
+    # The composer shows what this creation has left rather than a per-message
+    # price that does not match what the user is charged.
+    manifest = get_registry().executable(row["skill_id"]) if row.get("skill_id") else None
+    pricing = (manifest.pricing if manifest else {}) or {}
+    cap = int(pricing.get("conversation_cap_points")
+              or os.getenv("AGENT_CONVERSATION_POINTS_CAP", "30"))
+    charged = conversation_repository.conversation_points_charged(conversation_id, user_id)
+    return {"conversation": row,
+            "points_cap": cap, "points_charged": charged,
+            "points_remaining": max(0, cap - charged)}
 
 
 @router.get("/api/conversations/{conversation_id}/messages")
@@ -120,17 +130,27 @@ def send_message(conversation_id: str, payload: MessageCreate, request: Request,
                 detail=f"请求过于频繁，请在 {limit.retry_after} 秒后重试",
                 headers={"Retry-After": str(limit.retry_after), "X-RateLimit-Dimension": limit.dimension},
             )
-        points = int((manifest.pricing if manifest else {}).get(
-            "base_points", os.getenv("AGENT_AUTO_RESERVE_POINTS", "10")))
+        pricing = (manifest.pricing if manifest else {}) or {}
+        points = int(pricing.get("base_points", os.getenv("AGENT_AUTO_RESERVE_POINTS", "10")))
         feature = manifest.name if manifest else "自动 Skill 创作"
+        # One creation is capped, not one message: a finished article took four
+        # messages and therefore four charges, which made the headline price a
+        # fiction. The cap bounds the whole conversation; once it is reached the
+        # remaining messages of that creation are free.
+        cap = int(pricing.get("conversation_cap_points")
+                  or os.getenv("AGENT_CONVERSATION_POINTS_CAP", "30"))
+        charged = conversation_repository.conversation_points_charged(conversation_id, user_id)
+        charge = max(0, min(points, cap - charged)) if cap > 0 else points
         message, run, replay = conversation_repository.create_message_run(
             conversation_id, user_id, payload.content.strip(), idempotency_key,
-            content_json=payload.content_json, reserve_points=points, feature=feature)
+            content_json=payload.content_json, reserve_points=charge, feature=feature)
         if not replay:
             dispatch_run(run["id"])
         notify(run["id"])
         return {"message_id": message["id"], "run_id": run["id"],
-                "status": run["status"], "idempotent_replay": replay}
+                "status": run["status"], "idempotent_replay": replay,
+                "points_charged": charge, "points_cap": cap,
+                "points_remaining": max(0, cap - charged - charge)}
     except HTTPException:
         raise
     except KeyError as exc:

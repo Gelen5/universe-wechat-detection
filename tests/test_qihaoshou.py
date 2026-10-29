@@ -193,10 +193,13 @@ class WritingStudioTests(unittest.TestCase):
             self.assertEqual(self.client.get(url).status_code,200)
             self.assertEqual(self.admin.get(url).status_code,404)
             self.assertIn(url,self.data['html'])
-        self.assertEqual(self.balance(),70)
+        # Charge follows the price table, so a price change does not leave a
+        # stale assertion here; the failed image below must still refund.
+        image_price = int((accounts.pricing_rule('POST', '/api/qihaoshou/image') or {'points': 0})['points'])
+        self.assertEqual(self.balance(), 100 - image_price)
         with patch.object(q,'provider_ready'),patch.object(q.image_provider,'generate',side_effect=RuntimeError('offline')):
             result=self.client.post('/api/qihaoshou/image',json={**self.op(),'prompt':'书桌'})
-        self.assertEqual(result.status_code,502);self.assertEqual(self.balance(),70)
+        self.assertEqual(result.status_code,502);self.assertEqual(self.balance(), 100 - image_price)
 
     def test_wechat_needs_admin_confirmation_and_no_false_success(self):
         self.assertEqual(self.client.post('/api/qihaoshou/wechat-draft',json={**self.op(),'confirm':True}).status_code,403)

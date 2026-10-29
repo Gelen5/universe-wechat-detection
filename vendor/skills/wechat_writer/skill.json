@@ -109,7 +109,7 @@
       }
     }
   ],
-  "pricing": {"base_points": 10},
+  "pricing": {"base_points": 10, "conversation_cap_points": 30},
   "model_policy": {"text": "default_text", "image": "default_image"},
   "limits": {"timeout_seconds": 1200, "max_tool_calls": 20},
   "trusted": true
