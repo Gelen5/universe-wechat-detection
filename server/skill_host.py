@@ -94,15 +94,21 @@ def _research_prefix(state: Any) -> str:
 
 
 def _generate(state: Any, node: str) -> Callable[[str], str]:
-    """The model call the workflow will use for one node."""
+    """The model call the workflow will use for one node.
+
+    The call must run inside ``provider_overrides``: without it ``_setting``
+    falls back to the environment default (api.openai.com) instead of the
+    configured relay, which is exactly how a healthy run turned into an outage.
+    """
 
     def call(prompt: str) -> str:
         full = prompt
-        if node == "research":
-            prefix = _research_prefix(state)
-            if prefix:
-                full = prefix + prompt
-        return workbench._text(full)
+        with workbench.provider_overrides():
+            if node == "research":
+                prefix = _research_prefix(state)
+                if prefix:
+                    full = prefix + prompt
+            return workbench._text(full)
 
     return call
 
