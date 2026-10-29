@@ -107,9 +107,10 @@ def create_tools():
         progress = progress_for(context)
         if skill_host.enabled() and getattr(context, "conversation_id", None):
             progress("generating", {"label": "生成正文"})
+            creation_brief = f"{title}\n{requirements}".strip()
             state = skill_host.for_conversation(
                 context.conversation_id, context.user_id,
-                brief=f"{title}\n{requirements}".strip(), upto="draft", persona=persona)
+                brief=creation_brief, upto="draft", persona=persona)
             # The draft contract carries no word count, so an explicit length in
             # the brief is made binding here instead of being a suggestion.
             state = skill_host.enforce_length(state, requirements)
@@ -124,7 +125,7 @@ def create_tools():
             try:
                 state = skill_host.for_conversation(
                     context.conversation_id, context.user_id,
-                    brief=f"{title}\n{requirements}".strip(), upto="review", persona=persona)
+                    brief=creation_brief, upto="review", persona=persona)
                 article = state.draft or article
                 report = dict(state.quality_report or {})
                 report.setdefault('gate', 'needs_review' if report.get('blocked') else 'passed')
@@ -132,6 +133,12 @@ def create_tools():
             except skill_host.GateBlocked as exc:
                 report = {'gate': 'blocked', 'summary': f'复核未通过：{exc}'}
                 report['material_needed'] = True
+            except (workbench.ProviderError, ValueError, TimeoutError) as exc:
+                # The draft is already saved. A review relay failure must not
+                # discard a paid article; hand it back with an explicit gate.
+                report = {'gate': 'needs_review',
+                          'summary': '正文已保留，自动复核暂未完成，请人工核对事实和表达。',
+                          'review_error': type(exc).__name__}
             humanness = skill_host.score_article(article)
             if humanness:
                 report['humanness'] = humanness

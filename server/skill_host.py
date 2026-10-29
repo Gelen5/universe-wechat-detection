@@ -518,6 +518,13 @@ def is_new_creation(state: Any, brief: str) -> bool:
     current = (brief or '').strip()
     if not previous or not current:
         return False
+    # The workbench carries the same chosen title into each stage, while its
+    # requirements change from "outline only" to "write" to "review". Treating
+    # the whole brief as an article ID reset a finished draft during review.
+    previous_title = previous.splitlines()[0].strip()
+    current_title = current.splitlines()[0].strip()
+    if len(previous_title) >= 8 and previous_title == current_title:
+        return False
     return previous not in current and current not in previous
 
 
@@ -529,6 +536,10 @@ def for_conversation(conversation_id: str, user_id: str, brief: str,
         # A different article in the same conversation starts a new creation.
         state = new_state(brief, persona)
         log_event('skill_host.new_creation', conversation_id=conversation_id)
+    if upto == 'draft':
+        # Once the article moves beyond the outline, the writing request is
+        # authoritative for review and subsequent retry/resume calls.
+        state.user_request = brief
     apply_persona(state, persona)
     apply_length_contract(state, brief)
     run_to(state, upto)

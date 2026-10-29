@@ -62,4 +62,11 @@ def render(request: Dict[str, Any], root: str | Path, node: str = "") -> str:
             "和 content_plan（一句说明本节要讲什么）；writing_strategy 保留必要字段。"
             "标题必须写出真实内容，不要用开头、判断标准、样本一等泛称，"
             "不要出现{待选类型}等占位符。控制 JSON 长度，确保一次完整返回。")
+    if node == "review":
+        parts.append(
+            "\n--- 复核输出约束 ---\n"
+            "只返回简短 JSON：reader_simulation 各视角一句结论，revision_plan 最多三条，"
+            "每条只写必须修改的具体问题。没有必要修改时返回空数组。"
+            "不要重复正文，也不要返回 revised_draft，除非发现会改变结论的事实错误。"
+            "控制总输出，避免模型达到输出上限后正文丢失。")
     return "\n".join(parts)
