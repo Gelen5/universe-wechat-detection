@@ -769,6 +769,9 @@ def create_task(payload: TaskCreateRequest, request: Request):
     elif job['type'] == 'creator_chat' and job['status'] == 'queued':
         from .task_worker import dispatch_creator_chat_job
         dispatch_creator_chat_job(job['id'])
+    elif job['type'] == 'tie_tu' and job['status'] == 'queued':
+        from .task_worker import dispatch_tie_tu_job
+        dispatch_tie_tu_job(job['id'])
     return {"status": "accepted", "job": _public_job(job), "idempotent_replay": job.get("usage_id") != usage_id}
 
 

@@ -42,6 +42,24 @@ def current_settings():
 
 
 class CreatorApiIntegrationTests(unittest.TestCase):
+    def test_tie_tu_form_task_is_dispatched_once(self):
+        import uuid
+        with patch.object(task_worker, 'dispatch_tie_tu_job') as dispatch:
+            response = self.client.post('/api/tasks', json={'type':'tie_tu', 'idempotency_key':uuid.uuid4().hex,
+                'payload':{'topic':'测试', 'industry':'生活', 'title':'', 'content_type':None,
+                           'image_count':3, 'style':'', 'audience':'', 'portrait_mode':'off'}})
+        self.assertEqual(response.status_code, 202, response.text)
+        dispatch.assert_called_once_with(response.json()['job']['id'])
+
+    def test_tie_tu_worker_claims_only_the_requested_job(self):
+        with patch.object(task_worker.accounts, 'job', return_value={'type':'tie_tu','lane':'light'}), \
+             patch.object(task_worker.accounts, 'claim_job', return_value={'id':'wanted'}) as claim, \
+             patch.object(task_worker, '_run') as run, \
+             patch.object(task_worker.CREATOR_EXECUTOR, 'submit', side_effect=lambda fn:fn()):
+            task_worker.dispatch_tie_tu_job('wanted')
+        claim.assert_called_once_with(['light'], job_id='wanted')
+        run.assert_called_once_with({'id':'wanted'})
+
     def test_readiness_requires_database_and_redis(self):
         with patch('server.main.database.database_ready', return_value=True), \
                 patch('server.main.redis_ready', return_value=True):

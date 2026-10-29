@@ -1133,6 +1133,7 @@ issue_index 对应以下已由复核定位、逐字来自当前稿的片段列�
 若问题只是修辞且会删改或替换引号内原话，必须把该问题的下标放入 retained_issue_indexes，不得编造替代文本；其余问题必须修改。每个片段在当前稿中必须唯一；不要改变无关内容。'''
             if progress:
                 progress('generating', {'label': '正在按定位问题局部改稿', 'issues': len(issue_anchors)})
+            before_edits = candidate
             edits, revised = _validated_local_edits(
                 candidate, edit_prompt,
                 require_edits=bool([i for _, i in anchored_issues] or blockers), anchors=issue_anchors,
@@ -1179,6 +1180,37 @@ issue_index 对应以下已由复核定位、逐字来自当前稿的片段列�
                 progress('generating', {'label': '正在检查修订稿保真与可读性'})
             final_audit = _anti_ai_audit(article, candidate, session)
             final_missing = {key: values for key, values in (final_audit.get('missing_protected_spans') or {}).items() if values and not (key == 'quoted_text' and all(str(value).strip('“”‘’\"\'') in candidate for value in values))}
+            if final_missing:
+                # A single unsafe replacement should not discard unrelated safe
+                # changes. Reconstruct only uniquely anchored edits that cannot
+                # remove any flagged protected span, then run the full audit again.
+                protected_values = [str(value).strip('“”‘’\"\'') for values in final_missing.values() for value in values if str(value).strip('“”‘’\"\'')]
+                safe_candidate = before_edits
+                skipped = []
+                for edit in edits.get('edits', []):
+                    index = edit.get('issue_index') if isinstance(edit, dict) else None
+                    if type(index) is not int or not 0 <= index < len(issue_anchors):
+                        continue
+                    anchor = issue_anchors[index]
+                    after = edit.get('after')
+                    if before_edits.count(anchor) != 1 or safe_candidate.count(anchor) != 1 or not isinstance(after, str):
+                        skipped.append(index)
+                        continue
+                    if any(span in anchor and span not in after for span in protected_values):
+                        skipped.append(index)
+                        continue
+                    safe_candidate = safe_candidate.replace(anchor, after, 1)
+                if skipped and safe_candidate != before_edits:
+                    safe_audit = _anti_ai_audit(article, safe_candidate, session)
+                    safe_missing = {key: values for key, values in (safe_audit.get('missing_protected_spans') or {}).items() if values and not (key == 'quoted_text' and all(str(value).strip('“”‘’\"\'') in safe_candidate for value in values))}
+                    if (safe_audit.get('status') == 'success' and not safe_missing
+                            and safe_audit.get('complete_sentence_ratio', 0) >= .9
+                            and not skill_runtime.length_issue(safe_candidate, skill_runtime.brief(session))
+                            and not orphaned_list_error(article, safe_candidate)
+                            and not introduced_duplicate_error(article, safe_candidate)):
+                        candidate, final_audit, final_missing = safe_candidate, safe_audit, {}
+                        records[-1]['skipped_for_fidelity'] = skipped
+                        unaddressed.extend(anchored_issues[index][1] for index in skipped)
             # A fresh local audit must validate the changed text; an old diagnosis
             # cannot certify the new candidate. No extra model round is needed.
             continuity_error = (orphaned_list_error(article, candidate)

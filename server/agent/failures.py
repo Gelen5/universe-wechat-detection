@@ -92,6 +92,9 @@ def describe(exc: BaseException) -> dict[str, Any]:
     if '复制版图片' in message or '图片格式与内容不匹配' in message:
         return info("layout_image", "文章图片无法安全复制到公众号，原文已保留。", True,
                     "请检查图片格式和大小后重新排版。")
+    if "自动修稿后仍需处理" in message:
+        return info("review_validation", "改稿未通过原文保真检查，已保留原稿。", True,
+                    "可缩小修改范围，或先核对文章中的引用和数字。")
     if "局部修改连续两次无法安全定位" in message:
         return info("review_validation", "模型返回的修改没有通过原文定位或保真检查，原文已保留。", True,
                     "可指定需要修改的段落后重试。")

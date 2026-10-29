@@ -68,6 +68,29 @@ class ReviewDeliveryTests(unittest.TestCase):
         with self.assertRaises(w.ProviderError):
             self.run_review(missing=True)
 
+    def test_unsafe_edit_is_skipped_and_remaining_edit_is_reaudited(self):
+        article = '今年花费100元。值得注意的是，安排已完成。'
+        revised = '今年花费200元。安排已完成。'
+        safe = '今年花费100元。安排已完成。'
+        diagnosis = {'issues': [{'quote': '今年花费100元。', 'reason':'数字需检查', 'fix':'核对'},
+                                {'quote':'值得注意的是，', 'reason':'模板过渡', 'fix':'删除过渡'}],
+                     'reason':'两处问题', 'fidelity_ok':True, 'readability_ok':True}
+        ok = {'status':'success', 'complete_sentence_ratio':1, 'missing_protected_spans':{}}
+        bad = dict(ok, missing_protected_spans={'numbers':['100元']})
+        with tempfile.TemporaryDirectory() as directory, \
+             patch.object(w, 'OUTPUT_DIR', Path(directory)), \
+             patch.object(w, '_review_skill_context', return_value=('rules', [])), \
+             patch.object(skill_runtime, 'script', return_value={}), \
+             patch.object(skill_runtime, 'length_issue', return_value=None), \
+             patch.object(w, '_json_text', return_value=diagnosis), \
+             patch.object(w, '_anti_ai_audit', side_effect=[ok, bad, ok]), \
+             patch.object(w, '_validated_local_edits', return_value=({'edits':[{'issue_index':0,'after':'今年花费200元。'}, {'issue_index':1,'after':''}]}, revised)), \
+             patch.dict('os.environ', {'WECHAT_REVIEW_ROUNDS':'1'}):
+            result, report = w._review(article, {'id':'safe-fallback', 'brief':'审稿'})
+        self.assertEqual(result, safe)
+        self.assertEqual(report['rounds'][0]['skipped_for_fidelity'], [0])
+        self.assertTrue(report['pending_review_notes'])
+
     def test_failed_post_edit_audit_delivers_original_instead_of_unverified_candidate(self):
         result, report = self.run_review(failed_audit=True)
         self.assertEqual('这段文字值得注意的是，表达重复。', result)

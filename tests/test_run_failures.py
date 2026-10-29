@@ -15,6 +15,10 @@ from server.models import Base, users_table
 from server.providers import ProviderRequestError
 
 class FailureClassificationTests(unittest.TestCase):
+    def test_review_fidelity_failure_explains_original_was_preserved(self):
+        result = failures.describe(RuntimeError('自动修稿后仍需处理：保真检查。已保留原文，未进入配图。'))
+        self.assertEqual(result['error_kind'], 'review_validation')
+        self.assertIn('保真', result['reason'])
     def test_hotspot_failure_is_retryable(self):
         detail = failures.describe(RuntimeError("选题 Skill 热点抓取未成功，已停止生成；请稍后重试。"))
         self.assertEqual("topic_source", detail["error_kind"])

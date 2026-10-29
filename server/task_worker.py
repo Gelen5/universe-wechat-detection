@@ -41,6 +41,17 @@ def dispatch_creator_chat_job(job_id: str) -> None:
     CREATOR_EXECUTOR.submit(claim_and_run)
 
 
+def dispatch_tie_tu_job(job_id: str) -> None:
+    """Claim only the newly submitted form job, never drain old jobs."""
+    def claim_and_run():
+        candidate = accounts.job(job_id)
+        if candidate and candidate['type'] == 'tie_tu':
+            claimed = accounts.claim_job([candidate['lane']], job_id=job_id)
+            if claimed:
+                _run(claimed)
+    CREATOR_EXECUTOR.submit(claim_and_run)
+
+
 def _payload(job: dict[str, Any]) -> dict[str, Any]:
     return json.loads(job.get("payload_json") or "{}")
 
