@@ -478,19 +478,68 @@ def _text(prompt: str, *, reasoning: str | None = None, model: str | None = None
     return response.text
 
 
+def _salvage_json(text: str) -> dict[str, Any] | None:
+    """Best-effort parse of a model reply that is *almost* JSON.
+
+    Models emit full-width punctuation ("：", "，", "“") and cut long objects off
+    at the token limit; both used to surface as a raw JSONDecodeError and kill
+    the step. Repair the text and try again instead.
+    """
+    cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", (text or "").strip(), flags=re.I)
+    start, end = cleaned.find('{'), cleaned.rfind('}')
+    if start < 0:
+        return None
+    body = cleaned[start:end + 1] if end > start else cleaned[start:]
+    fixed = (body.replace('“', '"').replace('”', '"')
+                 .replace('‘', "'").replace('’', "'")
+                 .replace('：', ':').replace('，', ','))
+    for candidate in (body, fixed):
+        try:
+            data = json.loads(candidate)
+            if isinstance(data, dict):
+                return data
+        except ValueError:
+            pass
+        repaired = candidate
+        stack: list[str] = []
+        in_string = escaped = False
+        for char in repaired:
+            if in_string:
+                if escaped:
+                    escaped = False
+                elif char == '\\':
+                    escaped = True
+                elif char == '"':
+                    in_string = False
+                continue
+            if char == '"':
+                in_string = True
+            elif char in '[{':
+                stack.append(char)
+            elif char in ']}' and stack:
+                stack.pop()
+        if in_string:
+            repaired += '"'
+        for opener in reversed(stack):
+            repaired += ']' if opener == '[' else '}'
+        try:
+            data = json.loads(repaired)
+            if isinstance(data, dict):
+                return data
+        except ValueError:
+            continue
+    return None
+
+
 def _json_text(prompt: str, *, model: str | None = None,
                base_url: str | None = None) -> dict[str, Any]:
     for attempt in range(2):
-        raw = _text(prompt + ('\n上次返回的JSON语法无效。请重新执行并只返回合法JSON对象，字符串内部双引号必须转义。' if attempt else ''),
+        raw = _text(prompt + ('\n上次返回的JSON语法无效。请重新执行并只返回合法JSON对象；'
+                              '键和值必须使用半角引号，不要用中文冒号或中文引号。' if attempt else ''),
                     model=model, base_url=base_url)
-        cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw.strip(), flags=re.I)
-        start, end = cleaned.find('{'), cleaned.rfind('}')
-        try:
-            data = json.loads(cleaned[start:end+1])
-            if isinstance(data,dict):
-                return data
-        except json.JSONDecodeError:
-            pass
+        data = _salvage_json(raw)
+        if data is not None:
+            return data
     raise ProviderError('文本 API 连续两次未返回合法 JSON，已保留当前进度')
 
 
