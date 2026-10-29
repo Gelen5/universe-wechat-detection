@@ -23,7 +23,7 @@ from typing import Any
 
 from fastapi import HTTPException, Request, Response
 
-from . import database
+from . import database, provider_key_crypto
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -454,7 +454,10 @@ def provider_settings(*, include_secrets: bool = False) -> dict[str, Any]:
         "updated_at": data.get("updated_at"),
     }
     if include_secrets:
-        result.update(text_api_key=data.get("text_api_key", ""), image_api_key=data.get("image_api_key", ""))
+        result.update(
+            text_api_key=provider_key_crypto.decrypt(data.get("text_api_key", "")),
+            image_api_key=provider_key_crypto.decrypt(data.get("image_api_key", "")),
+        )
     return result
 
 
@@ -469,7 +472,7 @@ def update_provider_settings(operator_id: str, values: dict[str, Any]) -> dict[s
         connection.execute(
             """UPDATE provider_settings SET text_api_key=?,image_api_key=?,text_base_url=?,image_base_url=?,
                text_model=?,image_model=?,updated_at=?,updated_by=? WHERE id=1""",
-            (updated["text_api_key"], updated["image_api_key"], updated["text_base_url"],
+            (provider_key_crypto.encrypt(updated["text_api_key"]), provider_key_crypto.encrypt(updated["image_api_key"]), updated["text_base_url"],
              updated["image_base_url"], updated["text_model"], updated["image_model"], now, operator_id),
         )
         connection.execute(
