@@ -86,7 +86,7 @@ class SkillHostTests(unittest.TestCase):
         }}
         with patch.dict('os.environ', {'WECHAT_EVIDENCE_MODE': 'strict'}):
             with self.assertRaises(skill_host.GateBlocked) as caught:
-                self._run('strategy', TOPIC, blocked, blocked)
+                self._run('research', TOPIC, blocked, blocked)
         self.assertIn('证据', str(caught.exception))
 
     def test_default_mode_downgrades_instead_of_blocking(self):
@@ -97,8 +97,8 @@ class SkillHostTests(unittest.TestCase):
             'research_status': 'complete', 'limitations': [],
         }}
         with patch.dict('os.environ', {'WECHAT_EVIDENCE_MODE': 'auto'}):
-            state = self._run('strategy', TOPIC, blocked, blocked, STRATEGY)
-        self.assertEqual('passed', state.nodes['strategy'].status)
+            state = self._run('research', TOPIC, blocked, blocked)
+        self.assertEqual('passed', state.nodes['research'].status)
         self.assertTrue(skill_host.downgraded_claims(state))
 
     def test_state_round_trips_so_a_later_message_can_continue(self):

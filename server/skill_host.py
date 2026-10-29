@@ -223,7 +223,7 @@ def _research_prefix(state: Any) -> str:
     if not query:
         return ""
     try:
-        research = workbench_research.search(query, fetch=False)
+        research = workbench_research.search(query, fetch=False, timeout=20)
         compact = workbench_research.compact(research)
     except Exception as exc:
         log_event("skill_host.research_failed", reason=str(exc)[:200])
@@ -355,6 +355,13 @@ def run_to(state: Any, upto: str, *, on_node: Callable[[str], None] | None = Non
             continue
         if on_node:
             on_node(node)
+        if node == "research" and upto == "strategy":
+            # The outline needs the topic and angle only. Research costs up to
+            # 84s of search latency; defer it to the draft, which uses evidence.
+            state.evidence_pack.research_status = "deferred"
+            state.nodes[node].status = "passed"
+            log_event("skill_host.research_deferred", node=node)
+            continue
         try:
             runtime.run_node_with(state, node, _generate(state, node),
                                   root=str(workbench.SKILL_DIR))
