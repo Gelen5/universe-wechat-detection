@@ -128,6 +128,7 @@ def create_tools():
                 report.setdefault('summary', '已按 Skill 复核节点完成检查；请人工确认事实与语气。')
             except skill_host.GateBlocked as exc:
                 report = {'gate': 'blocked', 'summary': f'复核未通过：{exc}'}
+                report['material_needed'] = True
             humanness = skill_host.score_article(article)
             if humanness:
                 report['humanness'] = humanness
@@ -172,6 +173,15 @@ def create_tools():
         ], timeout=max(60, int(workbench._setting("WECHAT_TEXT_REQUEST_TIMEOUT", "300") or 300)),
            idempotency_key=context.idempotency_key,
            run_id=context.run_id, user_id=context.user_id)
+        # Keep the workflow state in step with the revision: without this a
+        # later review node hands back the pre-revision draft.
+        if skill_host.enabled() and getattr(context, "conversation_id", None):
+            try:
+                state = skill_host.load_state(context.conversation_id, context.user_id, requirements)
+                skill_host.apply_revision(state, response.text)
+                skill_host.save_state(context.conversation_id, context.user_id, state)
+            except Exception:
+                pass
         return article_result(str(args.get("title") or "修订稿"), response.text)
 
     def review_article(args, context):

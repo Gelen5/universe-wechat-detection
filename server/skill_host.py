@@ -322,10 +322,47 @@ def frame_from_state(state: Any) -> dict[str, Any]:
     }
 
 
+def apply_revision(state: Any, article: str) -> Any:
+    """Record a human/model revision and reopen the review node.
+
+    Without this a revision lived only in the artifact while the state kept the
+    old draft, so a later review would hand back the pre-revision text.
+    """
+    article = (article or '').strip()
+    if not article:
+        return state
+    state.draft = article
+    state.nodes['review'].status = 'pending'
+    state.nodes['review'].request = {}
+    state.quality_report = {}
+    log_event('skill_host.revision_applied', chars=len(article))
+    return state
+
+
+def is_new_creation(state: Any, brief: str) -> bool:
+    """Whether this message asks for a different article than the stored one.
+
+    A second request in the same conversation used to return the first article,
+    because every node was already ``passed`` and the workflow simply replayed
+    the old state.
+    """
+    if not (getattr(state, 'draft', '') or '').strip():
+        return False
+    previous = (getattr(state, 'user_request', '') or '').strip()
+    current = (brief or '').strip()
+    if not previous or not current:
+        return False
+    return previous not in current and current not in previous
+
+
 def for_conversation(conversation_id: str, user_id: str, brief: str,
                      upto: str, persona: str = "") -> Any:
     """Load, advance and persist one conversation's workflow state."""
     state = load_state(conversation_id, user_id, brief, persona)
+    if is_new_creation(state, brief):
+        # A different article in the same conversation starts a new creation.
+        state = new_state(brief, persona)
+        log_event('skill_host.new_creation', conversation_id=conversation_id)
     apply_persona(state, persona)
     apply_length_contract(state, brief)
     run_to(state, upto)
