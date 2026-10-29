@@ -78,6 +78,9 @@ def create_tools():
                 context.conversation_id, context.user_id,
                 brief=f"{title}\n{requirements}".strip(), upto="strategy", persona=persona)
             frame = skill_host.frame_from_state(state)
+            if not frame.get("outline"):
+                # A title-only artifact looks like the step silently failed.
+                raise ValueError("大纲节点没有返回可用结构，请重试或换个说法描述结构要求。")
         else:
             frame = with_provider(lambda: workbench._framework(title, persona, requirements))
         outline = "\n".join(f"{index}. {part}" for index, part in enumerate(frame["outline"], 1))

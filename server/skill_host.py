@@ -293,18 +293,34 @@ def run_to(state: Any, upto: str, *, on_node: Callable[[str], None] | None = Non
 
 
 def outline_sections(state: Any) -> list[dict[str, str]]:
-    """Normalise the workflow outline into heading/claim/evidence objects."""
+    """Normalise the workflow outline into heading/claim/evidence objects.
+
+    The strategy node's own rules produce ``{"section", "purpose", "content",
+    "evidence_basis", "reader_progress"}``, not ``heading``/``claim``. Reading
+    only the latter silently produced an empty outline: the artifact carried a
+    title with no body, and the UI showed an empty 大纲 step.
+    """
     sections: list[dict[str, str]] = []
     for item in (state.outline or []):
         if isinstance(item, dict):
-            sections.append({
-                "heading": str(item.get("heading") or item.get("title") or "").strip(),
-                "claim": str(item.get("claim") or item.get("summary") or "").strip(),
-                "evidence": str(item.get("evidence") or "none").strip() or "none",
-            })
+            heading = str(item.get("heading") or item.get("title")
+                          or item.get("section") or "").strip()
+            claim = str(item.get("claim") or item.get("summary")
+                        or item.get("purpose") or "").strip()
+            if not claim:
+                content = item.get("content")
+                if isinstance(content, list) and content:
+                    claim = str(content[0])
+                elif isinstance(content, str):
+                    claim = content
+            evidence = item.get("evidence") or item.get("evidence_basis") or "none"
+            if isinstance(evidence, list):
+                evidence = ", ".join(str(part) for part in evidence) or "none"
         else:
-            sections.append({"heading": str(item).strip(), "claim": "", "evidence": "none"})
-    return [section for section in sections if section["heading"]]
+            heading, claim, evidence = str(item).strip(), "", "none"
+        if heading:
+            sections.append({"heading": heading, "claim": claim, "evidence": str(evidence)})
+    return sections
 
 
 def frame_from_state(state: Any) -> dict[str, Any]:
