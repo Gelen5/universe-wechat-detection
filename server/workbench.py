@@ -555,7 +555,7 @@ def _suggestions(topic: str, persona: str, session=None, progress=None) -> list[
         session['skill_hotspots'] = (hotspots or [])[:30]
         session['hotspot_status'] = hotspot_status
         session['square_hotspots'] = square
-    minimum = max(3, min(10, int(_setting("WECHAT_TOPIC_MIN", "6") or 6)))
+    minimum = max(3, min(8, int(_setting("WECHAT_TOPIC_MIN", "5") or 5)))
     _emit_progress(progress, 'generating', status='running', minimum=minimum)
     try:
         data = _json_text(model=_setting("WECHAT_TOPIC_MODEL") or None,
@@ -567,10 +567,10 @@ weChat-autoCreate Skill 热点脚本真实返回（status={hotspot_status}）：
 搜索（多查询实搜 + 已抓取正文）：{json.dumps(workbench_research.compact(research),ensure_ascii=False)}
 历史：{json.dumps(history,ensure_ascii=False)}
 不得与最近历史相似。若热点脚本结果为空，必须明确脚本未取得实时热点；广场缓存可作为有采集时间的榜单线索，不可伪装成本次实时直连结果。热度只是估计，不是平台数据。只输出指定JSON。
-你是微信公众号资深选题编辑。围绕用户方向「{seed}」，为「{persona}」写作人格生成8个（至少{minimum}个）差异明显、可以真正展开的中文选题。
+你是微信公众号资深选题编辑。围绕用户方向「{seed}」，为「{persona}」写作人格生成{minimum}个（不要超过{minimum}个）差异明显、可以真正展开的中文选题。
 要求：避免编造热点数据；不承诺够用一年、必然成功、收益倍增等无证据结果；标题要具体、自然、有读者收益；覆盖观点、教程、故事、对比、清单、案例、趋势、复盘等类型。
 优先结合用户主题、受众真正关心的具体困惑或有依据的冲突提出切口；热点只是线索，不相关就不用。标题写清对象、问题和独特角度，不编造人物、数据、效果或争议，不蹭无关热搜。若材料不足，提出可讨论的具体问题，不把推测包装成事实。每个方向说明读者为什么会关心和可用的材料，避免同一个意思换标题重复。
-只返回合法JSON，不要Markdown：{{"topics":[{{"title":"...","type":"观点","reason":"推荐理由","heat":8,"fan_score":82,"competition":"中"}}]}}。topics为{minimum}-8项，能写满就写8项。heat为1-10的模型估计热度，fan_score为0-100的模型估计涨粉潜力；两者都不是平台真实统计，必须根据搜索信号、受众匹配和可传播性解释，不能伪装成真实粉丝数据。""")
+只返回合法JSON，不要Markdown：{{"topics":[{{"title":"...","type":"观点","reason":"推荐理由","heat":8,"fan_score":82,"competition":"中"}}]}}。topics恰好{minimum}项，每项一行写完即可，不要展开。heat为1-10的模型估计热度，fan_score为0-100的模型估计涨粉潜力；两者都不是平台真实统计，必须根据搜索信号、受众匹配和可传播性解释，不能伪装成真实粉丝数据。""")
     except Exception as exc:
         _record_skill(session, 1, '选题 Skill：方向生成', manifest, ['fetch_hotspots.py'], 'blocked', str(exc))
         raise

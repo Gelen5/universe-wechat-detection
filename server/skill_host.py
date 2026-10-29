@@ -237,9 +237,9 @@ def _research_prefix(state: Any) -> str:
 # Model per node: structure is cheap and fast, prose and review carry quality.
 _NODE_MODEL_ENV = {
     "intent": "WECHAT_STRUCTURE_MODEL",
-    "topic": "WECHAT_STRUCTURE_MODEL",
-    "research": "WECHAT_STRUCTURE_MODEL",
-    "strategy": "WECHAT_STRUCTURE_MODEL",
+    "topic": "WECHAT_TOPIC_MODEL",
+    "research": "WECHAT_TOPIC_MODEL",
+    "strategy": "WECHAT_OUTLINE_MODEL",
     "draft": "WECHAT_DRAFT_MODEL",
     "review": "WECHAT_REVIEW_MODEL",
 }
@@ -248,7 +248,9 @@ _NODE_MODEL_ENV = {
 def model_for(node: str) -> str:
     """The model this node should use, or '' to keep the configured default."""
     name = _NODE_MODEL_ENV.get(node, "")
-    return (os.getenv(name, "") or "").strip() if name else ""
+    if not name:
+        return ""
+    return (os.getenv(name, "") or os.getenv("WECHAT_STRUCTURE_MODEL", "") or "").strip()
 
 
 def _generate(state: Any, node: str) -> Callable[[str], str]:
