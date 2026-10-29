@@ -18,7 +18,7 @@ import logging
 import os
 import re
 import secrets
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
@@ -29,6 +29,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import Column, MetaData, String, Table, insert, select, update
 from sqlalchemy.exc import IntegrityError
 
+from alipay.aop.api import DefaultAlipayClient as _sdk_client
 from alipay.aop.api.AlipayClientConfig import AlipayClientConfig
 from alipay.aop.api.DefaultAlipayClient import DefaultAlipayClient
 from alipay.aop.api.domain.AlipayTradeCloseModel import AlipayTradeCloseModel
@@ -58,6 +59,35 @@ PAGE_PAY_PRODUCT_CODE = "FAST_INSTANT_TRADE_PAY"
 PAID_STATUSES = ("TRADE_SUCCESS", "TRADE_FINISHED")
 _TIMESTAMP_FORMAT = "%Y-%m-%d %H:%M:%S"
 _AMOUNT_RE = re.compile(r"^\d{1,9}(?:\.\d{1,2})?$")
+
+# 支付宝按北京时间校验请求时间戳与交易付款截止时间；容器默认跑在 UTC，
+# 直接用 datetime.now() 会偏差 8 小时，收银台会判成“交易超时”。
+_BEIJING_TZ = timezone(timedelta(hours=8))
+
+
+def _beijing_now() -> datetime:
+    return datetime.now(_BEIJING_TZ).replace(tzinfo=None)
+
+
+class _BeijingDateTime(datetime):
+    @classmethod
+    def now(cls, tz=None):  # noqa: D401 - 与 datetime.now 保持同签名
+        return datetime.now(_BEIJING_TZ).replace(tzinfo=None)
+
+
+class _BeijingDateTimeModule:
+    """最小 datetime 模块替身，只用于覆盖 SDK 的请求时间戳。"""
+
+    datetime = _BeijingDateTime
+
+
+def _force_sdk_beijing_timestamps() -> None:
+    """让支付宝 SDK 生成北京时间请求时间戳，且不改变进程全局时区。"""
+
+    _sdk_client.datetime = _BeijingDateTimeModule  # type: ignore[attr-defined]
+
+
+_force_sdk_beijing_timestamps()
 
 
 class PaymentConfigError(RuntimeError):
@@ -182,7 +212,7 @@ ensure_schema()
 
 
 def _now() -> str:
-    return datetime.now().strftime(_TIMESTAMP_FORMAT)
+    return _beijing_now().strftime(_TIMESTAMP_FORMAT)
 
 
 def _normalize_amount(value: Any, *, field: str = "金额") -> str:
@@ -247,7 +277,7 @@ def _bump_refunded(out_trade_no: str, amount: Decimal) -> None:
 
 
 def _new_out_trade_no() -> str:
-    return f"PAY{datetime.now().strftime('%Y%m%d%H%M%S')}{secrets.token_hex(4).upper()}"
+    return f"PAY{_beijing_now().strftime('%Y%m%d%H%M%S')}{secrets.token_hex(4).upper()}"
 
 
 # ------------------------------------------------------------------ SDK 调用
