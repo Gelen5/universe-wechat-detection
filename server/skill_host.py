@@ -300,20 +300,38 @@ def _downgrade_claims(state: Any) -> list[str]:
     like 「普通人如何搞副业」 no such evidence exists, so blocking means the user
     pays and gets nothing. Demoting the claim to supporting keeps the wording
     honest (it is recorded as an assumption) while letting the article ship.
+
+    Claims arrive either as dataclasses or as plain dicts depending on whether
+    they came from ``apply_host_result`` or a reloaded state, so both are handled.
     """
+    verified = {'verified', 'user_provided', 'illustrative'}
     demoted: list[str] = []
-    for claim in getattr(state.evidence_pack, 'claims', []) or []:
-        if getattr(claim, 'materiality', '') != 'key':
+    claims = list(getattr(state.evidence_pack, 'claims', []) or [])
+    for claim in claims:
+        if isinstance(claim, dict):
+            key = claim.get('materiality')
+            status = claim.get('status')
+            text = claim.get('text') or claim.get('claim_id') or ''
+        else:
+            key = getattr(claim, 'materiality', None)
+            status = getattr(claim, 'status', None)
+            text = getattr(claim, 'text', '') or getattr(claim, 'claim_id', '')
+        if status in verified:
             continue
-        if getattr(claim, 'status', '') in {'verified', 'user_provided', 'illustrative'}:
+        if key != 'key':
             continue
-        claim.materiality = 'supporting'
-        demoted.append(str(getattr(claim, 'text', '') or getattr(claim, 'claim_id', '')))
+        if isinstance(claim, dict):
+            claim['materiality'] = 'supporting'
+        else:
+            claim.materiality = 'supporting'
+        demoted.append(str(text))
     if demoted:
-        state.evidence_pack.limitations = list(getattr(state.evidence_pack, 'limitations', []) or []) + [
-            f'以下主张缺少可核验来源，已按经验判断处理：{"；".join(demoted[:5])}']
+        limitations = list(getattr(state.evidence_pack, 'limitations', []) or [])
+        limitations.append(f'以下主张缺少可核验来源，已按经验判断处理：{"；".join(demoted[:5])}')
+        state.evidence_pack.limitations = limitations
         state.degradations.append({'node': 'research', 'reason': 'unsourced_key_claims',
                                    'claims': demoted, 'user_visible': True})
+        log_event('skill_host.claims_demoted', count=len(demoted))
     return demoted
 
 
