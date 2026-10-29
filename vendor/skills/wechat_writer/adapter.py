@@ -132,7 +132,18 @@ def create_tools():
             if humanness:
                 report['humanness'] = humanness
             progress("generated", {"label": "正文已生成", "count": len(article)})
-            outputs = [ArtifactOutput(type="article", title=title, content=article)]
+            outputs = []
+            # write_article advances the workflow through the strategy node, so
+            # the outline exists in the state even when the model never called
+            # create_outline. Emit it, or the UI shows an article with no outline.
+            if not latest_artifact(context, "outline"):
+                frame = skill_host.frame_from_state(state)
+                if frame.get("outline"):
+                    outputs.append(ArtifactOutput(
+                        type="outline", title=title,
+                        content="\n".join(f"{index}. {part}" for index, part in enumerate(frame["outline"], 1)),
+                        content_json={"framework": frame}))
+            outputs.append(ArtifactOutput(type="article", title=title, content=article))
             if report:
                 outputs.append(ArtifactOutput(type="report", title="Skill 复核报告", content_json=report))
             return ToolResult({"title": title, "article": article, "review": report}, tuple(outputs))
