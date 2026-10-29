@@ -541,7 +541,8 @@ def _suggestions(topic: str, persona: str, session=None, progress=None) -> list[
     queries = workbench_research.topic_queries(
         seed, limit=int(_setting("WECHAT_TOPIC_SEARCH_QUERIES", "3") or 3))
     research = workbench_research.search(
-        seed, fetch=True, queries=queries,
+        seed, fetch=(_setting("WECHAT_TOPIC_FETCH_PAGES", "0") or "0").strip() not in {"0", "false", "off", "no"},
+        queries=queries,
         max_fetch=int(_setting("WECHAT_TOPIC_FETCH", "4") or 4),
         timeout=int(_setting("WECHAT_TOPIC_SEARCH_TIMEOUT", "14") or 14))
     history = workbench_research.history(SKILL_DIR)

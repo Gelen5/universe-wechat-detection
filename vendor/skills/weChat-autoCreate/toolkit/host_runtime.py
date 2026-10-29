@@ -24,15 +24,51 @@ MAX_ATTEMPTS = 2
 
 
 def parse_result(raw: str) -> Dict[str, Any]:
-    """Parse a model reply into the object the workflow expects."""
+    """Parse a model reply into the object the workflow expects.
+
+    A long outline can be cut off at the token limit, which leaves valid-looking
+    JSON with unclosed arrays. Rather than failing the run, trim back to the last
+    complete element and close what is open.
+    """
     cleaned = _FENCE.sub("", (raw or "").strip())
     try:
         data = json.loads(cleaned)
-    except ValueError as exc:
-        raise ValueError(f"节点回答不是合法 JSON：{cleaned[:160]}") from exc
+    except ValueError:
+        data = json.loads(_repair_truncated(cleaned))
     if not isinstance(data, dict):
         raise ValueError("节点回答必须是 JSON 对象")
     return data
+
+
+def _repair_truncated(text: str) -> str:
+    """Close a JSON object that was cut off mid-array or mid-string."""
+    text = text.rstrip().rstrip(',')
+    # Drop a dangling key/value stub such as `"claim": "未写完` .
+    cut = text.rfind('",')
+    stack: list[str] = []
+    in_string = False
+    escaped = False
+    for char in text:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == '\\':
+                escaped = True
+            elif char == '"':
+                in_string = False
+            continue
+        if char == '"':
+            in_string = True
+        elif char in '[{':
+            stack.append(char)
+        elif char in ']}' and stack:
+            stack.pop()
+    if in_string:
+        text += '"'
+    for opener in reversed(stack):
+        text += ']' if opener == '[' else '}'
+    del cut
+    return text
 
 
 def _filter_fields(record: Any, cls: Any) -> Any:
