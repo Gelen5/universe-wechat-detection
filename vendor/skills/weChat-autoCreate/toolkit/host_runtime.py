@@ -20,7 +20,7 @@ from .article_workflow import WorkflowBlocked, apply_host_result, run_node
 from .host_prompts import render
 
 _FENCE = re.compile(r"^\s*```(?:json)?\s*|\s*```\s*$", re.IGNORECASE)
-MAX_ATTEMPTS = 2
+MAX_ATTEMPTS = 3
 
 
 def parse_result(raw: str) -> Dict[str, Any]:
@@ -122,15 +122,22 @@ def run_node_with(state: ArticleState, node: str,
                   output_dir: str | Path | None = None) -> ArticleState:
     """Run `node` until it passes, blocking, or exhausts its attempts."""
     root = Path(root) if root else Path(__file__).resolve().parents[1]
+    feedback = ""
     for _attempt in range(MAX_ATTEMPTS):
         run_node(state, node, output_dir=output_dir)
         item = state.nodes[node]
         if item.status != "awaiting_host":
             return state
         prompt = render(item.request, root, node=node)
+        if feedback:
+            # Asking the same question twice returns the same answer; the node's
+            # own complaint is what the model has to act on.
+            prompt = (feedback + "\n\n" + prompt)
         reply = generate(prompt)
         result = _coerce(node, parse_result(reply))
         apply_host_result(state, node, result)
         if state.nodes[node].status in {"passed", "blocked"}:
             return state
+        reason = state.nodes[node].message or "上一次回答没有通过本节点的检查"
+        feedback = f"上一次的回答被本节点拒绝，原因：{reason}\n请针对这个原因修正，重新给出完整结果。"
     return state
