@@ -131,6 +131,16 @@ def send_message(conversation_id: str, payload: MessageCreate, request: Request,
                 headers={"Retry-After": str(limit.retry_after), "X-RateLimit-Dimension": limit.dimension},
             )
         pricing = (manifest.pricing if manifest else {}) or {}
+        # One user could otherwise occupy every worker slot. A cap of two still
+        # allows the "send a new message to supersede" flow.
+        max_active = max(1, int(os.getenv("AGENT_MAX_ACTIVE_RUNS_PER_USER", "2")))
+        active = conversation_repository.count_active_runs(user_id)
+        if active >= max_active:
+            raise HTTPException(
+                status_code=429,
+                detail=f"你有 {active} 个创作任务正在执行，请等当前任务完成后再继续",
+                headers={"Retry-After": "30", "X-RateLimit-Dimension": "active-runs"},
+            )
         points = int(pricing.get("base_points", os.getenv("AGENT_AUTO_RESERVE_POINTS", "10")))
         feature = manifest.name if manifest else "自动 Skill 创作"
         # One creation is capped, not one message: a finished article took four

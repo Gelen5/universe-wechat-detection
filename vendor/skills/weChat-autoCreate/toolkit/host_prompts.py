@@ -41,9 +41,9 @@ def render(request: Dict[str, Any], root: str | Path) -> str:
     state_fields = request.get("state_fields")
     if state_fields:
         parts.append("\n--- 可用状态（只使用这里的可追溯事实） ---\n"
-                     + json.dumps(state_fields, ensure_ascii=False, indent=1))
+                     + json.dumps(state_fields, ensure_ascii=False, indent=1, default=str))
     contract = request.get("output_contract") or {}
     parts.append("\n--- 输出契约 ---\n"
-                 + json.dumps(contract, ensure_ascii=False, indent=1)
+                 + json.dumps(contract, ensure_ascii=False, indent=1, default=str)
                  + "\n只返回满足该契约的 JSON 对象，不要输出解释或 Markdown 代码块以外的内容。")
     return "\n".join(parts)

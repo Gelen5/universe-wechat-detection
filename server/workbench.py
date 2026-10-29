@@ -610,6 +610,47 @@ weChat-autoCreate Skill 热点脚本真实返回（status={hotspot_status}）：
     return result
 
 
+# Labels that fit any article. A section titled with one of these carries no
+# argument, and the draft that follows inherits the template.
+_TEMPLATE_HEADINGS = (
+    '判断一', '判断二', '判断三', '判断四', '分节', '开篇', '核心观点', '首先',
+    '其次', '最后', '背景介绍', '问题分析', '解决方案', '总结', '结语', '前言',
+)
+
+
+def _outline_sections(data: dict[str, Any]) -> list[dict[str, str]]:
+    """Normalise the outline contract: one object per section.
+
+    The skill's strategy node declares ``outline: array<object>``. A plain string
+    array can only hold a label, which is why every article came back with the
+    same skeleton; objects carry the argument each section makes.
+    """
+    sections: list[dict[str, str]] = []
+    for item in (data.get('outline') or []):
+        if isinstance(item, dict):
+            heading = str(item.get('heading') or item.get('title') or '').strip()
+            claim = str(item.get('claim') or item.get('summary') or '').strip()
+            evidence = str(item.get('evidence') or '').strip()
+        else:
+            heading, claim, evidence = str(item).strip(), '', ''
+        if not heading:
+            continue
+        sections.append({'heading': heading, 'claim': claim, 'evidence': evidence or 'none'})
+    return sections
+
+
+def _templated_headings(headings: list[str]) -> list[str]:
+    """Headings that would fit any article: template labels, not short titles."""
+    flagged = []
+    for heading in headings:
+        text = heading.strip().strip('|｜：: ')
+        if not text:
+            continue
+        if any(word in text for word in _TEMPLATE_HEADINGS):
+            flagged.append(heading)
+    return flagged
+
+
 def _framework(title: str, persona: str, requirements: str = '', session=None) -> dict[str, Any]:
     from . import writing_guidance
     _require_skill()
@@ -644,9 +685,24 @@ SCQA、AIDA等只可作为可选工具，不是正文必须执行的章节模板
 material_gaps只作为编辑记录，不自动变成正文中的声明、风险章节或待填清单。
 writing_strategy.article_type使用story、opinion、tutorial、news、review、explainer、unspecified之一；无法从需求与材料确定时才用unspecified。
 {extra_strategy}
-只返回合法JSON：{{"name":"本篇推进方式","reason":"为什么适合这篇材料和读者","outline":["具体内容标题","具体内容标题"],"writing_strategy":{{"article_type":"按实际文体选择","reader_question":"本篇只解决的读者问题","expression_mode":"具体表达方式","structure_rationale":"内容如何逐步推进","opening":"适合本篇的开头方式","ending":"适合本篇的收束方式","available_materials":[],"material_gaps":[],"forbidden_additions":["无依据的现实经历、对话、数字和效果"]}}}}。""",
+只返回合法JSON：{{"name":"本篇推进方式","reason":"为什么适合这篇材料和读者","outline":[{{"heading":"这一节的标题：一句带判断的完整话，不是分类标签","claim":"这一节论证或解决的具体问题","evidence":"依据的材料条目；没有就写 none"}}],"writing_strategy":{{"article_type":"按实际文体选择","reader_question":"本篇只解决的读者问题","expression_mode":"具体表达方式","structure_rationale":"内容如何逐步推进","opening":"适合本篇的开头方式","ending":"适合本篇的收束方式","available_materials":[],"material_gaps":[],"forbidden_additions":["无依据的现实经历、对话、数字和效果"]}}}}。
+outline 的每一节：heading 必须是本篇文章独有的判断或具体动作，禁止使用「判断一」「分节二」「开篇切入」「核心观点」「首先/其次/最后」「背景—问题—方法—总结」这类可套用到任何文章的标签；claim 要把这一节要讲清的事写具体。""",
                      model=_setting("WECHAT_OUTLINE_MODEL") or None)
-    outline = [str(item).strip() for item in (data.get("outline") or []) if str(item).strip()]
+    sections = _outline_sections(data)
+    templated = _templated_headings([section['heading'] for section in sections])
+    if templated:
+        # Labelled sections carry no argument, so the draft inherits a template.
+        # One focused retry; a second template answer is accepted with a mark
+        # rather than failing a task the user already paid for.
+        data = _json_text(f"""{instructions}
+当前只执行框架节点。上一版的这些小节标题是可套用到任何文章的标签，不是本篇的判断：
+{json.dumps(templated, ensure_ascii=False)}
+按要求重写：每节 heading 写成本篇文章独有的判断或具体动作，claim 说明这一节讲清什么，evidence 写依据材料条目（没有就写 none）。
+只返回合法JSON：{{"name":"本篇推进方式","reason":"为什么适合这篇材料和读者","outline":[{{"heading":"这句标题本身就是一个判断","claim":"这一节讲清的具体问题","evidence":"材料条目或 none"}}],"writing_strategy":{{"article_type":"按实际文体选择","reader_question":"本篇只解决的读者问题","expression_mode":"具体表达方式","structure_rationale":"内容如何逐步推进","opening":"适合本篇的开头方式","ending":"适合本篇的收束方式","available_materials":[],"material_gaps":[],"forbidden_additions":["无依据的现实经历、对话、数字和效果"]}}}}""",
+                         model=_setting("WECHAT_OUTLINE_MODEL") or None)
+        sections = _outline_sections(data)
+        templated = _templated_headings([section['heading'] for section in sections])
+    outline = [section['heading'] for section in sections]
     if len(outline) < 2:
         raise ProviderError("文本 API 返回的文章框架不完整")
     strategy = data.get('writing_strategy')
@@ -654,7 +710,7 @@ writing_strategy.article_type使用story、opinion、tutorial、news、review、
         strategy = {'article_type': 'unspecified', 'expression_mode': '服从原需求与现有材料，不预设叙事类型',
                     'available_materials': [], 'material_gaps': ['未返回详细表达策略，按原需求与证据写作'],
                     'forbidden_additions': ['无依据的人物经历、对话、数字和效果']}
-    result = {"name": str(data.get("name") or "按材料组织"), "reason": str(data.get("reason") or "根据主题自动选择"), "outline": outline, "source": "text-api", 'research': research, 'writing_strategy': strategy}
+    result = {"name": str(data.get("name") or "按材料组织"), "reason": str(data.get("reason") or "根据主题自动选择"), "outline": outline, "outline_sections": sections, "outline_quality": ('template' if templated else 'specific'), "source": "text-api", 'research': research, 'writing_strategy': strategy}
     _record_skill(session, 2, '框架 Skill：检索素材并选择文章结构', manifest, [], 'passed', f'框架 {result["name"]}')
     return result
 

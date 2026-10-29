@@ -156,6 +156,49 @@ def create_conversation(user_id: str, *, title: str = "新对话", skill_id: str
         return _conversation_view(row)
 
 
+def count_active_runs(user_id: str) -> int:
+    """Runs this user currently has executing on a worker.
+
+    Only ``running`` counts: queued messages are normal (a user may line up the
+    next instruction while the current one executes) and must not trip the cap.
+    The cap exists so one user cannot occupy every worker slot.
+    """
+    with session_scope() as db:
+        total = db.scalar(select(func.count(AgentRun.id)).where(
+            AgentRun.user_id == user_id,
+            AgentRun.status == "running",
+        ))
+    return int(total or 0)
+
+
+def get_skill_state(conversation_id: str, user_id: str) -> dict[str, Any] | None:
+    """The vendored workflow's ArticleState for this conversation, if any."""
+    with session_scope() as db:
+        row = db.scalar(select(Conversation).where(
+            Conversation.id == conversation_id, Conversation.user_id == user_id,
+        ))
+        if not row:
+            return None
+        return (row.metadata_json or {}).get("skill_state")
+
+
+def set_skill_state(conversation_id: str, user_id: str, payload: dict[str, Any] | None) -> None:
+    """Persist the workflow state, or drop it when payload is None."""
+    with session_scope() as db:
+        row = db.scalar(select(Conversation).where(
+            Conversation.id == conversation_id, Conversation.user_id == user_id,
+        ).with_for_update(key_share=True))
+        if not row:
+            return
+        metadata = dict(row.metadata_json or {})
+        if payload is None:
+            metadata.pop("skill_state", None)
+        else:
+            metadata["skill_state"] = payload
+        row.metadata_json = metadata
+        row.updated_at = _now()
+
+
 def get_conversation(conversation_id: str, user_id: str) -> dict[str, Any] | None:
     with session_scope() as db:
         row = db.scalar(select(Conversation).where(

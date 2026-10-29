@@ -8,7 +8,7 @@ from server.providers import call_context
 from server import conversation_repository
 from server.skills.adapter_support import article_result, model_image, required_text, topics_result, with_provider
 from server.skills.tool_result import ArtifactOutput, ToolResult
-from server import workbench
+from server import skill_host, workbench
 
 
 def create_tools():
@@ -66,11 +66,20 @@ def create_tools():
 
     def create_outline(args, context):
         title = required_text(args, "title")
+        requirements = str(args.get("requirements") or "")
+        persona = str(args.get("persona") or "深度观察者")
         progress = progress_for(context)
         progress("generating", {"label": "生成大纲"})
-        frame = with_provider(lambda: workbench._framework(
-            title, str(args.get("persona") or "深度观察者"),
-            str(args.get("requirements") or "")))
+        if skill_host.enabled() and getattr(context, "conversation_id", None):
+            # The vendored workflow owns the node contract; the platform only
+            # supplies the model. This is what keeps headings from collapsing
+            # back into 「判断一/分节二」 labels.
+            state = skill_host.for_conversation(
+                context.conversation_id, context.user_id,
+                brief=f"{title}\n{requirements}".strip(), upto="strategy", persona=persona)
+            frame = skill_host.frame_from_state(state)
+        else:
+            frame = with_provider(lambda: workbench._framework(title, persona, requirements))
         outline = "\n".join(f"{index}. {part}" for index, part in enumerate(frame["outline"], 1))
         progress("generated", {"label": "大纲已生成", "count": len(frame["outline"])})
         return ToolResult({"title": title, "framework": frame}, (
@@ -92,6 +101,17 @@ def create_tools():
             user_request = str(trigger.get('content') or '').strip()
             if user_request and user_request not in requirements:
                 requirements += '\n用户当次原始要求（优先于工具转述）：\n' + user_request
+        progress = progress_for(context)
+        if skill_host.enabled() and getattr(context, "conversation_id", None):
+            progress("generating", {"label": "生成正文"})
+            state = skill_host.for_conversation(
+                context.conversation_id, context.user_id,
+                brief=f"{title}\n{requirements}".strip(), upto="draft", persona=persona)
+            article = state.draft or ""
+            if not article.strip():
+                raise ValueError("写作节点未返回正文")
+            progress("generated", {"label": "正文已生成", "count": len(article)})
+            return article_result(state.selected_title or title, article)
         frame = args.get("framework")
         saved_outline = latest_artifact(context, "outline")
         if saved_outline:
@@ -123,6 +143,24 @@ def create_tools():
         saved_article = latest_artifact(context, "article")
         article = (saved_article or {}).get("content") or required_text(args, "article")
         requirements = str(args.get("requirements") or "").strip()
+        if skill_host.enabled() and getattr(context, "conversation_id", None):
+            # Review runs as the workflow's own node, which owns the gates and
+            # the quality report instead of an anchored string-replacement loop.
+            state = skill_host.for_conversation(
+                context.conversation_id, context.user_id,
+                brief=requirements or str(args.get("title") or "公众号文章"), upto="review")
+            reviewed = state.draft or article
+            report = dict(state.quality_report or {})
+            report.setdefault('gate', 'passed' if not report.get('blocked') else 'needs_review')
+            report.setdefault('changed', reviewed != article)
+            report.setdefault('summary', '已按 Skill 复核节点完成检查；请人工确认事实与语气。')
+            progress_for(context)("generated", {"label": report['summary'], "count": len(reviewed)})
+            return ToolResult({"title": str(args.get("title") or state.selected_title or "公众号文章"),
+                               "article": reviewed, "review": report}, (
+                ArtifactOutput(type="article", title=str(args.get("title") or state.selected_title or "公众号文章"),
+                               content=reviewed),
+                ArtifactOutput(type="report", title="Skill 复核报告", content_json=report),
+            ))
         session = {
             "id": f"{context.run_id}-review-{uuid.uuid4().hex[:12]}",
             "topic": str(args.get("title") or "公众号文章"),

@@ -27,6 +27,9 @@ def _register(client, suffix):
 
 class ConversationBudgetTests(unittest.TestCase):
     def setUp(self):
+        # This file tests the points cap, not the active-run cap.
+        self.env = patch.dict('os.environ', {'AGENT_MAX_ACTIVE_RUNS_PER_USER': '99'})
+        self.env.start()
         self.client = TestClient(app)
         suffix = id(self)
         self.user = _register(self.client, suffix)
