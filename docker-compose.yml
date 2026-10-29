@@ -70,6 +70,9 @@ services:
   worker:
     build: .
     restart: unless-stopped
+    # Celery handles SIGTERM as a warm shutdown; allow active article jobs to
+    # finish before Compose kills the old worker during a deploy.
+    stop_grace_period: 5m
     environment: *app-env
     env_file: .env
     command: ["celery", "-A", "server.celery_app:celery_app", "worker", "-Q", "chat,text,image,external,workflow", "--loglevel=INFO", "--concurrency=${CELERY_WORKER_CONCURRENCY:-4}"]

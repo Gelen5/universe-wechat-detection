@@ -30,8 +30,8 @@ def _emit_progress(run_id: str, user_id: str, event: str, payload: dict) -> None
 def _heartbeat_interval() -> float:
     """How often the lease supervisor renews a run while a tool blocks.
 
-    The stale-run scan default is 720s, so renewing every 60s by default keeps
-    a healthy but slow tool far away from being mistaken for a dead worker.
+    The stale-run scan waits for three missed 60-second heartbeats, so a
+    healthy but slow tool remains distinguishable from a dead worker.
     """
     try:
         return max(5.0, float(os.getenv("AGENT_HEARTBEAT_INTERVAL", "60") or 60))

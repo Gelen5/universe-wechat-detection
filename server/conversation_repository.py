@@ -637,7 +637,12 @@ def run_lease_owned(run_id: str, task_id: str) -> bool:
         )))
 
 
-def recover_stale_runs(stale_seconds: int = 720) -> list[str]:
+def recover_stale_runs(stale_seconds: int = 180) -> list[str]:
+    """Requeue a run after three missed 60-second worker heartbeats.
+
+    A deploy can stop a worker mid-request. The old 12-minute threshold left
+    the UI polling a run that had no owner long after the provider call ended.
+    """
     cutoff = _now() - timedelta(seconds=max(60, stale_seconds))
     recovered: list[str] = []
     with session_scope() as db:
