@@ -124,3 +124,8 @@ body.atelier #tie-tu .tie-mode-switch button:focus-visible { outline:3px solid #
 body.atelier #tie-tu .tie-mode-hint { margin:12px 2px 14px!important; color:#526d5d!important; font-size:14px!important; line-height:1.6; }
 body.atelier #tie-tu .tie-mode-activity { margin:0 2px 14px; padding:9px 12px; border-radius:10px; color:#365f49; background:rgba(216,239,224,.8); font-size:14px; line-height:1.5; }
 body.atelier #tie-tu .creator-conversation:not([hidden]) { margin:0 0 8px; }
+
+/* Make in-flight image actions visibly unavailable. */
+body.atelier #tie-tu #tie-images:disabled { background:#d7dfda!important; color:#59675f!important; box-shadow:none!important; cursor:not-allowed; opacity:1; pointer-events:none; }
+body.atelier #tie-tu .image-elapsed { font-size:14px; color:#496454; white-space:nowrap; }
+body.atelier #tie-tu .generation-progress > div:first-child { flex-wrap:wrap; gap:10px; }

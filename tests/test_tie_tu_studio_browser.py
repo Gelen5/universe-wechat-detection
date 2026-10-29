@@ -123,3 +123,30 @@ def test_result_cards_keep_portrait_ratio_without_stretching(ui, width, count):
         assert box['width'] <= 361
         assert abs(slot['width'] / slot['height'] - .75) < .01
     assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+
+def test_image_generation_disables_button_and_shows_elapsed_time(ui):
+    page, state = ui
+    page.goto('http://ui.test/tie-tu')
+    page.evaluate('''() => {
+      window.imageCalls=0;
+      postCreator=async (url,body,signal,onAccepted) => {
+        window.imageCalls++;
+        onAccepted?.({status:'queued'});
+        await new Promise(resolve => window.finishImage=resolve);
+        throw new Error('测试接口失败');
+      };
+      renderTiePlan({title:'测试',session_id:'test',cards:[{index:1,overlay_text:'早安',card_brief:{}}]});
+    }''')
+    button=page.locator('#tie-images')
+    button.click()
+    expect(button).to_be_disabled()
+    expect(button).to_have_attribute('aria-busy','true')
+    expect(page.locator('#tie-result .generation-progress strong')).to_have_text('排队中，等待图片服务')
+    page.wait_for_timeout(1100)
+    expect(page.locator('#tie-result .image-elapsed')).not_to_have_text('已耗时 0 秒')
+    assert page.evaluate('window.imageCalls') == 1
+    page.evaluate('window.finishImage()')
+    expect(button).to_be_enabled()
+    expect(page.locator('#tie-result .generation-progress strong')).to_have_text('生成中断')
+    expect(page.locator('#tie-result .cancel-generation')).to_have_count(0)
+    assert state['errors'] == []

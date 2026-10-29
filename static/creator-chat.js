@@ -177,9 +177,12 @@
       event.preventDefault();
       if (controller || restoring || !input.value.trim()) return;
       controller = new AbortController(); button.disabled = true; reset.disabled = true; cancel.hidden = false; progress.hidden = false;
+      const imageButton = skill === 'tie-tu' ? document.querySelector('#tie-images') : null;
+      const imageLabel = imageButton?.textContent;
+      if (imageButton) { imageButton.disabled = true; imageButton.setAttribute('aria-busy', 'true'); imageButton.textContent = '正在处理 · 0 秒'; }
       const requestOwner = owner;
       const started = Date.now(); let jobStatus = 'queued'; status.textContent = '正在提交…';
-      const timer = setInterval(() => { status.textContent = `${jobStatus === 'queued' ? '等待任务执行' : '正在处理'} · ${Math.floor((Date.now()-started)/1000)} 秒`; }, 1000);
+      const timer = setInterval(() => { if (imageButton?.isConnected) imageButton.textContent = `正在处理 · ${Math.floor((Date.now()-started)/1000)} 秒`; status.textContent = `${jobStatus === 'queued' ? '等待任务执行' : '正在处理'} · ${Math.floor((Date.now()-started)/1000)} 秒`; }, 1000);
       try {
         const data = await submitQueuedTask('creator_chat', {skill, message: input.value.trim(), session_id: session?.id || null}, controller.signal, job => {
           jobStatus = job.status || jobStatus;
@@ -198,6 +201,7 @@
           if (response?.ok) { const data = await response.json(); if (owner === requestOwner) show(data.session); }
         }
       } finally {
+        if (imageButton?.isConnected) { imageButton.disabled = false; imageButton.removeAttribute('aria-busy'); imageButton.textContent = imageLabel; }
         clearInterval(timer); controller = null; button.disabled = false; reset.disabled = false; cancel.hidden = true; progress.hidden = true;
       }
     });

@@ -1202,7 +1202,7 @@ renderChatThread(null);
 renderOutline({});
 syncWorkbenchModePicker();
 
-async function postCreator(path, payload, signal) {
+async function postCreator(path, payload, signal, onAccepted) {
   const taskTypes = {
     '/api/xiaohongshu/package': 'xiaohongshu',
     '/api/tie-tu/plan': 'tie_tu',
@@ -1216,7 +1216,7 @@ async function postCreator(path, payload, signal) {
       : path === '/api/hit-detector/analyze' ? { title: payload.title, body: payload.body, track: payload.track, fans: payload.fans, open_rate: payload.openRate }
       : path === '/api/hit-detector/rewrite' ? { title: payload.title, body: payload.body, detector_result: payload.detectorResult }
       : { tool: payload.tool, session_id: payload.sessionId, card: payload.card, style: payload.style };
-    return submitQueuedTask(taskTypes[path], taskPayload, signal);
+    return submitQueuedTask(taskTypes[path], taskPayload, signal, onAccepted);
   }
   const response = await fetch(path, {
     method: 'POST',
@@ -1255,7 +1255,7 @@ function beginButton(button, label) {
 }
 
 function renderSkillProgress(root, total) {
-  root.insertAdjacentHTML('afterbegin', `<div class="generation-progress"><div><strong>正在生成图片</strong><span class="progress-copy">0 / ${total}</span></div><div class="progress-track"><i style="width:0%"></i></div><button class="cancel-generation" type="button">取消</button></div>`);
+  root.insertAdjacentHTML('afterbegin', `<div class="generation-progress"><div><strong>正在生成图片</strong><span class="progress-copy">0 / ${total}</span><span class="image-elapsed" role="status">已耗时 0 秒</span></div><div class="progress-track"><i style="width:0%"></i></div><button class="cancel-generation" type="button">取消</button></div>`);
   return root.querySelector('.generation-progress');
 }
 
@@ -1263,11 +1263,17 @@ let imageGenerationController = null;
 async function generateSkillImages(tool, sessionId, cards, style, grid, onImage = null) {
   imageGenerationController?.abort();
   imageGenerationController = new AbortController();
+  grid.parentElement.querySelectorAll('.generation-progress').forEach(el => el.remove());
   const progress = renderSkillProgress(grid.parentElement, cards.length);
+  const started = Date.now();
+  const elapsed = () => { progress.querySelector('.image-elapsed').textContent = `已耗时 ${Math.floor((Date.now()-started)/1000)} 秒`; };
+  const timer = setInterval(elapsed, 1000);
   progress.querySelector('.cancel-generation').addEventListener('click', () => imageGenerationController.abort());
   try {
     for (let index = 0; index < cards.length; index += 1) {
-      const data = await postCreator('/api/creator-tools/image', { tool, sessionId, card: cards[index], style }, imageGenerationController.signal);
+      const data = await postCreator('/api/creator-tools/image', { tool, sessionId, card: cards[index], style }, imageGenerationController.signal, job => {
+        progress.querySelector('strong').textContent = job.status === 'queued' ? '排队中，等待图片服务' : '正在生成图片';
+      });
       onImage?.(data.image);
       const target = grid.querySelector(`[data-card-index="${data.image.index}"]`);
       if (target) {
@@ -1292,6 +1298,8 @@ async function generateSkillImages(tool, sessionId, cards, style, grid, onImage 
       showToast(error.message, 'error');
     }
   } finally {
+    clearInterval(timer); elapsed();
+    progress.querySelector('.cancel-generation')?.remove();
     imageGenerationController = null;
   }
 }
@@ -1365,9 +1373,11 @@ function renderTiePlan(plan) {
     }
     const button = event.currentTarget;
     button.disabled = true;
+    button.setAttribute('aria-busy', 'true');
+    button.textContent = '正在生成图片…';
     try {
     await generateSkillImages('tie-tu', plan.session_id, selected.map(card => ({...card, portrait_enabled: plan.portrait_enabled})), document.querySelector('#tie-style').value.trim(), root.querySelector('.creator-card-grid'), image => completed.add(Number(image.index)));
-    } finally { button.disabled = false; }
+    } finally { button.disabled = false; button.removeAttribute('aria-busy'); button.textContent = buttonLabel(); }
     if (completed.size) {
       pilotDone = completed.has(Number(cards[0].index));
       button.hidden = !remaining().length;
