@@ -25,6 +25,7 @@ from .qihaoshou import router as qihaoshou_router
 from .bookshelf import router as bookshelf_router
 from .market import router as market_router
 from .hotspots import router as hotspots_router
+from .alipay_pay import router as alipay_pay_router
 from .workflow_events import redis_ready
 from .observability import event as log_event
 from .auth_rate_limit import check_auth_attempt, record_auth_result, client_ip
@@ -51,6 +52,7 @@ app.include_router(qihaoshou_router)
 app.include_router(bookshelf_router)
 app.include_router(market_router)
 app.include_router(hotspots_router)
+app.include_router(alipay_pay_router)
 
 
 async def request_observability(request: Request, call_next):
@@ -108,9 +110,12 @@ async def account_and_points_gate(request: Request, call_next):
     public_market = request.method == "GET" and (path.startswith("/api/market/")
                      or path.startswith("/api/hotspots"))
     public_refresh = request.method == "POST" and path == "/api/hotspots/refresh"
+    # 支付宝收银接口按协议对外：异步通知由支付宝服务器直连 POST，下单/查询/退款
+    # 走订单号与服务端记录，不依赖登录态；管理动作仍应另行加保护。
+    public_pay = path.startswith("/api/pay/alipay/")
     # Logout also clears expired/revoked cookies. Requiring an active session
     # prevents a stale browser from ever completing that cleanup.
-    public_api = path in {"/api/auth/register", "/api/auth/login", "/api/auth/logout"} or public_market or public_refresh
+    public_api = path in {"/api/auth/register", "/api/auth/login", "/api/auth/logout"} or public_market or public_refresh or public_pay
     user = accounts.user_from_request(request)
     request.state.user = user
     if path.startswith("/api/") and not public_api and not user:
@@ -130,7 +135,7 @@ async def account_and_points_gate(request: Request, call_next):
 
     # The long-running full workbench owns billing in its background job so a
     # later provider failure can refund points after the HTTP response returned.
-    rule = accounts.pricing_rule(request.method, path) if user and path not in {"/api/workbench/sessions", "/api/qihaoshou/generate"} else None
+    rule = accounts.pricing_rule(request.method, path) if user and path not in {"/api/workbench/sessions", "/api/qihaoshou/generate"} and not public_pay else None
     usage_id = None
     started = time.perf_counter()
     if rule:
