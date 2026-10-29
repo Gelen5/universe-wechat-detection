@@ -569,7 +569,10 @@ def create_order(payload: CreateOrderPayload, request: Request) -> JSONResponse:
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    config = load_payment_config()
+    try:
+        config = load_payment_config()
+    except PaymentConfigError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     out_trade_no = (payload.out_trade_no or "").strip() or _new_out_trade_no()
     now = _now()
     try:
