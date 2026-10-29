@@ -27,7 +27,7 @@ def _read_references(root: Path, names: list[str]) -> list[str]:
     return chunks
 
 
-def render(request: Dict[str, Any], root: str | Path) -> str:
+def render(request: Dict[str, Any], root: str | Path, node: str = "") -> str:
     """Build the prompt for one host request."""
     root = Path(root)
     parts = [
@@ -46,4 +46,13 @@ def render(request: Dict[str, Any], root: str | Path) -> str:
     parts.append("\n--- 输出契约 ---\n"
                  + json.dumps(contract, ensure_ascii=False, indent=1, default=str)
                  + "\n只返回满足该契约的 JSON 对象，不要输出解释或 Markdown 代码块以外的内容。")
+    if node == "research":
+        parts.append(
+            "\n--- evidence_pack 必须的形状（照此返回，sources 是对象不是数组） ---\n"
+            '{"evidence_pack": {"sources": {"records": [{"source_id": "s1", "url": "", '
+            '"title": "", "retrieved_at": "", "kind": "web"}]}, '
+            '"claims": [{"claim_id": "c1", "text": "一条可核对的主张", "kind": "fact", '
+            '"materiality": "key", "status": "verified", "source_ids": ["s1"]}], '
+            '"research_status": "complete", "limitations": []}}\n'
+            "没有来源支撑的主张不要写成 fact；把它降级为 inference 或放入 limitations。")
     return "\n".join(parts)
