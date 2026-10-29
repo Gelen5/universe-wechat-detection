@@ -29,19 +29,19 @@ def generate(payload: dict[str, Any]) -> dict[str, Any]:
         if not api_key:
             raise ImageProviderError("服务端尚未配置图片 API Key")
         base_url = workbench._setting("WECHAT_IMAGE_API_BASE_URL") or workbench._setting("WECHAT_API_BASE_URL", "https://api.openai.com/v1")
+        requested_size = str(payload.get("size") or "1024x1365")
         body = {
             "model": workbench._setting("WECHAT_IMAGE_MODEL") or str(payload.get("model") or "gpt-image-2"),
             "prompt": str(payload.get("prompt") or ""),
-            "size": str(payload.get("size") or "1024x1365"),
+            "size": _request_size(requested_size, workbench._setting("WECHAT_IMAGE_MODEL") or str(payload.get("model") or "gpt-image-2")),
             "n": int(payload.get("n") or 1),
         }
         if not body["prompt"].strip():
             raise ImageProviderError("图片提示词不能为空")
-        # Relay image models (e.g. gpt-image-2.5 on latentide) pick the output
-        # aspect ratio from the prompt and ignore the `size` field, so a square
-        # or 3:4 request comes back landscape. State the ratio inside the prompt
-        # and then force the exact pixel size on the way out.
-        hint = _ratio_hint(body["size"])
+        # gpt-image-2.5 only accepts `size=auto` and composes the frame itself,
+        # so a square or 3:4 request came back landscape. State the wanted ratio
+        # inside the prompt, then force the exact pixel size on the way out.
+        hint = _ratio_hint(requested_size)
         if hint:
             body["prompt"] = f"{body['prompt'].strip()}\n\n{hint}"
         from .providers import ModelService, OpenAICompatibleProvider, ProviderRequestError
@@ -73,7 +73,18 @@ def generate(payload: dict[str, Any]) -> dict[str, Any]:
             )
         except ProviderRequestError as exc:
             raise ImageProviderError(f"图片接口请求失败：{exc}") from exc
-        return _fit_images(result, body["size"])
+        return _fit_images(result, requested_size)
+
+
+# Models that reject an explicit pixel size and only accept `auto`; they pick
+# the frame themselves, so the size has to be enforced after the fact.
+_AUTO_ONLY_MODELS = ("gpt-image",)
+
+
+def _request_size(size: str, model: str) -> str:
+    """The `size` value the provider will actually accept for this model."""
+    name = model.strip().lower()
+    return "auto" if any(name.startswith(prefix) for prefix in _AUTO_ONLY_MODELS) else size
 
 
 _SIZE_PATTERN = re.compile(r"^\s*(\d{2,5})\s*[xX*]\s*(\d{2,5})\s*$")
