@@ -288,6 +288,43 @@ def _generate(state: Any, node: str) -> Callable[[str], str]:
     return call
 
 
+def evidence_mode() -> str:
+    """auto (default), strict (never downgrade), lenient (downgrade freely)."""
+    return (os.getenv("WECHAT_EVIDENCE_MODE", "auto") or "auto").strip().lower()
+
+
+def _downgrade_claims(state: Any) -> list[str]:
+    """Demote unsourced key claims instead of failing the whole creation.
+
+    The workflow blocks when a *key* claim has no traceable evidence. On a topic
+    like 「普通人如何搞副业」 no such evidence exists, so blocking means the user
+    pays and gets nothing. Demoting the claim to supporting keeps the wording
+    honest (it is recorded as an assumption) while letting the article ship.
+    """
+    demoted: list[str] = []
+    for claim in getattr(state.evidence_pack, 'claims', []) or []:
+        if getattr(claim, 'materiality', '') != 'key':
+            continue
+        if getattr(claim, 'status', '') in {'verified', 'user_provided', 'illustrative'}:
+            continue
+        claim.materiality = 'supporting'
+        demoted.append(str(getattr(claim, 'text', '') or getattr(claim, 'claim_id', '')))
+    if demoted:
+        state.evidence_pack.limitations = list(getattr(state.evidence_pack, 'limitations', []) or []) + [
+            f'以下主张缺少可核验来源，已按经验判断处理：{"；".join(demoted[:5])}']
+        state.degradations.append({'node': 'research', 'reason': 'unsourced_key_claims',
+                                   'claims': demoted, 'user_visible': True})
+    return demoted
+
+
+def downgraded_claims(state: Any) -> list[str]:
+    """Claims this run had to treat as assumptions, for the review report."""
+    for item in reversed(getattr(state, 'degradations', []) or []):
+        if item.get('reason') == 'unsourced_key_claims':
+            return list(item.get('claims') or [])
+    return []
+
+
 def run_to(state: Any, upto: str, *, on_node: Callable[[str], None] | None = None) -> Any:
     """Advance the workflow until ``upto`` passes, raising GateBlocked otherwise."""
     _state, workflow, runtime = _modules()
@@ -303,11 +340,29 @@ def run_to(state: Any, upto: str, *, on_node: Callable[[str], None] | None = Non
                                   root=str(workbench.SKILL_DIR))
         except workflow.WorkflowBlocked as exc:            # skill refused to continue
             reason = str(getattr(exc, "message", "") or exc) or state.nodes[node].message
+            if node == 'research' and evidence_mode() != 'strict' and _downgrade_claims(state):
+                log_event('skill_host.evidence_downgraded', reason=reason[:200])
+                state.nodes[node].status = 'pending'
+                state.nodes[node].message = ''
+                try:
+                    runtime.run_node_with(state, node, _generate(state, node),
+                                          root=str(workbench.SKILL_DIR))
+                except workflow.WorkflowBlocked:
+                    pass
+            if state.nodes[node].status == 'passed':
+                log_event('skill_host.node', node=node, status='passed')
+                continue
             log_event("skill_host.gate_blocked", node=node, reason=reason[:300])
             raise GateBlocked(reason) from exc
         status = state.nodes[node].status
         log_event("skill_host.node", node=node, status=status)
         if status == "blocked":
+            if node == 'research' and evidence_mode() != 'strict' and _downgrade_claims(state):
+                state.nodes[node].status = 'pending'
+                runtime.run_node_with(state, node, _generate(state, node),
+                                      root=str(workbench.SKILL_DIR))
+                if state.nodes[node].status == 'passed':
+                    continue
             reason = state.nodes[node].message or f"{node} 未通过前置检查"
             raise GateBlocked(reason)
         if status != "passed":

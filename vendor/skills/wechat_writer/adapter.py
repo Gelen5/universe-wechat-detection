@@ -135,6 +135,12 @@ def create_tools():
             humanness = skill_host.score_article(article)
             if humanness:
                 report['humanness'] = humanness
+            # Claims that had to be treated as assumptions, so the user can see
+            # what is not sourced instead of a technical gate error.
+            downgraded = skill_host.downgraded_claims(state) if 'state' in dir() else []
+            if downgraded:
+                report['evidence'] = {'mode': 'degraded', 'unsourced': downgraded[:5],
+                                      'note': '以下内容按经验判断处理，未引用外部数据'}
             progress("generated", {"label": "正文已生成", "count": len(article)})
             outputs = []
             # write_article advances the workflow through the strategy node, so

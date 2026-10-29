@@ -84,9 +84,22 @@ class SkillHostTests(unittest.TestCase):
                         'kind': 'fact', 'materiality': 'key', 'status': 'unverified'}],
             'research_status': 'complete', 'limitations': [],
         }}
-        with self.assertRaises(skill_host.GateBlocked) as caught:
-            self._run('strategy', TOPIC, blocked)
+        with patch.dict('os.environ', {'WECHAT_EVIDENCE_MODE': 'strict'}):
+            with self.assertRaises(skill_host.GateBlocked) as caught:
+                self._run('strategy', TOPIC, blocked, blocked)
         self.assertIn('证据', str(caught.exception))
+
+    def test_default_mode_downgrades_instead_of_blocking(self):
+        blocked = {'evidence_pack': {
+            'sources': {'records': []},
+            'claims': [{'claim_id': 'c1', 'text': '研究表明 80% 的创作者会放弃',
+                        'kind': 'fact', 'materiality': 'key', 'status': 'unverified'}],
+            'research_status': 'complete', 'limitations': [],
+        }}
+        with patch.dict('os.environ', {'WECHAT_EVIDENCE_MODE': 'auto'}):
+            state = self._run('strategy', TOPIC, blocked, blocked, STRATEGY)
+        self.assertEqual('passed', state.nodes['strategy'].status)
+        self.assertTrue(skill_host.downgraded_claims(state))
 
     def test_state_round_trips_so_a_later_message_can_continue(self):
         state = self._run('strategy', TOPIC, RESEARCH_OK, STRATEGY)
