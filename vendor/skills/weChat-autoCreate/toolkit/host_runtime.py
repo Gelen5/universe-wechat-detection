@@ -119,11 +119,13 @@ def _coerce(node: str, result: Dict[str, Any]) -> Dict[str, Any]:
 def run_node_with(state: ArticleState, node: str,
                   generate: Callable[[str], str], *,
                   root: str | Path | None = None,
-                  output_dir: str | Path | None = None) -> ArticleState:
+                  output_dir: str | Path | None = None,
+                  validate_result: Callable[[Dict[str, Any]], str] | None = None,
+                  max_attempts: int | None = None) -> ArticleState:
     """Run `node` until it passes, blocking, or exhausts its attempts."""
     root = Path(root) if root else Path(__file__).resolve().parents[1]
     feedback = ""
-    for _attempt in range(MAX_ATTEMPTS):
+    for _attempt in range(max_attempts or MAX_ATTEMPTS):
         run_node(state, node, output_dir=output_dir)
         item = state.nodes[node]
         if item.status != "awaiting_host":
@@ -134,10 +136,29 @@ def run_node_with(state: ArticleState, node: str,
             # own complaint is what the model has to act on.
             prompt = (feedback + "\n\n" + prompt)
         reply = generate(prompt)
-        result = _coerce(node, parse_result(reply))
+        try:
+            result = _coerce(node, parse_result(reply))
+        except ValueError as exc:
+            if validate_result is None:
+                raise
+            feedback = f'上一次回答不是完整 JSON：{exc}。请只返回更短的完整 JSON。'
+            continue
+        issue = validate_result(result) if validate_result else ''
+        if issue:
+            feedback = f'上一次大纲未通过检查：{issue}。请只修正这个问题，返回完整、简短的 JSON；每节标题不同且无占位符。'
+            continue
+        feedback = ''
         apply_host_result(state, node, result)
+        if validate_result:
+            run_node(state, node, output_dir=output_dir)
         if state.nodes[node].status in {"passed", "blocked"}:
             return state
         reason = state.nodes[node].message or "上一次回答没有通过本节点的检查"
         feedback = f"上一次的回答被本节点拒绝，原因：{reason}\n请针对这个原因修正，重新给出完整结果。"
+    if validate_result and not feedback:
+        run_node(state, node, output_dir=output_dir)
+        if state.nodes[node].status == 'passed':
+            return state
+    if validate_result and feedback:
+        raise ValueError(f'大纲未通过质量检查：{feedback}')
     return state

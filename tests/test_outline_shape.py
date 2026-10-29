@@ -10,6 +10,28 @@ PROD_SHAPE = [
 ]
 
 class RealShapeTests(unittest.TestCase):
+    def test_specific_titles_and_plans_override_repeated_section_labels(self):
+        class State:
+            outline = [
+                {'section': '三个样本', 'section_title': '样本一：客户咨询回复',
+                 'content_plan': '展示一段客户问题和可核验的回复。'},
+                {'section': '三个样本', 'section_title': '样本二：产品介绍页',
+                 'content_plan': '展示一页产品介绍及修改依据。'},
+            ]
+        sections = skill_host.outline_sections(State())
+        self.assertEqual(['样本一：客户咨询回复', '样本二：产品介绍页'],
+                         [item['heading'] for item in sections])
+        self.assertIn('客户问题', sections[0]['claim'])
+
+    def test_repeated_labels_and_placeholders_fail_quality_gate(self):
+        bad = {'outline': [
+            {'section': '三个样本', 'content_plan': '第一个样本'},
+            {'section': '三个样本', 'content_plan': '第二个样本'},
+        ], 'writing_strategy': {'article_type': 'tutorial'}}
+        self.assertIn('重复', skill_host.outline_quality_issue(bad))
+        bad['outline'][1]['section_title'] = '样本二：{待选类型B}'
+        self.assertIn('占位符', skill_host.outline_quality_issue(bad))
+
     def test_production_style_outline_is_not_dropped(self):
         class State: outline = PROD_SHAPE
         sections = skill_host.outline_sections(State())

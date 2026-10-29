@@ -55,4 +55,11 @@ def render(request: Dict[str, Any], root: str | Path, node: str = "") -> str:
             '"materiality": "key", "status": "verified", "source_ids": ["s1"]}], '
             '"research_status": "complete", "limitations": []}}\n'
             "没有来源支撑的主张不要写成 fact；把它降级为 inference 或放入 limitations。")
+    if node == "strategy":
+        parts.append(
+            "\n--- 大纲输出约束 ---\n"
+            "除非用户明确指定段数，写 5 至 7 节。每节只保留 section_title（具体且互不重复）"
+            "和 content_plan（一句说明本节要讲什么）；writing_strategy 保留必要字段。"
+            "标题必须写出真实内容，不要用开头、判断标准、样本一等泛称，"
+            "不要出现{待选类型}等占位符。控制 JSON 长度，确保一次完整返回。")
     return "\n".join(parts)

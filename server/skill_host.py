@@ -351,6 +351,14 @@ def run_to(state: Any, upto: str, *, on_node: Callable[[str], None] | None = Non
     nodes = list(_state.ARTICLE_NODES)
     target = nodes.index(upto)
     for node in nodes[:target + 1]:
+        if node == 'strategy' and state.nodes[node].status == 'passed':
+            issue = outline_quality_issue({'outline': state.outline,
+                                           'writing_strategy': state.writing_strategy})
+            if issue:
+                state.outline = []
+                state.writing_strategy = {}
+                state.nodes[node].status = 'pending'
+                log_event('skill_host.outline_reopened', reason=issue[:120])
         if state.nodes[node].status == "passed":
             continue
         if on_node:
@@ -364,7 +372,9 @@ def run_to(state: Any, upto: str, *, on_node: Callable[[str], None] | None = Non
             continue
         try:
             runtime.run_node_with(state, node, _generate(state, node),
-                                  root=str(workbench.SKILL_DIR))
+                                  root=str(workbench.SKILL_DIR),
+                                  validate_result=outline_quality_issue if node == 'strategy' else None,
+                                  max_attempts=2 if node == 'strategy' else None)
         except workflow.WorkflowBlocked as exc:            # skill refused to continue
             reason = str(getattr(exc, "message", "") or exc) or state.nodes[node].message
             if node == 'research' and evidence_mode() != 'strict' and _downgrade_claims(state):
@@ -396,7 +406,9 @@ def run_to(state: Any, upto: str, *, on_node: Callable[[str], None] | None = Non
             # The deterministic re-check is stricter than the output contract.
             # When the node produced usable content we keep it instead of
             # throwing away a paid generation over a pedantic check.
-            usable = (node == 'strategy' and state.outline and state.writing_strategy)
+            usable = (node == 'strategy' and state.outline and state.writing_strategy
+                      and not outline_quality_issue({'outline': state.outline,
+                                                     'writing_strategy': state.writing_strategy}))
             if usable:
                 state.nodes[node].status = 'passed'
                 log_event('skill_host.accepted_partial', node=node,
@@ -417,10 +429,10 @@ def outline_sections(state: Any) -> list[dict[str, str]]:
     sections: list[dict[str, str]] = []
     for item in (state.outline or []):
         if isinstance(item, dict):
-            heading = str(item.get("heading") or item.get("title")
+            heading = str(item.get("section_title") or item.get("heading") or item.get("title")
                           or item.get("section") or "").strip()
             claim = str(item.get("claim") or item.get("summary")
-                        or item.get("purpose") or "").strip()
+                        or item.get("purpose") or item.get("content_plan") or "").strip()
             if not claim:
                 content = item.get("content")
                 if isinstance(content, list) and content:
@@ -435,6 +447,30 @@ def outline_sections(state: Any) -> list[dict[str, str]]:
         if heading:
             sections.append({"heading": heading, "claim": claim, "evidence": str(evidence)})
     return sections
+
+
+def outline_quality_issue(result: dict[str, Any]) -> str:
+    """Reject an outline that would display repeated or unfinished sections."""
+    raw = result.get('outline')
+    if not isinstance(raw, list) or len(raw) < 2:
+        return '大纲至少需要两个具体章节'
+    if not isinstance(result.get('writing_strategy'), dict) or not result['writing_strategy']:
+        return '缺少写作策略'
+    state = type('OutlineState', (), {'outline': raw})()
+    sections = outline_sections(state)
+    if len(sections) != len(raw):
+        return '有章节缺少标题'
+    seen: set[str] = set()
+    for section in sections:
+        heading, claim = section['heading'], section['claim']
+        if re.search(r'\{[^}]*待[^}]*\}|[（(]待选[^）)]*[）)]', heading + claim):
+            return f'章节仍含待填写占位符：{heading[:40]}'
+        if heading in seen:
+            return f'章节标题重复：{heading[:40]}'
+        if not claim:
+            return f'章节缺少具体内容说明：{heading[:40]}'
+        seen.add(heading)
+    return ''
 
 
 def frame_from_state(state: Any) -> dict[str, Any]:
