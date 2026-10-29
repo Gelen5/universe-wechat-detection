@@ -249,6 +249,13 @@ def _generate(state: Any, node: str) -> Callable[[str], str]:
                 seed = exemplar_prefix()
                 if seed:
                     full = seed + prompt
+                # A length buried in the state JSON is easy to ignore; the band
+                # stated first, as a hard rule, is what the writer actually obeys.
+                line = skill_runtime.length_instruction(getattr(state, 'user_request', '') or '')
+                if line:
+                    full = ('【硬性要求】' + line +
+                            ' 这是硬约束：写到接近上限就收尾，超出必须删减解释和重复，'
+                            '但不要删事实、判断和例子。\n\n') + full
             if node == "research":
                 prefix = _research_prefix(state)
                 if prefix:
