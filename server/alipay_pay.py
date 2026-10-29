@@ -85,7 +85,30 @@ def _read_sandbox_entry(path: Path) -> dict[str, Any]:
 
 
 def load_payment_config() -> dict[str, str]:
-    """按项目根配置文件加载运行时支付配置（Python 使用 PKCS#1 私钥字段）。"""
+    """加载运行时支付配置。
+
+    优先使用生产环境变量（ALIPAY_APP_ID / ALIPAY_APP_PRIVATE_KEY /
+    ALIPAY_ALIPAY_PUBLIC_KEY，可选 ALIPAY_SELLER_ID）；未配置时才回退到项目根的
+    快速沙箱文件 ``.alipay-sandbox.json``。生产私钥必须是 PKCS#1（非 Java 语言），
+    不要带 PEM 头尾。
+    """
+
+    env_app_id = os.getenv("ALIPAY_APP_ID", "").strip()
+    env_private_key = os.getenv("ALIPAY_APP_PRIVATE_KEY", "").strip()
+    env_alipay_public_key = os.getenv("ALIPAY_ALIPAY_PUBLIC_KEY", "").strip()
+    if env_app_id or env_private_key or env_alipay_public_key:
+        if not (env_app_id and env_private_key and env_alipay_public_key):
+            raise PaymentConfigError(
+                "生产支付配置不完整：ALIPAY_APP_ID、ALIPAY_APP_PRIVATE_KEY、"
+                "ALIPAY_ALIPAY_PUBLIC_KEY 必须同时提供"
+            )
+        return {
+            "app_id": env_app_id,
+            "private_key": env_private_key,
+            "alipay_public_key": env_alipay_public_key,
+            "seller_id": os.getenv("ALIPAY_SELLER_ID", "").strip(),
+            "gateway": os.getenv("ALIPAY_GATEWAY", "").strip() or PRODUCTION_GATEWAY,
+        }
 
     entry = _read_sandbox_entry(SANDBOX_CONFIG_PATH)
 
