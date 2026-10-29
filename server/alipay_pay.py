@@ -316,6 +316,22 @@ def _refund_query(out_trade_no: str, out_request_no: str) -> dict[str, Any]:
     return _biz_content(client.execute(request), "alipay_trade_fastpay_refund_query_response")
 
 
+_BARE_AMPERSAND_RE = re.compile(
+    r"&(?!(?:[A-Za-z][A-Za-z0-9]{1,31}|#[0-9]{1,7}|#[xX][0-9A-Fa-f]{1,6});)"
+)
+
+
+def escape_form_ampersands(form_html: str) -> str:
+    """把表单 HTML 里的裸 ``&`` 转义成 ``&amp;``。
+
+    支付宝 SDK 生成的表单 action 形如 ``...&sign_type=RSA2&notify_url=...``，
+    浏览器解析 HTML 时会把 ``&not`` 当成实体 ``¬``，导致 ``notify_url`` 被吃掉、
+    签名失效。转义后浏览器解码回 ``&``，提交的参数与签名一致。
+    """
+
+    return _BARE_AMPERSAND_RE.sub("&amp;", form_html)
+
+
 def _page_pay_form(
     out_trade_no: str,
     total_amount: str,
@@ -337,7 +353,7 @@ def _page_pay_form(
     request.biz_model = model
     client = _client()
     # 页面跳转类接口必须使用 page_execute，不能使用 execute。
-    return client.page_execute(request, http_method="POST")
+    return escape_form_ampersands(client.page_execute(request, http_method="POST"))
 
 
 # ------------------------------------------------------------------ 验签
