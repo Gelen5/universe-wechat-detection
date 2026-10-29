@@ -128,6 +128,23 @@ def length_instruction(requirements):
     return f'篇幅：正文需在 {low}—{high} 字之间，超出范围会被退回重写。'
 
 
+# Outside this multiple of the accepted band the answer is not the requested
+# article at all; inside it, delivering with a note beats failing the task.
+GROSS_LENGTH_MULTIPLIER = 1.5
+
+
+def length_grossly_off(article, requirements):
+    """Whether a length miss is so far off that delivering is worse than failing."""
+    bounds = length_bounds(requirements)
+    if not bounds:
+        return False
+    low, high, _description = bounds
+    count = len(re.findall(r'[\u4e00-\u9fff]', article))
+    if count < low / GROSS_LENGTH_MULTIPLIER:
+        return True
+    return high is not None and count > high * GROSS_LENGTH_MULTIPLIER
+
+
 def length_issue(article, requirements):
     """Describe how the body misses the requested length, or ``None`` when it fits."""
     bounds = length_bounds(requirements)

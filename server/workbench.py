@@ -702,9 +702,10 @@ def _draft(title: str, frame: dict[str, Any], persona: str, requirements: str = 
     try:
         article = _text(prompt, reasoning=_setting("WECHAT_DRAFT_REASONING") or None,
                         model=_setting("WECHAT_DRAFT_MODEL") or None)
-        # Only a length the user asked for is a hard gate. The system default
-        # (appended when no length was given) is guidance in the prompt; enforcing it
-        # spent up to two full rewrites, then failed articles nobody asked to size.
+        # A miss against the user's length is worth two rewrites, never worth
+        # failing the task: a 1466-character answer to a "1200 字左右" request is
+        # closer to what the user wanted than an error page, and the tokens are
+        # already paid for. Only a gross miss fails.
         for _ in range(2):
             issue = skill_runtime.length_issue(article, hard_length)
             if not issue:
@@ -712,7 +713,12 @@ def _draft(title: str, frame: dict[str, Any], persona: str, requirements: str = 
             article = _text(prompt + f'\n上次结果未通过篇幅检查：{issue}。只调整篇幅、保持事实边界。\n上次正文：\n{article}')
         issue = skill_runtime.length_issue(article, hard_length)
         if issue:
-            raise ProviderError('写作未通过需求检查：' + issue)
+            if skill_runtime.length_grossly_off(article, hard_length):
+                raise ProviderError('写作未通过需求检查：' + issue)
+            log_event('writing.length_deviation', detail=issue,
+                      run_id=call_context.current().get('run_id'))
+            if session is not None:
+                session['length_deviation'] = issue
         if not article.strip():
             raise ProviderError('写作未返回正文')
         evidence = requirements + '\n' + json.dumps(research_for_prompt, ensure_ascii=False) + '\n' + json.dumps(strategy.get('available_materials') or [], ensure_ascii=False)
