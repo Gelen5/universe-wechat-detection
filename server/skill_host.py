@@ -234,6 +234,23 @@ def _research_prefix(state: Any) -> str:
             + json.dumps(compact, ensure_ascii=False, default=str)[:20000] + "\n\n")
 
 
+# Model per node: structure is cheap and fast, prose and review carry quality.
+_NODE_MODEL_ENV = {
+    "intent": "WECHAT_STRUCTURE_MODEL",
+    "topic": "WECHAT_STRUCTURE_MODEL",
+    "research": "WECHAT_STRUCTURE_MODEL",
+    "strategy": "WECHAT_STRUCTURE_MODEL",
+    "draft": "WECHAT_DRAFT_MODEL",
+    "review": "WECHAT_REVIEW_MODEL",
+}
+
+
+def model_for(node: str) -> str:
+    """The model this node should use, or '' to keep the configured default."""
+    name = _NODE_MODEL_ENV.get(node, "")
+    return (os.getenv(name, "") or "").strip() if name else ""
+
+
 def _generate(state: Any, node: str) -> Callable[[str], str]:
     """The model call the workflow will use for one node.
 
@@ -260,6 +277,12 @@ def _generate(state: Any, node: str) -> Callable[[str], str]:
                 prefix = _research_prefix(state)
                 if prefix:
                     full = prefix + prompt
+            model = model_for(node)
+            if model:
+                # Nested override copies the settings already loaded above, so
+                # only the model changes and the relay/key stay configured.
+                with workbench.provider_overrides(text_model=model):
+                    return workbench._text(full)
             return workbench._text(full)
 
     return call
