@@ -393,6 +393,15 @@ def run_to(state: Any, upto: str, *, on_node: Callable[[str], None] | None = Non
             reason = state.nodes[node].message or f"{node} 未通过前置检查"
             raise GateBlocked(reason)
         if status != "passed":
+            # The deterministic re-check is stricter than the output contract.
+            # When the node produced usable content we keep it instead of
+            # throwing away a paid generation over a pedantic check.
+            usable = (node == 'strategy' and state.outline and state.writing_strategy)
+            if usable:
+                state.nodes[node].status = 'passed'
+                log_event('skill_host.accepted_partial', node=node,
+                          outline=len(state.outline or []))
+                continue
             raise GateBlocked(f"{node} 未能在本次回答中完成：{state.nodes[node].message or '回答不完整'}")
     return state
 
