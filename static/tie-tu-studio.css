@@ -114,3 +114,13 @@ body.atelier #tie-tu #tie-form label { font-size:16px!important; line-height:1.5
 body.atelier #tie-tu #tie-form :is(input,select,textarea) { font-size:16px!important; min-height:48px; }
 body.atelier #tie-tu #tie-form .skill-primary { font-size:16px!important; min-height:48px; }
 @media(max-width:480px) { body.atelier #tie-tu #tie-form { padding:16px!important; } }
+
+/* 创建方式切换：保留两个表单的状态，仅切换可见性。 */
+body.atelier #tie-tu #tie-form[hidden],body.atelier #tie-tu .creator-conversation[hidden],body.atelier #tie-tu .tie-mode-activity[hidden] { display:none!important; }
+body.atelier #tie-tu .tie-mode-switch { display:grid; grid-template-columns:1fr 1fr; gap:5px; margin:24px 0 0; padding:5px; border:1px solid rgba(121,163,136,.2); border-radius:15px; background:rgba(226,240,230,.55); }
+body.atelier #tie-tu .tie-mode-switch button { min-height:46px; border:0; border-radius:11px; background:transparent; color:#5b7464; font-size:16px; font-weight:600; cursor:pointer; }
+body.atelier #tie-tu .tie-mode-switch button[aria-pressed=true] { color:#20543a; background:rgba(255,255,255,.83); box-shadow:0 3px 10px rgba(46,102,67,.1),inset 0 1px 0 #fff; }
+body.atelier #tie-tu .tie-mode-switch button:focus-visible { outline:3px solid #68aa83; outline-offset:2px; }
+body.atelier #tie-tu .tie-mode-hint { margin:12px 2px 14px!important; color:#526d5d!important; font-size:14px!important; line-height:1.6; }
+body.atelier #tie-tu .tie-mode-activity { margin:0 2px 14px; padding:9px 12px; border-radius:10px; color:#365f49; background:rgba(216,239,224,.8); font-size:14px; line-height:1.5; }
+body.atelier #tie-tu .creator-conversation:not([hidden]) { margin:0 0 8px; }

@@ -11,7 +11,8 @@ def test_tie_tu_studio_renders_plan_and_responsive_layout(ui, width):
     page, _ = ui
     page.set_viewport_size({'width': width, 'height': 900})
     page.goto('http://ui.test/tie-tu')
-    expect(page.locator('#tie-tu .creator-conversation textarea')).to_be_visible()
+    expect(page.locator('#tie-topic')).to_be_visible()
+    expect(page.locator('#tie-tu .creator-conversation textarea')).to_be_hidden()
     expect(page.locator('#tie-tu .empty-head h2')).to_contain_text('你的卡片会显示在这里')
     assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
     if os.getenv('TIE_TU_SCREENSHOT_DIR'):
@@ -50,7 +51,7 @@ def test_form_is_usable_at_phone_and_wide_desktop(ui, width):
     page, _ = ui
     page.set_viewport_size({'width': width, 'height': 1200})
     page.goto('http://ui.test/tie-tu')
-    expect(page.locator('#tie-tu .tie-form-intro')).to_contain_text('表单和对话分别提交')
+    expect(page.locator('#tie-tu [data-tie-mode=form]')).to_have_attribute('aria-pressed', 'true')
     assert page.locator('#tie-form').evaluate("el => !el.closest('details')")
     expect(page.locator('#tie-topic')).to_be_visible()
     expect(page.locator('#tie-plan')).to_be_visible()
@@ -61,6 +62,25 @@ def test_form_is_usable_at_phone_and_wide_desktop(ui, width):
         assert page.locator('#tie-tu .skill-form-col').bounding_box()['width'] >= 410
     if os.getenv('TIE_TU_SCREENSHOT_DIR'):
         page.screenshot(path=str(Path(os.environ['TIE_TU_SCREENSHOT_DIR']) / f'tie-form-{width}.png'), full_page=True)
+
+
+def test_switch_keeps_inputs_and_shows_background_task(ui):
+    page, _ = ui
+    page.goto('http://ui.test/tie-tu')
+    page.locator('#tie-topic').fill('表单主题')
+    page.locator('#tie-tu [data-tie-mode=chat]').click()
+    expect(page.locator('#tie-form')).to_be_hidden()
+    chat = page.locator('#tie-tu .creator-conversation textarea')
+    expect(chat).to_be_visible()
+    chat.fill('对话内容')
+    page.locator('#tie-tu [data-tie-mode=form]').click()
+    expect(page.locator('#tie-topic')).to_have_value('表单主题')
+    page.locator('#tie-plan').evaluate('(el) => el.disabled = true')
+    page.locator('#tie-tu [data-tie-mode=chat]').click()
+    expect(chat).to_have_value('对话内容')
+    expect(page.locator('#tie-tu .tie-mode-activity')).to_contain_text('表单计划正在生成')
+    page.locator('#tie-plan').evaluate('(el) => el.disabled = false')
+    expect(page.locator('#tie-tu .tie-mode-activity')).to_be_hidden()
 
 
 def test_form_batch_retry_skips_images_already_generated(ui):

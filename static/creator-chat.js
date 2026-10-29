@@ -98,19 +98,43 @@
     if (skill === 'tie-tu' && existing) existing.after(form);
     else column.insertBefore(form, existing || null);
     const legacy = skill === 'morning' ? document.querySelector('#morning-generator .morning-frame-wrap') : existing;
+    let selectTieMode = null;
     if (legacy && skill !== 'tie-tu') {
       const details = document.createElement('details'); details.className = 'creator-form-mode';
       const summary = document.createElement('summary'); summary.textContent = skill === 'tie-tu' ? '用表单创建计划' : '表单模式';
       legacy.before(details); details.append(summary, legacy);
     } else if (legacy && skill === 'tie-tu') {
-      const heading = document.createElement('div'); heading.className = 'tie-form-intro';
-      heading.innerHTML = '<strong>用表单创建</strong><p>填主题，点击生成计划。表单和对话分别提交。</p>';
-      legacy.before(heading);
+      const modes = document.createElement('div'); modes.className = 'tie-mode-switch';
+      modes.setAttribute('role', 'group'); modes.setAttribute('aria-label', '选择创建方式');
+      modes.innerHTML = '<button type="button" data-tie-mode="form">表单创建</button><button type="button" data-tie-mode="chat">对话创建</button>';
+      const hint = document.createElement('p'); hint.className = 'tie-mode-hint';
+      const activity = document.createElement('p'); activity.className = 'tie-mode-activity'; activity.setAttribute('role', 'status'); activity.hidden = true;
+      legacy.before(modes, hint, activity);
+      selectTieMode = mode => {
+        const isForm = mode === 'form';
+        legacy.hidden = !isForm; form.hidden = isForm;
+        modes.querySelectorAll('button').forEach(tab => tab.setAttribute('aria-pressed', String(tab.dataset.tieMode === mode)));
+        hint.textContent = isForm ? '填写主题，点击生成卡片计划。' : '直接说出想做的内容，可继续对话调整。';
+        const emptyHint = document.querySelector('#tie-empty .empty-head p');
+        if (emptyHint) emptyHint.textContent = isForm ? '填写左侧表单，点击“生成卡片计划”。' : '在左侧说出你的想法，发送后生成计划。';
+      };
+      modes.addEventListener('click', event => { const tab = event.target.closest('[data-tie-mode]'); if (tab) selectTieMode(tab.dataset.tieMode); });
+      const updateActivity = () => {
+        const pending = [];
+        if (document.querySelector('#tie-plan')?.disabled) pending.push('表单计划正在生成');
+        if (controller) pending.push('对话任务正在处理');
+        activity.textContent = pending.length ? pending.join('；') + '，请勿重复提交。' : '';
+        activity.hidden = !pending.length;
+      };
+      new MutationObserver(updateActivity).observe(document.querySelector('#tie-plan'), {attributes:true, attributeFilter:['disabled']});
+      new MutationObserver(updateActivity).observe(button, {attributes:true, attributeFilter:['disabled']});
+      selectTieMode(input.value ? 'chat' : 'form');
     }
     if (skill === 'tie-tu') {
       document.querySelectorAll('#tie-tu .style-chip').forEach(chip => chip.addEventListener('click', () => {
         const style = document.querySelector('#tie-style');
         if (!style) return;
+        selectTieMode?.('form');
         style.value = chip.dataset.style || '';
         const details = style.closest('details');
         if (details) details.open = true;
