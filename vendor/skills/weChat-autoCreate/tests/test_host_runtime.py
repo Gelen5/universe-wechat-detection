@@ -1,4 +1,4 @@
-"""The host runtime asks exactly what the workflow asked for."""
+﻿"""The host runtime asks exactly what the workflow asked for."""
 from __future__ import annotations
 
 import json
@@ -101,3 +101,21 @@ class RuntimeTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+class CoerceTests(unittest.TestCase):
+    def test_extra_source_and_claim_fields_are_dropped(self):
+        from toolkit.host_runtime import _coerce
+        payload = {'evidence_pack': {
+            'sources': {'records': [{'source_id': 's1', 'url': 'https://e.com',
+                                     'verification': 'checked'}]},
+            'claims': [{'claim_id': 'c1', 'text': 't', 'kind': 'fact',
+                        'materiality': 'key', 'status': 'verified', 'extra': 1}],
+            'research_status': 'complete', 'limitations': []}}
+        result = _coerce('research', json.loads(json.dumps(payload)))
+        self.assertNotIn('verification', result['evidence_pack']['sources']['records'][0])
+        self.assertNotIn('extra', result['evidence_pack']['claims'][0])
+
+    def test_bare_array_sources_become_a_ledger(self):
+        from toolkit.host_runtime import _coerce
+        result = _coerce('research', {'evidence_pack': {'sources': [{'source_id': 's1'}]}})
+        self.assertEqual({'records': [{'source_id': 's1'}]}, result['evidence_pack']['sources'])
+

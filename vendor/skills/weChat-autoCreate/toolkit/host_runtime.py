@@ -35,15 +35,29 @@ def parse_result(raw: str) -> Dict[str, Any]:
     return data
 
 
+def _filter_fields(record: Any, cls: Any) -> Any:
+    """Drop keys the dataclass does not declare.
+
+    Models routinely add a helpful-looking field (``verification``) to a source
+    record; ``SourceRecord(**item)`` then raises and fails the whole run.
+    """
+    import dataclasses
+    if not isinstance(record, dict) or not dataclasses.is_dataclass(cls):
+        return record
+    allowed = {field.name for field in dataclasses.fields(cls)}
+    return {key: value for key, value in record.items() if key in allowed}
+
+
 def _coerce(node: str, result: Dict[str, Any]) -> Dict[str, Any]:
-    """Tolerate the two shapes a model reliably gets wrong.
+    """Tolerate the shapes a model reliably gets wrong.
 
     ``evidence_pack.sources`` is declared as a ledger object but arrives as a
     bare array, which crashes the dataclass round-trip; ``claims`` occasionally
-    arrives as a mapping. Normalising here keeps a malformed answer from failing
-    a whole run.
+    arrives as a mapping, and records carry keys the dataclass does not declare.
+    Normalising here keeps a malformed answer from failing a whole run.
     """
     if node == "research":
+        from .article_state import ClaimRecord, SourceRecord
         pack = result.get("evidence_pack")
         if isinstance(pack, dict):
             sources = pack.get("sources")
@@ -51,10 +65,14 @@ def _coerce(node: str, result: Dict[str, Any]) -> Dict[str, Any]:
                 pack["sources"] = {"records": sources}
             elif not isinstance(sources, dict):
                 pack["sources"] = {"records": []}
+            records = (pack.get("sources") or {}).get("records")
+            if isinstance(records, list):
+                pack["sources"]["records"] = [_filter_fields(item, SourceRecord) for item in records]
             if isinstance(pack.get("claims"), dict):
                 pack["claims"] = list(pack["claims"].values())
             elif not isinstance(pack.get("claims"), list):
                 pack["claims"] = []
+            pack["claims"] = [_filter_fields(item, ClaimRecord) for item in pack["claims"]]
     if node == "strategy":
         outline = result.get("outline")
         if isinstance(outline, dict):
