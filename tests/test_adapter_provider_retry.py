@@ -112,7 +112,7 @@ class AdapterProviderRetryTests(unittest.TestCase):
                 {"title": "测试标题", "article": "正文"}, context)
         self.assertEqual(result.data["html"], "<p>正文</p>")
 
-    def test_deep_review_requires_user_request_not_model_tool_arguments(self):
+    def test_default_deai_uses_deep_review(self):
         context = SimpleNamespace(conversation_id='conv', user_id='user', run_id='run',
             input_artifacts=lambda: [{'type': 'article', 'content': '原稿', 'created_at': '1'}],
             is_cancelled=lambda: False, emit=lambda *_args: None)
@@ -120,11 +120,11 @@ class AdapterProviderRetryTests(unittest.TestCase):
         with patch('vendor.skills.wechat_writer.adapter.conversation_repository.get_run', return_value={'trigger_message_id': 'm'}), \
              patch('vendor.skills.wechat_writer.adapter.conversation_repository.get_message', return_value={'content': '正常去 AI'}), \
              patch('vendor.skills.wechat_writer.adapter.workbench.provider_overrides', return_value=nullcontext()), \
-             patch('vendor.skills.wechat_writer.adapter.workbench._review', return_value=('原稿', report)) as local, \
-             patch('vendor.skills.wechat_writer.adapter.workbench._deep_structure_review') as deep:
+             patch('vendor.skills.wechat_writer.adapter.workbench._review') as local, \
+             patch('vendor.skills.wechat_writer.adapter.workbench._deep_structure_review', return_value=('新稿', report)) as deep:
             create_tools()['review_article']({'article': '原稿', 'review_mode': 'deep_structure'}, context)
-        local.assert_called_once()
-        deep.assert_not_called()
+        local.assert_not_called()
+        deep.assert_called_once()
 
     def test_negated_deep_review_stays_local(self):
         context = SimpleNamespace(conversation_id='conv', user_id='user', run_id='run',
@@ -138,6 +138,30 @@ class AdapterProviderRetryTests(unittest.TestCase):
             create_tools()['review_article']({'article': '原稿'}, context)
         local.assert_called_once()
         deep.assert_not_called()
+
+    def test_do_not_preserve_structure_uses_deep_review(self):
+        context = SimpleNamespace(conversation_id='conv', user_id='user', run_id='run',
+            input_artifacts=lambda: [{'type':'article','content':'原稿','created_at':'1'}],
+            is_cancelled=lambda:False, emit=lambda *_args:None)
+        with patch('vendor.skills.wechat_writer.adapter.conversation_repository.get_run', return_value={'trigger_message_id':'m'}), \
+             patch('vendor.skills.wechat_writer.adapter.conversation_repository.get_message', return_value={'content':'不要保留结构，重新写得自然'}), \
+             patch('vendor.skills.wechat_writer.adapter.workbench.provider_overrides', return_value=nullcontext()), \
+             patch('vendor.skills.wechat_writer.adapter.workbench._review') as local, \
+             patch('vendor.skills.wechat_writer.adapter.workbench._deep_structure_review', return_value=('改稿', {'gate':'passed'})) as deep:
+            create_tools()['review_article']({'article':'原稿'}, context)
+        deep.assert_called_once()
+        local.assert_not_called()
+
+    def test_failed_standalone_deai_propagates_for_refund(self):
+        context = SimpleNamespace(conversation_id='conv', user_id='user', run_id='run',
+            input_artifacts=lambda: [{'type':'article','content':'原稿','created_at':'1'}],
+            is_cancelled=lambda:False, emit=lambda *_args:None)
+        with patch('vendor.skills.wechat_writer.adapter.conversation_repository.get_run', return_value={'trigger_message_id':'m','stage':'deai'}), \
+             patch('vendor.skills.wechat_writer.adapter.conversation_repository.get_message', return_value={'content':'去 AI'}), \
+             patch('vendor.skills.wechat_writer.adapter.workbench.provider_overrides', return_value=nullcontext()), \
+             patch('vendor.skills.wechat_writer.adapter.workbench._deep_structure_review', side_effect=workbench.ProviderError('复核未通过')):
+            with self.assertRaises(workbench.ProviderError):
+                create_tools()['review_article']({'article':'原稿'}, context)
 
     def test_explicit_deep_review_and_pending_review_cannot_be_typeset(self):
         context = SimpleNamespace(conversation_id='conv', user_id='user', run_id='run',

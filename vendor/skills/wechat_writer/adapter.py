@@ -145,16 +145,17 @@ def create_tools():
             trigger = (conversation_repository.get_message(context.conversation_id, context.user_id,
                         run['trigger_message_id']) if run else None) or {}
             user_text = str(trigger.get('content') or '')
-            deep_terms = ('深度重构', '深度内容重构', '结构重构', '重构结构',
-                          '重构全文结构', '调整全文结构', '重新组织全文')
-            explicit_deep = any(
-                not re.search(r'(?:不要|无需|禁止|不做|不需要|别|不必)\s*$', user_text[max(0, match.start() - 8):match.start()])
-                for term in deep_terms for match in re.finditer(re.escape(term), user_text)
-            )
+            local_phrases = r'只(?:做|进行|需)?\s*局部|仅(?:做|进行)?\s*局部|保留(?:原有|文章|全文)?结构|不(?:要|需|必)?(?:深度|全文|结构)重构|不(?:要|能|应|许)?(?:改变|调整|改动|改)(?:文章|全文|原有)?结构'
+            local_only = any(not re.search(r'(?:不要|不必|无需|别)\s*$', user_text[max(0, match.start()-6):match.start()])
+                             for match in re.finditer(local_phrases, user_text))
             try:
                 reviewed, report = (workbench._deep_structure_review(article, session, progress=progress)
-                                    if explicit_deep else workbench._review(article, session, progress=progress))
+                                    if not local_only else workbench._review(article, session, progress=progress))
             except workbench.ProviderError as exc:
+                if run and run.get('stage') == 'deai':
+                    # A standalone review has its own charge; failed review
+                    # must follow the normal failure and refund path.
+                    raise
                 # The article exists and was already paid for. A failed or timed
                 # out review must not destroy it: hand back the untouched draft
                 # and record why the review is missing.

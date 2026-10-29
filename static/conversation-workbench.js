@@ -68,7 +68,7 @@
     { id: 'topic', label: '选题', hint: '输入主题，选择一个值得写的方向。' },
     { id: 'outline', label: '大纲', hint: '确认文章结构；可以直接修改大纲。' },
     { id: 'writing', label: '写作', hint: '根据确认的大纲生成正文。' },
-    { id: 'deai', label: '去 AI', hint: '保留原意，检查事实与表达并生成修订稿。' },
+    { id: 'deai', label: '去 AI', hint: '调整结构和表达，使文章更自然；保护事实和原意。' },
     { id: 'typeset', label: '排版', hint: '用最新正文生成公众号 HTML 预览。' },
   ];
   const stageLabel = id => stages.find(item => item.id === id)?.label || '当前阶段';
