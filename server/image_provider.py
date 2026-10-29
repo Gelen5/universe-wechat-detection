@@ -37,11 +37,10 @@ def generate(payload: dict[str, Any]) -> dict[str, Any]:
         }
         if not body["prompt"].strip():
             raise ImageProviderError("图片提示词不能为空")
-        # gpt-image-2.5 composes its own frame and ignores `size`, so a 3:4
-        # request came back landscape. Cropping a paid image to fix that loses
-        # the composition the model made; instead route to a model that accepts
-        # an explicit pixel size and ask for the size we actually want.
-        body["size"] = _effective_size(body["size"], body["model"])
+        # Relay image models (e.g. gpt-image-2.5 on latentide) pick the output
+        # aspect ratio from the prompt and ignore the `size` field, so a square
+        # or 3:4 request comes back landscape. State the ratio inside the prompt
+        # and then force the exact pixel size on the way out.
         hint = _ratio_hint(body["size"])
         if hint:
             body["prompt"] = f"{body['prompt'].strip()}\n\n{hint}"
@@ -74,34 +73,11 @@ def generate(payload: dict[str, Any]) -> dict[str, Any]:
             )
         except ProviderRequestError as exc:
             raise ImageProviderError(f"图片接口请求失败：{exc}") from exc
-        return _describe_images(result)
+        return _fit_images(result, body["size"])
 
 
 _SIZE_PATTERN = re.compile(r"^\s*(\d{2,5})\s*[xX*]\s*(\d{2,5})\s*$")
 _STANDARD_RATIOS = ((1, 1), (3, 4), (4, 3), (2, 3), (3, 2), (9, 16), (16, 9))
-
-# Image models that honour an explicit pixel size rather than composing freely.
-# Every other model keeps the requested size and may answer with its own ratio.
-_SIZE_HONOURING_MODELS = ("grok-imagine-image",)
-_EXACT_SIZES = {"square": "1024x1024", "vertical": "1024x1536", "horizontal": "1536x1024"}
-
-
-def _effective_size(size: str, model: str) -> str:
-    """Snap the requested size to one the model can actually produce.
-
-    grok-imagine-image-2.0 takes exact dimensions, so a 3:4 贴图 asks for
-    1024x1536 instead of 768x1024. Models that compose freely keep the caller's
-    value: they ignore it anyway and the result is reported, not cropped.
-    """
-    if not any(model.strip().lower().startswith(name) for name in _SIZE_HONOURING_MODELS):
-        return size
-    pair = _size_pair(size)
-    if not pair:
-        return size
-    width, height = pair
-    if width == height:
-        return _EXACT_SIZES["square"]
-    return _EXACT_SIZES["vertical"] if height > width else _EXACT_SIZES["horizontal"]
 
 
 def _size_pair(size: str) -> tuple[int, int] | None:
@@ -132,23 +108,25 @@ def _ratio_hint(size: str) -> str:
             f"Keep the subject and any text inside safe margins; do not crop or letterbox.")
 
 
-def _describe_images(result: dict[str, Any]) -> dict[str, Any]:
-    """Record the pixel size each image actually came back as.
+def _fit_images(result: dict[str, Any], size: str) -> dict[str, Any]:
+    """Force every returned image to exactly the requested pixel size.
 
-    The bytes are never re-encoded or cropped: a paid generation is delivered
-    exactly as the model produced it. The dimensions exist so a caller (and the
-    logs) can see that a "3:4" request returned landscape instead of silently
-    shipping a wrong-shaped card.
+    Models that honour `size` pass through untouched; models that only follow
+    the ratio hint get scaled, and anything still off-ratio is centre-cropped
+    first so cards never come back landscape when 3:4 was requested.
     """
+    pair = _size_pair(size)
     items = result.get("data") if isinstance(result, dict) else None
-    if not isinstance(items, list) or not items:
+    if not pair or not isinstance(items, list) or not items:
         return result
     try:
         from PIL import Image
     except Exception:
         return result
+    target_width, target_height = pair
+    target_ratio = target_width / target_height
     for item in items:
-        if not isinstance(item, dict) or item.get("width"):
+        if not isinstance(item, dict):
             continue
         try:
             if item.get("b64_json"):
@@ -160,9 +138,29 @@ def _describe_images(result: dict[str, Any]) -> dict[str, Any]:
             else:
                 continue
             with Image.open(io.BytesIO(raw)) as decoded:
-                item["width"], item["height"] = decoded.size
+                decoded.load()
+                width, height = decoded.size
+                if (width, height) == (target_width, target_height):
+                    continue
+                image = decoded.convert("RGB")
+                if abs(width / height - target_ratio) > 0.01:
+                    if width / height > target_ratio:
+                        crop_width = max(1, round(height * target_ratio))
+                        left = (width - crop_width) // 2
+                        image = image.crop((left, 0, left + crop_width, height))
+                    else:
+                        crop_height = max(1, round(width / target_ratio))
+                        top = (height - crop_height) // 2
+                        image = image.crop((0, top, width, top + crop_height))
+                image = image.resize((target_width, target_height), Image.LANCZOS)
+                buffer = io.BytesIO()
+                image.save(buffer, format="PNG")
+            item["b64_json"] = base64.b64encode(buffer.getvalue()).decode("ascii")
+            item.pop("url", None)
+            item.pop("image_url", None)
+            item["width"], item["height"] = target_width, target_height
         except Exception:
-            # Reporting must never fail a paid generation.
+            # Never fail a paid generation because post-processing hiccuped.
             continue
     return result
 
