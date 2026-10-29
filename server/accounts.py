@@ -33,25 +33,29 @@ SESSION_DAYS = 30
 PBKDF2_ROUNDS = 260_000
 DB_LOCK = threading.RLock()
 OWNER_EMAIL = (os.getenv("CREATOR_OWNER_EMAIL") or "gelen5@163.com").strip().lower()
-NEW_USER_TRIAL_POINTS = max(0, int(os.getenv("CREATOR_NEW_USER_TRIAL_POINTS", "30") or 30))
+NEW_USER_TRIAL_POINTS = max(0, int(os.getenv("CREATOR_NEW_USER_TRIAL_POINTS", "6") or 6))
 
+# Points are sold at ¥0.10 each (10 元 / 100 积分), so a price in points is ten
+# times the yuan target: 一张图 2 毛 = 2 积分, 生成策略 1 毛 = 1 积分. Image
+# generation on every surface shares one price; charging the same model at
+# wildly different rates per page is what users notice first.
 DEFAULT_PRICING = [
     ("POST", "/api/qihaoshou/topics", "公众号AI选题", 3, 0),
     ("POST", "/api/qihaoshou/generate", "起号兽写作", 10, 0),
     ("POST", "/api/qihaoshou/titles", "起号兽候选标题", 3, 0),
     ("POST", "/api/qihaoshou/deai", "起号兽表达优化", 5, 0),
-    ("POST", "/api/qihaoshou/image", "起号兽文章配图", 30, 0),
+    ("POST", "/api/qihaoshou/image", "起号兽文章配图", 2, 0),
     ("POST", "/api/diagnose", "公众号诊断", 10, 0),
     ("POST", "/api/xiaohongshu/package", "小红书图文生成", 10, 0),
-    ("POST", "/api/tie-tu/plan", "微信贴图策划", 10, 0),
-    ("POST", "/api/creator-tools/image", "AI 图片生成", 30, 0),
+    ("POST", "/api/tie-tu/plan", "微信贴图策划", 1, 0),
+    ("POST", "/api/creator-tools/image", "AI 图片生成", 2, 0),
     ("POST", "/api/hit-detector/analyze", "爆文检测", 5, 0),
     ("POST", "/api/hit-detector/rewrite", "文章改稿", 5, 0),
     ("POST", "/api/workbench/sessions", "公众号完整工作流", 30, 0),
     ("POST", "/api/workbench/chat", "公众号创作调整", 5, 0),
     ("POST", "/api/creator/chat", "创作对话", 10, 0),
     ("POST", "/api/workbench/steps", "公众号工作流步骤", 0, 0),
-    ("POST", "/api/images/generations", "早安图片生成", 30, 0),
+    ("POST", "/api/images/generations", "早安图片生成", 2, 0),
 ]
 
 
