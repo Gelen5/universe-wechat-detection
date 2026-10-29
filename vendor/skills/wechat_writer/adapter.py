@@ -151,8 +151,22 @@ def create_tools():
                 not re.search(r'(?:不要|无需|禁止|不做|不需要|别|不必)\s*$', user_text[max(0, match.start() - 8):match.start()])
                 for term in deep_terms for match in re.finditer(re.escape(term), user_text)
             )
-            reviewed, report = (workbench._deep_structure_review(article, session, progress=progress)
-                                if explicit_deep else workbench._review(article, session, progress=progress))
+            try:
+                reviewed, report = (workbench._deep_structure_review(article, session, progress=progress)
+                                    if explicit_deep else workbench._review(article, session, progress=progress))
+            except workbench.ProviderError as exc:
+                # The article exists and was already paid for. A failed or timed
+                # out review must not destroy it: hand back the untouched draft
+                # and record why the review is missing.
+                progress_for(context)("generated",
+                                      {"label": "复核未完成，已保留原稿", "count": len(article)})
+                return ToolResult({"title": session["topic"], "article": article, "review": {
+                    "gate": "unavailable", "changed": False,
+                    "summary": f"复核未完成（{str(exc)[:120]}），已保留原稿，可稍后重新复核。",
+                }}, (
+                    ArtifactOutput(type="deviation", title="复核未完成", content_json={
+                        "review_status": "unavailable", "reason": str(exc)[:300]}),
+                ))
         report.setdefault('summary', '复核仍有待办，请查看报告；当前稿已保留' if report.get('gate') != 'passed' else ('已完成局部改稿并通过检查' if report.get('changed') else '已复核，正文未修改；未发现可安全执行的修改，详情见报告'))
         progress_for(context)("generated", {"label": report["summary"], "count": len(reviewed)})
         return ToolResult({"title": session["topic"], "article": reviewed, "review": report}, (
