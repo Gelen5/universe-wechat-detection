@@ -1,4 +1,4 @@
-"""Host the vendored WeChat workflow: the skill decides, the platform generates.
+﻿"""Host the vendored WeChat workflow: the skill decides, the platform generates.
 
 The Skill ships no model engine. Each node publishes a request — purpose,
 readable references, visible state, output contract, rules — and waits for a
@@ -13,11 +13,100 @@ from __future__ import annotations
 import importlib
 import json
 import os
+import re
 import sys
 from typing import Any, Callable
 
-from . import conversation_repository, workbench, workbench_research
+from . import conversation_repository, skill_runtime, workbench, workbench_research
 from .observability import event as log_event
+
+# The Skill ships twelve author personas. The picker's labels are mapped onto
+# them so the draft node receives a real profile instead of a bare adjective.
+_PERSONAS = {
+    '深度观察者': 'industry-observer', '产业观察': 'industry-observer',
+    '温暖陪伴': 'midnight-friend', '温暖编辑': 'warm-editor',
+    '理性分析': 'cold-analyst', '冷峻分析师': 'cold-analyst',
+    '犀利评论': 'sharp-journalist', '记者': 'sharp-journalist',
+    '故事讲述': 'humor-storyteller', '幽默故事': 'humor-storyteller',
+    '科技评测': 'tech-reviewer', '产品经理': 'product-manager',
+    '创业者': 'entrepreneur', '开发者': 'developer', '设计师': 'designer',
+    '科学解释': 'science-explainer',
+}
+DEFAULT_PERSONA = 'industry-observer'
+
+
+def _persona_file(persona: str):
+    name = _PERSONAS.get((persona or '').strip(), DEFAULT_PERSONA)
+    for candidate in (name, DEFAULT_PERSONA):
+        path = workbench.SKILL_DIR / 'personas' / f'{candidate}.yaml'
+        if path.is_file():
+            return path
+    return None
+
+
+def apply_persona(state: Any, persona: str = '') -> Any:
+    """Load a persona file into the workflow's author profile."""
+    path = _persona_file(persona)
+    if path is None:
+        return state
+    try:
+        import yaml
+        data = yaml.safe_load(path.read_text(encoding='utf-8')) or {}
+    except Exception as exc:
+        log_event('skill_host.persona_failed', reason=str(exc)[:200])
+        return state
+    if not isinstance(data, dict):
+        return state
+    profile = state.author_profile
+    profile.name = str(data.get('description') or data.get('name') or persona or '')
+    habits = [*list(data.get('uncertainty_expressions') or []),
+              *list(data.get('broken_sentence_styles') or [])]
+    profile.language_habits = [str(item) for item in habits][:12]
+    profile.taboo_expressions = [str(item) for item in (data.get('avoid') or [])][:12]
+    rhythm = []
+    if data.get('paragraph_max_length'):
+        rhythm.append(f'段落通常不超过 {data["paragraph_max_length"]} 字')
+    if data.get('single_sentence_paragraph_rate') is not None:
+        rhythm.append(f'单句成段比例约 {data["single_sentence_paragraph_rate"]}')
+    profile.paragraph_rhythm = '；'.join(rhythm)
+    profile.sentence_preferences = [f'{key}={data[key]}' for key in
+                                    ('voice_density', 'uncertainty_rate', 'emotional_arc')
+                                    if data.get(key) is not None]
+    known = {'name', 'description', 'voice_density', 'uncertainty_rate', 'paragraph_max_length',
+             'single_sentence_paragraph_rate', 'emotional_arc', 'uncertainty_expressions',
+             'broken_sentence_styles', 'avoid'}
+    profile.inferred_traits = [f'{key}: {data[key]}' for key in data if key not in known][:10]
+    log_event('skill_host.persona', file=path.name, persona=persona)
+    return state
+
+
+def exemplar_prefix() -> str:
+    """A couple of the skill's human-writing seeds, as tone references."""
+    path = workbench.SKILL_DIR / 'references' / 'exemplar-seeds.yaml'
+    try:
+        text = path.read_text(encoding='utf-8')
+    except OSError:
+        return ''
+    blocks = re.findall(r'```text\n(.*?)```', text, re.S)
+    seeds = [block.strip()[:600] for block in blocks if block.strip()][:2]
+    if not seeds:
+        return ''
+    joined = '\n\n'.join(f'【参照 {index + 1}】\n{seed}' for index, seed in enumerate(seeds))
+    return ('风格参照（只参考语气、节奏和推进方式；不得复用其中的事实、句子和案例）：\n'
+            + joined + '\n\n')
+
+
+def score_article(article: str) -> dict[str, Any]:
+    """Run the skill's humanness scorer (deterministic tiers only, no extra call)."""
+    if not (article or '').strip():
+        return {}
+    try:
+        result = skill_runtime.script(workbench.SKILL_DIR, 'humanness_score.py',
+                                      '--text', article, '--no-tier3')
+    except Exception as exc:
+        log_event('skill_host.humanness_failed', reason=str(exc)[:200])
+        return {}
+    return result if isinstance(result, dict) else {}
 
 
 class GateBlocked(RuntimeError):
@@ -104,6 +193,10 @@ def _generate(state: Any, node: str) -> Callable[[str], str]:
     def call(prompt: str) -> str:
         full = prompt
         with workbench.provider_overrides():
+            if node == "draft":
+                seed = exemplar_prefix()
+                if seed:
+                    full = seed + prompt
             if node == "research":
                 prefix = _research_prefix(state)
                 if prefix:
@@ -174,6 +267,9 @@ def for_conversation(conversation_id: str, user_id: str, brief: str,
                      upto: str, persona: str = "") -> Any:
     """Load, advance and persist one conversation's workflow state."""
     state = load_state(conversation_id, user_id, brief, persona)
+    apply_persona(state, persona)
     run_to(state, upto)
     save_state(conversation_id, user_id, state)
     return state
+
+

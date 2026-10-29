@@ -154,6 +154,11 @@ def create_tools():
             report.setdefault('gate', 'passed' if not report.get('blocked') else 'needs_review')
             report.setdefault('changed', reviewed != article)
             report.setdefault('summary', '已按 Skill 复核节点完成检查；请人工确认事实与语气。')
+            # The skill ships a deterministic humanness scorer; surface it so a
+            # reviewer can see whether the rewrite actually helped.
+            humanness = skill_host.score_article(reviewed)
+            if humanness:
+                report['humanness'] = humanness
             progress_for(context)("generated", {"label": report['summary'], "count": len(reviewed)})
             return ToolResult({"title": str(args.get("title") or state.selected_title or "公众号文章"),
                                "article": reviewed, "review": report}, (
