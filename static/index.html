@@ -159,6 +159,7 @@
             <input id="auth-email" type="email" maxlength="254" autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false" placeholder="输入你的邮箱" required>
             <label for="auth-password">密码</label>
             <div class="auth-password-wrap"><input id="auth-password" type="password" minlength="8" maxlength="128" autocomplete="current-password" placeholder="至少 8 位" required><button id="auth-password-toggle" type="button" aria-label="显示密码" aria-pressed="false" aria-controls="auth-password">显示</button></div>
+            <div id="auth-email-code-field" hidden><label for="auth-email-code">邮箱验证码</label><div><input id="auth-email-code" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="6 位验证码"><button id="auth-send-code" type="button">发送验证码</button></div></div>
             <p id="auth-error" class="auth-error" role="alert" hidden></p>
             <button id="auth-submit" class="primary-action" type="submit">登录</button>
           </form>
@@ -893,7 +894,7 @@
 
     <script src="/static/vendor/lucide.min.js"></script>
     <script src="/static/market.js?v=20261026-loading-1" defer></script>
-<script src="/static/app.js?v=20261027-logout-1"></script>
+<script src="/static/app.js?v=20261029-email-verification-1"></script>
     <script src="/static/flow.js?v=20260904-tools-1"></script>
     <script src="/static/studio-tools.js?v=20260904-1"></script>
     <link rel="stylesheet" href="/static/creator-chat.css?v=20260906-conversation-1">

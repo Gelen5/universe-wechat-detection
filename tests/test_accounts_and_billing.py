@@ -3,14 +3,56 @@ import os
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
+from fastapi import HTTPException
 
 from tests import support  # noqa: F401 - configures isolated account database before app import
 from server import accounts, creator_tools, workbench
+from server import image_provider
+from server import email_verification
 from server import main as main_module
 from server.main import app
 
 
 class AccountAndBillingTests(unittest.TestCase):
+    def test_email_verification_can_be_enforced_for_registration(self):
+        payload = {'email': f'verified-{id(self)}@example.com', 'password': 'testing-pass-123'}
+        with patch.dict(os.environ, {'EMAIL_VERIFICATION_REQUIRED': '1'}), \
+             patch.object(email_verification, 'verify_code', side_effect=[HTTPException(403, '验证码错误'), None]) as verify:
+            rejected = self.client.post('/api/auth/register', json=payload)
+            accepted = self.client.post('/api/auth/register', json={**payload, 'email_code': '123456'})
+        self.assertEqual(403, rejected.status_code)
+        self.assertEqual(200, accepted.status_code, accepted.text)
+        self.assertEqual(2, verify.call_count)
+
+    def test_image_request_charges_once_and_rejects_multiple_images(self):
+        self._recharge(40)
+        with patch.object(image_provider, 'generate', return_value={'data': [{'b64_json': 'test'}]}) as generate:
+            rejected = self.client.post('/api/images/generations', json={'prompt': 'test', 'n': 4})
+            accepted = self.client.post('/api/images/generations', json={'prompt': 'test', 'n': 1})
+        self.assertEqual(422, rejected.status_code)
+        self.assertEqual(200, accepted.status_code)
+        self.assertEqual('30', accepted.headers['X-Points-Charged'])
+        generate.assert_called_once()
+
+    def test_image_daily_limit_blocks_before_provider_call(self):
+        self._recharge(100)
+        with patch.dict(os.environ, {'IMAGE_DAILY_LIMIT': '1'}), patch.object(image_provider, 'generate', return_value={'data': []}) as generate:
+            first = self.client.post('/api/images/generations', json={'prompt': 'first'})
+            second = self.client.post('/api/images/generations', json={'prompt': 'second'})
+        self.assertEqual(200, first.status_code)
+        self.assertEqual(429, second.status_code)
+        generate.assert_called_once()
+
+    def test_admin_session_is_shorter_and_old_sessions_are_rejected(self):
+        admin = TestClient(app)
+        login = admin.post('/api/auth/login', json={'email': 'admin@example.com', 'password': 'testing-pass-123'})
+        self.assertEqual(200, login.status_code)
+        self.assertIn('Max-Age=604800', login.headers['set-cookie'])
+        with accounts.DB_LOCK, accounts._connect() as connection:
+            connection.execute('UPDATE sessions SET created_at=? WHERE user_id=?',
+                               ('2000-01-01T00:00:00+00:00', login.json()['user']['id']))
+        self.assertEqual(401, admin.get('/api/auth/me').status_code)
+
     def test_login_limit_precedes_password_verification_and_returns_retry_after(self):
         from server.rate_limit import LimitResult
         with patch.object(main_module, 'check_auth_attempt', return_value=LimitResult(False, 'ip', 17)), \
