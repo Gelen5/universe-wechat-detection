@@ -13,6 +13,7 @@ from . import accounts, creator_tools, diagnosis_service, image_provider, workbe
 
 LANES = {"diagnose": 1, "text": 2, "image": 1, "light": 3}
 WORKBENCH_EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix='workbench-request')
+IMAGE_EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix="creator-image")
 CREATOR_EXECUTOR = ThreadPoolExecutor(max_workers=2, thread_name_prefix='creator-request')
 
 
@@ -50,6 +51,17 @@ def dispatch_tie_tu_job(job_id: str) -> None:
             if claimed:
                 _run(claimed)
     CREATOR_EXECUTOR.submit(claim_and_run)
+
+
+def dispatch_creator_image_job(job_id: str) -> None:
+    """Claim only this submitted image job, without reserving points again."""
+    def claim_and_run():
+        candidate = accounts.job(job_id)
+        if candidate and candidate['type'] == 'creator_image':
+            claimed = accounts.claim_job([candidate['lane']], job_id=job_id)
+            if claimed:
+                _run(claimed)
+    IMAGE_EXECUTOR.submit(claim_and_run)
 
 
 def _payload(job: dict[str, Any]) -> dict[str, Any]:

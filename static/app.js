@@ -1363,13 +1363,15 @@ function renderTiePlan(plan) {
       window.dispatchEvent(new CustomEvent('creator-chat-send', {detail: {skill: 'tie-tu', message}}));
       return;
     }
-    event.currentTarget.disabled = true;
+    const button = event.currentTarget;
+    button.disabled = true;
+    try {
     await generateSkillImages('tie-tu', plan.session_id, selected.map(card => ({...card, portrait_enabled: plan.portrait_enabled})), document.querySelector('#tie-style').value.trim(), root.querySelector('.creator-card-grid'), image => completed.add(Number(image.index)));
-    event.currentTarget.disabled = false;
+    } finally { button.disabled = false; }
     if (completed.size) {
       pilotDone = completed.has(Number(cards[0].index));
-      event.currentTarget.hidden = !remaining().length;
-      event.currentTarget.textContent = buttonLabel();
+      button.hidden = !remaining().length;
+      button.textContent = buttonLabel();
       root.querySelector('.result-status').textContent = remaining().length ? '试图待确认' : '图片已生成';
     }
   });

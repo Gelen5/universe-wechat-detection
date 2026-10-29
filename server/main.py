@@ -810,6 +810,9 @@ def create_task(payload: TaskCreateRequest, request: Request):
     elif job['type'] == 'tie_tu' and job['status'] == 'queued':
         from .task_worker import dispatch_tie_tu_job
         dispatch_tie_tu_job(job['id'])
+    elif job['type'] == 'creator_image' and job['status'] == 'queued':
+        from .task_worker import dispatch_creator_image_job
+        dispatch_creator_image_job(job['id'])
     return {"status": "accepted", "job": _public_job(job), "idempotent_replay": job.get("usage_id") != usage_id}
 
 

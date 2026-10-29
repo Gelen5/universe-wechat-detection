@@ -42,6 +42,27 @@ def current_settings():
 
 
 class CreatorApiIntegrationTests(unittest.TestCase):
+    def test_image_task_dispatch_and_idempotent_reservation(self):
+        import uuid
+        body = {'type':'creator_image', 'idempotency_key':uuid.uuid4().hex,
+                'payload':{'tool':'tie-tu','sessionId':'test','card':{'index':1},'style':''}}
+        with patch.object(task_worker, 'dispatch_creator_image_job') as dispatch:
+            first = self.client.post('/api/tasks', json=body)
+            second = self.client.post('/api/tasks', json=body)
+        self.assertEqual(first.status_code, 202, first.text)
+        self.assertEqual(first.json()['job']['id'], second.json()['job']['id'])
+        self.assertTrue(second.json()['idempotent_replay'])
+        self.assertEqual(dispatch.call_count, 2)
+
+    def test_image_dispatch_claims_only_requested_job(self):
+        with patch.object(task_worker.accounts, 'job', return_value={'type':'creator_image','lane':'image'}), \
+             patch.object(task_worker.accounts, 'claim_job', return_value={'id':'wanted'}) as claim, \
+             patch.object(task_worker, '_run') as run, \
+             patch.object(task_worker.IMAGE_EXECUTOR, 'submit', side_effect=lambda fn:fn()):
+            task_worker.dispatch_creator_image_job('wanted')
+        claim.assert_called_once_with(['image'], job_id='wanted')
+        run.assert_called_once_with({'id':'wanted'})
+
     def test_tie_tu_form_task_is_dispatched_once(self):
         import uuid
         with patch.object(task_worker, 'dispatch_tie_tu_job') as dispatch:

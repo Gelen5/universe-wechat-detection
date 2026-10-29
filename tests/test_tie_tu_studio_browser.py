@@ -84,7 +84,7 @@ def test_switch_keeps_inputs_and_shows_background_task(ui):
 
 
 def test_form_batch_retry_skips_images_already_generated(ui):
-    page, _ = ui
+    page, state = ui
     page.goto('http://ui.test/tie-tu')
     page.evaluate('''() => {
       window.testIndices = [];
@@ -105,6 +105,8 @@ def test_form_batch_retry_skips_images_already_generated(ui):
     page.locator('#tie-images').click()
     expect(page.locator('#tie-images')).to_be_hidden()
     assert page.evaluate('window.testIndices') == [1, 2, 3, 3]
+    assert state['errors'] == []
+    expect(page.locator('#tie-images')).to_be_enabled()
 
 @pytest.mark.parametrize('width,count', [(390,1),(1440,1),(2560,1),(1440,3),(2560,5)])
 def test_result_cards_keep_portrait_ratio_without_stretching(ui, width, count):
