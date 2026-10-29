@@ -96,6 +96,28 @@ def exemplar_prefix() -> str:
             + joined + '\n\n')
 
 
+def apply_length_contract(state: Any, requirements: str) -> Any:
+    """Write the requested length into the workflow state, not just the brief.
+
+    The draft prompt carries ``writing_strategy``, so a band placed there is a
+    contract line the model reads up front — far more effective than the same
+    number buried in a long user request, which produced a 1958-character draft
+    for a 「约1200字」 brief.
+    """
+    bounds = skill_runtime.length_bounds(requirements or '')
+    if not bounds:
+        return state
+    low, high, description = bounds
+    band = f'{low}–{high}' if high else f'{low} 以上'
+    strategy = dict(state.writing_strategy or {})
+    strategy['length_target'] = (
+        f'正文汉字数必须落在 {band} 字；{description or "用户明确要求的篇幅"}。'
+        '超出的部分删解释和重复，不要删事实、判断和例子。')
+    state.writing_strategy = strategy
+    log_event('skill_host.length_contract', band=band)
+    return state
+
+
 def enforce_length(state: Any, requirements: str) -> Any:
     """One focused revision when the draft misses the requested length band.
 
@@ -298,6 +320,7 @@ def for_conversation(conversation_id: str, user_id: str, brief: str,
     """Load, advance and persist one conversation's workflow state."""
     state = load_state(conversation_id, user_id, brief, persona)
     apply_persona(state, persona)
+    apply_length_contract(state, brief)
     run_to(state, upto)
     save_state(conversation_id, user_id, state)
     return state

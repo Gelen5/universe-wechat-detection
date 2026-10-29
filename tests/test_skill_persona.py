@@ -59,6 +59,36 @@ class ExemplarTests(unittest.TestCase):
             self.assertEqual('', skill_host.exemplar_prefix())
 
 
+class LengthContractTests(unittest.TestCase):
+    """The requested length must reach the draft prompt, not just the brief."""
+
+    def setUp(self):
+        self.patch = patch.object(workbench, 'SKILL_DIR', SKILL)
+        self.patch.start()
+
+    def tearDown(self):
+        self.patch.stop()
+
+    def test_band_is_written_into_the_writing_strategy(self):
+        state = skill_host.new_state('写一篇关于素材库的观点文，约1200字')
+        skill_host.apply_length_contract(state, '约1200字')
+        target = state.writing_strategy.get('length_target', '')
+        self.assertIn('960', target)
+        self.assertIn('1440', target)
+
+    def test_band_is_visible_to_the_draft_node(self):
+        state = skill_host.new_state('约1200字')
+        skill_host.apply_length_contract(state, '约1200字')
+        _state, workflow, _runtime = skill_host._modules()
+        shared = workflow._relevant_state(state, 'draft')
+        self.assertIn('960', shared['writing_strategy']['length_target'])
+
+    def test_no_explicit_length_leaves_the_band_alone(self):
+        state = skill_host.new_state('写一篇观点文')
+        skill_host.apply_length_contract(state, '写一篇观点文')
+        self.assertNotIn('length_target', state.writing_strategy)
+
+
 class HumannessTests(unittest.TestCase):
     def test_score_is_a_dict_or_empty_and_never_raises(self):
         with patch.object(workbench, 'SKILL_DIR', Path('/nonexistent')):
