@@ -204,7 +204,10 @@ def create_tools():
         saved_article = latest_artifact(context, "article")
         article = (saved_article or {}).get("content") or required_text(args, "article")
         requirements = str(args.get("requirements") or "").strip()
-        if skill_host.enabled() and getattr(context, "conversation_id", None):
+        active_run = (conversation_repository.get_run(context.run_id, context.user_id)
+                      if getattr(context, 'run_id', None) else None)
+        is_deai = bool(active_run and active_run.get('stage') == 'deai')
+        if skill_host.enabled() and getattr(context, "conversation_id", None) and not is_deai:
             # Review runs as the workflow's own node, which owns the gates and
             # the quality report instead of an anchored string-replacement loop.
             state = skill_host.for_conversation(
@@ -273,6 +276,11 @@ def create_tools():
                         "review_status": "unavailable", "reason": str(exc)[:300]}),
                 ))
         report.setdefault('summary', '复核仍有待办，请查看报告；当前稿已保留' if report.get('gate') != 'passed' else ('已完成局部改稿并通过检查' if report.get('changed') else '已复核，正文未修改；未发现可安全执行的修改，详情见报告'))
+        if is_deai and skill_host.enabled() and reviewed != article:
+            # The rewritten article becomes the source for later stages too.
+            state = skill_host.load_state(context.conversation_id, context.user_id, requirements)
+            skill_host.apply_revision(state, reviewed)
+            skill_host.save_state(context.conversation_id, context.user_id, state)
         progress_for(context)("generated", {"label": report["summary"], "count": len(reviewed)})
         return ToolResult({"title": session["topic"], "article": reviewed, "review": report}, (
             ArtifactOutput(type="article", title=session["topic"], content=reviewed),

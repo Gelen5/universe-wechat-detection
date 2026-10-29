@@ -247,6 +247,19 @@ class AgentOrchestrator:
                 required_tool = (WECHAT_STAGE_TO_TOOL.get(stage)
                                  if workbench and decision.skill_id == "wechat_writer"
                                  and stage in WECHAT_STAGE_TO_TOOL else None)
+                direct_tool_args = None
+                if required_tool == 'review_article' and intent and intent.source == 'explicit':
+                    articles = [item for item in conversation_repository.run_inputs(
+                        run_id, user_id, messages=False)['artifacts']
+                        if item.get('type') == 'article' and item.get('content')]
+                    if articles:
+                        latest = max(articles, key=lambda item: (
+                            item.get('created_at', ''), item.get('version', 0)))
+                        direct_tool_args = {
+                            'title': latest.get('title') or conversation['title'],
+                            'article': latest['content'],
+                            'requirements': trigger,
+                        }
                 if workbench:
                     # Only the resolved stage's inputs are sent (server/agent/context.py).
                     history = stage_messages(conversation["id"], user_id, stage=stage, run_id=run_id)
@@ -274,6 +287,7 @@ class AgentOrchestrator:
                     is_cancelled=is_cancelled, heartbeat=heartbeat,
                     on_tool_result=persist_result,
                     required_tool=required_tool,
+                    direct_tool_args=direct_tool_args,
                 )
                 if workbench and stage is None and not answer.strip():
                     answer = "我没看懂这句话要做什么。可以点上面五个阶段之一，或直接说「给我选题」「开始写正文」「排版」。"

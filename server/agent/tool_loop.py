@@ -13,7 +13,7 @@ from jsonschema import Draft202012Validator
 
 from .. import conversation_repository
 from ..agent_events import notify
-from ..providers import ModelService
+from ..providers import ModelService, ProviderResponse, ToolInvocation
 from ..providers import call_context
 from ..skills.executor import ToolContext, ToolExecutor
 from ..skills.tool_result import ToolResult
@@ -98,7 +98,8 @@ def run_tool_loop(*, model_service: ModelService, messages: list[dict[str, Any]]
                   timeout_seconds: int, is_cancelled: Callable[[], bool] = lambda: False,
                   heartbeat: Callable[[], bool] = lambda: True,
                   on_tool_result: Callable[[ToolResult, str], dict[str, Any] | None] | None = None,
-                  required_tool: str | None = None) -> str:
+                  required_tool: str | None = None,
+                  direct_tool_args: dict[str, Any] | None = None) -> str:
     started = time.monotonic()
     deadline = started + timeout_seconds
     definitions = [tool.definition for tool in tools.values()]
@@ -120,9 +121,15 @@ def run_tool_loop(*, model_service: ModelService, messages: list[dict[str, Any]]
         ).encode()).hexdigest()[:24]
         model_key = f"{run_id}:model:{calls + 1}:{request_hash}"
         provider_timeout = max(10, int(os.getenv("AGENT_PROVIDER_REQUEST_TIMEOUT", "240") or 240))
-        response = model_service.create_response(messages, tools=definitions,
-                                                 timeout=min(provider_timeout, remaining), idempotency_key=model_key,
-                                                 run_id=run_id, user_id=user_id)
+        if direct_tool_args is not None and calls == 0 and required_tool:
+            # An explicit stage with complete saved inputs needs no model call
+            # just to choose its sole allowed tool and copy the article text.
+            response = ProviderResponse(tool_calls=(ToolInvocation(
+                f'direct-{run_id}', required_tool, direct_tool_args),))
+        else:
+            response = model_service.create_response(messages, tools=definitions,
+                                                     timeout=min(provider_timeout, remaining), idempotency_key=model_key,
+                                                     run_id=run_id, user_id=user_id)
         if not heartbeat():
             raise RuntimeError("run execution lease changed")
         if not response.tool_calls:
