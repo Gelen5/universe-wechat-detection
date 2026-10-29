@@ -107,11 +107,35 @@ def create_tools():
             state = skill_host.for_conversation(
                 context.conversation_id, context.user_id,
                 brief=f"{title}\n{requirements}".strip(), upto="draft", persona=persona)
+            # The draft contract carries no word count, so an explicit length in
+            # the brief is made binding here instead of being a suggestion.
+            state = skill_host.enforce_length(state, requirements)
+            skill_host.save_state(context.conversation_id, context.user_id, state)
             article = state.draft or ""
             if not article.strip():
                 raise ValueError("写作节点未返回正文")
+            title = state.selected_title or title
+            # Review is a required node of the workflow. Leaving it to the
+            # model's tool choice shipped articles that were never reviewed.
+            report = {}
+            try:
+                state = skill_host.for_conversation(
+                    context.conversation_id, context.user_id,
+                    brief=f"{title}\n{requirements}".strip(), upto="review", persona=persona)
+                article = state.draft or article
+                report = dict(state.quality_report or {})
+                report.setdefault('gate', 'needs_review' if report.get('blocked') else 'passed')
+                report.setdefault('summary', '已按 Skill 复核节点完成检查；请人工确认事实与语气。')
+            except skill_host.GateBlocked as exc:
+                report = {'gate': 'blocked', 'summary': f'复核未通过：{exc}'}
+            humanness = skill_host.score_article(article)
+            if humanness:
+                report['humanness'] = humanness
             progress("generated", {"label": "正文已生成", "count": len(article)})
-            return article_result(state.selected_title or title, article)
+            outputs = [ArtifactOutput(type="article", title=title, content=article)]
+            if report:
+                outputs.append(ArtifactOutput(type="report", title="Skill 复核报告", content_json=report))
+            return ToolResult({"title": title, "article": article, "review": report}, tuple(outputs))
         frame = args.get("framework")
         saved_outline = latest_artifact(context, "outline")
         if saved_outline:

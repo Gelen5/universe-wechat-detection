@@ -1,4 +1,4 @@
-﻿"""Host the vendored WeChat workflow: the skill decides, the platform generates.
+"""Host the vendored WeChat workflow: the skill decides, the platform generates.
 
 The Skill ships no model engine. Each node publishes a request — purpose,
 readable references, visible state, output contract, rules — and waits for a
@@ -94,6 +94,36 @@ def exemplar_prefix() -> str:
     joined = '\n\n'.join(f'【参照 {index + 1}】\n{seed}' for index, seed in enumerate(seeds))
     return ('风格参照（只参考语气、节奏和推进方式；不得复用其中的事实、句子和案例）：\n'
             + joined + '\n\n')
+
+
+def enforce_length(state: Any, requirements: str) -> Any:
+    """One focused revision when the draft misses the requested length band.
+
+    The skill's draft contract carries no word count, so an explicit 「约1200字」
+    in the brief was only a suggestion — an observed draft came back at 2204
+    characters. This makes the user's request binding with one revision rather
+    than a regeneration.
+    """
+    article = state.draft or ''
+    issue = skill_runtime.length_issue(article, requirements or '')
+    if not issue:
+        return state
+    line = skill_runtime.length_instruction(requirements or '')
+    prompt = ("按用户要求的篇幅改写这篇正文。"
+              f"{line}\n保留全部事实、论证顺序与作者语气；不要新增没有依据的内容，不要丢掉关键判断。\n"
+              f"当前问题：{issue}\n\n正文：\n{article}")
+    try:
+        with workbench.provider_overrides():
+            revised = workbench._text(prompt)
+    except Exception as exc:
+        log_event('skill_host.length_revision_failed', reason=str(exc)[:200])
+        return state
+    revised = (revised or '').strip()
+    if revised:
+        state.draft = revised
+        log_event('skill_host.length_revised', before=len(article), after=len(revised),
+                  still_off=bool(skill_runtime.length_issue(revised, requirements or '')))
+    return state
 
 
 def score_article(article: str) -> dict[str, Any]:
