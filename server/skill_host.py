@@ -223,7 +223,7 @@ def _research_prefix(state: Any) -> str:
     if not query:
         return ""
     try:
-        research = workbench_research.search(query, fetch=True, max_fetch=3)
+        research = workbench_research.search(query, fetch=False)
         compact = workbench_research.compact(research)
     except Exception as exc:
         log_event("skill_host.research_failed", reason=str(exc)[:200])
