@@ -105,3 +105,19 @@ def test_form_batch_retry_skips_images_already_generated(ui):
     page.locator('#tie-images').click()
     expect(page.locator('#tie-images')).to_be_hidden()
     assert page.evaluate('window.testIndices') == [1, 2, 3, 3]
+
+@pytest.mark.parametrize('width,count', [(390,1),(1440,1),(2560,1),(1440,3),(2560,5)])
+def test_result_cards_keep_portrait_ratio_without_stretching(ui, width, count):
+    page, _ = ui
+    page.set_viewport_size({'width':width,'height':1000})
+    page.goto('http://ui.test/tie-tu')
+    page.evaluate('''count => renderTiePlan({title:'布局测试',ratio:'3:4',copy:'',
+      cards:Array.from({length:count},(_,i)=>({index:i+1,role:'cover',overlay_text:'标题',visual_subject:'花朵',card_brief:{}}))})''', count)
+    cards = page.locator('#tie-result .creator-output-card')
+    expect(cards).to_have_count(count)
+    for card in cards.all():
+        box = card.bounding_box()
+        slot = card.locator('.card-image-slot').bounding_box()
+        assert box['width'] <= 361
+        assert abs(slot['width'] / slot['height'] - .75) < .01
+    assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
