@@ -1,4 +1,4 @@
-﻿# 内置的公众号创作 Skill（vendored）
+# 内置的公众号创作 Skill（vendored）
 
 这里放的是 `weChat-autoCreate` 的源码副本，目的是让仓库自包含：本地能跑、部署可复现、
 线上跑的版本可以从仓库里直接查。
@@ -8,8 +8,9 @@
 | 上游仓库 | https://github.com/Gelen5/weChat-autoCreate |
 | 固定提交 | `0d4cd85a51e8289944ad05c9dfb43125fe38dd2a` |
 | 受控本地扩展 | `vendor/skill-extensions/weChat-autoCreate/native-node-rules.patch`；不是上游原始内容 |
+| 平台宿主扩展 | `toolkit/host_prompts.py`、`toolkit/host_runtime.py`、`tests/test_host_runtime.py`：把节点的 host request 渲染成提示词并驱动模型回填；只消费上游契约，不改变节点定义 |
 | 版本 | 2.1.0 |
-| 同步日期 | 2026-10-25 |
+| 同步日期 | 2026-10-25（本地宿主扩展 2026-10-29 登记） |
 | 许可证 | 见本目录 `LICENSE`（仓库自有，无第三方授权问题） |
 | 文件数 / 体积 | 140 个 / 约 0.74 MB |
 
