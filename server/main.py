@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import accounts, diagnosis_service, image_provider
+from . import accounts, diagnosis_service, image_provider, email_verification
 from . import creator_tools, creator_conversation
 from . import workbench
 from . import legacy_routes
@@ -40,6 +40,9 @@ app = FastAPI(
     title="公众号账号诊断",
     description="公众号数据诊断与可视化报告",
     version="1.0.0",
+    docs_url=None if os.getenv("APP_ENV", "").lower() in {"production", "prod"} else "/docs",
+    redoc_url=None if os.getenv("APP_ENV", "").lower() in {"production", "prod"} else "/redoc",
+    openapi_url=None if os.getenv("APP_ENV", "").lower() in {"production", "prod"} else "/openapi.json",
 )
 
 accounts.init_db()
@@ -78,6 +81,12 @@ async def request_observability(request: Request, call_next):
 
 async def disable_frontend_cache(request, call_next):
     response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    if os.getenv("APP_ENV", "").lower() in {"production", "prod"}:
+        response.headers["Strict-Transport-Security"] = "max-age=31536000"
     is_html = response.headers.get("content-type", "").split(";", 1)[0].strip() == "text/html"
     if is_html:
         response.headers["Cache-Control"] = "no-store, max-age=0"
@@ -115,7 +124,7 @@ async def account_and_points_gate(request: Request, call_next):
     public_pay = path.startswith("/api/pay/alipay/")
     # Logout also clears expired/revoked cookies. Requiring an active session
     # prevents a stale browser from ever completing that cleanup.
-    public_api = path in {"/api/auth/register", "/api/auth/login", "/api/auth/logout"} or public_market or public_refresh or public_pay
+    public_api = path in {"/api/auth/register", "/api/auth/login", "/api/auth/logout", "/api/auth/config", "/api/auth/email-code"} or public_market or public_refresh or public_pay
     user = accounts.user_from_request(request)
     request.state.user = user
     if path.startswith("/api/") and not public_api and not user:
@@ -236,7 +245,7 @@ class ImageGenerationRequest(BaseModel):
     model: str = Field(default="gpt-image-2", max_length=80)
     prompt: str = Field(min_length=1, max_length=20000)
     size: str = Field(default="1024x1365", max_length=40)
-    n: int = Field(default=1, ge=1, le=4)
+    n: int = Field(default=1, ge=1, le=1)
 
 
 class ProviderTestRequest(BaseModel):
@@ -265,6 +274,11 @@ class AuthRequest(BaseModel):
 
 class RegisterRequest(AuthRequest):
     display_name: str = Field(default="", max_length=40)
+    email_code: str = Field(default="", max_length=12)
+
+
+class EmailCodeRequest(BaseModel):
+    email: str = Field(min_length=5, max_length=254)
 
 
 class RechargeRequest(BaseModel):
@@ -616,6 +630,8 @@ def _check_auth_limit(action: str, identity: str, ip: str):
 def register_account(payload: RegisterRequest, response: Response, request: Request):
     ip = client_ip(request)
     _check_auth_limit('register', payload.email, ip)
+    if email_verification.required():
+        email_verification.verify_code(payload.email, payload.email_code)
     try:
         user = accounts.register(payload.email, payload.password, payload.display_name)
     except HTTPException:
@@ -624,6 +640,21 @@ def register_account(payload: RegisterRequest, response: Response, request: Requ
     record_auth_result('register', payload.email, ip, True)
     accounts.create_session(user["id"], response)
     return {"status": "success", "user": user, "wallet": accounts.wallet_summary(user["id"])}
+
+
+@app.get("/api/auth/config")
+def auth_config():
+    return {"email_verification_required": email_verification.required()}
+
+
+@app.post("/api/auth/email-code")
+def send_registration_code(payload: EmailCodeRequest, request: Request):
+    if not email_verification.required():
+        raise HTTPException(status_code=404, detail="邮箱验证尚未启用")
+    _check_auth_limit('email', payload.email, client_ip(request))
+    accounts._validate_email(payload.email)
+    email_verification.send_code(payload.email.strip().lower())
+    return {"status": "success"}
 
 
 @app.post("/api/auth/login")
@@ -636,6 +667,8 @@ def login_account(payload: AuthRequest, response: Response, request: Request):
         record_auth_result('login', payload.email, ip, False)
         raise
     record_auth_result('login', payload.email, ip, True)
+    if user["role"] == "admin":
+        log_event("admin.login", user_id=user["id"], ip=ip, request_id=getattr(request.state, "request_id", None))
     accounts.create_session(user["id"], response)
     return {"status": "success", "user": user, "wallet": accounts.wallet_summary(user["id"])}
 

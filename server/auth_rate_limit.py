@@ -93,9 +93,10 @@ def check_auth_attempt(action: str, identity: str, ip: str, *, client=None, now=
         return LimitResult(True)
     clock = time.time() if now is None else now
     window = 60 if action == 'login' else 900
-    ip_limit = _limit_setting('AUTH_LOGIN_IP_LIMIT' if action == 'login' else 'AUTH_REGISTER_IP_LIMIT',
-                             60 if action == 'login' else 20)
-    pair_limit = 10
+    ip_limit = _limit_setting('AUTH_LOGIN_IP_LIMIT' if action == 'login' else
+                             'AUTH_EMAIL_IP_LIMIT' if action == 'email' else 'AUTH_REGISTER_IP_LIMIT',
+                             60 if action == 'login' else 5 if action == 'email' else 20)
+    pair_limit = 3 if action == 'email' else 10
     ip_key, pair = _prefix(action, identity, ip)
     keys = [pair + ':blocked', ip_key + f':{int(clock) // window}', pair + f':{int(clock) // window}']
     owned = client is None

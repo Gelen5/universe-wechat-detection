@@ -30,6 +30,7 @@ ROOT = Path(__file__).resolve().parent.parent
 DB_PATH = Path(os.getenv("CREATOR_ACCOUNTS_DB") or ROOT / "data" / "creator_accounts.db")
 COOKIE_NAME = "creator_session"
 SESSION_DAYS = 30
+ADMIN_SESSION_DAYS = 7
 PBKDF2_ROUNDS = 260_000
 DB_LOCK = threading.RLock()
 OWNER_EMAIL = (os.getenv("CREATOR_OWNER_EMAIL") or "gelen5@163.com").strip().lower()
@@ -373,8 +374,10 @@ def create_session(user_id: str, response: Response, *, impersonator_id: str | N
     token = secrets.token_urlsafe(32)
     token_hash = hashlib.sha256(token.encode()).hexdigest()
     now_dt = datetime.now(timezone.utc)
-    expires = now_dt + timedelta(days=SESSION_DAYS)
     with DB_LOCK, _connect() as connection:
+        owner = connection.execute("SELECT email FROM users WHERE id=?", (user_id,)).fetchone()
+        session_days = ADMIN_SESSION_DAYS if owner and owner["email"].lower() == OWNER_EMAIL else SESSION_DAYS
+        expires = now_dt + timedelta(days=session_days)
         connection.execute(
             "INSERT INTO sessions(token_hash,user_id,impersonator_id,expires_at,created_at,last_seen_at) VALUES (?,?,?,?,?,?)",
             (token_hash, user_id, impersonator_id, expires.isoformat(), now_dt.isoformat(), now_dt.isoformat()),
@@ -382,7 +385,7 @@ def create_session(user_id: str, response: Response, *, impersonator_id: str | N
     response.set_cookie(
         COOKIE_NAME,
         token,
-        max_age=SESSION_DAYS * 86400,
+        max_age=session_days * 86400,
         httponly=True,
         secure=(os.getenv("APP_ENV", "").lower() in {"production", "prod"}
                 or os.getenv("CREATOR_COOKIE_SECURE") == "1"),
@@ -408,11 +411,13 @@ def user_from_request(request: Request) -> dict[str, Any] | None:
     now = utc_now()
     with DB_LOCK, _connect() as connection:
         row = connection.execute(
-            """SELECT u.*,s.impersonator_id FROM sessions s JOIN users u ON u.id=s.user_id
+            """SELECT u.*,s.impersonator_id,s.created_at AS session_created_at FROM sessions s JOIN users u ON u.id=s.user_id
                WHERE s.token_hash=? AND s.revoked_at IS NULL AND s.expires_at>? AND u.status='active'""",
             (token_hash, now),
         ).fetchone()
         if not row:
+            return None
+        if row["email"].lower() == OWNER_EMAIL and datetime.fromisoformat(row["session_created_at"]) <= datetime.now(timezone.utc) - timedelta(days=ADMIN_SESSION_DAYS):
             return None
         connection.execute("UPDATE sessions SET last_seen_at=? WHERE token_hash=?", (now, token_hash))
         user = _public_user(row)
@@ -527,6 +532,17 @@ def reserve_points(user_id: str, rule: dict[str, Any], method: str, path: str) -
     with DB_LOCK, _connect() as connection:
         connection.execute("BEGIN IMMEDIATE")
         wallet = _locked_wallet(connection, user_id)
+        if path in {"/api/images/generations", "/api/creator-tools/image", "/api/qihaoshou/image"}:
+            daily_limit = max(1, int(os.getenv("IMAGE_DAILY_LIMIT", "20")))
+            used = connection.execute(
+                """SELECT COUNT(*) FROM usage_records WHERE user_id=? AND path IN
+                   ('/api/images/generations','/api/creator-tools/image','/api/qihaoshou/image')
+                   AND status IN ('reserved','completed') AND created_at>=?""",
+                (user_id, datetime.now(timezone.utc).date().isoformat()),
+            ).fetchone()[0]
+            if used >= daily_limit:
+                connection.execute("ROLLBACK")
+                raise HTTPException(status_code=429, detail="今日图片生成次数已达上限")
         if not wallet or wallet["balance"] < points:
             connection.execute("ROLLBACK")
             balance = wallet["balance"] if wallet else 0

@@ -29,6 +29,11 @@ const walletModal = document.querySelector('#wallet-modal');
 const walletSettingsButton = document.querySelector('#wallet-settings-button');
 const logoutButton = document.querySelector('#logout-button');
 let currentAccount = null;
+let emailVerificationRequired = false;
+fetch('/api/auth/config').then(response => response.ok ? response.json() : {}).then(config => {
+  emailVerificationRequired = Boolean(config.email_verification_required);
+  document.querySelector('#auth-email-code-field').hidden = !emailVerificationRequired || document.querySelector('#auth-form').dataset.mode !== 'register';
+}).catch(() => {});
 let accountReadSequence = 0;
 let publishedAccountId;
 let resolveInitialAccount;
@@ -263,6 +268,7 @@ function setAuthMode(mode) {
     button.setAttribute('aria-pressed', String(button.dataset.authMode === mode));
   });
   document.querySelector('#display-name-field').hidden = !register;
+  document.querySelector('#auth-email-code-field').hidden = !register || !emailVerificationRequired;
   document.querySelector('#auth-title').textContent = register ? '创建你的账号' : '欢迎回来';
   document.querySelector('#auth-description').textContent = register ? '从一个想法，开始你的创作。' : '登录，继续你的创作。';
   document.querySelector('#auth-submit').textContent = register ? '注册并进入工作台' : '登录';
@@ -272,6 +278,26 @@ function setAuthMode(mode) {
 }
 
 document.querySelectorAll('[data-auth-mode]').forEach(button => button.addEventListener('click', () => setAuthMode(button.dataset.authMode)));
+
+document.querySelector('#auth-send-code')?.addEventListener('click', async event => {
+  const button = event.currentTarget;
+  const error = document.querySelector('#auth-error');
+  error.hidden = true;
+  button.disabled = true;
+  try {
+    const response = await fetch('/api/auth/email-code', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: document.querySelector('#auth-email').value.trim() }),
+    });
+    await readApiResponse(response);
+    button.textContent = '已发送，60 秒后重试';
+    setTimeout(() => { button.disabled = false; button.textContent = '发送验证码'; }, 60000);
+  } catch (exception) {
+    error.textContent = exception.message;
+    error.hidden = false;
+    button.disabled = false;
+  }
+});
 
 document.querySelector('#auth-password-toggle')?.addEventListener('click', event => {
   const input = document.querySelector('#auth-password');
@@ -303,6 +329,7 @@ document.querySelector('#auth-form')?.addEventListener('submit', async event => 
         email: document.querySelector('#auth-email').value.trim(),
         password: document.querySelector('#auth-password').value,
         display_name: document.querySelector('#auth-display-name').value.trim(),
+        email_code: document.querySelector('#auth-email-code').value.trim(),
       }),
     });
     const data = await readApiResponse(response);
