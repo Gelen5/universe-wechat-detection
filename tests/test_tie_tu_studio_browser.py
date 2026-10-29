@@ -42,7 +42,7 @@ def test_style_chip_opens_form_and_fills_style(ui):
     expect(page.locator('#tie-style')).to_have_value('赛博朋克 · 霓虹紫 + 故障感')
     expect(page.locator('#tie-form')).to_be_visible()
     assert page.locator('#tie-form').evaluate("el => getComputedStyle(el).borderRadius") == '18px'
-    assert page.locator('#tie-topic').evaluate("el => parseFloat(getComputedStyle(el).fontSize)") >= 14
+    assert page.locator('#tie-topic').evaluate("el => parseFloat(getComputedStyle(el).fontSize)") >= 16
 
 
 @pytest.mark.parametrize('width', [390, 2560])
@@ -50,12 +50,11 @@ def test_form_is_usable_at_phone_and_wide_desktop(ui, width):
     page, _ = ui
     page.set_viewport_size({'width': width, 'height': 1200})
     page.goto('http://ui.test/tie-tu')
-    expect(page.locator('#tie-tu .creator-form-mode summary')).to_have_text('用表单创建计划')
-    assert page.locator('#tie-tu .creator-form-mode summary').evaluate("el => parseFloat(getComputedStyle(el).fontSize)") >= 16
-    page.locator('#tie-tu .creator-form-mode summary').click()
-    expect(page.locator('#tie-tu .tie-form-hint')).to_contain_text('不会自动应用到对话')
+    expect(page.locator('#tie-tu .tie-form-intro')).to_contain_text('表单和对话分别提交')
+    assert page.locator('#tie-form').evaluate("el => !el.closest('details')")
     expect(page.locator('#tie-topic')).to_be_visible()
     expect(page.locator('#tie-plan')).to_be_visible()
+    assert page.locator('#tie-form label').first.evaluate("el => parseFloat(getComputedStyle(el).fontSize)") >= 16
     assert page.locator('#tie-tu .skill-shell').evaluate("el => el.getBoundingClientRect().bottom >= document.querySelector('#tie-tu .skill-form-col').getBoundingClientRect().bottom - 1")
     assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
     if width == 2560:

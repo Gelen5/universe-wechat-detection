@@ -538,13 +538,13 @@
         <div class="skill-shell">
           <div class="skill-form-col">
             <span class="micro-label"><span class="line"></span><span>图文创作 / TIE TU</span></span>
-            <h1>开始创作</h1>
-            <p>输入主题和要求，生成可调整的卡片计划。</p>
+            <h1>创建贴图</h1>
+            <p>填写主题，生成卡片计划；确认后再生成图片。</p>
 
             <form id="tie-form" class="skill-form">
               <div class="form-section">
-                <div class="head"><span class="num">01</span><div class="copy"><strong>建立贴图计划</strong><small>默认 3:4，一张卡片只讲一个重点。</small></div></div>
-                <label class="field-wide">主题<textarea id="tie-topic" name="topic" autocomplete="off" required placeholder="例如：40岁以后，旅行要换一种玩法"></textarea></label>
+                <div class="head"><div class="copy"><strong>填写创作内容</strong><small>只填主题也可以，其他选项可按需调整。</small></div></div>
+                <label class="field-wide">主题（必填）<textarea id="tie-topic" name="topic" autocomplete="off" required placeholder="例如：中老年人如何安排退休生活"></textarea></label>
                 <div class="field-grid">
                   <label>行业<input id="tie-industry" name="industry" autocomplete="off" value="生活方式"></label>
                   <label>目标读者<input id="tie-audience" name="audience" autocomplete="off" placeholder="例如：40-50 岁用户"></label>
@@ -570,7 +570,7 @@
               <div class="empty-head">
                 <span class="tag">图文计划 <span class="tie-status-dot"></span> 等待创建</span>
                 <h2>你的卡片会显示在这里</h2>
-                <p>先生成计划，确认内容后再逐步生成图片。</p>
+                <p>填写左侧表单，点击“生成卡片计划”。</p>
                 <ol class="tie-steps" aria-label="创作流程"><li aria-current="step"><b>01</b><span>描述需求</span></li><li><b>02</b><span>确认计划</span></li><li><b>03</b><span>生成试图</span></li><li><b>04</b><span>生成其余图片</span></li></ol>
               </div>
               <div class="empty-grid">
@@ -594,7 +594,7 @@
                   </div>
                 </article>
               </div>
-              <footer class="empty-foot"><span>计划 → 试图 → 其余图片</span><small>每一步都可以先确认</small></footer>
+              <footer class="empty-foot"><span>确认计划后，先生成一张试图</span><small>确认试图后再生成其余图片</small></footer>
             </div>
             <div id="tie-result" class="tie-result" hidden></div>
           </div>
@@ -881,8 +881,8 @@
     <script src="/static/flow.js?v=20260904-tools-1"></script>
     <script src="/static/studio-tools.js?v=20261028-tietu-1"></script>
     <link rel="stylesheet" href="/static/creator-chat.css?v=20260906-conversation-1">
-  <link rel="stylesheet" href="/static/tie-tu-studio.css?v=20261028-5">
-    <script src="/static/creator-chat.js?v=20261028-tietu-4"></script>
+  <link rel="stylesheet" href="/static/tie-tu-studio.css?v=20261029-form-1">
+    <script src="/static/creator-chat.js?v=20261029-form-1"></script>
     <script src="/static/notion-workspace.js?v=20261024-ui5"></script>
 <script src="/static/hotspots.js?v=20261025-stable-filter-1"></script>
     <script>
