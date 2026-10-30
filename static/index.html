@@ -934,6 +934,27 @@
   <link rel="stylesheet" href="/static/tie-tu-studio.css?v=20261030-image-preview-1">
     <script src="/static/creator-chat.js?v=20261030-image-timer-1"></script>
     <script src="/static/notion-workspace.js?v=20261031-viral-remix-2"></script>
+    <script>
+      // CDN/embedded clients may retain an older sidebar builder. Keep this
+      // entry in the HTML response as a final, cache-independent insertion.
+      (() => {
+        const addRemixLink = () => {
+          const nav = document.querySelector('.app-tabs');
+          const tieTu = nav?.querySelector('[data-view="tie-tu"]');
+          if (!nav || !tieTu) return;
+          let link = nav.querySelector('[data-view="viral-remix"]');
+          if (!link) {
+            link = document.createElement('a');
+            link.href = '/viral-remix'; link.dataset.view = 'viral-remix';
+            link.innerHTML = '<svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="m8 15 3-3 2 2 3-4 2 3"/><circle cx="8.5" cy="8.5" r="1.2"/><path d="M16 3v4M14 5h4"/></svg><span>爆款贴图复刻</span>';
+            link.addEventListener('click', event => { event.preventDefault(); window.AppNav?.setActiveView?.('viral-remix', true); });
+          }
+          tieTu.insertAdjacentElement('afterend', link);
+        };
+        addRemixLink();
+        setTimeout(addRemixLink, 0);
+      })();
+    </script>
 <script src="/static/hotspots.js?v=20261025-stable-filter-1"></script>
     <script>
       // 同步 recent-item（首页样例：点击触发诊断）
