@@ -5,6 +5,7 @@ site=/etc/nginx/sites-available/universe-wechat-detection
 snippet="${1:-/tmp/nginx-admin-auth.location.conf}"
 secret=/etc/nginx/.universe-admin-basic-secret
 passwd=/etc/nginx/.universe-admin.htpasswd
+username="${ADMIN_BASIC_AUTH_USERNAME:-gelen5@163.com}"
 backup="${site}.pre-admin-auth-$(date +%Y%m%d%H%M%S)"
 
 test "$(id -u)" -eq 0
@@ -15,7 +16,7 @@ if [ ! -s "$secret" ]; then
     umask 077
     openssl rand -hex 24 > "$secret"
 fi
-printf 'securityadmin:%s\n' "$(openssl passwd -apr1 -stdin < "$secret")" > "$passwd"
+printf '%s:%s\n' "$username" "$(openssl passwd -apr1 -stdin < "$secret")" > "$passwd"
 chmod 600 "$secret"
 chown root:www-data "$passwd"
 chmod 640 "$passwd"
