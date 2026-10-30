@@ -8,6 +8,7 @@
     ['/xiaohongshu', '小红书'], ['/tie-tu', '贴图号'], ['/morning-generator', '早安祝福'],
     ['/diagnose', '账号诊断'], ['/hit-detector', '发布前复核'],
     ['/market', 'AI 超市', '超市'], ['/bookshelf', 'AI 书架'],
+    ['/pricing', '积分套餐'],
   ];
   const menu = document.createElement('dialog');
   menu.className = 'shell-menu'; menu.id = 'shell-more-menu';
@@ -17,7 +18,7 @@
   const list = document.createElement('nav'); list.setAttribute('aria-label', '全部功能');
   menu.append(heading, close, list); document.body.append(menu);
   const ordered = document.createDocumentFragment();
-  const groups = {'/hotspots': '内容创作', '/diagnose': '分析', '/market': '资源'};
+  const groups = {'/hotspots': '内容创作', '/diagnose': '分析', '/market': '资源', '/pricing': '账户'};
   for (const [href, label, short] of routes) {
     let link = nav.querySelector(`a[href="${href}"]`);
     if (!link && href === '/hotspots') {
