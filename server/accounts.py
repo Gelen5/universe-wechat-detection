@@ -250,14 +250,6 @@ def init_db() -> None:
             connection.execute(
                 "CREATE UNIQUE INDEX IF NOT EXISTS uq_usage_records_run_id ON usage_records(run_id)"
             )
-        else:
-            try:
-                connection.execute(
-                    "CREATE UNIQUE INDEX IF NOT EXISTS idx_point_transactions_request "
-                    "ON point_transactions(request_id) WHERE request_id IS NOT NULL"
-                )
-            except Exception:  # noqa: BLE001 - 幂等索引为可选加固，失败不阻断启动
-                pass
         now = utc_now()
         for method, path, feature, points, cost in DEFAULT_PRICING:
             connection.execute(
