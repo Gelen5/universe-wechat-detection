@@ -1,0 +1,11 @@
+# Opt-in recovery build: deploy.sh verifies requirements.txt against this
+# already-running image before selecting this Dockerfile. No pip installation.
+ARG PYTHON_RUNTIME_IMAGE
+FROM ${PYTHON_RUNTIME_IMAGE}
+USER root
+WORKDIR /app
+# /app is image source only at build time; production volumes are not mounted.
+RUN find /app -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+COPY --chown=app:app . .
+RUN mkdir -p /app/output && chown app:app /app/output
+USER app

@@ -1,0 +1,14 @@
+# Select only after requirements.txt equality has been checked by deploy.sh.
+services:
+  web:
+    build: &runtime-build
+      context: .
+      dockerfile: Dockerfile.runtime
+      args:
+        PYTHON_RUNTIME_IMAGE: ${PYTHON_RUNTIME_IMAGE:?verified existing runtime required}
+  worker:
+    build: *runtime-build
+  beat:
+    build: *runtime-build
+  migrate:
+    build: *runtime-build

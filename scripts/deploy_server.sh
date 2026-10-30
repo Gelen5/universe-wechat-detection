@@ -172,6 +172,21 @@ fi
 [ -f "$REL/docker-compose.yml" ] || die "$REL 缺少 docker-compose.yml"
 [ -f "$REL/server/main.py" ] || die "$REL 缺少 server/main.py"
 
+# Explicit recovery mode for small hosts: reuse the exact installed runtime
+# only when the dependency manifest is byte-identical. Never silently upgrade
+# packages or run a pip installation on an overloaded production host.
+if [ "${DEPLOY_REUSE_PYTHON_RUNTIME:-0}" = 1 ]; then
+  [ -n "$PREV_SHORT" ] || die "复用运行环境需要已有线上版本"
+  EXPECTED_REQ=$(sha256sum "$REL/requirements.txt" | cut -d' ' -f1)
+  RUNNING_REQ=$(docker exec "${PROJECT}-web-1" sha256sum /app/requirements.txt | cut -d' ' -f1)
+  [ "$EXPECTED_REQ" = "$RUNNING_REQ" ] || die "requirements.txt 已变化，不能复用旧运行环境"
+  export PYTHON_RUNTIME_IMAGE="${PROJECT}-web:${PREV_SHORT}"
+  CURRENT_IMAGE=$(docker inspect -f '{{.Image}}' "${PROJECT}-web-1")
+  docker tag "$CURRENT_IMAGE" "$PYTHON_RUNTIME_IMAGE"
+  COMPOSE_ARGS+=(-f docker-compose.runtime.yml)
+  log "依赖清单一致，复用 $PYTHON_RUNTIME_IMAGE；仅构建代码层"
+fi
+
 # ---------------------------------------------------------------- images
 if [ -n "$PREV_SHORT" ] && [ "$PREV_SHORT" != "$SHORT" ]; then
   log "为回滚保留当前镜像（标签 $PREV_SHORT）"
