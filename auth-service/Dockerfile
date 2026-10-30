@@ -1,4 +1,4 @@
-FROM node:24-slim
+FROM node:24.18.0-bookworm-slim
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts
