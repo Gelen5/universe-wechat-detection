@@ -1276,7 +1276,7 @@ async function generateSkillImages(tool, sessionId, cards, style, grid, onImage 
       const target = grid.querySelector(`[data-card-index="${data.image.index}"]`);
       if (target) {
         target.classList.add('generated');
-        target.querySelector('.card-image-slot').innerHTML = `<img src="${esc(data.image.url)}" alt="第 ${data.image.index} 张生成图片"><a href="${esc(data.image.url)}" target="_blank" rel="noopener">查看原图</a>`;
+        renderCardImage(target.querySelector('.card-image-slot'), data.image);
       }
       const done = index + 1;
       progress.querySelector('.progress-copy').textContent = `${done} / ${cards.length}`;
@@ -1406,12 +1406,35 @@ document.querySelector('#tie-form')?.addEventListener('submit', async event => {
   } catch (error) { showToast(error.message, 'error'); } finally { finish(); }
 });
 
+function renderCardImage(slot, image) {
+  const url = safeUrl(image.url);
+  const button = document.createElement('button');
+  button.type = 'button'; button.className = 'card-image-preview';
+  button.setAttribute('aria-label', `放大图片 ${image.index}`);
+  const img = document.createElement('img'); img.src = url; img.alt = `图片 ${image.index}`;
+  button.append(img);
+  const download = document.createElement('a'); download.href = url;
+  download.download = `card-${image.index}.png`; download.textContent = '下载图片';
+  download.className = 'card-image-download';
+  button.addEventListener('click', () => {
+    const dialog = document.createElement('dialog'); dialog.className = 'card-image-lightbox';
+    const close = document.createElement('button'); close.type = 'button'; close.textContent = '关闭';
+    const large = img.cloneNode(); const save = download.cloneNode(true);
+    const actions = document.createElement('div'); actions.append(save, close);
+    dialog.append(large, actions); document.body.append(dialog);
+    close.addEventListener('click', () => dialog.close());
+    dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
+    dialog.addEventListener('close', () => { dialog.remove(); button.focus(); });
+    dialog.showModal(); close.focus();
+  });
+  slot.replaceChildren(button, download);
+}
+
 function renderConversationImages(root, images = []) {
   for (const image of images) {
     const slot = root.querySelector(`[data-card-index="${Number(image.index)}"] .card-image-slot`);
     if (!slot) continue;
-    const img = document.createElement('img'); img.src = safeUrl(image.url); img.alt = `图片 ${image.index}`;
-    slot.replaceChildren(img);
+    renderCardImage(slot, image);
   }
 }
 

@@ -7,6 +7,24 @@ from tests.test_ui_shell_browser import browser, ui  # noqa: F401
 
 
 @pytest.mark.parametrize('width', [390, 1440])
+def test_generated_image_opens_preview_and_download(ui, width):
+    page, _ = ui
+    page.set_viewport_size({'width': width, 'height': 900})
+    page.goto('http://ui.test/tie-tu')
+    page.evaluate('''() => {
+      const slot = document.createElement('div'); slot.className='card-image-slot';
+      document.querySelector('#tie-tu').prepend(slot);
+      renderCardImage(slot, {index:1,url:'/api/creator-tools/assets/tie-tu/test/card-01.png'});
+    }''')
+    page.get_by_role('button', name='放大图片 1', exact=True).click()
+    expect(page.locator('dialog.card-image-lightbox')).to_be_visible()
+    expect(page.locator('.card-image-lightbox img')).to_have_attribute('src', '/api/creator-tools/assets/tie-tu/test/card-01.png')
+    expect(page.locator('.card-image-lightbox a')).to_have_attribute('download', 'card-1.png')
+    page.keyboard.press('Escape')
+    expect(page.locator('dialog.card-image-lightbox')).to_have_count(0)
+
+
+@pytest.mark.parametrize('width', [390, 1440])
 def test_tie_tu_studio_renders_plan_and_responsive_layout(ui, width):
     page, _ = ui
     page.set_viewport_size({'width': width, 'height': 900})

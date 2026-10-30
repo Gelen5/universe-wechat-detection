@@ -152,6 +152,9 @@ def _fit_images(result: dict[str, Any], size: str) -> dict[str, Any]:
                 decoded.load()
                 width, height = decoded.size
                 if (width, height) == (target_width, target_height):
+                    item['b64_json'] = base64.b64encode(raw).decode('ascii')
+                    item.pop('url', None)
+                    item.pop('image_url', None)
                     continue
                 image = decoded.convert("RGB")
                 if abs(width / height - target_ratio) > 0.01:

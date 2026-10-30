@@ -169,9 +169,9 @@ class OpenAICompatibleProvider(ModelProvider):
                        timeout: int = 300, idempotency_key: str | None = None) -> dict[str, Any]:
         if not prompt.strip():
             raise ProviderRequestError("image prompt is required", code="invalid_request")
-        data = self._post(self.image_base_url + "/images/generations", self.image_api_key,
-                          {"model": self.image_model, "prompt": prompt, "size": size, "n": count},
-                          min(timeout, 180), idempotency_key)
+        data = self._read_image_result(
+            {"model": self.image_model, "prompt": prompt, "size": size, "n": count},
+            timeout, idempotency_key)
         status_url = data.get("statusUrl") or data.get("status_url")
         if not status_url or data.get("data"):
             return data
@@ -186,6 +186,37 @@ class OpenAICompatibleProvider(ModelProvider):
             if status in {"failed", "cancelled", "canceled", "error"}:
                 raise ProviderRequestError(self._error(data) or f"image task {status}", code="image_failed")
         raise ProviderRequestError("image task timed out", code="timeout", transient=True)
+
+    def _read_image_result(self, body: dict[str, Any], timeout: int,
+                           idempotency_key: str | None) -> dict[str, Any]:
+        from ..observability import event
+        started = time.monotonic()
+        response = self._request('POST', self.image_base_url + '/images/generations',
+                                 self.image_api_key, body, timeout, idempotency_key, stream=True)
+        event('provider.image_headers', latency_ms=int((time.monotonic()-started)*1000))
+        parts = []
+        decoder = json.JSONDecoder()
+        try:
+            for chunk in response.iter_content(chunk_size=None):
+                if time.monotonic() - started > timeout:
+                    raise ProviderRequestError('image response exceeded total time budget', code='timeout')
+                if not chunk:
+                    continue
+                parts.append(chunk)
+                try:
+                    data, _ = decoder.raw_decode(b''.join(parts).decode('utf-8').lstrip())
+                except (ValueError, UnicodeDecodeError):
+                    continue
+                if not isinstance(data, dict):
+                    raise ProviderRequestError('image response must be an object', code='invalid_response')
+                event('provider.image_result_received', latency_ms=int((time.monotonic()-started)*1000),
+                      bytes=sum(map(len, parts)))
+                return data
+            raise ProviderRequestError('image response ended without complete JSON', code='invalid_response')
+        except requests.RequestException as exc:
+            raise ProviderRequestError('image response connection interrupted', code='transport') from exc
+        finally:
+            response.close()
 
     def _post(self, url: str, key: str, body: dict[str, Any], timeout: int,
               idempotency_key: str | None) -> dict[str, Any]:

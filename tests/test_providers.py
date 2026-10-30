@@ -13,6 +13,9 @@ class FakeResponse:
     def json(self):
         return self.data
 
+    def iter_content(self, chunk_size=None):
+        yield json.dumps(self.data).encode()
+
     def iter_lines(self):
         yield b"event: response.completed"
         yield b"data: " + json.dumps({"type": "response.completed", "response": self.data}).encode()
@@ -39,6 +42,21 @@ class FakeSession:
 
 
 class ProviderTests(unittest.TestCase):
+    def test_image_returns_after_complete_json_before_connection_closes(self):
+        class KeptOpen(FakeResponse):
+            closed = False
+            def iter_content(self, chunk_size=None):
+                yield b'  '
+                yield b'{"data":['
+                yield b'{"url":"https://example.test/image.png"}]}'
+                raise AssertionError('must not wait for EOF')
+            def close(self):
+                self.closed = True
+        response = KeptOpen({})
+        result = self.provider([response]).generate_image('prompt', size='768x1024')
+        self.assertEqual('https://example.test/image.png', result['data'][0]['url'])
+        self.assertTrue(response.closed)
+
     def provider(self, responses):
         return OpenAICompatibleProvider(api_key="secret", base_url="https://example.test/v1",
                                         text_model="text", image_model="image",
