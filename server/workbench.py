@@ -1021,11 +1021,29 @@ def _deep_structure_review(article: str, session: dict[str, Any], progress=None)
             raise ProviderError('结构重构未产生正文修改，已保留原稿')
         if progress:
             progress('generating', {'label': '正在核对主题与原意'})
-        semantic = _json_text(f'''你是独立编辑。比较原文和改稿，只判断三件事：主题是否相同，核心意思和重要建议/条件是否保留，有没有凭空新增事实或经历。允许重排结构、合并重复内容、改写数字和引语的说法；不要要求字句逐项相同。另评估表达是否更自然具体，给出简短理由。
-原文：{article}\n重构稿：{candidate}
+        def check_meaning(revision: str) -> dict[str, Any]:
+            return _json_text(f'''你是独立编辑。比较原文和改稿，只判断三件事：主题是否相同，核心意思和重要建议/条件是否保留，有没有凭空新增事实或经历。允许重排结构、合并重复内容、改写数字和引语的说法；不要要求字句逐项相同。另评估表达是否更自然具体，给出简短理由。
+原文：{article}\n重构稿：{revision}
 只返回JSON {{"topic_preserved":true,"meaning_preserved":true,"no_invention":true,"natural_voice":true,"issues":[]}}；有明显偏离才写 false，issues 简述原因。''',
                               model=_setting('WECHAT_REVIEW_MODEL') or None)
-        if any(semantic.get(key) is not True for key in ('topic_preserved', 'meaning_preserved', 'no_invention')):
+
+        def meaning_ok(result: dict[str, Any]) -> bool:
+            return all(result.get(key) is True for key in ('topic_preserved', 'meaning_preserved', 'no_invention'))
+
+        semantic = check_meaning(candidate)
+        if not meaning_ok(semantic):
+            if progress:
+                progress('generating', {'label': '按原意修订改稿'})
+            issues = json.dumps(semantic.get('issues') or [], ensure_ascii=False)
+            repaired = _text(f'''你是中文编辑。下文改稿表达更自然，但有偏离原文意思的风险。请只修正这些偏离，保留改稿已有的自然节奏、结构和语言，不要退回原稿或重新写成模板文章。不得添加原文没有的事实或经历。
+需要修正的问题：{issues}
+原文：\n{article}
+当前改稿：\n{candidate}
+只返回修订后的完整 Markdown 正文。''', model=_setting('WECHAT_REVIEW_MODEL') or None)
+            if repaired.strip():
+                candidate = repaired
+                semantic = check_meaning(candidate)
+        if not meaning_ok(semantic):
             raise ProviderError('改稿偏离原文主题或意思，已保留原稿')
         evidence = revision_evidence(article, candidate)
         return candidate, {'source': 'structural_rewrite', 'gate': 'passed',

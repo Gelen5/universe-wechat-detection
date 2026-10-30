@@ -128,6 +128,21 @@ def test_deep_structure_requires_semantic_check_and_marks_human_review_pending()
     reviewer.assert_called_once()
 
 
+def test_deep_structure_repairs_a_meaning_drift_once():
+    original = '# 标题\n\n每周三次，先征得同意。'
+    drifted = '# 标题\n\n每周四次，先征得同意。'
+    repaired = '# 标题\n\n先商量好，再每周安排三回。'
+    failed = {'topic_preserved': True, 'meaning_preserved': False,
+              'no_invention': False, 'natural_voice': True, 'issues': ['频次改变']}
+    passed = {'topic_preserved': True, 'meaning_preserved': True,
+              'no_invention': True, 'natural_voice': True, 'issues': []}
+    with patch.object(workbench, '_text', side_effect=[drifted, repaired]) as writer, \
+         patch.object(workbench, '_json_text', side_effect=[failed, passed]) as reviewer:
+        result, report = workbench._deep_structure_review(original, {'id': 'deep', 'brief': '去 AI'})
+    assert result == repaired and report['gate'] == 'passed'
+    assert writer.call_count == reviewer.call_count == 2
+
+
 @pytest.mark.parametrize('node', ['visual', 'delivery'])
 def test_pending_review_is_not_resumed_into_downstream(node):
     module, workflow, state = make_state()
