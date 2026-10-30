@@ -21,12 +21,13 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
+from urllib.parse import quote
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import Column, MetaData, String, Table, insert, select, update
+from sqlalchemy import Column, Integer, MetaData, String, Table, insert, select, update
 from sqlalchemy.exc import IntegrityError
 
 from alipay.aop.api import DefaultAlipayClient as _sdk_client
@@ -44,6 +45,7 @@ from alipay.aop.api.request.AlipayTradeQueryRequest import AlipayTradeQueryReque
 from alipay.aop.api.request.AlipayTradeRefundRequest import AlipayTradeRefundRequest
 from alipay.aop.api.util.SignatureUtils import get_sign_content, verify_with_rsa
 
+from . import accounts
 from .database import ENGINE
 
 logger = logging.getLogger(__name__)
@@ -191,6 +193,19 @@ alipay_orders = Table(
     Column("created_at", String(32), nullable=False),
     Column("paid_at", String(32)),
     Column("updated_at", String(32), nullable=False),
+)
+
+alipay_recharges = Table(
+    "alipay_recharges",
+    metadata,
+    Column("out_trade_no", String(64), primary_key=True),
+    Column("user_id", String(64), nullable=False),
+    Column("package_id", String(32), nullable=False),
+    Column("credits", Integer, nullable=False),
+    Column("amount", String(32), nullable=False),
+    Column("status", String(16), nullable=False),
+    Column("credited_at", String(32)),
+    Column("created_at", String(32), nullable=False),
 )
 
 alipay_notify_events = Table(
@@ -468,14 +483,18 @@ form.addEventListener('submit', async (event) => {
   event.preventDefault();
   button.disabled = true;
   hint.textContent = '正在创建支付宝订单…';
+  const packageId = form.dataset.package || '';
+  const payload = packageId
+    ? { package_id: packageId }
+    : {
+        subject: document.getElementById('subject').value,
+        total_amount: document.getElementById('amount').value,
+      };
   try {
     const response = await fetch('/api/pay/alipay/orders', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        subject: document.getElementById('subject').value,
-        total_amount: document.getElementById('amount').value,
-      }),
+      body: JSON.stringify(payload),
     });
     const data = await response.json();
     if (!response.ok || !data.form_html) {
@@ -500,8 +519,9 @@ form.addEventListener('submit', async (event) => {
 
 # ------------------------------------------------------------------ 请求模型
 class CreateOrderPayload(BaseModel):
-    subject: str = Field(min_length=1, max_length=256)
-    total_amount: str = Field(min_length=1, max_length=32)
+    package_id: str | None = Field(default=None, max_length=32)
+    subject: str | None = Field(default=None, max_length=256)
+    total_amount: str | None = Field(default=None, max_length=32)
     out_trade_no: str | None = Field(default=None, max_length=64)
 
 
@@ -522,19 +542,122 @@ def _notify_url() -> str:
     return os.getenv("ALIPAY_NOTIFY_URL", "").strip()
 
 
+def _result_url(request: Request) -> str:
+    configured = os.getenv("ALIPAY_RETURN_URL", "").strip()
+    if configured:
+        return configured
+    return str(request.base_url).rstrip("/") + "/pay/result"
+
+
 # ------------------------------------------------------------------ 接口
 _PACKAGES = (
-    ("入门", "100 积分", "10.00", "偶尔写作与配图"),
-    ("进阶", "300 积分", "29.00", "每周稳定产出"),
-    ("专业", "1000 积分", "88.00", "高频创作与批量改稿"),
+    {"id": "starter", "name": "入门", "credits": 100, "price": "10.00", "blurb": "偶尔写作与配图"},
+    {"id": "pro", "name": "进阶", "credits": 300, "price": "29.00", "blurb": "每周稳定产出，赠 10 积分"},
+    {"id": "master", "name": "专业", "credits": 1000, "price": "88.00", "blurb": "高频创作与批量改稿，赠 120 积分"},
 )
 
 
+def _package(package_id: str) -> dict[str, Any] | None:
+    for package in _PACKAGES:
+        if package["id"] == package_id:
+            return package
+    return None
+
+
+def _recharge_for(out_trade_no: str) -> dict[str, Any] | None:
+    with ENGINE.begin() as connection:
+        row = connection.execute(
+            select(alipay_recharges).where(alipay_recharges.c.out_trade_no == out_trade_no)
+        ).mappings().first()
+    return dict(row) if row else None
+
+
+def _credit_recharge(out_trade_no: str) -> dict[str, Any] | None:
+    """按订单把积分幂等入账；返回入账结果，非充值订单返回 None。"""
+
+    recharge = _recharge_for(out_trade_no)
+    if recharge is None:
+        return None
+    if recharge["status"] == "CREDITED":
+        return {"credited": False, "reason": "already_credited", "credits": recharge["credits"]}
+    try:
+        result = accounts.credit_alipay_recharge(
+            recharge["user_id"],
+            int(recharge["credits"]),
+            out_trade_no,
+            f"支付宝充值 · {recharge['package_id']}",
+        )
+    except Exception:  # noqa: BLE001 - 入账失败保留待补偿状态，下次通知/查询重试
+        logger.warning("alipay recharge credit failed", exc_info=True)
+        return {"credited": False, "reason": "credit_failed", "credits": recharge["credits"]}
+    if result.get("credited"):
+        with ENGINE.begin() as connection:
+            connection.execute(
+                update(alipay_recharges)
+                .where(alipay_recharges.c.out_trade_no == out_trade_no)
+                .values(status="CREDITED", credited_at=_now())
+            )
+    else:
+        # 已入账但本地未标记（例如上次写状态失败），补齐状态。
+        with ENGINE.begin() as connection:
+            connection.execute(
+                update(alipay_recharges)
+                .where(alipay_recharges.c.out_trade_no == out_trade_no)
+                .values(status="CREDITED", credited_at=recharge["credited_at"] or _now())
+            )
+    return result
+
+
 @router.get("/pay", response_class=HTMLResponse, include_in_schema=False)
-def pay_page(subject: str = "AI 写作助手 · 积分充值", amount: str = "10.00") -> HTMLResponse:
+def pay_page(
+    request: Request,
+    package: str = "",
+    subject: str = "",
+    amount: str = "",
+) -> HTMLResponse:
+    chosen = _package((package or "").strip())
+    if chosen is not None:
+        user = accounts.user_from_request(request)
+        if user is None:
+            return HTMLResponse(
+                _page(
+                    "请先登录",
+                    '<div class="brand"><span class="dot"></span>宇宙第一工作台 · 收银台</div>'
+                    "<h1>请先登录后再购买</h1>"
+                    '<p class="lead">积分套餐需要绑定到你的账号，请先登录工作台再回来付款。</p>'
+                    '<div class="actions"><a class="primary" href="/">返回工作台登录</a></div>',
+                ),
+                status_code=401,
+                headers={"Cache-Control": "no-cache"},
+            )
+        body = (
+            '<div class="brand"><span class="dot"></span>宇宙第一工作台 · 收银台</div>'
+            f"<h1>{chosen['name']}套餐 · {chosen['credits']} 积分</h1>"
+            '<p class="lead">付款成功后积分会自动记入当前账号。付款结果以服务端交易查询与异步通知为准。</p>'
+            f'<form id="pay-form" data-package="{chosen["id"]}">'
+            "<dl>"
+            f"<dt>套餐</dt><dd>{chosen['name']}（{chosen['credits']} 积分）</dd>"
+            f"<dt>到账账号</dt><dd>{user.get('display_name') or user.get('email') or user.get('id')}</dd>"
+            "</dl>"
+            '<label>支付方式</label>'
+            '<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid #1677ff;'
+            'border-radius:12px;background:#f5f9ff">'
+            '<span style="display:inline-flex;width:22px;height:22px;border-radius:6px;background:#1677ff;'
+            'color:#fff;font-size:12px;font-weight:700;align-items:center;justify-content:center">支</span>'
+            '<span style="font-size:15px;font-weight:600">支付宝</span>'
+            '<span style="margin-left:auto;font-size:12px;color:#1677ff">推荐</span>'
+            "</div>"
+            f'<button id="submit" type="submit">支付 ¥{chosen["price"]} 购买 {chosen["credits"]} 积分</button>'
+            "</form>"
+            '<p class="hint" id="hint">付款完成后会自动跳回结果页，可查看积分到账情况。</p>'
+            + _PAY_PAGE_SCRIPT
+            + '<div class="actions"><a href="/pricing">换一个套餐</a><a href="/">返回工作台</a></div>'
+        )
+        return HTMLResponse(_page("收银台 · 确认支付", body), headers={"Cache-Control": "no-cache"})
+
     safe_subject = (subject or "").strip()[:128] or "积分充值"
     try:
-        safe_amount = _normalize_amount(amount)
+        safe_amount = _normalize_amount(amount or "10.00")
     except ValueError:
         safe_amount = "10.00"
     body = (
@@ -565,19 +688,15 @@ def pay_page(subject: str = "AI 写作助手 · 积分充值", amount: str = "10
 @router.get("/pricing", response_class=HTMLResponse, include_in_schema=False)
 def pricing_page() -> HTMLResponse:
     cards = []
-    for name, credits, price, blurb in _PACKAGES:
+    for package in _PACKAGES:
         cards.append(
-            '<a class="plan" href="/pay?subject=%E7%A7%AF%E5%88%86%E5%A5%97%E9%A4%90%C2%B7'
-            + name
-            + "&amount="
-            + price
-            + '">'
-            + f'<div class="plan-name">{name}</div>'
-            + f'<div class="plan-credits">{credits}</div>'
-            + f'<div class="plan-blurb">{blurb}</div>'
-            + f'<div class="plan-price">¥{price}</div>'
-            + '<div class="plan-cta">立即购买</div>'
-            + "</a>"
+            f'<a class="plan" href="/pay?package={package["id"]}">'
+            f'<div class="plan-name">{package["name"]}</div>'
+            f'<div class="plan-credits">{package["credits"]} 积分</div>'
+            f'<div class="plan-blurb">{package["blurb"]}</div>'
+            f'<div class="plan-price">¥{package["price"]}</div>'
+            '<div class="plan-cta">立即购买</div>'
+            "</a>"
         )
     extra_style = (
         "<style>"
@@ -601,19 +720,36 @@ def pricing_page() -> HTMLResponse:
         + '<div class="plans">'
         + "".join(cards)
         + "</div>"
-        + '<p class="hint">付款成功后积分将记入当前账号；如需发票或对公转账，请联系服务方。</p>'
+        + '<p class="hint">付款成功后积分会自动记入当前账号；如需发票或对公转账，请联系服务方。</p>'
         + '<div class="actions"><a href="/">返回工作台</a>'
-        '<a class="primary" href="/pay">直接前往收银台</a></div>'
+        '<a class="primary" href="/pay">自定义金额收银台</a></div>'
     )
     return HTMLResponse(_page("积分套餐", body), headers={"Cache-Control": "no-cache"})
 
 
 @router.post("/api/pay/alipay/orders")
 def create_order(payload: CreateOrderPayload, request: Request) -> JSONResponse:
-    try:
-        total_amount = _normalize_amount(payload.total_amount)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    package = None
+    if (payload.package_id or "").strip():
+        package = _package(payload.package_id.strip())
+        if package is None:
+            raise HTTPException(status_code=404, detail="套餐不存在")
+        user = accounts.user_from_request(request)
+        if user is None:
+            raise HTTPException(status_code=401, detail="请先登录后再购买积分")
+        # 金额与积分只取服务端套餐定义，不信任客户端传值。
+        total_amount = package["price"]
+        subject = f"积分套餐·{package['name']}（{package['credits']} 积分）"
+        user_id = str(user.get("id") or "")
+    else:
+        if not payload.total_amount:
+            raise HTTPException(status_code=400, detail="缺少金额")
+        try:
+            total_amount = _normalize_amount(payload.total_amount)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        subject = (payload.subject or "").strip() or "积分充值"
+        user_id = ""
 
     try:
         config = load_payment_config()
@@ -627,7 +763,7 @@ def create_order(payload: CreateOrderPayload, request: Request) -> JSONResponse:
                 insert(alipay_orders).values(
                     out_trade_no=out_trade_no,
                     app_id=config["app_id"],
-                    subject=payload.subject.strip(),
+                    subject=subject,
                     total_amount=total_amount,
                     status="CREATED",
                     refunded_amount="0.00",
@@ -635,6 +771,18 @@ def create_order(payload: CreateOrderPayload, request: Request) -> JSONResponse:
                     updated_at=now,
                 )
             )
+            if package is not None:
+                connection.execute(
+                    insert(alipay_recharges).values(
+                        out_trade_no=out_trade_no,
+                        user_id=user_id,
+                        package_id=package["id"],
+                        credits=int(package["credits"]),
+                        amount=total_amount,
+                        status="PENDING",
+                        created_at=now,
+                    )
+                )
     except IntegrityError as exc:
         raise HTTPException(status_code=409, detail="商户订单号已存在") from exc
 
@@ -642,8 +790,8 @@ def create_order(payload: CreateOrderPayload, request: Request) -> JSONResponse:
         form_html = _page_pay_form(
             out_trade_no,
             total_amount,
-            payload.subject.strip(),
-            return_url=_return_url(request),
+            subject,
+            return_url=_result_url(request),
             notify_url=_notify_url(),
         )
     except Exception as exc:  # noqa: BLE001
@@ -654,7 +802,8 @@ def create_order(payload: CreateOrderPayload, request: Request) -> JSONResponse:
         {
             "out_trade_no": out_trade_no,
             "total_amount": total_amount,
-            "subject": payload.subject.strip(),
+            "subject": subject,
+            "credits": int(package["credits"]) if package else None,
             "form_html": form_html,
         }
     )
@@ -693,6 +842,10 @@ def _sync_from_query(order: dict[str, Any]) -> dict[str, Any]:
     if mapped == "PAID" and order["status"] != "PAID":
         _set_order_status(order["out_trade_no"], "PAID", trade_no=result.get("trade_no"), paid_at=_now())
         order = _find_order(order["out_trade_no"]) or order
+        _credit_recharge(order["out_trade_no"])
+    elif mapped == "PAID":
+        # 订单已是 PAID：补一次幂等入账，修复通知丢失或上次入账中断。
+        _credit_recharge(order["out_trade_no"])
     elif mapped == "CLOSED" and order["status"] == "CREATED":
         _set_order_status(order["out_trade_no"], "CLOSED")
         order = _find_order(order["out_trade_no"]) or order
@@ -871,7 +1024,9 @@ async def alipay_notify(request: Request) -> PlainTextResponse:
                 )
             )
     except IntegrityError:
-        # 幂等：同一 notify_id 已处理过，直接确认，避免重复记账。
+        # 幂等：同一 notify_id 已处理过。仍补一次幂等入账，覆盖上次入账中断的情况。
+        if _is_paid_notification(params):
+            _credit_recharge(params["out_trade_no"])
         return PlainTextResponse("success")
 
     if _is_paid_notification(params) and order["status"] != "PAID":
@@ -881,74 +1036,87 @@ async def alipay_notify(request: Request) -> PlainTextResponse:
             trade_no=params.get("trade_no"),
             paid_at=_now(),
         )
+    if _is_paid_notification(params):
+        _credit_recharge(params["out_trade_no"])
     return PlainTextResponse("success")
 
 
-@router.get("/api/pay/alipay/return", response_class=HTMLResponse)
-def alipay_return(request: Request) -> HTMLResponse:
-    params = {key: str(value) for key, value in request.query_params.items()}
-    out_trade_no = (params.get("out_trade_no") or "").strip()
+@router.get("/api/pay/alipay/return")
+def alipay_return(request: Request) -> RedirectResponse:
+    """同步回跳只负责把用户带回结果页，支付结果由服务端查询/通知确认。"""
 
-    signature_ok = False
-    if params.get("sign"):
-        try:
-            signature_ok = verify_alipay_signature(params)
-        except PaymentConfigError:
-            signature_ok = False
+    out_trade_no = (request.query_params.get("out_trade_no") or "").strip()
+    target = "/pay/result"
+    if out_trade_no:
+        target += "?out_trade_no=" + quote(out_trade_no, safe="")
+    return RedirectResponse(target, status_code=302)
 
-    # 回跳参数只用于定位订单，支付结果以服务端交易查询为准。
+
+@router.get("/pay/result", response_class=HTMLResponse, include_in_schema=False)
+def pay_result(request: Request, out_trade_no: str = "") -> HTMLResponse:
+    out_trade_no = (out_trade_no or "").strip()
     order = _find_order(out_trade_no) if out_trade_no else None
     if order is None:
         return HTMLResponse(
             _page(
-                "支付结果",
-                '<div class="brand"><span class="dot"></span>支付宝 · AI 网页应用收款</div>'
+                "充值结果",
+                '<div class="brand"><span class="dot"></span>宇宙第一工作台 · 充值结果</div>'
                 "<h1>未找到订单</h1>"
-                '<p class="lead">回跳参数中没有可对应的本地订单。如已完成付款，请联系服务方核实。</p>'
-                '<div class="actions"><a class="primary" href="/pay">返回付款页</a></div>',
+                '<p class="lead">没有对应的本地订单。如果已完成付款，请联系服务方核实。</p>'
+                '<div class="actions"><a class="primary" href="/pricing">返回套餐页</a></div>',
             ),
+            status_code=404,
             headers={"Cache-Control": "no-cache"},
         )
 
-    status_text = "正在确认支付结果"
-    status_class = "wait"
-    detail = "支付宝回跳只表示支付流程结束，正在通过服务端交易查询确认最终状态。"
     try:
         synced = _sync_from_query(order)
         order = synced["order"]
-        trade_status = synced["query"].get("trade_status") or ""
-        if order["status"] == "PAID":
-            status_text, status_class = "支付成功", "ok"
-            detail = "服务端交易查询确认已付款。"
-        elif trade_status == "WAIT_BUYER_PAY":
-            status_text, status_class = "等待付款", "wait"
-            detail = "交易已创建但买家尚未完成付款。"
-        elif trade_status == "TRADE_CLOSED":
-            status_text, status_class = "交易已关闭", "bad"
-            detail = "交易已关闭，未收到付款。"
-        else:
-            status_text, status_class = "状态待确认", "wait"
-            detail = "暂未查询到明确支付状态，请稍后在订单查询中确认。"
-    except Exception:  # noqa: BLE001
-        logger.warning("alipay return query failed", exc_info=True)
-        status_text, status_class = "状态待确认", "wait"
-        detail = "暂时无法连接支付宝查询状态，请稍后重试或联系服务方核实。"
+    except Exception:  # noqa: BLE001 - 查询失败不阻断结果页展示
+        logger.warning("alipay result query failed", exc_info=True)
 
-    verify_text = "同步参数验签通过" if signature_ok else "同步参数未验签，仅依据服务端记录"
+    recharge = _recharge_for(out_trade_no)
+    if recharge is not None and order["status"] == "PAID":
+        _credit_recharge(out_trade_no)
+        recharge = _recharge_for(out_trade_no)
+
+    paid = order["status"] == "PAID"
+    status_text = "充值成功" if paid and recharge else ("支付成功" if paid else "等待支付确认")
+    status_class = "ok" if paid else "wait"
+    detail = (
+        "积分已记入你的账号。"
+        if paid and recharge
+        else ("支付已完成。" if paid else "尚未查询到支付成功，请完成付款后刷新本页。")
+    )
+
+    rows = [
+        f"<dt>订单号</dt><dd>{order['out_trade_no']}</dd>",
+        f"<dt>订单标题</dt><dd>{order['subject']}</dd>",
+        f"<dt>订单金额</dt><dd>{order['total_amount']} 元</dd>",
+        f"<dt>支付宝交易号</dt><dd>{order['trade_no'] or '—'}</dd>",
+    ]
+    if recharge is not None:
+        rows.append(f"<dt>到账积分</dt><dd>{recharge['credits']} 积分</dd>")
+        rows.append(f"<dt>入账状态</dt><dd>{'已入账' if recharge['status'] == 'CREDITED' else '待入账'}</dd>")
+        if paid:
+            user = accounts.user_from_request(request)
+            if user and str(user.get("id") or "") == recharge["user_id"]:
+                try:
+                    summary = accounts.wallet_summary(recharge["user_id"])
+                    rows.append(f"<dt>当前积分余额</dt><dd>{summary['balance']}</dd>")
+                except Exception:  # noqa: BLE001 - 余额展示失败不影响结果页
+                    pass
+
     body = (
-        '<div class="brand"><span class="dot"></span>支付宝 · AI 网页应用收款</div>'
+        '<div class="brand"><span class="dot"></span>宇宙第一工作台 · 充值结果</div>'
         f"<h1>{status_text}</h1>"
         f'<p class="lead"><span class="status {status_class}">{status_text}</span> {detail}</p>'
         "<dl>"
-        f"<dt>订单号</dt><dd>{order['out_trade_no']}</dd>"
-        f"<dt>订单标题</dt><dd>{order['subject']}</dd>"
-        f"<dt>订单金额</dt><dd>{order['total_amount']} 元</dd>"
-        f"<dt>支付宝交易号</dt><dd>{order['trade_no'] or '—'}</dd>"
-        f"<dt>本地状态</dt><dd>{order['status']}</dd>"
-        "</dl>"
-        f'<p class="hint">{verify_text}。</p>'
-        '<div class="actions">'
-        f'<a class="primary" href="/api/pay/alipay/orders/{order["out_trade_no"]}">查看订单状态</a>'
-        '<a href="/pay">继续付款</a></div>'
+        + "".join(rows)
+        + "</dl>"
+        + '<div class="actions">'
+        + ('<a class="primary" href="/">返回工作台</a>' if paid else '<a class="primary" href="javascript:location.reload()">刷新状态</a>')
+        + '<a href="/pricing">继续充值</a>'
+        + "</div>"
     )
-    return HTMLResponse(_page("支付结果", body), headers={"Cache-Control": "no-cache"})
+    return HTMLResponse(_page("充值结果", body), headers={"Cache-Control": "no-cache"})

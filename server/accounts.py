@@ -232,6 +232,10 @@ def init_db() -> None:
     with DB_LOCK, _connect() as connection:
         if database.ENGINE.dialect.name == "sqlite":
             connection.executescript(schema)
+            connection.execute(
+                """CREATE UNIQUE INDEX IF NOT EXISTS idx_point_transactions_request
+                   ON point_transactions(request_id) WHERE request_id IS NOT NULL"""
+            )
             session_columns = {row[1] for row in connection.execute("PRAGMA table_info(sessions)")}
             if "impersonator_id" not in session_columns:
                 connection.execute("ALTER TABLE sessions ADD COLUMN impersonator_id TEXT REFERENCES users(id)")
@@ -246,6 +250,14 @@ def init_db() -> None:
             connection.execute(
                 "CREATE UNIQUE INDEX IF NOT EXISTS uq_usage_records_run_id ON usage_records(run_id)"
             )
+        else:
+            try:
+                connection.execute(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS idx_point_transactions_request "
+                    "ON point_transactions(request_id) WHERE request_id IS NOT NULL"
+                )
+            except Exception:  # noqa: BLE001 - 幂等索引为可选加固，失败不阻断启动
+                pass
         now = utc_now()
         for method, path, feature, points, cost in DEFAULT_PRICING:
             connection.execute(
@@ -851,6 +863,51 @@ def refund_usage(request_id: str, http_status: int, duration_ms: int) -> None:
             (http_status, duration_ms, now, request_id),
         )
         connection.execute("COMMIT")
+
+
+def credit_alipay_recharge(user_id: str, points: int, out_trade_no: str, note: str = "") -> dict[str, Any]:
+    """按支付宝商户订单号幂等入账（同一订单号只加一次积分）。
+
+    入账记在 paid 桶、kind=recharge、source=alipay，request_id 固定为
+    ``alipay:<out_trade_no>``，由唯一索引兜底防重复。
+    """
+
+    if points <= 0 or points > 1_000_000:
+        raise HTTPException(status_code=422, detail="单次入账积分需要在 1—1,000,000 之间")
+    order_ref = f"alipay:{out_trade_no}"
+    now = utc_now()
+    with DB_LOCK, _connect() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        existing = connection.execute(
+            "SELECT id FROM point_transactions WHERE request_id=?", (order_ref,)
+        ).fetchone()
+        wallet = _locked_wallet(connection, user_id)
+        if not wallet:
+            connection.execute("ROLLBACK")
+            raise HTTPException(status_code=404, detail="用户不存在")
+        if existing:
+            connection.execute("ROLLBACK")
+            return {
+                "credited": False,
+                "reason": "already_credited",
+                "points": points,
+                "balance": wallet["balance"],
+            }
+        before = wallet["balance"]
+        after = before + points
+        connection.execute(
+            """UPDATE wallets SET balance=?,paid_balance=paid_balance+?,updated_at=? WHERE user_id=?""",
+            (after, points, now, user_id),
+        )
+        connection.execute(
+            """INSERT INTO point_transactions
+               (id,user_id,amount,balance_before,balance_after,bucket,kind,source,request_id,note,allocation_json,created_at)
+               VALUES (?,?,?,?,?,'paid','recharge','alipay',?,?,?,?)""",
+            (uuid.uuid4().hex, user_id, points, before, after, order_ref,
+             note or f"支付宝充值 {out_trade_no}", json.dumps({"paid": points}), now),
+        )
+        connection.execute("COMMIT")
+    return {"credited": True, "reason": "credited", "points": points, "balance": after}
 
 
 def recharge(operator_id: str, user_id: str, points: int, bucket: str, note: str) -> dict[str, Any]:
