@@ -2,6 +2,19 @@
 (() => {
   const header = document.querySelector('.v3-topbar');
   const nav = header.querySelector('.app-tabs');
+  // Keep this entry explicit: the sidebar is reconstructed below and older
+  // cached/embedded shells may not contain the server-rendered link yet.
+  function ensureViralRemixEntry() {
+    let entry = nav.querySelector('[data-view="viral-remix"]');
+    if (!entry) {
+      entry = document.createElement('a');
+      entry.href = '/viral-remix'; entry.dataset.view = 'viral-remix';
+      entry.innerHTML = '<svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="m8 15 3-3 2 2 3-4 2 3"/><circle cx="8.5" cy="8.5" r="1.2"/><path d="M16 3v4M14 5h4"/></svg><span>爆款贴图复刻</span>';
+    }
+    const tieTu = nav.querySelector('[data-view="tie-tu"]');
+    if (tieTu) tieTu.insertAdjacentElement('afterend', entry);
+  }
+  ensureViralRemixEntry();
   nav.id = 'workspace-navigation';
   const menu = document.createElement('button');
   menu.type = 'button'; menu.className = 'workspace-menu-toggle';
