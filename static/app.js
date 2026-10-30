@@ -107,6 +107,7 @@ const getImageBaseUrl = () => getStored(sharedKeys.imageBaseUrl, 'https://img.rj
 const sharedApiPayload = () => ({});
 
 function syncAdminVisibility() {
+  if (logoutButton) logoutButton.textContent = currentAccount ? '退出登录' : '登录 / 注册';
   const isAdmin = currentAccount?.role === 'admin' && currentAccount?.email?.toLowerCase() === 'gelen5@163.com';
   if (apiSettingsButton) apiSettingsButton.hidden = !isAdmin;
   if (adminUsersButton) adminUsersButton.hidden = !isAdmin;
@@ -444,6 +445,7 @@ async function prepareAccountChange() {
 }
 
 logoutButton?.addEventListener('click', async () => {
+  if (!currentAccount) { toggleSettingsMenu(false); showAuth(); return; }
   try {
     await prepareAccountChange();
     const response = await fetch('/api/auth/logout', { method: 'POST' });
@@ -461,18 +463,21 @@ logoutButton?.addEventListener('click', async () => {
 
 async function loadAccount() {
   const sequence = ++accountReadSequence;
-  const publicView = ['home', 'market', 'hotspots'].includes(pathToView(location.pathname));
   try {
-    const response = await fetch('/api/auth/me');
+    const response = await fetch('/api/auth/me', { cache: 'no-store' });
     if (sequence !== accountReadSequence) return;
-    // 首页与公开资源无需登录；创作页面继续沿用原登录校验。
     if (!response.ok) {
       if (response.status === 401) {
         currentAccount = null;
         window.dispatchEvent(new Event('account-changed'));
         syncAdminVisibility();
         renderWallet({ balance: 0, trial: 0, bonus: 0, paid: 0 });
-        if (!publicView) showAuth();
+        showAuth();
+      } else if (!currentAccount) {
+        showAuth();
+        const error = document.querySelector('#auth-error');
+        error.textContent = '暂时无法确认登录状态，请稍后重试登录。';
+        error.hidden = false;
       }
       return;
     }
@@ -485,7 +490,7 @@ async function loadAccount() {
     document.querySelector('#wallet-user-line').textContent = `${currentAccount.display_name} · ${currentAccount.email}`;
     document.querySelector('.api-live-dot')?.classList.remove('offline');
     restoreDurableWorkflow();
-  } catch { if (!publicView && !currentAccount) showAuth(); }
+  } catch { if (!currentAccount) showAuth(); }
   finally { resolveInitialAccount(); }
 }
 

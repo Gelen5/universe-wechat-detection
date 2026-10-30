@@ -4,14 +4,23 @@ from playwright.sync_api import expect
 from tests.test_ui_shell_browser import browser, ui
 
 
-def test_public_brand_home_does_not_force_login_but_creation_still_does(ui):
+def test_first_visit_home_and_creation_open_login_when_unauthenticated(ui):
     page, _ = ui
     page.route('**/api/auth/me', lambda route: route.fulfill(status=401, json={'detail': '登录后使用'}))
     page.goto('http://ui.test/')
     expect(page.locator('.universe-brand')).to_be_visible()
-    expect(page.locator('#auth-modal')).to_be_hidden()
+    expect(page.locator('#auth-modal')).to_be_visible()
+    expect(page.locator('#logout-button')).to_have_text('登录 / 注册')
     page.goto('http://ui.test/workbench')
     expect(page.locator('#auth-modal')).to_be_visible()
+
+
+def test_valid_session_enters_home_without_login_popup(ui):
+    page, _ = ui
+    page.goto('http://ui.test/')
+    expect(page.locator('#wallet-balance')).to_have_text('100')
+    expect(page.locator('#auth-modal')).to_be_hidden()
+    expect(page.locator('#logout-button')).to_have_text('退出登录')
 
 
 @pytest.mark.parametrize('width', [390, 1101, 1440, 1920, 2560])
