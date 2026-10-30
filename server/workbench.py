@@ -419,6 +419,8 @@ def _text(prompt: str, *, reasoning: str | None = None, model: str | None = None
             image_base_url=_setting("WECHAT_IMAGE_API_BASE_URL") or _setting("WECHAT_API_BASE_URL", "https://api.openai.com/v1"),
             image_model=_setting("WECHAT_IMAGE_MODEL", "gpt-image-2"), verify_ssl=_verify_ssl(),
             reasoning_effort=effort,
+            max_output_tokens=max(4096, int(_setting("WECHAT_TEXT_MAX_OUTPUT_TOKENS", "8192") or 8192))
+                              if "claude-sonnet" in profile["model"].lower() else None,
         )
         service = ModelService(
             provider,

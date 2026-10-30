@@ -104,6 +104,18 @@ class ProviderTests(unittest.TestCase):
         self.assertEqual('done', provider.create_response([{'role': 'user', 'content': 'review'}]).text)
         self.assertTrue(response.closed)
 
+    def test_output_budget_is_sent_for_long_article_calls(self):
+        chat = FakeSession([FakeResponse({'choices': [{'message': {'content': 'ok'}}]})])
+        OpenAICompatibleProvider(api_key='test', base_url='https://example.test/v1',
+            text_model='claude-sonnet-5', session=chat, max_output_tokens=8192).create_response(
+                [{'role': 'user', 'content': 'write'}])
+        self.assertEqual(8192, chat.requests[0][2]['json']['max_tokens'])
+        responses = FakeSession([FakeResponse({'status': 'completed', 'output': []})])
+        OpenAICompatibleProvider(api_key='test', base_url='https://example.test/v1/responses',
+            text_model='text', session=responses, max_output_tokens=8192).create_response(
+                [{'role': 'user', 'content': 'write'}])
+        self.assertEqual(8192, responses.requests[0][2]['json']['max_output_tokens'])
+
     def test_responses_api_tool_call_and_followup(self):
         session = FakeSession([
             FakeResponse({"status": "completed", "output": [{"type": "function_call", "call_id": "call-1",

@@ -24,7 +24,8 @@ class OpenAICompatibleProvider(ModelProvider):
                  image_api_key: str | None = None, image_base_url: str | None = None,
                  image_model: str | None = None, verify_ssl: bool = True,
                  session: requests.Session | None = None,
-                 reasoning_effort: str | None = None):
+                 reasoning_effort: str | None = None,
+                 max_output_tokens: int | None = None):
         self.api_key = api_key
         self.responses_api = base_url.strip().rstrip("/").endswith("/responses") or text_model == "gpt-6.1-sol"
         if self.responses_api:
@@ -36,6 +37,7 @@ class OpenAICompatibleProvider(ModelProvider):
         self.image_model = image_model or "gpt-image-2"
         self.verify_ssl = verify_ssl
         self.reasoning_effort = reasoning_effort
+        self.max_output_tokens = max_output_tokens
         self.session = session or requests.Session()
         self.session.trust_env = False
 
@@ -50,6 +52,8 @@ class OpenAICompatibleProvider(ModelProvider):
             return self._create_responses_response(messages, tools=tools, timeout=timeout,
                                                    idempotency_key=idempotency_key)
         body: dict[str, Any] = {"model": self.text_model, "messages": messages}
+        if self.max_output_tokens:
+            body["max_tokens"] = self.max_output_tokens
         if self.reasoning_effort:
             body["reasoning_effort"] = self.reasoning_effort
         if tools:
@@ -92,6 +96,8 @@ class OpenAICompatibleProvider(ModelProvider):
             else:
                 inputs.append({"role": role, "content": message.get("content") or ""})
         body: dict[str, Any] = {"model": self.text_model, "input": inputs}
+        if self.max_output_tokens:
+            body["max_output_tokens"] = self.max_output_tokens
         if self.reasoning_effort:
             body["reasoning"] = {"effort": self.reasoning_effort}
         if tools:
