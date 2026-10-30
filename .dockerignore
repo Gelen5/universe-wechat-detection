@@ -11,6 +11,7 @@ output
 reports
 qa-chatgpt
 node_modules
+**/node_modules
 *.log
 *.db
 *.db-shm

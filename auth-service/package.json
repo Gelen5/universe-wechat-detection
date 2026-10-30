@@ -1,0 +1,1 @@
+{"name":"universe-auth-service","private":true,"type":"module","scripts":{"start":"node src/server.mjs","test":"node --test test/*.test.mjs","migrate":"node src/migrate.mjs"},"dependencies":{"better-auth":"1.7.14","disposable-email-domains":"1.0.62","pg":"8.23.1","redis":"6.0.0"}}

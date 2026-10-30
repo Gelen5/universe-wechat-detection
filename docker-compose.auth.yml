@@ -1,0 +1,28 @@
+# Opt-in only: docker compose -f docker-compose.yml -f docker-compose.auth.yml ...
+services:
+  auth-migrate:
+    build: ./auth-service
+    env_file: .env
+    environment:
+      AUTH_DATABASE_URL: postgresql://${POSTGRES_USER:-universe}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-universe}
+      REDIS_URL: redis://redis:6379/0
+    command: ["node", "src/migrate.mjs"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+  auth:
+    build: ./auth-service
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      AUTH_DATABASE_URL: postgresql://${POSTGRES_USER:-universe}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-universe}
+      REDIS_URL: redis://redis:6379/0
+    # Deliberately no host port: reachable only by FastAPI on the compose network.
+    depends_on:
+      auth-migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5

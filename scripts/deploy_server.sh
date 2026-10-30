@@ -17,6 +17,13 @@ REPO="${REPO:-Gelen5/universe-wechat-detection}"
 RELEASES="${RELEASES:-/opt/universe-wechat-detection-releases}"
 ENV_FILE="${ENV_FILE:-/etc/universe-wechat-detection.env}"
 SERVICES=(web worker beat)
+COMPOSE_ARGS=(-f docker-compose.yml)
+EXTRA_BUILD=()
+if grep -Eq '^AUTH_ENGINE=better-auth[[:space:]]*$' "$ENV_FILE"; then
+  COMPOSE_ARGS+=(-f docker-compose.auth.yml)
+  SERVICES+=(auth)
+  EXTRA_BUILD+=(auth-migrate)
+fi
 HEALTH_URL="http://127.0.0.1:8000/health/ready"
 
 log()  { printf '\n== %s\n' "$*"; }
@@ -85,6 +92,7 @@ if [ "${1:-}" = "--rollback" ]; then
   [ -n "$TARGET" ] || die "用法: $0 --rollback <短sha>"
   REL="$RELEASES/$TARGET"
   [ -f "$REL/docker-compose.yml" ] || die "没有找到 release: $REL"
+  [ "${#EXTRA_BUILD[@]}" -eq 0 ] || [ -f "$REL/docker-compose.auth.yml" ] || die "目标版本不支持 Better Auth；请先将 AUTH_ENGINE 改回 legacy 后回滚"
   log "回滚到 $TARGET"
   for svc in "${SERVICES[@]}" migrate; do
     docker image inspect "${PROJECT}-${svc}:${TARGET}" >/dev/null 2>&1 \
@@ -92,7 +100,7 @@ if [ "${1:-}" = "--rollback" ]; then
     docker tag "${PROJECT}-${svc}:${TARGET}" "${PROJECT}-${svc}:latest"
   done
   docker rm -f "${PROJECT}-migrate-1" >/dev/null 2>&1 || true
-  ( cd "$REL" && docker compose -p "$PROJECT" --env-file "$ENV_FILE" up -d --no-build --no-deps "${SERVICES[@]}" )
+  ( cd "$REL" && docker compose "${COMPOSE_ARGS[@]}" -p "$PROJECT" --env-file "$ENV_FILE" up -d --no-build --no-deps "${SERVICES[@]}" )
   wait_ready || die "回滚后服务未就绪，查看 docker logs ${PROJECT}-web-1"
   log "已回滚到 $TARGET"
   exit 0
@@ -173,13 +181,25 @@ if [ -n "$PREV_SHORT" ] && [ "$PREV_SHORT" != "$SHORT" ]; then
 fi
 
 log "构建镜像（约 3 分钟）"
-( cd "$REL" && docker compose -p "$PROJECT" --env-file "$ENV_FILE" build "${SERVICES[@]}" migrate )
+( cd "$REL" && docker compose "${COMPOSE_ARGS[@]}" -p "$PROJECT" --env-file "$ENV_FILE" build "${SERVICES[@]}" migrate "${EXTRA_BUILD[@]}" )
+
+if [ "${#EXTRA_BUILD[@]}" -gt 0 ]; then
+  log "迁移 Better Auth 独立表并导入原用户 ID / 密码哈希"
+  ( cd "$REL" && docker compose "${COMPOSE_ARGS[@]}" -p "$PROJECT" --env-file "$ENV_FILE" run --rm --no-deps auth-migrate )
+  ( cd "$REL" && docker compose "${COMPOSE_ARGS[@]}" -p "$PROJECT" --env-file "$ENV_FILE" up -d --no-deps auth )
+  AUTH_READY=0
+  for _ in $(seq 1 30); do
+    if docker exec "${PROJECT}-auth-1" node -e "fetch('http://localhost:3001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"; then AUTH_READY=1; break; fi
+    sleep 2
+  done
+  [ "$AUTH_READY" = 1 ] || die "Better Auth 未就绪，保留原 web；检查 auth 日志"
+fi
 
 # ---------------------------------------------------------------- switch
 log "切换服务"
 # 一次性 migrate 容器可能残留，名字冲突会让 up 直接失败；web 的 depends_on 已经不再需要它
 docker rm -f "${PROJECT}-migrate-1" >/dev/null 2>&1 || true
-( cd "$REL" && docker compose -p "$PROJECT" --env-file "$ENV_FILE" up -d --no-deps "${SERVICES[@]}" )
+( cd "$REL" && docker compose "${COMPOSE_ARGS[@]}" -p "$PROJECT" --env-file "$ENV_FILE" up -d --no-deps "${SERVICES[@]}" )
 
 if ! wait_ready; then
   docker ps --format '{{.Names}} | {{.Status}}' | grep "$PROJECT" || true

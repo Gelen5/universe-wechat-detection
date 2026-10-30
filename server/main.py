@@ -124,8 +124,11 @@ async def account_and_points_gate(request: Request, call_next):
     public_pay = path.startswith("/api/pay/alipay/")
     # Logout also clears expired/revoked cookies. Requiring an active session
     # prevents a stale browser from ever completing that cleanup.
-    public_api = path in {"/api/auth/register", "/api/auth/login", "/api/auth/logout", "/api/auth/config", "/api/auth/email-code"} or public_market or public_refresh or public_pay
-    user = accounts.user_from_request(request)
+    public_api = path in {"/api/auth/register", "/api/auth/login", "/api/auth/logout", "/api/auth/config", "/api/auth/email-code", "/api/auth/registration-link"} or public_market or public_refresh or public_pay
+    try:
+        user = accounts.user_from_request(request)
+    except HTTPException as exc:
+        return JSONResponse(status_code=exc.status_code, content={'detail': exc.detail})
     request.state.user = user
     if path.startswith("/api/") and not public_api and not user:
         return JSONResponse(status_code=401, content={"detail": "请先登录"})
@@ -275,10 +278,17 @@ class AuthRequest(BaseModel):
 class RegisterRequest(AuthRequest):
     display_name: str = Field(default="", max_length=40)
     email_code: str = Field(default="", max_length=12)
+    turnstile_token: str = Field(default="", max_length=2048)
+    registration_token: str = Field(default="", max_length=64)
 
 
 class EmailCodeRequest(BaseModel):
     email: str = Field(min_length=5, max_length=254)
+    turnstile_token: str = Field(default="", max_length=2048)
+
+
+class RegistrationLinkRequest(BaseModel):
+    registration_token: str = Field(min_length=64, max_length=64, pattern='^[a-f0-9]{64}$')
 
 
 class RechargeRequest(BaseModel):
@@ -614,6 +624,12 @@ def health_live():
 @app.get("/health/ready")
 def health_ready():
     checks = {"database": database.database_ready(), "redis": redis_ready()}
+    from . import better_auth_bridge
+    if better_auth_bridge.enabled():
+        try:
+            checks['better_auth'] = better_auth_bridge.call('config', {}).get('auth_engine') == 'better-auth'
+        except HTTPException:
+            checks['better_auth'] = False
     if not all(checks.values()):
         return JSONResponse(status_code=503, content={"status": "not_ready", "checks": checks})
     return {"status": "ready", "checks": checks}
@@ -630,6 +646,13 @@ def _check_auth_limit(action: str, identity: str, ip: str):
 def register_account(payload: RegisterRequest, response: Response, request: Request):
     ip = client_ip(request)
     _check_auth_limit('register', payload.email, ip)
+    from . import better_auth_bridge
+    if better_auth_bridge.enabled():
+        better_auth_bridge.validate_origin(request)
+        result = better_auth_bridge.call('register', payload.model_dump() | {'ip': ip})
+        user = better_auth_bridge.business_user(result['user'], rollback_password=payload.password)
+        better_auth_bridge.copy_cookies(response, result)
+        return {'status': 'success', 'user': user, 'wallet': accounts.wallet_summary(user['id'])}
     if email_verification.required():
         email_verification.verify_code(payload.email, payload.email_code)
     try:
@@ -644,11 +667,20 @@ def register_account(payload: RegisterRequest, response: Response, request: Requ
 
 @app.get("/api/auth/config")
 def auth_config():
+    from . import better_auth_bridge
+    if better_auth_bridge.enabled():
+        return better_auth_bridge.call('config', {})
     return {"email_verification_required": email_verification.required()}
 
 
 @app.post("/api/auth/email-code")
 def send_registration_code(payload: EmailCodeRequest, request: Request):
+    from . import better_auth_bridge
+    if better_auth_bridge.enabled():
+        better_auth_bridge.validate_origin(request)
+        _check_auth_limit('email', payload.email, client_ip(request))
+        accounts._validate_email(payload.email)
+        return better_auth_bridge.call('send-code', payload.model_dump() | {'ip': client_ip(request)})
     if not email_verification.required():
         raise HTTPException(status_code=404, detail="邮箱验证尚未启用")
     _check_auth_limit('email', payload.email, client_ip(request))
@@ -657,10 +689,32 @@ def send_registration_code(payload: EmailCodeRequest, request: Request):
     return {"status": "success"}
 
 
+@app.post('/api/auth/registration-link')
+def registration_link(payload: RegistrationLinkRequest, request: Request):
+    from . import better_auth_bridge
+    if not better_auth_bridge.enabled():
+        raise HTTPException(404, '验证链接未启用')
+    better_auth_bridge.validate_origin(request)
+    _check_auth_limit('email', 'registration-link', client_ip(request))
+    return better_auth_bridge.call('link-info', payload.model_dump())
+
+
 @app.post("/api/auth/login")
 def login_account(payload: AuthRequest, response: Response, request: Request):
     ip = client_ip(request)
     _check_auth_limit('login', payload.email, ip)
+    from . import better_auth_bridge
+    if better_auth_bridge.enabled():
+        better_auth_bridge.validate_origin(request)
+        try:
+            result = better_auth_bridge.call('login', payload.model_dump())
+            user = better_auth_bridge.business_user(result['user'], rollback_password=payload.password)
+        except HTTPException:
+            record_auth_result('login', payload.email, ip, False)
+            raise
+        record_auth_result('login', payload.email, ip, True)
+        better_auth_bridge.copy_cookies(response, result)
+        return {'status':'success','user':user,'wallet':accounts.wallet_summary(user['id'])}
     try:
         user = accounts.authenticate(payload.email, payload.password)
     except HTTPException:
@@ -675,6 +729,11 @@ def login_account(payload: AuthRequest, response: Response, request: Request):
 
 @app.post("/api/auth/logout")
 def logout_account(request: Request, response: Response):
+    from . import better_auth_bridge
+    if better_auth_bridge.enabled():
+        better_auth_bridge.validate_origin(request)
+        result = better_auth_bridge.call('logout', {'cookie':request.headers.get('cookie', '')})
+        better_auth_bridge.copy_cookies(response, result)
     accounts.revoke_session(request, response)
     return {"status": "success"}
 

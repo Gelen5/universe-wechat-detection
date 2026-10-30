@@ -30,9 +30,22 @@ const walletSettingsButton = document.querySelector('#wallet-settings-button');
 const logoutButton = document.querySelector('#logout-button');
 let currentAccount = null;
 let emailVerificationRequired = false;
+let registrationToken = '';
+const linkMatch = location.hash.match(/^#register=([a-f0-9]{64})$/);
+if (linkMatch) { registrationToken = linkMatch[1]; history.replaceState(null, '', location.pathname + location.search); }
 fetch('/api/auth/config').then(response => response.ok ? response.json() : {}).then(config => {
   emailVerificationRequired = Boolean(config.email_verification_required);
+  window.AuthChallenge?.configure(config);
+  window.AuthChallenge?.mode(document.querySelector('#auth-form').dataset.mode || 'login');
   document.querySelector('#auth-email-code-field').hidden = !emailVerificationRequired || document.querySelector('#auth-form').dataset.mode !== 'register';
+  if (registrationToken) {
+    fetch('/api/auth/registration-link', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({registration_token:registrationToken})})
+      .then(readApiResponse).then(data => {
+        document.querySelector('#auth-email').value = data.email;
+        setAuthMode('register'); showAuth();
+        document.querySelector('#auth-description').textContent = '验证链接已载入，设置密码后完成注册。';
+      }).catch(error => { registrationToken=''; showAuth(); const message=document.querySelector('#auth-error');message.textContent=error.message;message.hidden=false; });
+  }
 }).catch(() => {});
 let accountReadSequence = 0;
 let publishedAccountId;
@@ -261,12 +274,13 @@ function hideAuth() {
 
 function setAuthMode(mode) {
   const register = mode === 'register';
+  window.AuthChallenge?.mode(mode);
   document.querySelectorAll('[data-auth-mode]').forEach(button => {
     button.classList.toggle('active', button.dataset.authMode === mode);
     button.setAttribute('aria-pressed', String(button.dataset.authMode === mode));
   });
   document.querySelector('#display-name-field').hidden = !register;
-  document.querySelector('#auth-email-code-field').hidden = !register || !emailVerificationRequired;
+  document.querySelector('#auth-email-code-field').hidden = !register || !emailVerificationRequired || Boolean(registrationToken);
   document.querySelector('#auth-title').textContent = register ? '创建你的账号' : '欢迎回来';
   document.querySelector('#auth-description').textContent = register ? '从一个想法，开始你的创作。' : '登录，继续你的创作。';
   document.querySelector('#auth-submit').textContent = register ? '注册并进入工作台' : '登录';
@@ -283,9 +297,10 @@ document.querySelector('#auth-send-code')?.addEventListener('click', async event
   error.hidden = true;
   button.disabled = true;
   try {
+    const challenge = await window.AuthChallenge?.getToken('register_email');
     const response = await fetch('/api/auth/email-code', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: document.querySelector('#auth-email').value.trim() }),
+      body: JSON.stringify({ email: document.querySelector('#auth-email').value.trim(), ...(challenge ? {turnstile_token: challenge} : {}) }),
     });
     await readApiResponse(response);
     button.textContent = '已发送，60 秒后重试';
@@ -294,7 +309,7 @@ document.querySelector('#auth-send-code')?.addEventListener('click', async event
     error.textContent = exception.message;
     error.hidden = false;
     button.disabled = false;
-  }
+  } finally { window.AuthChallenge?.reset(); }
 });
 
 document.querySelector('#auth-password-toggle')?.addEventListener('click', event => {
@@ -321,13 +336,15 @@ document.querySelector('#auth-form')?.addEventListener('submit', async event => 
   error.hidden = true;
   const finish = beginButton(submit, mode === 'register' ? '正在注册…' : '正在登录…');
   try {
+    const challenge = mode === 'register' ? await window.AuthChallenge?.getToken('register') : '';
     const response = await fetch(`/api/auth/${mode}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         email: document.querySelector('#auth-email').value.trim(),
         password: document.querySelector('#auth-password').value,
         display_name: document.querySelector('#auth-display-name').value.trim(),
-        email_code: document.querySelector('#auth-email-code').value.trim(),
+        ...(mode === 'register' ? {email_code: document.querySelector('#auth-email-code').value.trim(), ...(registrationToken ? {registration_token: registrationToken} : {})} : {}),
+        ...(challenge ? {turnstile_token: challenge} : {}),
       }),
     });
     const data = await readApiResponse(response);
@@ -338,11 +355,12 @@ document.querySelector('#auth-form')?.addEventListener('submit', async event => 
     document.querySelector('#wallet-user-line').textContent = `${currentAccount.display_name} · ${currentAccount.email}`;
     document.querySelector('.api-live-dot')?.classList.remove('offline');
     hideAuth();
+    registrationToken = '';
     showToast(mode === 'register' ? '账号创建成功' : '登录成功');
   } catch (exception) {
     error.textContent = exception.message;
     error.hidden = false;
-  } finally { finish(); }
+  } finally { finish(); window.AuthChallenge?.reset(); }
 });
 
 function renderTransactions(items = []) {

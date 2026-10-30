@@ -1,4 +1,6 @@
 .env
+node_modules/
+auth-service/*.sqlite*
 __pycache__/
 *.py[cod]
 .venv/

@@ -305,12 +305,12 @@ def _validate_password(password: str) -> None:
         raise HTTPException(status_code=422, detail="密码长度需要为 8—128 位")
 
 
-def create_user(email: str, password: str, display_name: str, *, role: str = "user") -> dict[str, Any]:
+def create_user(email: str, password: str, display_name: str, *, role: str = "user", user_id: str | None = None) -> dict[str, Any]:
     email = _validate_email(email)
     _validate_password(password)
     role = "admin" if email == OWNER_EMAIL else "user"
     display_name = display_name.strip()[:40] or email.split("@", 1)[0]
-    user_id = uuid.uuid4().hex
+    user_id = user_id or uuid.uuid4().hex
     now = utc_now()
     try:
         with DB_LOCK, _connect() as connection:
@@ -408,6 +408,24 @@ def revoke_session(request: Request, response: Response) -> None:
 
 
 def user_from_request(request: Request) -> dict[str, Any] | None:
+    from . import better_auth_bridge
+    if better_auth_bridge.enabled():
+        identity = better_auth_bridge.from_request(request)
+        if identity:
+            legacy = _legacy_user_from_request(request)
+            actor = (legacy or {}).get('impersonation', {}).get('actor', {})
+            if actor.get('id') == identity['id'] and identity['role'] == 'admin':
+                return legacy
+            return identity
+        # Never fall back after an explicitly presented Better Auth cookie fails.
+        if any('better-auth' in name for name in request.cookies):
+            return None
+        if os.getenv('AUTH_ACCEPT_LEGACY_SESSIONS', '1') != '1':
+            return None
+    return _legacy_user_from_request(request)
+
+
+def _legacy_user_from_request(request: Request) -> dict[str, Any] | None:
     token = request.cookies.get(COOKIE_NAME)
     if not token:
         return None
