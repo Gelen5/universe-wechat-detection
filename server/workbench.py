@@ -1791,6 +1791,13 @@ def _apply_dbs_wechat_theme(fragment: str, requested_theme: str) -> tuple[str, s
 
 def _typeset(session: dict[str, Any]) -> str:
     """Run the installed publisher's mode A with its real references and gates."""
+    if _setting('WECHAT_TEMPLATE_LAYOUT_ENABLED', '1').lower() not in {'0', 'false', 'off'}:
+        session['layout_plan'] = {'components': [], 'decoration_budget': 0, 'emphasis': ''}
+        session['layout_plan_key'] = skill_runtime.digest(
+            session['article'] + session['theme']
+            + json.dumps(session.get('image_plan', {}), sort_keys=True, ensure_ascii=False)
+            + (_setting('WECHAT_LAYOUT_PLAN_VERSION', '1') or '1'))
+        return _typeset_dsl(session)
     from .skill_fine_layout import render
     _require_skill()
     heading = re.match(r'^\s*#\s+([^\n]+)', session['article'])
@@ -1898,9 +1905,14 @@ def _typeset_dsl(session: dict[str, Any]) -> str:
         session['typeset_html'] = ''
         raise ProviderError('排版质量检查未通过，请查看检查结果')
     compliance_script = SKILL_DIR / 'scripts' / 'wechat_compliance_check.py'
+    allowances = ['--allow', 'div_tag']
+    # Formatting preserves punctuation already present in the saved article.
+    if re.search(r'[\u4e00-\u9fff][,;!?]|[,;!?][\u4e00-\u9fff]', session['article']):
+        allowances += ['--allow', 'halfwidth_punct']
+        session['compliance_allowances'] = {'halfwidth_punct': 'present_in_source_article'}
     compliance = subprocess.run(
         [_skill_python(), '-X', 'utf8', str(compliance_script), str(check_path),
-         '--format', 'json', '--strict', '--allow', 'div_tag'],
+         '--format', 'json', '--strict', *allowances],
         capture_output=True, text=True, encoding='utf-8', errors='replace',
         cwd=str(SKILL_DIR), timeout=60,
     )

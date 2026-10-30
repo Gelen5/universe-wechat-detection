@@ -248,6 +248,8 @@ class AgentOrchestrator:
                                  if workbench and decision.skill_id == "wechat_writer"
                                  and stage in WECHAT_STAGE_TO_TOOL else None)
                 direct_tool_args = None
+                if required_tool in {'write_article', 'create_outline'} and intent and intent.source == 'explicit' and selected_topic:
+                    direct_tool_args = {'title': selected_topic, 'requirements': trigger}
                 if required_tool == 'review_article' and intent and intent.source == 'explicit':
                     articles = [item for item in conversation_repository.run_inputs(
                         run_id, user_id, messages=False)['artifacts']
@@ -260,6 +262,8 @@ class AgentOrchestrator:
                             'article': latest['content'],
                             'requirements': trigger,
                         }
+                if required_tool == 'typeset_article' and intent and intent.source == 'explicit':
+                    direct_tool_args = {'requirements': trigger}
                 if workbench:
                     # Only the resolved stage's inputs are sent (server/agent/context.py).
                     history = stage_messages(conversation["id"], user_id, stage=stage, run_id=run_id)

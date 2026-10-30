@@ -265,9 +265,16 @@ def _generate(state: Any, node: str) -> Callable[[str], str]:
         full = prompt
         with workbench.provider_overrides():
             if node == "draft":
+                full = ('写一篇完整的公众号文章，只输出 Markdown 正文，不输出 JSON。'
+                        '围绕读者的具体问题展开，先给出有用判断，再解释理由。'
+                        '提纲是内容线索，不必逐条变成小标题；合并重复解释，避免每段等长、机械转折和空泛总结。'
+                        '只能使用提供的事实与素材，不虚构经历、数据或对白。\n'
+                        + json.dumps({'需求': state.user_request, '选题': state.selected_title or state.topic,
+                                      '提纲': state.outline, '策略': state.writing_strategy,
+                                      '素材': state.to_dict().get('evidence_pack', {})}, ensure_ascii=False))
                 seed = exemplar_prefix()
                 if seed:
-                    full = seed + prompt
+                    full = seed + full
                 # A length buried in the state JSON is easy to ignore; the band
                 # stated first, as a hard rule, is what the writer actually obeys.
                 line = skill_runtime.length_instruction(getattr(state, 'user_request', '') or '')
@@ -284,8 +291,13 @@ def _generate(state: Any, node: str) -> Callable[[str], str]:
                 # Nested override copies the settings already loaded above, so
                 # only the model changes and the relay/key stay configured.
                 with workbench.provider_overrides(text_model=model):
-                    return workbench._text(full)
-            return workbench._text(full)
+                    reply = workbench._text(full)
+            else:
+                reply = workbench._text(full)
+            if node == 'draft':
+                return json.dumps({'draft': reply, 'selected_title': state.selected_title or state.topic,
+                                   'used_claim_ids': []}, ensure_ascii=False)
+            return reply
 
     return call
 
@@ -537,6 +549,14 @@ def for_conversation(conversation_id: str, user_id: str, brief: str,
         state = new_state(brief, persona)
         log_event('skill_host.new_creation', conversation_id=conversation_id)
     if upto == 'draft':
+        if state.draft and re.search(r'重新生成|重写正文|重新写|重新撰写', brief):
+            state.draft = ''
+            state.quality_report = {}
+            state.formatted_output = ''
+            for name in ('draft', 'review', 'delivery'):
+                state.nodes[name].status = 'pending'
+                state.nodes[name].message = ''
+                state.nodes[name].request = {}
         # Once the article moves beyond the outline, the writing request is
         # authoritative for review and subsequent retry/resume calls.
         state.user_request = brief
