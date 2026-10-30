@@ -108,10 +108,8 @@ function syncAdminVisibility() {
 const formatDate = value => value ? new Date(value).toLocaleString('zh-CN', { hour12: false }) : '从未登录';
 
 async function loadAdminUsers(query = '') {
-  const [overviewData, usersData] = await Promise.all([
-    readApiResponse(await fetch('/api/admin/overview')),
-    readApiResponse(await fetch(`/api/admin/users?query=${encodeURIComponent(query)}`)),
-  ]);
+  const overviewData = await readApiResponse(await fetch('/api/admin/overview'));
+  const usersData = await readApiResponse(await fetch(`/api/admin/users?query=${encodeURIComponent(query)}`));
   const overview = overviewData.overview;
   const cards = [
     ['累计注册', overview.users], ['今日新增', overview.registered_today],
@@ -146,7 +144,7 @@ async function loadAdminUserDetail(userId) {
 async function openAdminUsers() {
   toggleSettingsMenu(false);
   adminUsersModal.hidden = false;
-  try { await Promise.all([loadAdminUsers(), loadAdminTasks()]); } catch (error) { adminUsersModal.hidden = true; showToast(error.message, 'error'); }
+  try { await loadAdminUsers(); await loadAdminTasks(); } catch (error) { adminUsersModal.hidden = true; showToast(error.message, 'error'); }
 }
 
 async function switchToUser(userId) {
