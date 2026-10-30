@@ -278,6 +278,9 @@ class AgentOrchestrator:
                                                "topic_direction": direction,
                                                "selected_topic": selected_topic,
                                            })})
+                if direct_tool_args is not None and required_tool in tools:
+                    properties = (tools[required_tool].definition.get('parameters') or {}).get('properties', {})
+                    direct_tool_args = {key: value for key, value in direct_tool_args.items() if key in properties}
                 answer = run_tool_loop(
                     model_service=self.model_service,
                     messages=[{"role": "system", "content": instructions}, *history],
