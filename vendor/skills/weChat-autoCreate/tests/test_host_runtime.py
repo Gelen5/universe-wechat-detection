@@ -52,6 +52,32 @@ class ParseTests(unittest.TestCase):
 
 
 class RuntimeTests(unittest.TestCase):
+    def test_draft_retries_malformed_json_instead_of_failing_run(self):
+        class Node:
+            status = "awaiting_host"
+            request = {"purpose": "write", "read": [], "rules": [], "output_contract": {}}
+            message = ""
+
+        class State:
+            nodes = {"draft": Node()}
+
+        import toolkit.host_runtime as runtime
+        original_run, original_apply = runtime.run_node, runtime.apply_host_result
+        prompts = []
+        applied = []
+        try:
+            runtime.run_node = lambda state, node, output_dir=None: None
+            runtime.apply_host_result = lambda state, node, result: (
+                applied.append(result), setattr(state.nodes[node], "status", "passed"))
+            replies = iter(['{"draft": "bad "quote""}', '{"draft": "complete article"}'])
+            state = run_node_with(State(), "draft", lambda prompt: prompts.append(prompt) or next(replies))
+        finally:
+            runtime.run_node, runtime.apply_host_result = original_run, original_apply
+        self.assertEqual("passed", state.nodes["draft"].status)
+        self.assertEqual([{"draft": "complete article"}], applied)
+        self.assertEqual(2, len(prompts))
+        self.assertIn("合法 JSON", prompts[1])
+
     def test_a_node_that_does_not_need_the_host_is_left_alone(self):
         class Node:
             status = "passed"

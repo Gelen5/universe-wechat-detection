@@ -139,9 +139,11 @@ def run_node_with(state: ArticleState, node: str,
         try:
             result = _coerce(node, parse_result(reply))
         except ValueError as exc:
-            if validate_result is None:
-                raise
-            feedback = f'上一次回答不是完整 JSON：{exc}。请只返回更短的完整 JSON。'
+            # Drafts can be long and contain quotes/newlines. A malformed model
+            # envelope must not discard a paid generation without a retry.
+            feedback = (f'上一次回答不是合法 JSON：{exc}。请重新生成完整结果，'
+                        '只返回一个 JSON 对象，正确转义正文中的引号和换行。'
+                        '正文内容不得缩短或省略。')
             continue
         issue = validate_result(result) if validate_result else ''
         if issue:
@@ -159,6 +161,6 @@ def run_node_with(state: ArticleState, node: str,
         run_node(state, node, output_dir=output_dir)
         if state.nodes[node].status == 'passed':
             return state
-    if validate_result and feedback:
-        raise ValueError(f'大纲未通过质量检查：{feedback}')
+    if feedback:
+        raise ValueError(f'{node} 节点未通过检查：{feedback}')
     return state
