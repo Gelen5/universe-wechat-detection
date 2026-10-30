@@ -96,40 +96,35 @@ def test_pending_editorial_issues_do_not_report_success_when_unchanged():
     assert '正文未修改' in final['summary'] and '待处理' in final['summary']
 
 
-def test_failed_semantic_or_numeric_check_preserves_original():
+def test_rephrased_numbers_are_allowed_but_meaning_change_is_rejected():
     original = '# 标题\n\n每周3次，先征得双方同意。'
     session = {'id': 'deep', 'brief': '深度重构'}
-    audit = {'status': 'success', 'complete_sentence_ratio': 1, 'missing_protected_spans': {}}
-    with patch.object(workbench, '_text', return_value='# 标题\n\n每周4次，先征得双方同意。'):
-        with pytest.raises(workbench.ProviderError, match='数字'):
+    with patch.object(workbench, '_text', return_value='# 标题\n\n一周安排四次，先征得双方同意。'), \
+         patch.object(workbench, '_json_text', return_value={
+             'topic_preserved': True, 'meaning_preserved': False, 'no_invention': False,
+             'natural_voice': True, 'issues': ['频次从三次变成四次']}):
+        with pytest.raises(workbench.ProviderError, match='主题或意思'):
             workbench._deep_structure_review(original, session)
-    with patch.object(workbench, '_text', return_value='# 标题\n\n征得双方同意后，每周3次。'), \
-         patch.object(workbench, '_anti_ai_audit', return_value=audit), \
-         patch.object(workbench, '_json_text', return_value={'facts_preserved': False, 'issues': ['条件丢失']}):
-        with pytest.raises(workbench.ProviderError, match='语义复核'):
-            workbench._deep_structure_review(original, session)
+    with patch.object(workbench, '_text', return_value='# 标题\n\n先征得双方同意，再一周安排三回。'), \
+         patch.object(workbench, '_json_text', return_value={
+             'topic_preserved': True, 'meaning_preserved': True, 'no_invention': True,
+             'natural_voice': True, 'issues': []}):
+        revised, report = workbench._deep_structure_review(original, session)
+    assert '三回' in revised and report['gate'] == 'passed'
 
 
 def test_deep_structure_requires_semantic_check_and_marks_human_review_pending():
     original = '# 标题\n\n先取得同意。\n\n再商量安排。'
     candidate = '# 标题\n\n商量安排前，先取得同意。'
-    audit = {'status': 'success', 'complete_sentence_ratio': 1, 'missing_protected_spans': {}}
-    semantic = {'facts_preserved': True, 'stance_preserved': True, 'conditions_preserved': True,
-                'no_invention': True, 'readable': True, 'issues': []}
-    workdirs = []
-    def audit_in_temporary_dir(_original, _candidate, _session, *, workdir_override):
-        workdirs.append(workdir_override)
-        (workdir_override / 'candidate.txt').write_text(_candidate, encoding='utf-8')
-        return audit
+    semantic = {'topic_preserved': True, 'meaning_preserved': True,
+                'no_invention': True, 'natural_voice': True, 'issues': []}
     with patch.object(workbench, '_text', return_value=candidate), \
-         patch.object(workbench, '_anti_ai_audit', side_effect=audit_in_temporary_dir), \
          patch.object(workbench, '_json_text', return_value=semantic) as reviewer:
         result, report = workbench._deep_structure_review(original, {'id': 'deep', 'brief': '深度重构'})
     assert result == candidate and report['gate'] == 'passed'
     assert report['fidelity_gate']['semantic_review'] == 'model_completed'
     assert report['editorial_quality']['status'] == 'needs_review'
     assert report['human_review_status'] == 'not_performed'
-    assert len(workdirs) == 1 and not workdirs[0].exists()
     reviewer.assert_called_once()
 
 
