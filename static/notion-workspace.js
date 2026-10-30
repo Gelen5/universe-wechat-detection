@@ -38,11 +38,14 @@
       ['内容创作', ['/hotspots', '/workbench', '/one-click-writing', '/xiaohongshu', '/tie-tu', '/morning-generator']],
       ['分析', ['/diagnose', '/hit-detector']],
       ['资源', ['/market', '/bookshelf']],
+      ['账户', ['/pricing']],
     ];
     // 静态 HTML 里没有的导航项在这里兜底创建，保证计划清单说了就一定出现
 const EXTRA = {
   '/hotspots': { view: 'hotspots', label: '热点广场',
     icon: '<path d="M3 17l5-5 4 3 5-7 4 5"/><path d="M3 21h18"/>' },
+  '/pricing': { view: 'pricing', label: '积分套餐',
+    icon: '<rect x="2" y="6" width="20" height="13" rx="2.5"/><path d="M2 10h20"/><path d="M6 15h4"/>' },
 };
 function buildNavItem(href, spec) {
   const a = document.createElement('a');
