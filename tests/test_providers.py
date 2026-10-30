@@ -42,6 +42,14 @@ class FakeSession:
 
 
 class ProviderTests(unittest.TestCase):
+    def test_latentide_requests_url_delivery(self):
+        session = FakeSession([FakeResponse({'data': [{'url': 'https://example.test/image.jpg'}]})])
+        provider = OpenAICompatibleProvider(api_key='test', base_url='https://api.latentide.com/v1',
+            text_model='text', image_model='gpt-image-2.5', session=session)
+        result = provider.generate_image('prompt', size='auto')
+        self.assertEqual('url', session.requests[0][2]['json']['response_format'])
+        self.assertTrue(result['data'][0]['url'])
+
     def test_image_returns_after_complete_json_before_connection_closes(self):
         class KeptOpen(FakeResponse):
             closed = False

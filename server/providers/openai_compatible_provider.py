@@ -169,9 +169,11 @@ class OpenAICompatibleProvider(ModelProvider):
                        timeout: int = 300, idempotency_key: str | None = None) -> dict[str, Any]:
         if not prompt.strip():
             raise ProviderRequestError("image prompt is required", code="invalid_request")
-        data = self._read_image_result(
-            {"model": self.image_model, "prompt": prompt, "size": size, "n": count},
-            timeout, idempotency_key)
+        body = {"model": self.image_model, "prompt": prompt, "size": size, "n": count}
+        from urllib.parse import urlsplit
+        if urlsplit(self.image_base_url).hostname == 'api.latentide.com':
+            body['response_format'] = 'url'
+        data = self._read_image_result(body, timeout, idempotency_key)
         status_url = data.get("statusUrl") or data.get("status_url")
         if not status_url or data.get("data"):
             return data

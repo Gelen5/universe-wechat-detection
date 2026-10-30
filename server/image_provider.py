@@ -143,9 +143,12 @@ def _fit_images(result: dict[str, Any], size: str) -> dict[str, Any]:
             if item.get("b64_json"):
                 raw = base64.b64decode(item["b64_json"])
             elif item.get("url"):
+                download_started = time.monotonic()
                 response = requests.get(str(item["url"]), timeout=(10, 90))
                 response.raise_for_status()
                 raw = response.content
+                from .observability import event
+                event('provider.image_download', latency_ms=int((time.monotonic()-download_started)*1000), bytes=len(raw))
             else:
                 continue
             with Image.open(io.BytesIO(raw)) as decoded:
