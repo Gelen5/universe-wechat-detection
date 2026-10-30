@@ -53,3 +53,23 @@ def test_auth_success_keeps_existing_api_contract(ui):
     expect(page.locator('#auth-modal')).to_be_hidden()
     assert submitted == [{'email':'test@example.com','password':'example-password','display_name':''}]
     assert not page.locator('body').evaluate("el=>el.classList.contains('auth-open')")
+
+
+def test_auth_close_and_escape_do_not_reload_or_reopen_for_background_401(ui):
+    page, state = ui
+    page.route('**/api/auth/me',lambda r:r.fulfill(status=401,json={'detail':'请登录'}))
+    page.goto('http://ui.test/')
+    modal=page.locator('#auth-modal')
+    expect(modal).to_be_visible()
+    page.locator('#auth-email').fill('draft@example.test')
+    visits=state['requests'].count('/')
+    page.locator('#auth-close').click()
+    expect(modal).to_be_hidden()
+    page.evaluate("readApiResponse(new Response(JSON.stringify({detail:'请登录'}), {status:401,headers:{'Content-Type':'application/json'}})).catch(()=>{})")
+    expect(modal).to_be_hidden()
+    assert state['requests'].count('/')==visits
+    page.evaluate('showAuth(true)')
+    expect(modal).to_be_visible()
+    expect(page.locator('#auth-email')).to_have_value('draft@example.test')
+    page.keyboard.press('Escape')
+    expect(modal).to_be_hidden()

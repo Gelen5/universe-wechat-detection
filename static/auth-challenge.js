@@ -21,8 +21,9 @@
     if (currentAction === action && widget !== null) return;
     if (widget !== null) window.turnstile.remove(widget);
     token = ''; currentAction = action;
-    widget = window.turnstile.render(host(), {
-      sitekey: siteKey, action, size: window.innerWidth < 380 ? 'compact' : 'normal',
+    const widgetHost = document.querySelector('#auth-challenge-widget');
+    widget = window.turnstile.render(widgetHost, {
+      sitekey: siteKey, action, theme: 'light', language: 'zh-CN', size: widgetHost.clientWidth < 300 ? 'compact' : 'flexible',
       callback: value => { token = value; pendingResolve?.(value); pendingResolve = pendingReject = null; },
       'expired-callback': () => { token = ''; },
       'error-callback': () => { token = ''; pendingReject?.(new Error('人机验证未完成，请重试')); pendingResolve = pendingReject = null; },
@@ -35,7 +36,7 @@
       host().hidden = mode !== 'register' || !siteKey;
       if (mode === 'register' && siteKey) {
         try { await render('register_email'); }
-        catch (error) { host().textContent = error.message; }
+        catch (error) { host().querySelector('.auth-verification-note').textContent = error.message; }
       }
     },
     async getToken(action) {

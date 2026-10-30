@@ -30,6 +30,7 @@ const walletSettingsButton = document.querySelector('#wallet-settings-button');
 const logoutButton = document.querySelector('#logout-button');
 let currentAccount = null;
 let emailVerificationRequired = false;
+let authDismissed = false;
 let registrationToken = '';
 const linkMatch = location.hash.match(/^#register=([a-f0-9]{64})$/);
 if (linkMatch) { registrationToken = linkMatch[1]; history.replaceState(null, '', location.pathname + location.search); }
@@ -259,7 +260,9 @@ function renderWallet(wallet = {}) {
   document.querySelector('#wallet-paid').textContent = number(currentWallet.paid);
 }
 
-function showAuth() {
+function showAuth(force = false) {
+  if (authDismissed && !force) return;
+  if (force) authDismissed = false;
   if (authModal && authModal.hidden) {
     authModal.hidden = false;
     document.body.classList.add('auth-open');
@@ -290,6 +293,18 @@ function setAuthMode(mode) {
   document.querySelector('#auth-error').hidden = true;
 }
 
+function dismissAuth() {
+  authDismissed = true;
+  hideAuth();
+  document.querySelector('#logout-button')?.focus({preventScroll:true});
+}
+document.querySelector('#auth-close')?.addEventListener('click', dismissAuth);
+// A later deliberate action in the workbench may require signing in again.
+// The close button's own bubbling event must not undo the dismissal.
+document.addEventListener('click', event => {
+  if (!event.target.closest('#auth-modal')) authDismissed = false;
+});
+
 document.querySelectorAll('[data-auth-mode]').forEach(button => button.addEventListener('click', () => setAuthMode(button.dataset.authMode)));
 
 document.querySelector('#auth-send-code')?.addEventListener('click', async event => {
@@ -304,8 +319,13 @@ document.querySelector('#auth-send-code')?.addEventListener('click', async event
       body: JSON.stringify({ email: document.querySelector('#auth-email').value.trim(), ...(challenge ? {turnstile_token: challenge} : {}) }),
     });
     await readApiResponse(response);
-    button.textContent = '已发送，60 秒后重试';
-    setTimeout(() => { button.disabled = false; button.textContent = '发送验证码'; }, 60000);
+    let seconds = 60;
+    button.textContent = `${seconds} 秒后重发`;
+    const cooldown = setInterval(() => {
+      seconds -= 1;
+      button.textContent = seconds > 0 ? `${seconds} 秒后重发` : '重新发送';
+      if (seconds <= 0) { clearInterval(cooldown); button.disabled = false; }
+    }, 1000);
   } catch (exception) {
     error.textContent = exception.message;
     error.hidden = false;
@@ -322,6 +342,7 @@ document.querySelector('#auth-password-toggle')?.addEventListener('click', event
   event.currentTarget.setAttribute('aria-pressed', String(visible));
 });
 authModal?.addEventListener('keydown', event => {
+  if (event.key === 'Escape') { event.preventDefault(); dismissAuth(); return; }
   if (event.key !== 'Tab') return;
   const controls = [...authModal.querySelectorAll('a[href], button:not(:disabled), input:not(:disabled)')].filter(el => el.getClientRects().length);
   const first = controls[0], last = controls.at(-1);
@@ -445,7 +466,7 @@ async function prepareAccountChange() {
 }
 
 logoutButton?.addEventListener('click', async () => {
-  if (!currentAccount) { toggleSettingsMenu(false); showAuth(); return; }
+  if (!currentAccount) { toggleSettingsMenu(false); showAuth(true); return; }
   try {
     await prepareAccountChange();
     const response = await fetch('/api/auth/logout', { method: 'POST' });
@@ -458,7 +479,7 @@ logoutButton?.addEventListener('click', async () => {
   syncAdminVisibility();
   renderWallet({ balance: 0, trial: 0, bonus: 0, paid: 0 });
   walletModal.hidden = true;
-  showAuth();
+  showAuth(true);
 });
 
 async function loadAccount() {

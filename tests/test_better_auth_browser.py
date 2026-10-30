@@ -1,4 +1,5 @@
 """Synthetic Turnstile widget only; no real challenge or mail is submitted."""
+import pytest
 from playwright.sync_api import expect
 from tests.test_ui_shell_browser import browser, ui  # noqa: F401
 
@@ -26,7 +27,7 @@ def test_registration_uses_fresh_turnstile_tokens_for_send_and_register(ui):
     expect(page.locator('#auth-challenge')).to_be_visible()
     page.locator('#auth-email').fill('new@example.test')
     page.locator('#auth-send-code').click()
-    expect(page.locator('#auth-send-code')).to_have_text('已发送，60 秒后重试')
+    expect(page.locator('#auth-send-code')).to_have_text('60 秒后重发')
     assert sent[0]['turnstile_token']=='synthetic-register_email'
     page.locator('#auth-password').fill('Password12345')
     page.locator('#auth-email-code').fill('123456')
@@ -48,3 +49,30 @@ def test_backup_link_loads_registration_without_exposing_otp_or_auto_creating_ac
     expect(page.locator('#auth-password')).to_have_value('')
     assert page.evaluate('location.hash')==''
     assert '/api/auth/register' not in state['requests']
+
+
+@pytest.mark.parametrize('width',[320,390,1440])
+def test_registration_controls_fit_glass_panel(ui,width):
+    page,_=ui
+    page.set_viewport_size({'width':width,'height':1050})
+    page.route('**/api/auth/me',lambda r:r.fulfill(status=401,json={'detail':'请登录'}))
+    page.route('**/api/auth/config',lambda r:r.fulfill(json={'email_verification_required':True,'turnstile_site_key':'synthetic'}))
+    page.route('https://challenges.cloudflare.com/turnstile/**',lambda r:r.fulfill(content_type='application/javascript',body='''
+      window.turnstile={render:(host,options)=>{window.widgetOptions=options;host.style.height='65px';host.textContent='官方验证控件占位';return 'synthetic';},remove:()=>{},reset:()=>{}};
+      window.universeTurnstileReady();
+    '''))
+    page.goto('http://ui.test/')
+    page.locator('[data-auth-mode=register]').click()
+    expect(page.locator('#auth-challenge-widget')).to_contain_text('官方验证控件占位')
+    card=page.locator('.auth-card').bounding_box()
+    field=page.locator('#auth-email-code').bounding_box()
+    button=page.locator('#auth-send-code').bounding_box()
+    assert abs(field['y']-button['y'])<2
+    assert button['x']>=field['x']+field['width']
+    assert card['x']>=0 and card['x']+card['width']<=width
+    assert button['x']+button['width']<=card['x']+card['width']
+    if width==1440:assert card['width']>=620
+    assert page.evaluate('window.widgetOptions.theme')=='light'
+    import os
+    if os.getenv('AUTH_UI_SCREENSHOTS'):
+        page.screenshot(path=os.path.join(os.environ['AUTH_UI_SCREENSHOTS'],f'auth-register-{width}.png'),full_page=True)
