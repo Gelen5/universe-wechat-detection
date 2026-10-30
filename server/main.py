@@ -340,6 +340,16 @@ class TieTuPlanRequest(BaseModel):
     imageModel: str | None = Field(default=None, max_length=120)
 
 
+class ViralRemixAnalyzeRequest(BaseModel):
+    imageData: str = Field(min_length=32, max_length=14_000_000)
+    goal: str = Field(default="", max_length=300)
+
+
+class ViralRemixImageRequest(BaseModel):
+    sessionId: str = Field(min_length=8, max_length=80)
+    idea: dict[str, Any]
+
+
 class CreatorImageRequest(BaseModel):
     tool: str = Field(pattern="^(xiaohongshu|tie-tu)$")
     sessionId: str = Field(min_length=8, max_length=80)
@@ -1045,6 +1055,26 @@ def create_tie_tu_plan(payload: TieTuPlanRequest):
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
+@app.post("/api/viral-remix/analyze")
+def analyze_viral_remix(payload: ViralRemixAnalyzeRequest):
+    try:
+        with workbench.provider_overrides():
+            return {"status": "success", "result": creator_tools.viral_remix_analysis(payload.imageData, payload.goal)}
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except workbench.ProviderError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@app.post("/api/viral-remix/image")
+def generate_viral_remix_image(payload: ViralRemixImageRequest):
+    try:
+        with workbench.provider_overrides():
+            return {"status": "success", "image": creator_tools.generate_viral_remix_image(payload.sessionId, payload.idea)}
+    except (ValueError, workbench.ProviderError) as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
 @app.post("/api/creator-tools/image")
 def generate_creator_image(payload: CreatorImageRequest):
     try:
@@ -1304,7 +1334,7 @@ def index():
 
 # 每个功能 tab 对应一个真实路径（/workbench、/xiaohongshu、/tie-tu、/hit-detector、/morning-generator），
 # 由前端 SPA 根据 pathname 渲染对应 section；其余路径交给 /static 与 /api。
-TAB_PAGES = {"one-click-writing", "diagnose", "workbench", "xiaohongshu", "tie-tu", "hit-detector", "morning-generator"}
+TAB_PAGES = {"one-click-writing", "diagnose", "workbench", "xiaohongshu", "tie-tu", "viral-remix", "hit-detector", "morning-generator"}
 
 
 @app.get("/{tab}", include_in_schema=False)

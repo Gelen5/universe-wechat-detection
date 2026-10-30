@@ -23,6 +23,7 @@ const imageConfigStatus = document.querySelector('#image-config-status');
 const configDot = document.querySelector('#settings-config-dot');
 const xiaohongshuPage = document.querySelector('#xiaohongshu');
 const tieTuPage = document.querySelector('#tie-tu');
+const viralRemixPage = document.querySelector('#viral-remix');
 const hitDetectorPage = document.querySelector('#hit-detector');
 const authModal = document.querySelector('#auth-modal');
 const walletModal = document.querySelector('#wallet-modal');
@@ -1533,6 +1534,64 @@ function bindCopyButtons(root = document) {
   }));
 }
 
+const viralRemixForm = document.querySelector('#viral-remix-form');
+const viralRemixImage = document.querySelector('#viral-remix-image');
+const viralRemixPreview = document.querySelector('#viral-remix-preview');
+let viralRemixPreviewUrl = '';
+
+function resetViralRemixImage() {
+  if (viralRemixPreviewUrl) URL.revokeObjectURL(viralRemixPreviewUrl);
+  viralRemixPreviewUrl = '';
+  if (viralRemixImage) viralRemixImage.value = '';
+  if (viralRemixPreview) viralRemixPreview.hidden = true;
+}
+
+viralRemixImage?.addEventListener('change', () => {
+  const file = viralRemixImage.files?.[0];
+  if (!file) return resetViralRemixImage();
+  if (file.size > 10 * 1024 * 1024) { resetViralRemixImage(); showToast('图片不能超过 10 MB', 'error'); return; }
+  if (viralRemixPreviewUrl) URL.revokeObjectURL(viralRemixPreviewUrl);
+  viralRemixPreviewUrl = URL.createObjectURL(file);
+  viralRemixPreview.querySelector('img').src = viralRemixPreviewUrl;
+  viralRemixPreview.querySelector('span').textContent = file.name;
+  viralRemixPreview.hidden = false;
+});
+document.querySelector('#viral-remix-clear')?.addEventListener('click', resetViralRemixImage);
+function renderViralRemix(result, sessionId) {
+  document.querySelector('#viral-remix-empty').hidden = true;
+  const root = document.querySelector('#viral-remix-result');
+  root.hidden = false;
+  const analysis = result.analysis || {};
+  const rows = [['视觉锚点', analysis.visual_anchor], ['信息层级', analysis.hierarchy], ['构图', analysis.composition], ['色彩', analysis.palette], ['情绪', analysis.emotion], ['钩子', analysis.hook]];
+  root.innerHTML = `<article class="viral-result-card"><span class="tag">第 2/5 步 · 结构拆解</span><h2>${esc(result.content_guess || '对标图结构')}</h2><div class="viral-analysis">${rows.map(([label, text]) => `<div><b>${esc(label)}</b><span>${esc(text || '未识别')}</span></div>`).join('')}</div><p><b>可补的信息：</b>${esc(result.missing || '未提供')}</p></article><section class="viral-ideas"><div class="result-section-title"><strong>第 3/5 步 · 选择翻新方向</strong><span>保留结构，不复用画面</span></div>${(result.ideas || []).map(idea => `<article class="viral-idea"><span class="idea-id">${esc(idea.id)}</span><h3>${esc(idea.name)}</h3><p>${esc(idea.summary)}</p><dl><div><dt>保留</dt><dd>${esc(idea.keep)}</dd></div><div><dt>改变</dt><dd>${esc(idea.change)}</dd></div><div><dt>为什么不撞</dt><dd>${esc(idea.why_original)}</dd></div></dl><button type="button" class="primary-action viral-generate" data-idea="${esc(idea.id)}">选这版，生成原创图 →</button></article>`).join('')}</section>`;
+  root.querySelectorAll('.viral-generate').forEach(button => button.addEventListener('click', async () => {
+    const idea = (result.ideas || []).find(item => item.id === button.dataset.idea);
+    if (!idea) return;
+    const finish = beginButton(button, '正在生成原创图…');
+    try {
+      const data = await postCreator('/api/viral-remix/image', { sessionId, idea });
+      const image = data.image;
+      const card = document.createElement('article'); card.className = 'viral-generated';
+      card.innerHTML = `<span class="tag">第 4/5 步 · 原创成图</span><img src="${safeUrl(image.url)}" alt="${esc(idea.headline || '原创贴图')}"/><div><strong>${esc(idea.headline)}</strong><a href="${safeUrl(image.url)}" download="爆款贴图复刻-${esc(idea.id)}.png">下载图片</a></div>`;
+      root.prepend(card);
+      showToast('原创图已生成；参考图没有进入生图请求。');
+    } catch (error) { showToast(error.message, 'error'); } finally { finish(); }
+  }));
+}
+viralRemixForm?.addEventListener('submit', async event => {
+  event.preventDefault();
+  const file = viralRemixImage?.files?.[0];
+  if (!file) return;
+  const button = document.querySelector('#viral-remix-start');
+  const finish = beginButton(button, '正在拆解图片结构…');
+  try {
+    const imageData = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = () => reject(new Error('图片读取失败')); reader.readAsDataURL(file); });
+    const sessionId = crypto.randomUUID().replaceAll('-', '');
+    const data = await postCreator('/api/viral-remix/analyze', { imageData, goal: document.querySelector('#viral-remix-goal').value.trim() });
+    renderViralRemix(data.result, sessionId);
+  } catch (error) { showToast(error.message, 'error'); } finally { finish(); }
+});
+
 const viewMap = {
   home: homePage,
   diagnose: diagnosePage,
@@ -1540,6 +1599,7 @@ const viewMap = {
   'one-click-writing': document.querySelector('#one-click-writing'),
   xiaohongshu: xiaohongshuPage,
   'tie-tu': tieTuPage,
+  'viral-remix': viralRemixPage,
   'hit-detector': hitDetectorPage,
   morning: morningGenerator,
   report: reportRoot,
@@ -1553,6 +1613,7 @@ const viewTitles = {
   'one-click-writing': '公众号一键成文',
   xiaohongshu: '小红书创作',
   'tie-tu': '微信贴图号',
+  'viral-remix': '爆款贴图复刻',
   'hit-detector': '爆文检测',
   morning: '早安祝福',
   report: '诊断报告',

@@ -13,7 +13,7 @@
     <link rel="stylesheet" href="/static/style.css?v=20260901-v3-merge" />
     <link rel="stylesheet" href="/static/taste-chatgpt.css?v=20260901-v3-merge" />
     <link rel="stylesheet" href="/static/admin.css?v=20260901-v3-merge" />
-    <link rel="stylesheet" href="/static/glass-theme.css?v=20260910-skill-evidence-1" />
+    <link rel="stylesheet" href="/static/glass-theme.css?v=20261031-viral-remix-1" />
     <!-- 苹果浅色翻新层：覆盖暗色 token + 润色 + 未来组件系统（必须位于旧表之后） -->
     <link rel="stylesheet" href="/static/tokens.css?v=20260903-apple-light" />
     <link rel="stylesheet" href="/static/theme-apple.css?v=20260903-apple-light" />
@@ -111,6 +111,10 @@
           <a data-view="tie-tu" href="/tie-tu">
             <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
             <span>贴图号</span>
+          </a>
+          <a data-view="viral-remix" href="/viral-remix">
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="m8 15 3-3 2 2 3-4 2 3"/><circle cx="8.5" cy="8.5" r="1.2"/><path d="M16 3v4M14 5h4"/></svg>
+            <span>爆款贴图复刻</span>
           </a>
           <a data-view="hit-detector" href="/hit-detector">
             <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><polyline points="9 12 11 14 15 10"/></svg>
@@ -369,6 +373,46 @@
                 <div class="dim"><span class="k">A4</span><span class="n">排版可读性</span><span class="v">91</span><span class="bar"><i style="width:91%"></i></span></div>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           TAB · /viral-remix — 爆款贴图复刻
+           ============================================================ -->
+      <section id="viral-remix" class="skill-page viral-remix" hidden>
+        <div class="v3-meta">
+          <span class="l"><span class="line"></span><span>CREATOR WORKSPACE / REMIX</span></span>
+          <span class="r"><i></i>爆款贴图复刻</span>
+        </div>
+        <div class="skill-shell">
+          <div class="skill-form-col">
+            <span class="micro-label"><span class="line"></span><span>REFERENCE → ORIGINAL</span></span>
+            <h1>拆结构，<br><span class="serif">不复制</span>画面。</h1>
+            <p>上传一张对标贴图。我们只分析构图、信息层级和钩子，不会把原图或原文案放进你的成品。</p>
+            <form id="viral-remix-form" class="skill-form">
+              <div class="form-section">
+                <div class="head"><span class="num">01</span><div class="copy"><strong>放入对标图</strong><small>支持截图；原图只用于本次结构拆解。</small></div></div>
+                <label class="viral-upload" for="viral-remix-image">
+                  <input id="viral-remix-image" name="reference_image" type="file" accept="image/png,image/jpeg,image/webp" required>
+                  <span class="viral-upload-icon" aria-hidden="true">+</span>
+                  <strong>选择一张对标图</strong><small>PNG、JPG 或 WebP，最大 10 MB</small>
+                </label>
+                <div id="viral-remix-preview" class="viral-preview" hidden><img alt="已选择的对标图预览"><span></span><button type="button" id="viral-remix-clear" class="secondary-action">移除</button></div>
+                <label class="field-wide">你想做的内容（可留空）<textarea id="viral-remix-goal" name="goal" maxlength="300" placeholder="例如：同样讲职场成长，但换成新人第一次做述职的角度"></textarea></label>
+              </div>
+              <button id="viral-remix-start" class="skill-primary" type="submit">开始拆解 →</button>
+              <p class="viral-notice">对标图只被拆解，不会被裁切、贴入或作为图生图输入。</p>
+            </form>
+          </div>
+          <div class="skill-output-col" aria-live="polite">
+            <div id="viral-remix-empty" class="skill-empty viral-empty">
+              <span class="tag">复刻工作流 <span class="tie-status-dot"></span> 准备开始</span>
+              <h2>先看懂它为什么让人停下来，<br>再做一张真正属于你的图。</h2>
+              <p>完整流程会依次产出结构拆解、三种翻新方向、成图与配文方向。</p>
+              <ol class="tie-steps" aria-label="爆款贴图复刻流程"><li aria-current="step"><b>01</b><span>上传对标图</span></li><li><b>02</b><span>拆解结构</span></li><li><b>03</b><span>选择翻新方向</span></li><li><b>04</b><span>生成原创图</span></li></ol>
+            </div>
+            <div id="viral-remix-result" class="viral-result" hidden></div>
           </div>
         </div>
       </section>
@@ -883,13 +927,13 @@
     <script src="/static/vendor/lucide.min.js"></script>
     <script src="/static/market.js?v=20261026-loading-1" defer></script>
     <script src="/static/auth-challenge.js?v=20261031-glass-2"></script>
-    <script src="/static/app.js?v=20261031-auth-close-2"></script>
+    <script src="/static/app.js?v=20261031-viral-remix-1"></script>
     <script src="/static/flow.js?v=20260904-tools-1"></script>
     <script src="/static/studio-tools.js?v=20261028-tietu-1"></script>
     <link rel="stylesheet" href="/static/creator-chat.css?v=20260906-conversation-1">
   <link rel="stylesheet" href="/static/tie-tu-studio.css?v=20261030-image-preview-1">
     <script src="/static/creator-chat.js?v=20261030-image-timer-1"></script>
-    <script src="/static/notion-workspace.js?v=20261030-pricing-1"></script>
+    <script src="/static/notion-workspace.js?v=20261031-viral-remix-1"></script>
 <script src="/static/hotspots.js?v=20261025-stable-filter-1"></script>
     <script>
       // 同步 recent-item（首页样例：点击触发诊断）

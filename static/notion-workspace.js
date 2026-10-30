@@ -13,7 +13,7 @@
     const open = header.classList.toggle('nav-open'); menu.setAttribute('aria-expanded', String(open));
   });
   const groups = [
-    ['内容创作', ['hotspots', 'workbench','one-click-writing','xiaohongshu','tie-tu','morning']],
+    ['内容创作', ['hotspots', 'workbench','one-click-writing','xiaohongshu','tie-tu','viral-remix','morning']],
     ['分析', ['diagnose','hit-detector']],
   ];
   for (const [label, ids] of groups) {
@@ -35,7 +35,7 @@
   // 按固定清单重建导航：不再依赖节点原来的位置
   {
     const plan = [
-      ['内容创作', ['/hotspots', '/workbench', '/one-click-writing', '/xiaohongshu', '/tie-tu', '/morning-generator']],
+      ['内容创作', ['/hotspots', '/workbench', '/one-click-writing', '/xiaohongshu', '/tie-tu', '/viral-remix', '/morning-generator']],
       ['分析', ['/diagnose', '/hit-detector']],
       ['资源', ['/market', '/bookshelf']],
       ['账户', ['/pricing']],

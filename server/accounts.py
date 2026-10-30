@@ -49,6 +49,8 @@ DEFAULT_PRICING = [
     ("POST", "/api/diagnose", "公众号诊断", 10, 0),
     ("POST", "/api/xiaohongshu/package", "小红书图文生成", 10, 0),
     ("POST", "/api/tie-tu/plan", "微信贴图策划", 1, 0),
+    ("POST", "/api/viral-remix/analyze", "爆款贴图结构拆解", 2, 0),
+    ("POST", "/api/viral-remix/image", "爆款贴图原创生成", 2, 0),
     ("POST", "/api/creator-tools/image", "AI 图片生成", 2, 0),
     ("POST", "/api/hit-detector/analyze", "爆文检测", 5, 0),
     ("POST", "/api/hit-detector/rewrite", "文章改稿", 5, 0),

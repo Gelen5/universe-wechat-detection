@@ -38,6 +38,93 @@ def _clean_json_payload(data: dict[str, Any]) -> dict[str, Any]:
     return json.loads(json.dumps(data, ensure_ascii=False, default=str))
 
 
+def _image_measurement(raw: bytes) -> dict[str, Any]:
+    """Only derive technical visual facts locally; never persist the reference."""
+    from PIL import Image, ImageStat
+    with Image.open(io.BytesIO(raw)) as image:
+        rgb = image.convert("RGB")
+        width, height = rgb.size
+        stat = ImageStat.Stat(rgb)
+        colors = rgb.quantize(colors=6).convert("RGB").getcolors(width * height) or []
+        colors.sort(reverse=True)
+    return {
+        "dimensions": {"width": width, "height": height},
+        "aspect_ratio": round(width / height, 4) if height else 0,
+        "orientation": "portrait" if height > width else "landscape" if width > height else "square",
+        "dominant_palette": [{"rgb": list(color), "share": round(count / (width * height), 3)} for count, color in colors[:6]],
+        "brightness_mean": round(sum(stat.mean) / 3, 1),
+        "contrast_stddev": round(sum(stat.stddev) / 3, 1),
+    }
+
+
+def viral_remix_analysis(image_data_url: str, goal: str = "") -> dict[str, Any]:
+    """Analyse a user-owned reference with a vision-capable text model.
+
+    The reference remains in request memory only. The returned brief deliberately
+    excludes original copy and image pixels, so image generation starts from text.
+    """
+    match = re.fullmatch(r"data:(image/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)", image_data_url.strip())
+    if not match:
+        raise ValueError("请上传 PNG、JPG 或 WebP 图片")
+    try:
+        raw = base64.b64decode(match.group(2), validate=True)
+    except ValueError as exc:
+        raise ValueError("图片数据无法读取") from exc
+    if not raw or len(raw) > 10 * 1024 * 1024:
+        raise ValueError("图片不能为空且不能超过 10 MB")
+    try:
+        measured = _image_measurement(raw)
+    except Exception as exc:
+        raise ValueError("图片无法解码，请换一张完整截图") from exc
+    model = workbench._setting("WECHAT_TEXT_MODEL")
+    if not model:
+        raise workbench.ProviderError("服务端尚未配置视觉模型所用的文本 API")
+    prompt = f'''你是社交媒体视觉编辑。分析用户有权发送的对标图，只提炼可迁移的结构；不要复述、引用或建议使用原图中的文案、人物、logo、IP、截图元素或任何像素。用户目标：{goal or '未补充；默认做同赛道但不同信息角度的原创内容'}。
+
+输出严格 JSON：{{"content_guess":"主题类型","analysis":{{"visual_anchor":"第一眼看哪里","hierarchy":"文字/主体层级，不抄原文","composition":"位置、方向、留白","palette":"颜色关系","texture":"材质或光影","emotion":"情绪","hook":"停留机制","platform_language":"平台表达"}},"missing":"原图没有提供、可用来做信息增量的部分","questions":["一个最关键的确认问题"],"ideas":[{{"id":"A","name":"换素材","summary":"...","keep":"保留的抽象结构","change":"替换的素材与场景","why_original":"不撞图的原因","image_brief":"无原图元素的原创画面描述","headline":"8字以内原创标题"}},{{"id":"B","name":"换版式","summary":"...","keep":"...","change":"...","why_original":"...","image_brief":"...","headline":"..."}},{{"id":"C","name":"换角度","summary":"...","keep":"...","change":"...","why_original":"...","image_brief":"...","headline":"..."}}]}}。
+必须返回 A、B、C 三项。不要声称会爆；不要生成原图文字、品牌、角色或近似画面。'''
+    body = {
+        "model": model,
+        "messages": [{"role": "user", "content": [
+            {"type": "text", "text": prompt},
+            {"type": "image_url", "image_url": {"url": image_data_url, "detail": "high"}},
+        ]}],
+        "temperature": 0.4,
+    }
+    try:
+        response = requests.post(workbench._api_url("text", "/chat/completions"), headers=workbench._headers("text"),
+                                 json=body, timeout=120, verify=workbench._verify_ssl())
+        response.raise_for_status()
+        content = response.json()["choices"][0]["message"]["content"]
+    except (requests.RequestException, KeyError, IndexError, TypeError, ValueError) as exc:
+        raise workbench.ProviderError("视觉拆解请求失败：请确认文本模型支持图片输入后重试") from exc
+    cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", str(content).strip(), flags=re.I)
+    try:
+        data = json.loads(cleaned[cleaned.find("{"):cleaned.rfind("}") + 1])
+    except (ValueError, json.JSONDecodeError) as exc:
+        raise workbench.ProviderError("视觉模型没有返回可解析的拆解结果，请重试") from exc
+    ideas = data.get("ideas") if isinstance(data, dict) else None
+    if not isinstance(ideas, list) or [item.get("id") for item in ideas if isinstance(item, dict)] != ["A", "B", "C"]:
+        raise workbench.ProviderError("视觉模型没有返回完整的 A/B/C 翻新方案，请重试")
+    data["measurement"] = measured
+    data["skill"] = "tietu-refresh"
+    return _clean_json_payload(data)
+
+
+def generate_viral_remix_image(session_id: str, idea: dict[str, Any]) -> dict[str, Any]:
+    """Generate only from the approved text brief, never from the reference image."""
+    card = {
+        "index": 1,
+        "headline": str(idea.get("headline") or "").strip(),
+        "caption": str(idea.get("summary") or "").strip(),
+        "visual_subject": str(idea.get("image_brief") or "").strip(),
+        "composition": "3:4 portrait, one original visual focus, generous text-safe margins",
+    }
+    if not card["headline"] or not card["visual_subject"]:
+        raise ValueError("请选择一套完整的翻新方案后再生成")
+    return generate_card_image("viral-remix", session_id, card, "original social-media editorial image; do not use any reference-image elements")
+
+
 def xiaohongshu_package(
     topic: str,
     account: str,
