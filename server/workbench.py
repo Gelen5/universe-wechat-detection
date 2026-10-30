@@ -418,7 +418,9 @@ def _text(prompt: str, *, reasoning: str | None = None, model: str | None = None
             image_api_key=_setting("WECHAT_IMAGE_API_KEY") or profile["api_key"],
             image_base_url=_setting("WECHAT_IMAGE_API_BASE_URL") or _setting("WECHAT_API_BASE_URL", "https://api.openai.com/v1"),
             image_model=_setting("WECHAT_IMAGE_MODEL", "gpt-image-2"), verify_ssl=_verify_ssl(),
-            reasoning_effort=effort,
+            # The relay counts hidden reasoning against the same output budget.
+            # Sonnet writing/review needs those tokens for the article itself.
+            reasoning_effort=None if "claude-sonnet" in profile["model"].lower() else effort,
             max_output_tokens=max(4096, int(_setting("WECHAT_TEXT_MAX_OUTPUT_TOKENS", "8192") or 8192))
                               if "claude-sonnet" in profile["model"].lower() else None,
         )
@@ -1021,6 +1023,8 @@ def _deep_structure_review(article: str, session: dict[str, Any], progress=None)
             raise ProviderError('结构重构未返回正文，已保留原稿')
         if candidate.strip() == article.strip():
             raise ProviderError('结构重构未产生正文修改，已保留原稿')
+        if not candidate.strip().rstrip('*_').endswith(('。', '！', '？', '!', '?', '”', '」')):
+            raise ProviderError('改稿在句子中途截断，已保留原稿')
         if progress:
             progress('generating', {'label': '正在核对主题与原意'})
         def check_meaning(revision: str) -> dict[str, Any]:

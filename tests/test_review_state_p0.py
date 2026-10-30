@@ -143,6 +143,14 @@ def test_deep_structure_repairs_a_meaning_drift_once():
     assert writer.call_count == reviewer.call_count == 2
 
 
+def test_deep_structure_rejects_a_mid_sentence_cutoff():
+    with patch.object(workbench, '_text', return_value='# 标题\n\n改到一半，'), \
+         patch.object(workbench, '_json_text') as reviewer:
+        with pytest.raises(workbench.ProviderError, match='句子中途截断'):
+            workbench._deep_structure_review('# 标题\n\n完整原稿。', {'id': 'deep'})
+    reviewer.assert_not_called()
+
+
 @pytest.mark.parametrize('node', ['visual', 'delivery'])
 def test_pending_review_is_not_resumed_into_downstream(node):
     module, workflow, state = make_state()

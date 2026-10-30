@@ -69,14 +69,36 @@ class RuntimeTests(unittest.TestCase):
             runtime.run_node = lambda state, node, output_dir=None: None
             runtime.apply_host_result = lambda state, node, result: (
                 applied.append(result), setattr(state.nodes[node], "status", "passed"))
-            replies = iter(['{"draft": "bad "quote""}', '{"draft": "complete article"}'])
+            replies = iter(['{"draft": "bad "quote""}', '{"draft": "complete article。"}'])
             state = run_node_with(State(), "draft", lambda prompt: prompts.append(prompt) or next(replies))
         finally:
             runtime.run_node, runtime.apply_host_result = original_run, original_apply
         self.assertEqual("passed", state.nodes["draft"].status)
-        self.assertEqual([{"draft": "complete article"}], applied)
+        self.assertEqual([{"draft": "complete article。"}], applied)
         self.assertEqual(2, len(prompts))
         self.assertIn("合法 JSON", prompts[1])
+
+    def test_draft_does_not_save_a_truncated_sentence(self):
+        class Node:
+            status = "awaiting_host"
+            request = {"purpose": "write", "read": [], "rules": [], "output_contract": {}}
+            message = ""
+
+        class State:
+            nodes = {"draft": Node()}
+
+        import toolkit.host_runtime as runtime
+        original_run, original_apply = runtime.run_node, runtime.apply_host_result
+        applied = []
+        try:
+            runtime.run_node = lambda state, node, output_dir=None: None
+            runtime.apply_host_result = lambda state, node, result: (
+                applied.append(result), setattr(state.nodes[node], "status", "passed"))
+            replies = iter(['{"draft": "正文到这里，"}', '{"draft": "完整正文。"}'])
+            run_node_with(State(), "draft", lambda _: next(replies))
+        finally:
+            runtime.run_node, runtime.apply_host_result = original_run, original_apply
+        self.assertEqual([{"draft": "完整正文。"}], applied)
 
     def test_a_node_that_does_not_need_the_host_is_left_alone(self):
         class Node:

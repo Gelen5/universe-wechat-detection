@@ -145,6 +145,12 @@ def run_node_with(state: ArticleState, node: str,
                         '只返回一个 JSON 对象，正确转义正文中的引号和换行。'
                         '正文内容不得缩短或省略。')
             continue
+        if node == 'draft':
+            draft = result.get('draft')
+            if not isinstance(draft, str) or not draft.strip().rstrip('*_').endswith(('。', '！', '？', '!', '?', '”', '」')):
+                feedback = ('上一次正文在句子中途截断，不能作为成稿。请覆盖完整大纲并写完结尾；'
+                            '返回完整 JSON，正文必须以完整句子结束。')
+                continue
         issue = validate_result(result) if validate_result else ''
         if issue:
             feedback = f'上一次大纲未通过检查：{issue}。请只修正这个问题，返回完整、简短的 JSON；每节标题不同且无占位符。'
