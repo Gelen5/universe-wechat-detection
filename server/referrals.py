@@ -42,11 +42,17 @@ referral_table = Table(
     Column("activated_at", Text),
     Column("rewarded_at", Text),
 )
-# 外键只写在 alembic 迁移里：在同一个 MetaData 里引用 users 会让 create_all
-# 在空库上建出一张形状不对的 users 表。清理靠 invitee_id 唯一约束兜底。
+# 外键不写在 Table 里：在同一个 MetaData 里引用 users 会让 create_all 在空库上
+# 建出一张形状不对的 users 表。PostgreSQL 由 init_schema 用 ALTER 补，
+# SQLite 由 accounts.init_db 的建表语句带上（那张表总是先建好）。
 Index("idx_referrals_inviter_time", referral_table.c.inviter_id, referral_table.c.created_at)
 Index("idx_referrals_signup_ip", referral_table.c.signup_ip,
       referral_table.c.inviter_id, referral_table.c.created_at)
+
+_FOREIGN_KEYS = (
+    ("fk_referrals_inviter", "inviter_id"),
+    ("fk_referrals_invitee", "invitee_id"),
+)
 
 
 def init_schema() -> None:
@@ -60,6 +66,34 @@ def init_schema() -> None:
         connection.execute(text(
             "CREATE UNIQUE INDEX IF NOT EXISTS uq_users_invite_code ON users (invite_code)"
         ))
+    if database.ENGINE.dialect.name == "postgresql":
+        _ensure_foreign_keys()
+
+
+def _ensure_foreign_keys() -> None:
+    """让生产表和外键齐全的 alembic 版本收敛到同一形状。
+
+    没有外键时删用户会留下孤儿邀请记录：summary 按 referrals 行数算「已邀请」，
+    但列表 JOIN users，孤儿会让两个数对不上。
+    """
+    inspector = inspect(database.ENGINE)
+    existing = {fk["name"] for fk in inspector.get_foreign_keys("referrals")}
+    if all(name in existing for name, _ in _FOREIGN_KEYS):
+        return
+    with database.ENGINE.begin() as connection:
+        # 加约束前先清孤儿，否则 ALTER 会被历史脏数据挡住。
+        connection.execute(text(
+            """DELETE FROM referrals
+               WHERE inviter_id NOT IN (SELECT id FROM users)
+                  OR invitee_id NOT IN (SELECT id FROM users)"""
+        ))
+        for name, column in _FOREIGN_KEYS:
+            if name in existing:
+                continue
+            connection.execute(text(
+                f"ALTER TABLE referrals ADD CONSTRAINT {name} "
+                f"FOREIGN KEY ({column}) REFERENCES users(id) ON DELETE CASCADE"
+            ))
 
 # 数值即活动规则，改这里就等于改活动。对外文案在 static 侧同步说明。
 INVITE_SIGNUP_BONUS = 10      # 被邀请人注册即得

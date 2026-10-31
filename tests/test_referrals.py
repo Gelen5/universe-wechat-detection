@@ -239,5 +239,15 @@ class ReferralSchemaTests(unittest.TestCase):
         self.assertIn("uq_users_invite_code", indexes)
 
 
+class ReferralForeignKeyTests(unittest.TestCase):
+    def test_clean_install_has_cascade_foreign_keys_so_deleting_a_user_leaves_no_orphan(self):
+        """两条建表路径必须产出同一张表：SQLite 走 accounts.init_db 的建表语句。"""
+        with accounts.DB_LOCK, accounts._connect() as connection:
+            keys = connection.execute("PRAGMA foreign_key_list(referrals)").fetchall()
+        targets = {(row["from"], row["table"], row["on_delete"]) for row in keys}
+        self.assertIn(("inviter_id", "users", "CASCADE"), targets)
+        self.assertIn(("invitee_id", "users", "CASCADE"), targets)
+
+
 if __name__ == "__main__":
     unittest.main()

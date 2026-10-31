@@ -38,10 +38,8 @@ def upgrade():
         op.create_table(
             "referrals",
             sa.Column("id", sa.String(64), primary_key=True),
-            sa.Column("inviter_id", sa.String(64),
-                      sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
-            sa.Column("invitee_id", sa.String(64),
-                      sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True),
+            sa.Column("inviter_id", sa.String(64), nullable=False),
+            sa.Column("invitee_id", sa.String(64), nullable=False, unique=True),
             sa.Column("code", sa.String(16), nullable=False),
             sa.Column("status", sa.String(16), nullable=False, server_default="pending"),
             sa.Column("signup_ip", sa.String(64)),
@@ -49,6 +47,12 @@ def upgrade():
             sa.Column("created_at", sa.Text(), nullable=False),
             sa.Column("activated_at", sa.Text()),
             sa.Column("rewarded_at", sa.Text()),
+            # 约束名要和 referrals.init_schema 用 ALTER 补出来的一致，
+            # 否则两条建表路径产出的不是同一张表。
+            sa.ForeignKeyConstraint(["inviter_id"], ["users.id"],
+                                    name="fk_referrals_inviter", ondelete="CASCADE"),
+            sa.ForeignKeyConstraint(["invitee_id"], ["users.id"],
+                                    name="fk_referrals_invitee", ondelete="CASCADE"),
             sa.CheckConstraint("status IN ('pending','activated','rewarded')",
                                name="ck_referrals_status"),
         )
