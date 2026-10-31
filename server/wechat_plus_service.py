@@ -143,7 +143,7 @@ def _execute(state, message, generate, *, output_dir, progress,
         if index < 0 or index >= len(choices):
             raise ValueError('所选选题不存在，请重新选择')
         choice = choices[index]
-        select_topic(state, choice['title'], choice.get('angle') or choice['title'])
+        select_topic(state, choice['title'], choice.get('angle') or choice.get('focus') or choice['title'])
     explicit = decision.get('explicit_topic')
     if isinstance(explicit, str) and explicit.strip():
         if article.get('topic') != explicit[:500]:
@@ -201,7 +201,8 @@ def _execute(state, message, generate, *, output_dir, progress,
             reset_from(article, 'topic')
             node('topic')
             choices = article.get('title_candidates') or []
-            choices = [dict(x, title=str(x.get('title') or x.get('text') or '').strip())
+            choices = [dict(x, title=str(x.get('title') or x.get('text') or '').strip(),
+                            angle=str(x.get('angle') or x.get('focus') or x.get('description') or '').strip())
                 for x in choices if isinstance(x, dict)]
             choices = [x for x in choices if x['title']][:5]
             if len(choices) < 2:

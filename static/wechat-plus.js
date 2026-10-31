@@ -98,7 +98,7 @@
     (state.choices || []).forEach((choice, index) => {
       const button = text('button', '', 'wp-topic'); button.type = 'button';
       button.append(text('strong', `${index + 1}. ${choice.title}`));
-      const detail = choice.angle || choice.reason || choice.description;
+      const detail = choice.angle || choice.focus || choice.reason || choice.description;
       if (detail) button.append(text('small', detail));
       button.onclick = () => send(`我选择第${index + 1}个选题：${choice.title}`);
       messageRoot.append(button);

@@ -32,12 +32,13 @@ class NativeConversationTests(unittest.TestCase):
             {'action':'topics','audience':'上班族','goal':'实用建议','style':'口语'},
             {'topic':'AI工作效率','angle':'整理工作信息', 'title_candidates':[
                 {'title':'整理会议记录','angle':'从原始材料到待办'},
-                {'title':'处理工作邮件','angle':'筛出需要行动的信息'}]}])
+                {'title':'处理工作邮件','focus':'筛出需要行动的信息'}]}])
         self.assertEqual(len(state['choices']), 2)
         self.assertEqual(state['article_state']['nodes']['topic']['status'], 'passed')
         state = self.run_turn(state, '选第二个，先不写', [
             {'action':'answer','selected_topic_index':1,'reply':'已选第二个。'}])
         self.assertEqual(state['article_state']['selected_title'], '处理工作邮件')
+        self.assertEqual(state['article_state']['angle'], '筛出需要行动的信息')
         self.assertEqual(state['preferences']['style'], '口语')
         self.assertEqual(state['choices'], [])
 
@@ -65,6 +66,25 @@ class NativeConversationTests(unittest.TestCase):
             runtime.fulfill(article, 'research', lambda prompt:{'evidence_pack':{
                 'sources':{'records':[{'source_id':'fake','kind':'web','url':'https://invented.example/source'}]},
                 'claims':[], 'research_status':'complete', 'limitations':[]}}, evidence={'sources':[], 'fetched':[]})
+
+    def test_observed_research_aliases_preserve_unverified_status_and_limits(self):
+        result = runtime.normalize_research({
+            'sources':[{'id':'src_001','title':'参考资料','url':'https://example.com/source',
+                'verification':'fetched_excerpt','notes':'仅作旁证'}],
+            'claims':[{'id':'claim_001','text':'这是一个方法建议','type':'opinion',
+                'source_ids':['src_001'],'status':'illustrative','notes':'不能写成作者亲历'}],
+            'research_status':{'status':'partial','summary':'未核验直接证据','conditions':['不写效果数字']},
+            'limitations':['材料不完整']})
+        pack = result['evidence_pack']
+        article = runtime.initialize('写一篇方法建议')
+        article['evidence_pack'] = pack
+        states, _ = runtime.skill_article_adapter._skill_modules()
+        native = states.ArticleState.from_dict(article)
+        self.assertEqual(native.evidence_pack.sources.records[0].status, 'unverified')
+        self.assertEqual(native.evidence_pack.claims[0].kind, 'opinion')
+        self.assertEqual(native.evidence_pack.research_status, 'partial')
+        self.assertIn('不写效果数字', native.evidence_pack.limitations)
+        self.assertIn('claim_001: 不能写成作者亲历', native.evidence_pack.limitations)
 
     def test_cancellation_interrupts_before_model_call(self):
         def cancelled():

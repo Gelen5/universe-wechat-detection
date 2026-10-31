@@ -6,11 +6,69 @@ UI stage is mutated here. Host JSON never bypasses the Skill's own node gate.
 from __future__ import annotations
 
 import json
+from copy import deepcopy
 from dataclasses import asdict, is_dataclass
 from pathlib import Path
 from typing import Any, Callable
 
 from . import skill_article_adapter, skill_runtime, workbench
+
+
+def normalize_research(result):
+    """Translate observed host aliases into the Skill's dataclass contract.
+
+    This is structural conversion only: it never upgrades evidence status or
+    manufactures URLs, facts, or successful research.
+    """
+    pack = result.get('evidence_pack')
+    if not isinstance(pack, dict) and {'sources', 'claims'}.issubset(result):
+        pack = result
+    if not isinstance(pack, dict):
+        raise ValueError('研究结果缺少证据包')
+    pack = deepcopy(pack)
+    raw_sources = pack.get('sources') or {}
+    if not isinstance(raw_sources, (list, dict)):
+        raise ValueError('研究结果的来源格式异常')
+    records = raw_sources if isinstance(raw_sources, list) else raw_sources.get('records', [])
+    if not isinstance(records, list) or not isinstance(pack.get('claims', []), list):
+        raise ValueError('研究结果的来源或主张格式异常')
+    sources, claims = [], []
+    limitations = list(pack.get('limitations') or [])
+    status = pack.get('research_status', 'partial')
+    if isinstance(status, dict):
+        if status.get('summary'):
+            limitations.append(str(status['summary']))
+        limitations.extend(str(item) for item in status.get('conditions', []))
+        status = status.get('status', 'partial')
+    if status not in {'not_started', 'complete', 'partial', 'failed'}:
+        raise ValueError('研究状态无效')
+    for index, record in enumerate(records):
+        if not isinstance(record, dict):
+            raise ValueError('来源记录格式异常')
+        source = {key:record[key] for key in ('kind','title','url','evidence','retrieved_at','license','status','notes') if key in record}
+        source['source_id'] = str(record.get('source_id') or record.get('id') or f'source_{index + 1}')
+        source.setdefault('kind', 'web' if source.get('url') else 'unknown')
+        # A fetched excerpt is not an independent fact check.
+        source.setdefault('status', 'unverified')
+        if source['status'] not in {'verified','illustrative','unverified','rejected'}:
+            source['status'] = 'unverified'
+        sources.append(source)
+    for index, record in enumerate(pack.get('claims', [])):
+        if not isinstance(record, dict) or not isinstance(record.get('text'), str):
+            raise ValueError('主张记录格式异常')
+        claim = {key:record[key] for key in ('text','source_ids','status','materiality') if key in record}
+        claim['claim_id'] = str(record.get('claim_id') or record.get('id') or f'claim_{index + 1}')
+        claim['kind'] = record.get('kind') or record.get('type') or 'opinion'
+        if claim['kind'] not in {'fact','author_experience','public_case','opinion','inference','hypothetical'}:
+            raise ValueError('主张类型无效')
+        claim.setdefault('status', 'unverified')
+        if claim['status'] not in {'verified','user_provided','illustrative','unverified','rejected'}:
+            claim['status'] = 'unverified'
+        if record.get('notes'):
+            limitations.append(f"{claim['claim_id']}: {record['notes']}")
+        claims.append(claim)
+    return {'evidence_pack': {'sources': {'records': sources}, 'claims': claims,
+        'research_status': status, 'limitations': limitations}}
 
 
 def initialize(request: str) -> dict[str, Any]:
@@ -72,9 +130,8 @@ def fulfill(payload: dict[str, Any], node: str, generate: Callable,
     if not isinstance(result, dict):
         raise ValueError('Skill节点没有返回有效结果')
     if node == 'research':
-        pack = result.get('evidence_pack')
-        if not isinstance(pack, dict):
-            raise ValueError('研究结果缺少证据包')
+        result = normalize_research(result)
+        pack = result['evidence_pack']
         supplied = evidence or {}
         allowed = {item.get('url') for group in ('sources', 'fetched')
                    for item in supplied.get(group, []) if item.get('url')}
