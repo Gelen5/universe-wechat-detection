@@ -497,7 +497,7 @@ document.querySelector('#admin-recharge-form')?.addEventListener('submit', async
   } catch (error) { showToast(error.message, 'error'); } finally { finish(); }
 });
 
-walletSettingsButton?.addEventListener('click', openWallet);
+walletSettingsButton?.addEventListener('click', () => { window.location.href = '/wallet'; });
 document.querySelector('#wallet-chip')?.addEventListener('click', openWallet);
 document.querySelector('#wallet-close')?.addEventListener('click', () => { walletModal.hidden = true; });
 document.querySelector('#wallet-refresh')?.addEventListener('click', () => refreshWallet());
