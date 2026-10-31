@@ -145,6 +145,16 @@ class NativeConversationTests(unittest.TestCase):
         self.assertEqual(state['article_state']['topic'], '处理邮件')
         self.assertEqual(len(state['choices']), 2)
 
+    def test_planner_echo_of_current_draft_is_not_a_new_import(self):
+        article = runtime.initialize('写给上班族的邮件处理建议')
+        article['draft'] = '已经保存的正文'
+        article['evidence_pack']['limitations'] = ['保留原有证据限制']
+        state = self.run_turn({'article_state':article}, '先保留正文，不需要重新导入', [
+            {'action':'answer','existing_draft':'已经保存的正文','reply':'保留当前正文。'}])
+        self.assertEqual(state['article_state']['draft'], '已经保存的正文')
+        self.assertEqual(state['article_state']['evidence_pack']['limitations'], ['保留原有证据限制'])
+        self.assertNotIn('imported', state)
+
 
 if __name__ == '__main__':
     unittest.main()

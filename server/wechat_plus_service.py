@@ -151,6 +151,10 @@ def _execute(state, message, generate, *, output_dir, progress,
         elif not state.get('selected_topic'):
             state['selected_topic'] = {'title': explicit[:500], 'angle': explicit[:2000]}
     imported = decision.get('existing_draft')
+    if isinstance(imported, str) and imported.strip() == article.get('draft', '').strip():
+        # Some planners echo the current document while asking to format it.
+        # Reusing persisted text is not a new import and must retain evidence.
+        imported = ''
     if isinstance(imported, str) and imported.strip():
         if imported.strip() not in message:
             raise ValueError('导入正文必须来自你本次提供的原文')
