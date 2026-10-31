@@ -25,12 +25,17 @@ class RemixMultiTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             tools.viral_remix_analysis([source]*9)
 
-    def test_programmatic_chinese_series_without_image_provider(self):
-        with tempfile.TemporaryDirectory() as folder, patch.object(tools,'OUTPUT_DIR',Path(folder)), patch('server.image_provider.generate') as generate:
+    def test_chinese_series_is_generated_natively(self):
+        stream=io.BytesIO()
+        Image.new('RGB',(768,1024),'#051b40').save(stream,'PNG')
+        response={'data':[{'b64_json':base64.b64encode(stream.getvalue()).decode()}]}
+        with tempfile.TemporaryDirectory() as folder, patch.object(tools,'OUTPUT_DIR',Path(folder)), patch('server.image_provider.generate',return_value=response) as generate:
             result = tools.generate_viral_remix_image('testsession123',{'visual_contract':{'asset_type':'text'},'headline':'测试','image_brief':'','cards':[{'headline':'中文排版\n第一张','render_mode':'text-only'},{'headline':'中文排版\n第二张','render_mode':'text-only'}]})
             self.assertEqual(len(result['images']),2)
             self.assertTrue((Path(folder)/'tie-tu/testsession123/remix-01.jpg').exists())
-            generate.assert_not_called()
+            self.assertEqual(generate.call_count,2)
+            self.assertIn('中文排版',generate.call_args_list[0].args[0]['prompt'])
+            self.assertEqual(result['text_rendering'],'image-native')
 
     def test_poster_cannot_silently_become_a_text_card(self):
         stream=io.BytesIO()
@@ -41,8 +46,9 @@ class RemixMultiTests(unittest.TestCase):
             self.assertEqual(generate.call_count,1)
             self.assertIn('navy and electric blue',generate.call_args.args[0]['prompt'])
             spec=json.loads((Path(folder)/'tie-tu/poster-test123/case-01.json').read_text(encoding='utf-8'))
-            self.assertTrue(spec.get('base'))
-            self.assertTrue(spec.get('layers'))
+            self.assertEqual(spec['mode'],'image-native-typography')
+            self.assertNotIn('layers',spec)
+            self.assertNotIn('base',spec)
 
 if __name__ == '__main__':
     unittest.main()
