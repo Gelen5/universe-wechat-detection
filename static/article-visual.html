@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>文章配图 · 宇宙第一工作台</title>
+  <link rel="stylesheet" href="/static/tokens.css" />
+  <link rel="stylesheet" href="/static/article-visual.css" />
+</head>
+<body class="av-body">
+  <header class="av-topbar">
+    <div class="av-topbar-left">
+      <a class="av-brand" href="/">宇宙第一工作台</a>
+      <a class="av-back" href="/">← 返回</a>
+    </div>
+    <div class="av-topbar-right">
+      <span class="av-user" id="av-user">…</span>
+    </div>
+  </header>
+
+  <main class="av-main">
+    <section class="av-hero">
+      <h1>文章配图</h1>
+      <p>贴一条公众号链接，先拆解出图位，再一张张生成 3:4 配图。封面先出，你满意了再出剩下的。</p>
+    </section>
+
+    <section class="av-panel av-input-panel" id="av-input-panel">
+      <label class="av-label" for="av-url">公众号文章链接</label>
+      <div class="av-input-row">
+        <input id="av-url" type="url" placeholder="https://mp.weixin.qq.com/s/..." autocomplete="off" />
+        <button id="av-analyze" class="av-btn av-btn-primary" type="button">拆解文章</button>
+      </div>
+      <p class="av-hint" id="av-hint">只支持 mp.weixin.qq.com 的公开文章；解析约 10–20 秒。</p>
+    </section>
+
+    <section class="av-panel av-article-panel" id="av-article-panel" hidden>
+      <div class="av-article-head">
+        <div>
+          <h2 id="av-article-title"></h2>
+          <p class="av-meta" id="av-article-meta"></p>
+        </div>
+        <button id="av-reset" class="av-btn av-btn-ghost" type="button">换一篇</button>
+      </div>
+      <p class="av-thesis" id="av-thesis"></p>
+    </section>
+
+    <section class="av-workspace" id="av-workspace" hidden>
+      <div class="av-slots">
+        <div class="av-slots-head">
+          <h3>图位清单</h3>
+          <span class="av-count" id="av-count"></span>
+        </div>
+        <ol id="av-slot-list" class="av-slot-list"></ol>
+      </div>
+
+      <div class="av-stage">
+        <div class="av-stage-head">
+          <h3 id="av-stage-title">先出封面</h3>
+          <span class="av-stage-status" id="av-stage-status">等待生成</span>
+        </div>
+        <div class="av-preview" id="av-preview">
+          <div class="av-preview-empty" id="av-preview-empty">
+            <span class="av-preview-icon">3:4</span>
+            <p>封面会出现在这里</p>
+          </div>
+          <img id="av-preview-img" alt="生成结果" hidden />
+        </div>
+        <div class="av-actions" id="av-actions"></div>
+        <p class="av-note" id="av-note"></p>
+      </div>
+    </section>
+
+    <section class="av-panel av-gallery-panel" id="av-gallery-panel" hidden>
+      <div class="av-gallery-head">
+        <h3>成图</h3>
+        <a id="av-download-all" class="av-btn av-btn-ghost" href="#" download>下载全部</a>
+      </div>
+      <div class="av-gallery" id="av-gallery"></div>
+    </section>
+  </main>
+
+  <div class="av-toast" id="av-toast" hidden></div>
+  <script src="/static/article-visual.js"></script>
+</body>
+</html>
