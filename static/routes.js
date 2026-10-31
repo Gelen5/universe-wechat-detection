@@ -54,6 +54,12 @@ window.APP_NAV = (() => {
     {group: '内容创作', href: '/viral-remix', view: 'viral-remix', label: '爆款贴图复刻',
      icon: svg('<rect x="3" y="3" width="18" height="18" rx="3"/><path d="m8 15 3-3 2 2 3-4 2 3"/>' +
                '<circle cx="8.5" cy="8.5" r="1.2"/><path d="M16 3v4M14 5h4"/>')},
+    // 文章配图：服务端渲染的独立页面（/article-visual），不走 SPA 视图，
+    // 所以只给 page:true、不给 view，点击交给浏览器正常跳转。
+    {group: '内容创作', href: '/article-visual', label: '文章配图', short: '配图',
+     page: true, fallback: true,
+     icon: svg('<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="1.6"/>' +
+               '<path d="m4 17 5-5 4 4 3-3 4 4"/>')},
     // 小红书内容提取：应用内视图，静态页面里没有节点，标记 fallback 让渲染器建出来。
     {group: '内容创作', href: '/xhs-extract', view: 'xhs-extract', label: '小红书内容提取',
      fallback: true,

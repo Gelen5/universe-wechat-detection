@@ -1,4 +1,4 @@
-﻿"""文章配图：贴一条公众号链接，拆解成图位，逐张生成 3:4 配图。
+"""文章配图：贴一条公众号链接，拆解成图位，逐张生成 3:4 配图。
 
 产品约束（来自需求确认）：
   * 所有图片固定 3:4（1086x1448），封面也不例外；
@@ -24,8 +24,9 @@ import requests
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
+from sqlalchemy import text
 
-from . import accounts, workbench
+from . import accounts, database, workbench
 
 ROOT = Path(__file__).resolve().parent.parent
 JOBS_DIR = ROOT / "output" / "article-visual"
@@ -513,22 +514,62 @@ def generate_slot_image(prompt: str) -> bytes:
 
 # --------------------------------------------------------------------------- 任务存储
 
+_SCHEMA_READY = False
+
+
 def _job_dir(job_id: str) -> Path:
     return JOBS_DIR / job_id
 
 
+def _ensure_schema() -> None:
+    """任务元数据进数据库；图片仍然落盘（对象存储是单独一件事）。"""
+    global _SCHEMA_READY
+    if _SCHEMA_READY:
+        return
+    with database.session_scope() as session:
+        session.execute(text(
+            "CREATE TABLE IF NOT EXISTS article_visual_jobs ("
+            "id VARCHAR(32) PRIMARY KEY, "
+            "user_id VARCHAR(64) NOT NULL, "
+            "payload TEXT NOT NULL, "
+            "updated_at VARCHAR(40) NOT NULL)"
+        ))
+    _SCHEMA_READY = True
+
+
 def _write_job(job: dict[str, Any]) -> None:
-    path = _job_dir(job["id"]) / "job.json"
-    tmp = path.with_suffix(".tmp")
-    tmp.write_text(json.dumps(job, ensure_ascii=False, indent=2), encoding="utf-8")
-    tmp.replace(path)
+    _ensure_schema()
+    now = datetime.now(timezone.utc).isoformat()
+    payload = json.dumps(job, ensure_ascii=False)
+    with database.session_scope() as session:
+        session.execute(
+            text(
+                "INSERT INTO article_visual_jobs (id, user_id, payload, updated_at) "
+                "VALUES (:id, :uid, :payload, :now) "
+                "ON CONFLICT (id) DO UPDATE SET payload = :payload, updated_at = :now"
+            ),
+            {"id": job["id"], "uid": job["user_id"], "payload": payload, "now": now},
+        )
+    # 保留一份本地副本，方便排查和迁移
+    directory = _job_dir(job["id"])
+    directory.mkdir(parents=True, exist_ok=True)
+    tmp = directory / "job.json.tmp"
+    tmp.write_text(payload, encoding="utf-8")
+    tmp.replace(directory / "job.json")
 
 
 def _read_job(job_id: str) -> dict[str, Any]:
-    path = _job_dir(job_id) / "job.json"
-    if not path.exists():
-        raise HTTPException(status_code=404, detail="任务不存在")
-    return json.loads(path.read_text(encoding="utf-8"))
+    _ensure_schema()
+    with database.session_scope() as session:
+        row = session.execute(
+            text("SELECT payload FROM article_visual_jobs WHERE id = :id"), {"id": job_id}
+        ).fetchone()
+    if row:
+        return json.loads(row[0])
+    legacy = _job_dir(job_id) / "job.json"
+    if legacy.exists():
+        return json.loads(legacy.read_text(encoding="utf-8"))
+    raise HTTPException(status_code=404, detail="任务不存在")
 
 
 def _public_job(job: dict[str, Any]) -> dict[str, Any]:
@@ -549,7 +590,9 @@ class PlanBody(BaseModel):
 
 
 class GenerateBody(BaseModel):
+    job_id: str = Field(min_length=4, max_length=32)
     slot_id: str = Field(min_length=1, max_length=40)
+    headline: str | None = Field(default=None, max_length=24)
 
 
 @router.post("/plan", status_code=201)
@@ -578,9 +621,10 @@ def create_plan(payload: PlanBody, request: Request):
     return _public_job(job)
 
 
-@router.post("/{job_id}/generate")
-def generate_one(job_id: str, payload: GenerateBody, request: Request):
+@router.post("/generate")
+def generate_one(payload: GenerateBody, request: Request):
     user = accounts.require_user(request)
+    job_id = payload.job_id
     with JOB_LOCK:
         job = _read_job(job_id)
         if job["user_id"] != user["id"]:
@@ -588,6 +632,9 @@ def generate_one(job_id: str, payload: GenerateBody, request: Request):
         slot = next((s for s in job["plan"]["slots"] if s["id"] == payload.slot_id), None)
         if slot is None:
             raise HTTPException(status_code=404, detail="图位不存在")
+        if payload.headline is not None:
+            slot["headline"] = _clip(payload.headline, 24)
+            _write_job(job)
 
     prompt = build_image_prompt(slot)
     try:

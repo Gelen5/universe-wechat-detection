@@ -53,6 +53,10 @@ DEFAULT_PRICING = [
     ("POST", "/api/viral-remix/analyze", "爆款贴图结构拆解", 2, 0),
     ("POST", "/api/viral-remix/image", "爆款贴图原创生成", 2, 0),
     ("POST", "/api/creator-tools/image", "AI 图片生成", 2, 0),
+    # 文章配图：策划一次 2 积分，出一张图 2 积分。都由中间件按次计价，
+    # 请求失败自动退款；口径与 /api/creator-tools/image 一致。
+    ("POST", "/api/article-visual/plan", "文章配图策划", 2, 0),
+    ("POST", "/api/article-visual/generate", "文章配图生成", 2, 0),
     ("POST", "/api/hit-detector/analyze", "爆文检测", 5, 0),
     ("POST", "/api/hit-detector/rewrite", "文章改稿", 5, 0),
     ("POST", "/api/workbench/sessions", "公众号完整工作流", 30, 0),

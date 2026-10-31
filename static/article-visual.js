@@ -33,6 +33,7 @@
     previewImg: $("av-preview-img"),
     previewEmpty: $("av-preview-empty"),
     actions: $("av-actions"),
+    editor: $("av-editor"),
     note: $("av-note"),
     galleryPanel: $("av-gallery-panel"),
     gallery: $("av-gallery"),
@@ -166,6 +167,19 @@
       setStatus("等待生成");
     }
 
+    els.editor.innerHTML = "";
+    const editorLabel = document.createElement("label");
+    editorLabel.textContent = "图上标题（改完点「重做这张」生效）";
+    const editorInput = document.createElement("input");
+    editorInput.type = "text";
+    editorInput.maxLength = 24;
+    editorInput.value = slot.headline || "";
+    editorInput.addEventListener("input", () => {
+      slot.headline = editorInput.value.slice(0, 24);
+    });
+    els.editor.appendChild(editorLabel);
+    els.editor.appendChild(editorInput);
+
     els.actions.innerHTML = "";
     const remaining = slots.filter((s) => s.status !== "done" && s.form !== "cover").length;
 
@@ -258,9 +272,9 @@
     setStatus(force ? "重做中…" : "生成中…", "busy");
     els.actions.querySelectorAll("button").forEach((b) => { b.disabled = true; });
     try {
-      const result = await api(`/api/article-visual/${state.job.id}/generate`, {
+      const result = await api("/api/article-visual/generate", {
         method: "POST",
-        body: JSON.stringify({ slot_id: slotId }),
+        body: JSON.stringify({ job_id: state.job.id, slot_id: slotId, headline: slot ? slot.headline : undefined }),
       });
       state.job.images[slotId] = { file: result.url.split("/").pop().split("?")[0] };
       const target = state.job.slots.find((s) => s.id === slotId);
@@ -290,9 +304,9 @@
       render();
       setStatus(`正在生成 ${index + 1}/${pending.length}：${slot.headline}`, "busy");
       try {
-        const result = await api(`/api/article-visual/${state.job.id}/generate`, {
+        const result = await api("/api/article-visual/generate", {
           method: "POST",
-          body: JSON.stringify({ slot_id: slot.id }),
+          body: JSON.stringify({ job_id: state.job.id, slot_id: slot.id, headline: slot.headline }),
         });
         state.job.images[slot.id] = { file: result.url.split("/").pop().split("?")[0] };
         slot.status = "done";
