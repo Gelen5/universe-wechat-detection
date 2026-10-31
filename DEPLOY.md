@@ -56,6 +56,32 @@ codeload 下载指定提交的 zip（不依赖 git 协议，服务器 git 拉取
 
 ---
 
+## 二点五、本地开发：改代码不用重建镜像
+
+本地机器**没有 Docker**（只有 Python 3.14），所以本地开发不走容器，直接用热重载：
+
+```powershell
+powershell -File scripts\start-local.ps1          # 热重载开启，默认 8000 端口
+powershell -File scripts\start-local.ps1 -Port 8812   # 换端口（8000 被占用时）
+powershell -File scripts\start-local.ps1 -NoReload    # 关闭热重载
+```
+
+行为：
+
+- **改 `server/*.py`** → 自动重启，1 秒内生效，**不需要重建镜像**
+- **改 `static/*`（HTML/CSS/JS）** → `StaticFiles` 每次请求都从磁盘读，**刷新浏览器即可**，连重启都不用
+- **改 `vendor/` 下 Skill 文本** → 调用时才读，下次调用自然生效
+- **只有改 `requirements.txt` / `Dockerfile`** 才需要真的重建镜像
+
+热重载只监听 `server/`，刻意不监听 `static/`、`vendor/`、`output/`、`tests/`：
+把这几万个文件纳入监听会拖慢启动，并让保存一个测试文件就触发无意义的重启。
+
+> ⚠️ 本地 `start-local.ps1` 用的是 SQLite（`data/creator_accounts.db`）且没有 Redis，
+> 所以 `/health/ready` 会返回 `redis:false`。这是本地环境的正常现象，不代表代码有问题；
+> 线上自检请看第三节，那边要求 `database/redis/better_auth` 全为 `true`。
+
+---
+
 ## 三、部署后自检
 
 ```bash
@@ -108,6 +134,57 @@ sudo -n ls -1dt /opt/universe-wechat-detection-releases/* | head -5
 
 - AI 超市数据快照：`/opt/universe-data/output/market/{skills.json,meta.json,custom.json}`
 - 每日同步：Celery beat `market-sync-daily`（04:10），手动触发见 `POST /api/admin/market/sync`
+
+---
+
+## 五点五、磁盘与镜像保留策略（必须遵守）
+
+这台机器只有 **40G 盘 / 1.6G 内存**，磁盘堆满会让构建被 OOM 杀掉，历史上出现过 80 分钟的冷构建。
+2026-10-31 清理时 160 个镜像 + 9.4GB 构建缓存把盘占到 **74%**，清理后降到 **55%**。
+
+**保留规则：**
+
+| 对象 | 保留 | 说明 |
+|---|---|---|
+| `908c31a-*` 镜像 | **最近 2 个 sha 标签 + `latest`** | 当前线上版本 + 上一个可回滚版本 |
+| Build Cache | **约 2～4GB** | 必须保住 `fonts-noto-cjk` 和 `pip install` 两层 |
+| 基础镜像 | 全留 | `python:3.12-slim`、`node:24.18.0-bookworm-slim`、`postgres:16-alpine`、`redis:7-alpine` |
+| releases 目录 | 全留 | 体积小，回滚要用 |
+
+**清理命令（每次部署 5～10 次后跑一次）：**
+
+```bash
+# 1. 看当前线上 sha 和它的上一个（日志「回滚:」那行就是上一个）
+sudo -n grep -E '^  线上:|^  回滚:' /var/log/universe-deploy.log | tail -2
+
+# 2. 只留最近 2 个 sha + latest，其余删掉（把下面两个变量换成上一步的值）
+KEEP_NOW=421774a; KEEP_PREV=ffdd2f0
+sudo -n docker images --format '{{.Repository}}:{{.Tag}}' | grep '^908c31a-' \
+  | grep -vE ":($KEEP_NOW|$KEEP_PREV|latest)$" \
+  | while read -r ref; do sudo -n docker rmi "$ref" >/dev/null 2>&1; done
+sudo -n docker image prune -f
+
+# 3. 构建缓存只保 2GB 最近使用的
+sudo -n docker builder prune -f --keep-storage 2GB
+```
+
+**清理后必须验证缓存还热**（不清空就等于白清空，且别把 pip 层删掉）：
+
+```bash
+df -h /
+sudo -n docker compose -f docker-compose.yml -p 908c31a \
+  --env-file /etc/universe-wechat-detection.env build web 2>&1 | grep -A1 'RUN pip install'
+```
+
+`RUN pip install` 下一行必须是 `CACHED`。若不是 `CACHED`，说明依赖层被清掉了，
+下次部署会重跑 `apt-get fonts-noto-cjk`（56.7MB）和 `pip install`，**在 1.6G 内存上很容易 OOM**。
+
+**不要做的事：**
+
+- ❌ `docker builder prune -a -f`（不带 `--keep-storage`）——会把 pip/字体层一起清空
+- ❌ `docker system prune -a --volumes` —— 会删掉 postgres/redis 的数据卷
+- ❌ 清理时删掉 `latest` 标签 —— 正在跑的容器会失去镜像引用
+
 ---
 
 ## 六、已授权的密钥
