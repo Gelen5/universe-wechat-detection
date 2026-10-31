@@ -1872,6 +1872,7 @@ const viewMap = {
   market: document.querySelector('#market'),
   bookshelf: document.querySelector('#bookshelf'),
   hotspots: document.querySelector('#hotspots'),
+  lowfans: document.querySelector('#lowfans'),
 };
 
 const viewTitles = {
@@ -1889,6 +1890,7 @@ const viewTitles = {
   market: 'AI 超市',
   bookshelf: 'AI 书架',
   hotspots: '热点广场',
+  lowfans: '低粉爆文',
 };
 
 function pathToView(path) {
@@ -1903,9 +1905,10 @@ window.AppNav = { setActiveView };
 function setActiveView(view, updateHash = false) {
   Object.entries(viewMap).forEach(([name, element]) => { if (element) element.hidden = name !== view; });
   document.querySelectorAll('.app-tabs [data-view]').forEach(item => item.classList.toggle('active', item.dataset.view === view));
-  appShell?.classList.toggle('workbench-active', view !== 'home' && view !== 'diagnose' && view !== 'report' && view !== 'market' && view !== 'hotspots');
+  appShell?.classList.toggle('workbench-active', view !== 'home' && view !== 'diagnose' && view !== 'report' && view !== 'market' && view !== 'hotspots' && view !== 'lowfans');
   document.body.classList.toggle('market-body', view === 'market');
   document.body.classList.toggle('hotspots-body', view === 'hotspots');
+  document.body.classList.toggle('lowfans-body', view === 'lowfans');
   if (view === 'market') window.MarketView?.ensureLoaded?.();
   if (view === 'wechat-plus') window.WechatPlus?.ensureLoaded?.();
   if (view === 'bookshelf') {
@@ -1913,6 +1916,25 @@ function setActiveView(view, updateHash = false) {
     if(frame && !frame.hasAttribute('src'))frame.src='/bookshelf?embed=1';
   }
   if (view === 'hotspots') window.HotspotsView?.ensureLoaded?.();
+  if (view === 'lowfans') window.LowfansView?.ensureLoaded?.();
+  // 低粉爆文「去写这篇」用 /workbench?topic=<标题> 把选题带进创作台：
+  // 填进输入框后立刻清掉参数，避免刷新时重复覆盖用户自己改过的内容。
+  if (view === 'workbench') {
+    const params = new URLSearchParams(location.search);
+    const topic = params.get('topic');
+    if (topic) {
+      const box = document.querySelector('#workbench-topic');
+      if (box && !box.value.trim()) {
+        box.value = topic;
+        box.dispatchEvent(new Event('input', { bubbles: true }));
+        box.focus();
+      }
+      params.delete('topic');
+      params.delete('type');
+      const rest = params.toString();
+      history.replaceState(null, '', '/workbench' + (rest ? '?' + rest : ''));
+    }
+  }
   if (downloadButton) downloadButton.hidden = view !== 'report';
   if (view === 'one-click-writing') {
     const frame = document.querySelector('#one-click-writing-frame');

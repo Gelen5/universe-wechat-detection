@@ -1,0 +1,403 @@
+/* 低粉爆文榜：小体量账号的高爆发文章。
+   颜色全部走 tokens.css 的变量，主色是品牌 IKB 蓝，和热点广场的绿区分开。
+   结构性属性用 #lowfans 前缀提高特异性，避免和全局页面样式打架。 */
+
+#lowfans.lf-page {
+  container-type: inline-size;
+  padding: 28px 30px 40px;
+  color: var(--text);
+  background: transparent;
+  min-width: 0;
+  font-family: var(--sans);
+}
+#lowfans *,
+#lowfans *::before,
+#lowfans *::after { box-sizing: border-box; }
+#lowfans [hidden] { display: none !important; }
+#lowfans :is(a, button, input, select):focus-visible {
+  outline: 3px solid var(--ikb);
+  outline-offset: 3px;
+}
+
+/* ---------------------------------------------------------------- 页头 */
+#lowfans .lf-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding: 24px 26px;
+  margin-bottom: 18px;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: var(--bg-2);
+  box-shadow: var(--shadow-1);
+}
+#lowfans .lf-head h1 {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 30px;
+  font-weight: 650;
+  line-height: 1.3;
+  letter-spacing: -.02em;
+}
+#lowfans .lf-head p {
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text-3);
+  max-width: 46em;
+}
+#lowfans .lf-stamp {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-end;
+  margin-left: auto;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--text-4);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+#lowfans .lf-stamp b { color: var(--text-2); font-weight: 600; }
+#lowfans .lf-stamp .is-warn { color: var(--warn); }
+
+/* ---------------------------------------------------------------- 工具条 */
+#lowfans .lf-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+#lowfans .lf-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 240px;
+  max-width: 340px;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--line-2);
+  border-radius: 12px;
+  background: var(--bg-2);
+}
+#lowfans .lf-search svg { flex: none; color: var(--text-4); }
+#lowfans .lf-search input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  font: inherit;
+  font-size: 15px;
+  color: var(--text);
+}
+#lowfans .lf-search input::placeholder { color: var(--text-4); }
+#lowfans .lf-search:focus-within { border-color: var(--ikb); }
+
+#lowfans .lf-select {
+  min-height: 44px;
+  padding: 0 34px 0 14px;
+  border: 1px solid var(--line-2);
+  border-radius: 12px;
+  background: var(--bg-2);
+  color: var(--text-2);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--text-4) 50%),
+    linear-gradient(135deg, var(--text-4) 50%, transparent 50%);
+  background-position: calc(100% - 18px) 20px, calc(100% - 13px) 20px;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+
+#lowfans .lf-export {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--line-2);
+  border-radius: 12px;
+  background: var(--bg-2);
+  color: var(--text-2);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
+}
+#lowfans .lf-export:hover { border-color: var(--ikb); color: var(--ikb); }
+#lowfans .lf-export:disabled { opacity: .5; cursor: not-allowed; }
+#lowfans .lf-bar-tail {
+  margin-left: auto;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--text-4);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* ---------------------------------------------------------------- 赛道条 */
+#lowfans .lf-tracks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 0 16px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+}
+#lowfans .lf-track {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  min-height: 36px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text-2);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease;
+}
+#lowfans .lf-track:hover { background: var(--bg-3); }
+#lowfans .lf-track[aria-pressed="true"] {
+  background: var(--ikb-soft);
+  color: var(--ikb);
+  font-weight: 600;
+}
+#lowfans .lf-track n {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-4);
+  text-decoration: none;
+}
+#lowfans .lf-track[aria-pressed="true"] n { color: var(--ikb); opacity: .75; }
+#lowfans .lf-track.is-empty { color: var(--text-5); }
+
+/* ---------------------------------------------------------------- 列表 */
+#lowfans .lf-list { list-style: none; margin: 0; padding: 0; }
+
+#lowfans .lf-row {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  gap: 4px 16px;
+  align-items: start;
+  padding: 18px 8px 16px;
+  border-bottom: 1px solid var(--line);
+  transition: background 160ms ease;
+}
+#lowfans .lf-row:hover { background: var(--bg-3); }
+
+#lowfans .lf-rank {
+  grid-row: 1 / span 3;
+  align-self: start;
+  padding-top: 2px;
+  font-family: var(--mono);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.6;
+  color: var(--text-5);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+#lowfans .lf-row:nth-child(-n+3) .lf-rank { color: var(--ikb); }
+
+#lowfans .lf-title {
+  grid-column: 2;
+  font-size: 16px;
+  line-height: 1.6;
+  font-weight: 550;
+  color: var(--text);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+#lowfans .lf-title:hover { color: var(--ikb); }
+
+#lowfans .lf-meta {
+  grid-column: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--text-4);
+  font-variant-numeric: tabular-nums;
+}
+#lowfans .lf-meta .lf-name { color: var(--text-2); font-weight: 550; }
+#lowfans .lf-meta .lf-base { color: var(--text-4); }
+#lowfans .lf-type {
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--bg-3);
+  color: var(--text-3);
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+#lowfans .lf-metrics {
+  grid-column: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--text-4);
+  font-variant-numeric: tabular-nums;
+}
+#lowfans .lf-metrics b { font-weight: 600; color: var(--text-2); }
+
+#lowfans .lf-side {
+  grid-column: 3;
+  grid-row: 1 / span 3;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  padding-top: 1px;
+}
+#lowfans .lf-boost {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: var(--ikb-soft);
+  color: var(--ikb);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+#lowfans .lf-boost small { font-size: 11px; font-weight: 600; opacity: .8; }
+#lowfans .lf-boost.is-hot { background: var(--red-soft); color: var(--red); }
+#lowfans .lf-score {
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--text-4);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+#lowfans .lf-actions { display: flex; gap: 6px; }
+#lowfans .lf-act {
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-3);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: nowrap;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
+}
+#lowfans .lf-act:hover { border-color: var(--ikb); color: var(--ikb); }
+#lowfans .lf-act.is-primary {
+  border-color: transparent;
+  background: var(--ikb);
+  color: var(--bg-2);
+  font-weight: 600;
+}
+#lowfans .lf-act.is-primary:hover {
+  color: var(--bg-2);
+  filter: brightness(1.12);
+}
+
+/* ---------------------------------------------------------------- 状态 */
+#lowfans .lf-note {
+  margin: 0 0 18px;
+  padding: 13px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--bg-3);
+  font-size: 12.5px;
+  line-height: 1.8;
+  color: var(--text-3);
+}
+#lowfans .lf-note.is-warn {
+  background: var(--orange-soft);
+  border-color: transparent;
+  color: var(--orange);
+}
+#lowfans .lf-note b { font-weight: 600; }
+
+#lowfans .lf-empty {
+  padding: 56px 24px;
+  text-align: center;
+  color: var(--text-4);
+}
+#lowfans .lf-empty strong {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+#lowfans .lf-empty p { margin: 0; font-size: 13px; line-height: 1.8; }
+
+#lowfans .lf-loading { padding: 48px 0; text-align: center; color: var(--text-4); font-size: 13px; }
+
+#lowfans .lf-more {
+  display: block;
+  width: 100%;
+  margin: 20px 0 0;
+  padding: 14px;
+  border: 1px solid var(--line-2);
+  border-radius: 12px;
+  background: var(--bg-2);
+  color: var(--text-2);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+#lowfans .lf-more:hover { border-color: var(--ikb); color: var(--ikb); }
+
+/* ---------------------------------------------------------------- 移动端 */
+@container (max-width: 720px) {
+  #lowfans.lf-page { padding: 18px 16px 32px; }
+  #lowfans .lf-head { padding: 18px 18px; border-radius: 18px; }
+  #lowfans .lf-head h1 { font-size: 24px; }
+  #lowfans .lf-stamp { align-items: flex-start; text-align: left; margin-left: 0; }
+  #lowfans .lf-bar { gap: 8px; }
+  #lowfans .lf-search { flex: 1 1 100%; max-width: none; }
+  #lowfans .lf-select,
+  #lowfans .lf-export { flex: 1 1 auto; min-width: 0; }
+  #lowfans .lf-bar-tail { flex: 1 1 100%; margin-left: 0; text-align: left; }
+  #lowfans .lf-tracks {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 12px;
+  }
+  #lowfans .lf-tracks::-webkit-scrollbar { display: none; }
+  #lowfans .lf-row {
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 6px 10px;
+    padding: 16px 4px 14px;
+  }
+  #lowfans .lf-rank { grid-row: 1; font-size: 13px; }
+  #lowfans .lf-side {
+    grid-column: 2;
+    grid-row: auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    margin-top: 4px;
+  }
+  #lowfans .lf-title { font-size: 15px; }
+}

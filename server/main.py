@@ -25,6 +25,8 @@ from .qihaoshou import router as qihaoshou_router
 from .bookshelf import router as bookshelf_router
 from .market import router as market_router
 from .hotspots import router as hotspots_router
+from .lowfans import router as lowfans_router
+from . import lowfans_sync
 from .xhs_extract import router as xhs_extract_router
 from .alipay_pay import router as alipay_pay_router
 from .wallet_page import router as wallet_page_router
@@ -53,6 +55,7 @@ app = FastAPI(
 accounts.init_db()
 from . import referrals
 referrals.init_schema()
+lowfans_sync.init_schema()
 community.init_schema()
 app.include_router(community.router)
 from . import admin_activity
@@ -67,6 +70,7 @@ app.include_router(qihaoshou_router)
 app.include_router(bookshelf_router)
 app.include_router(market_router)
 app.include_router(hotspots_router)
+app.include_router(lowfans_router)
 app.include_router(xhs_extract_router)
 app.include_router(alipay_pay_router)
 app.include_router(wallet_page_router)
@@ -157,13 +161,15 @@ async def account_and_points_gate(request: Request, call_next):
     # AI 超市的只读索引是对外的（只跳转、不执行），管理端仍然要登录+管理员。
     public_market = request.method == "GET" and (path.startswith("/api/market/")
                      or path.startswith("/api/hotspots"))
+    # 低粉爆文榜的浏览是对外的（只读本地快照），导出/实时刷新仍要登录并计费。
+    public_lowfans = request.method == "GET" and path.startswith("/api/lowfans")
     public_refresh = request.method == "POST" and path == "/api/hotspots/refresh"
     # 支付宝收银接口按协议对外：异步通知由支付宝服务器直连 POST，下单/查询/退款
     # 走订单号与服务端记录，不依赖登录态；管理动作仍应另行加保护。
     public_pay = path.startswith("/api/pay/alipay/") or (request.method == "GET" and path == "/api/pay/packages")
     # Logout also clears expired/revoked cookies. Requiring an active session
     # prevents a stale browser from ever completing that cleanup.
-    public_api = path in {"/api/auth/register", "/api/auth/login", "/api/auth/logout", "/api/auth/config", "/api/auth/email-code", "/api/auth/registration-link"} or public_market or public_refresh or public_pay
+    public_api = path in {"/api/auth/register", "/api/auth/login", "/api/auth/logout", "/api/auth/config", "/api/auth/email-code", "/api/auth/registration-link"} or public_market or public_refresh or public_pay or public_lowfans
     try:
         user = accounts.user_from_request(request)
     except HTTPException as exc:

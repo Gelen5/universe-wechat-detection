@@ -10,7 +10,8 @@ from celery.schedules import crontab
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 celery_app = Celery("universe_creator", broker=REDIS_URL, backend=REDIS_URL,
                     include=["server.workflow_tasks", "server.agent_tasks", "server.hotspots",
-                             "server.provider_health", "server.wechat_plus_tasks"])
+                             "server.provider_health", "server.wechat_plus_tasks",
+                             "server.lowfans_sync"])
 celery_app.conf.update(
     task_serializer="json", result_serializer="json", accept_content=["json"],
     task_acks_late=True, task_reject_on_worker_lost=True,
@@ -27,6 +28,7 @@ celery_app.conf.update(
         "wechat_plus.recover": {"queue": "chat"},
         "market.sync": {"queue": "text"},
         "hotspot.sync": {"queue": "text"},
+        "lowfans.sync": {"queue": "text"},
         "provider.health": {"queue": "text"},
     },
     worker_concurrency=max(1, int(os.getenv("CELERY_WORKER_CONCURRENCY", "4"))),
@@ -43,6 +45,10 @@ celery_app.conf.update(
         },
         "hotspot-sync": {
             "task": "hotspot.sync", "schedule": 600.0,
+        },
+        # 微小榜每日生成前一天的 7d 低粉爆文榜，09:30 之后拉比较稳。
+        "lowfans-sync-daily": {
+            "task": "lowfans.sync", "schedule": crontab(hour=9, minute=30),
         },
         # A relay can fail for hours; deploy-time probing only covers deploys.
         "provider-health": {

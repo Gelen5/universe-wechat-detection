@@ -59,6 +59,7 @@
 <link rel="stylesheet" href="/static/sidebar.css?v=20261026-mobile-settings-1" />
 <link rel="stylesheet" href="/static/resources-editorial.css?v=20261025-resources-3" />
     <link rel="stylesheet" href="/static/hotspots.css?v=20261025-reading-wall-1" />
+<link rel="stylesheet" href="/static/lowfans.css?v=20261031-lowfans-1" />
 <link rel="stylesheet" href="/static/universe-home.css?v=20261025-universe-1" />
 <link rel="stylesheet" href="/static/settings-mint.css?v=20261025-settings-1" />
 <meta name="description" content="宇宙第一工作台：探索内容创作、AI 能力与智能体。你的想法，不必止于想想。" />
@@ -516,6 +517,38 @@
         </div>
         <p class="hs-banner" id="hs-banner" hidden></p>
         <div class="hs-grid" id="hs-grid"></div>
+      </section>
+
+      <section id="lowfans" class="lf-page" hidden aria-label="低粉爆文榜">
+        <header class="lf-head">
+          <div>
+            <h1>低粉爆文</h1>
+            <p>小体量账号跑出来的高爆发文章。看别人怎么写爆，再决定自己下一篇写什么。</p>
+          </div>
+          <div class="lf-stamp" id="lf-stamp"><span>正在读取…</span></div>
+        </header>
+
+        <p class="lf-note" id="lf-note" hidden></p>
+
+        <div class="lf-bar">
+          <label class="lf-search">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input id="lf-search" placeholder="搜标题或公众号…" aria-label="搜索低粉爆文" autocomplete="off" />
+          </label>
+          <select class="lf-select" id="lf-sort" aria-label="排序方式">
+            <option value="burst">按爆文分</option>
+            <option value="read">按阅读数</option>
+            <option value="boost">按爆发倍率</option>
+            <option value="time">按发布时间</option>
+          </select>
+          <select class="lf-select" id="lf-date" aria-label="榜单日期" hidden></select>
+          <button class="lf-export" id="lf-export" type="button">导出 CSV</button>
+          <span class="lf-bar-tail" id="lf-bar-tail"></span>
+        </div>
+
+        <div class="lf-tracks" id="lf-tracks" role="group" aria-label="按赛道筛选"></div>
+        <div id="lf-list"></div>
+        <button class="lf-more" id="lf-more" type="button" hidden>加载更多</button>
       </section>
 
 <section id="wechat-plus" class="wechat-plus-page" aria-label="公众号创作 Plus" hidden>
@@ -1065,6 +1098,7 @@
       })();
     </script>
 <script src="/static/hotspots.js?v=20261025-stable-filter-1"></script>
+<script src="/static/lowfans.js?v=20261031-lowfans-1"></script>
     <script>
       // 同步 recent-item（首页样例：点击触发诊断）
       (function () {

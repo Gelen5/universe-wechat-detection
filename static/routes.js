@@ -21,6 +21,11 @@ window.APP_NAV = (() => {
     {group: '内容创作', href: '/hotspots', view: 'hotspots', label: '热点广场',
      fallback: true,
      icon: svg('<path d="M3 17l5-5 4 3 5-7 4 5"/><path d="M3 21h18"/>')},
+    // 低粉爆文：小体量账号的高爆发文章榜，是选题的上游入口。
+    {group: '内容创作', href: '/lowfans', view: 'lowfans', label: '低粉爆文',
+     fallback: true,
+     icon: svg('<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 ' +
+               '.5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>')},
     {group: '内容创作', href: '/workbench', view: 'workbench', label: '公众号创作', short: '创作',
      icon: svg('<path d="M4 13.5V4a2 2 0 0 1 2-2h8.5L20 7.5V20a2 2 0 0 1-2 2h-9.5"/>' +
                '<polyline points="14 2 14 8 20 8"/><line x1="10" y1="11" x2="10" y2="17"/>' +

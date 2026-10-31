@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from sqlalchemy import (
-    BigInteger, Boolean, CheckConstraint, Column, DateTime, ForeignKey, Index,
+    BigInteger, Boolean, CheckConstraint, Column, DateTime, Float, ForeignKey, Index,
     Integer, String, Table, Text, UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -309,3 +309,71 @@ class HotspotSnapshot(Base):
     rank: Mapped[int] = mapped_column(Integer, default=0)
     captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc, index=True)
     __table_args__ = (Index("idx_hotspot_platform_captured", "platform", "captured_at"),)
+
+
+class LowfansArticle(Base):
+    """低粉爆文榜：7 天窗口的榜单条目快照。
+
+    数据来自微小榜 lowfans 接口，每日由 Celery beat 同步一次。页面只读本表，
+    永不直连上游。同一 (stat_date, range_type, art_id) 只保留一行，重跑幂等。
+    """
+
+    __tablename__ = "lowfans_articles"
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"),
+                                    primary_key=True, autoincrement=True)
+    stat_date: Mapped[str] = mapped_column(String(10), index=True)   # 2026-10-30
+    range_type: Mapped[str] = mapped_column(String(8), default="7d")  # 当前固定 7d
+    rank_no: Mapped[int] = mapped_column(Integer, default=0, index=True)
+
+    art_id: Mapped[str] = mapped_column(String(64), index=True)
+    wx_biz: Mapped[str] = mapped_column(String(64), default="")
+    wx_name: Mapped[str] = mapped_column(String(120), default="")
+    wx_type: Mapped[str] = mapped_column(String(32), default="", index=True)
+    avatar: Mapped[str | None] = mapped_column(Text, nullable=True)
+    title: Mapped[str] = mapped_column(Text, default="")
+    art_url: Mapped[str] = mapped_column(Text, default="")
+    publish_name: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    pub_time: Mapped[str | None] = mapped_column(String(32), nullable=True)
+
+    # 账号常态阅读基线（stats_range 通常是 90d）
+    stats_range: Mapped[str] = mapped_column(String(8), default="90d")
+    account_read_base: Mapped[int] = mapped_column(Integer, default=0)
+    account_read_avg: Mapped[int] = mapped_column(Integer, default=0)
+    account_read_median: Mapped[int] = mapped_column(Integer, default=0)
+    account_read_max: Mapped[int] = mapped_column(Integer, default=0)
+
+    read_num: Mapped[int] = mapped_column(Integer, default=0)
+    like_num: Mapped[int] = mapped_column(Integer, default=0)
+    look_num: Mapped[int] = mapped_column(Integer, default=0)
+    share_num: Mapped[int] = mapped_column(Integer, default=0)
+    comment_num: Mapped[int] = mapped_column(Integer, default=0)
+
+    boost_ratio: Mapped[float] = mapped_column(Float, default=0.0)   # 阅读提升倍数，非百分比
+    burst_score: Mapped[float] = mapped_column(Float, default=0.0)   # 上游爆文分
+    captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
+
+    __table_args__ = (
+        UniqueConstraint("stat_date", "range_type", "art_id", name="uq_lowfans_item"),
+        Index("idx_lowfans_date_rank", "stat_date", "range_type", "rank_no"),
+        Index("idx_lowfans_date_type", "stat_date", "range_type", "wx_type"),
+    )
+
+
+class LowfansSyncRun(Base):
+    """低粉爆文同步审计：每次拉取花了多少积分、成功几页、有没有失败。"""
+
+    __tablename__ = "lowfans_sync_runs"
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"),
+                                    primary_key=True, autoincrement=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc, index=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    stat_date: Mapped[str] = mapped_column(String(10), default="")
+    range_type: Mapped[str] = mapped_column(String(8), default="7d")
+    pages_requested: Mapped[int] = mapped_column(Integer, default=0)
+    pages_ok: Mapped[int] = mapped_column(Integer, default=0)
+    calls: Mapped[int] = mapped_column(Integer, default=0)
+    cost_points: Mapped[int] = mapped_column(Integer, default=0)
+    inserted: Mapped[int] = mapped_column(Integer, default=0)
+    upstream_total: Mapped[int] = mapped_column(Integer, default=0)
+    status: Mapped[str] = mapped_column(String(16), default="ok")   # ok / partial / failed / busy / unconfigured
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
