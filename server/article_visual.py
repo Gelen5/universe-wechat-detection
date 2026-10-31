@@ -16,7 +16,7 @@ import re
 import threading
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -548,6 +548,32 @@ def _ensure_schema() -> None:
             "updated_at VARCHAR(40) NOT NULL)"
         ))
     _SCHEMA_READY = True
+    try:
+        _refund_stale_reservations()
+    except Exception:  # noqa: BLE001 - 对账失败不该挡住正常请求
+        pass
+
+
+def _refund_stale_reservations(max_age_minutes: int = 15) -> int:
+    """容器重启会打断请求，预扣的积分必须退回去。
+
+    中间件是「先扣后跑」，进程被部署/重启杀掉时没有机会走退款分支，
+    usage_records 会留下 reserved 行。这里把超过 15 分钟还没结算的退回。
+    """
+    cutoff = (datetime.now(timezone.utc) - timedelta(minutes=max_age_minutes)).isoformat()
+    with database.session_scope() as session:
+        rows = session.execute(
+            text(
+                "SELECT request_id FROM usage_records "
+                "WHERE path LIKE :prefix AND status = 'reserved' AND created_at < :cutoff"
+            ),
+            {"prefix": "/api/article-visual/%", "cutoff": cutoff},
+        ).fetchall()
+    refunded = 0
+    for (request_id,) in rows:
+        accounts.refund_usage(request_id, 499, 0)
+        refunded += 1
+    return refunded
 
 
 def _write_job(job: dict[str, Any]) -> None:
