@@ -1,6 +1,8 @@
 """Real browser interactions with bounded extraction/media fixtures, no paid calls."""
 from copy import deepcopy
 import base64
+import io
+from PIL import Image
 
 from playwright.sync_api import expect
 from tests.test_ui_shell_browser import browser, ui
@@ -122,3 +124,26 @@ def test_account_switch_clears_results_and_link(ui):
     expect(page.locator('#xhs-extract-result')).to_be_hidden()
     expect(page.locator('#xhs-extract-url')).to_have_value('')
     expect(page.locator('#xhs-extract-empty')).to_be_visible()
+
+
+def test_tall_image_fits_lightbox_without_cropping(ui):
+    page, _ = ui
+    extraction(page)
+    buffer = io.BytesIO()
+    Image.new('RGB', (1080, 2400), '#82a4af').save(buffer, 'PNG')
+    page.route('**/api/xhs/media?*', lambda route: route.fulfill(content_type='image/png', body=buffer.getvalue()))
+    page.goto('http://ui.test/xhs-extract')
+    submit(page)
+    for width, height in [(1440, 1000), (390, 844)]:
+        page.set_viewport_size({'width': width, 'height': height})
+        page.locator('button[data-xe-zoom]').click()
+        image = page.locator('.xe-lightbox-image img')
+        expect(image).to_be_visible()
+        page.wait_for_function("document.querySelector('.xe-lightbox-image img').naturalHeight === 2400")
+        size = image.bounding_box()
+        box = page.locator('.xe-lightbox-image').bounding_box()
+        expect(image).to_have_css('object-fit', 'contain')
+        assert size['height'] <= box['height'] + 1
+        assert size['width'] <= box['width'] + 1
+        assert size['y'] >= 0 and size['y'] + size['height'] <= height
+        page.keyboard.press('Escape')

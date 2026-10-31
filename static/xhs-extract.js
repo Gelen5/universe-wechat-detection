@@ -50,7 +50,7 @@
     if (!images.length) return '';
     return `<div class="xe-section-head"><h3>${note.kind === 'video' ? '视频封面' : '图片素材'}</h3><span>保留图片原始比例</span></div>
       <div class="xe-viewer"><img class="xe-main-image" src="${esc(mediaSrc(images[0].url))}" alt="第 1 张图片" role="button" aria-label="查看第 1 张大图" tabindex="0" data-xe-zoom><div class="xe-image-error" hidden><span>这张图片暂时没有加载成功</span><button type="button" class="xe-button" data-xe-reload-image>重新加载</button></div></div>
-      <div class="xe-image-actions"><span data-xe-index>第 1 / ${images.length} 张</span><div><button type="button" class="xe-button" data-xe-zoom>查看大图</button><button type="button" class="xe-button" data-xe-download>下载原图 ↓</button></div></div>
+      <div class="xe-image-actions"><span data-xe-index>第 1 / ${images.length} 张</span><div><button type="button" class="xe-button" data-xe-zoom>查看大图</button><button type="button" class="xe-button" data-xe-download>下载 PNG ↓</button></div></div>
       ${note.kind === 'video' ? '' : `<div class="xe-thumbs" aria-label="选择图片">${images.map((image,i) => `<button type="button" class="xe-thumb" data-xe-image="${i}" aria-label="预览第 ${i+1} 张图片" aria-pressed="${i === 0}"><img src="${esc(mediaSrc(image.url))}" alt="" loading="lazy" decoding="async"><span>${i+1}${image.live ? ' · 动图' : ''}</span></button>`).join('')}</div>`}`;
   }
   function renderMedia() {
@@ -63,7 +63,7 @@
       <video class="xe-video" controls playsinline preload="metadata" ${poster ? `poster="${esc(mediaSrc(poster))}"` : ''}><source src="${esc(mediaSrc(video.url))}" type="video/mp4">当前浏览器无法播放，请使用“打开视频”。</video>
       <div class="xe-media-note xe-video-error" hidden>视频暂时无法播放，可以重新加载或打开视频。 <button type="button" class="xe-button" data-xe-reload-video>重新加载视频</button></div>
       <div class="xe-video-actions"><a class="xe-button" href="${esc(mediaSrc(video.url))}" target="_blank" rel="noopener noreferrer">打开视频 ↗</a><button type="button" class="xe-button" data-copy="video">复制视频地址</button></div>
-      ${images.length ? `<div class="xe-cover"><img src="${esc(mediaSrc(images[0].url))}" alt="视频封面"><div>视频封面</div><button type="button" class="xe-button" data-xe-zoom>查看大图</button><button type="button" class="xe-button" data-xe-download>下载封面</button></div>` : ''}`;
+      ${images.length ? `<div class="xe-cover"><img src="${esc(mediaSrc(images[0].url))}" alt="视频封面"><div>视频封面</div><button type="button" class="xe-button" data-xe-zoom>查看大图</button><button type="button" class="xe-button" data-xe-download>下载封面 PNG</button></div>` : ''}`;
   }
   function render(value) {
     note = value; index = 0;
@@ -101,12 +101,12 @@
     const sequence = epoch, image = images[index], imageNumber = index+1, currentNote = note;
     const label = button.textContent; button.disabled = true; button.textContent = '正在下载…';
     try {
-      const response = await fetch(mediaSrc(image.url), {credentials:'same-origin', signal:AbortSignal.timeout(60000)});
+      const response = await fetch(mediaSrc(image.url) + '&format=png', {credentials:'same-origin', signal:AbortSignal.timeout(60000)});
       await window.AccountLifecycle?.checkResponse(response);
       if (sequence !== epoch) return;
       if (!response.ok) throw new Error('图片暂时无法下载，请稍后重试');
       const mime = (response.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
-      const extension = {'image/jpeg':'jpg','image/png':'png','image/webp':'webp','image/gif':'gif','image/avif':'avif'}[mime];
+      const extension = mime === 'image/png' ? 'png' : null;
       if (!extension) throw new Error('没有取得可下载的图片，请重新加载后再试');
       const blob = await response.blob(); if (sequence !== epoch) return;
       const url = URL.createObjectURL(blob), a = document.createElement('a');

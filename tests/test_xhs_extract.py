@@ -277,3 +277,23 @@ class RouteRegistrationTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class PngDownloadTests(unittest.TestCase):
+    def test_webp_download_is_real_png_preserving_dimensions_and_alpha(self):
+        import io
+        from PIL import Image
+        original = io.BytesIO()
+        Image.new('RGBA', (108, 240), (25, 100, 150, 120)).save(original, 'WEBP', lossless=True)
+        response = xhs_extract.png_download(original.getvalue(), 'test')
+        self.assertEqual(response.media_type, 'image/png')
+        self.assertTrue(response.body.startswith(b'\x89PNG\r\n\x1a\n'))
+        with Image.open(io.BytesIO(response.body)) as result:
+            self.assertEqual(result.format, 'PNG')
+            self.assertEqual(result.size, (108, 240))
+            self.assertEqual(result.getpixel((0, 0))[3], 120)
+
+    def test_invalid_image_returns_readable_error(self):
+        with self.assertRaises(xhs_extract.HTTPException) as context:
+            xhs_extract.png_download(b'not an image', 'test')
+        self.assertEqual(context.exception.status_code, 422)

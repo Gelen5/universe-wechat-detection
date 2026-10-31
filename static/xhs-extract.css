@@ -98,3 +98,12 @@ body #xhs-extract{--xe-ink:#244b39;--xe-muted:#5f7767;--xe-edge:#d9e8df;--xe-gre
 @media(max-width:560px){#xhs-extract .xe-input-row{flex-direction:column}#xhs-extract #xhs-extract-start{min-height:44px}#xhs-extract .xe-input-card{padding:17px}#xhs-extract h1{font-size:25px!important}#xhs-extract .xe-empty h2{font-size:20px}#xhs-extract .xe-progress{flex-wrap:wrap;gap:7px}#xhs-extract .xe-progress-hint{margin-left:22px;width:100%}#xhs-extract .xe-error{align-items:flex-start;flex-direction:column;gap:10px}#xhs-extract .xe-viewer{height:360px}#xhs-extract .xe-thumbs{grid-template-columns:repeat(auto-fill,minmax(46px,1fr))}#xhs-extract .xe-footer-note{text-align:left}#xhs-extract .xe-cover{flex-wrap:wrap}#xhs-extract #xhs-extract-lightbox{padding:13px}#xhs-extract .xe-lightbox-image{height:60dvh}#xhs-extract #xhs-extract-lightbox footer{gap:7px}}
 @media(prefers-reduced-motion:reduce){#xhs-extract *{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 @media(max-width:560px){#xhs-extract .xe-button,#xhs-extract .xe-image-actions .xe-button,#xhs-extract .xe-document-head .xe-button,#xhs-extract .xe-cover .xe-button{min-height:44px}}
+
+/* Bound both grid tracks: intrinsic tall images must never enlarge the viewport. */
+#xhs-extract #xhs-extract-lightbox[open]{display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:14px;height:min(92dvh,980px);box-sizing:border-box;overflow:hidden;inset:0;margin:auto;transform:none}
+#xhs-extract .xe-lightbox-image{height:auto;min-height:0;min-width:0;margin:0;display:flex;align-items:center;justify-content:center}
+#xhs-extract .xe-lightbox-image img{display:block;width:100%!important;height:100%!important;max-width:100%!important;max-height:100%!important;min-width:0;min-height:0;object-fit:contain!important;aspect-ratio:auto}
+
+#xhs-extract #xhs-extract-lightbox[open]{position:fixed!important;animation:none!important;transition:none!important}
+#xhs-extract #xhs-extract-lightbox *{animation:none!important;transition:none!important}
+#xhs-extract #xhs-extract-lightbox header,#xhs-extract #xhs-extract-lightbox footer{padding:0;margin:0;min-height:0;background:transparent}

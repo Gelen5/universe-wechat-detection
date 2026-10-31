@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import logging
 import os
@@ -30,7 +31,8 @@ from urllib.parse import urlparse
 
 import requests
 from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse, Response
+from PIL import Image, ImageOps, UnidentifiedImageError
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
@@ -438,8 +440,28 @@ def api_extract(payload: ExtractRequest):
     return {"status": "success", "note": data}
 
 
+def png_download(payload: bytes, key: str):
+    """Decode and encode real PNG bytes without resizing the source."""
+    if len(payload) > 40 * 1024 * 1024:
+        raise HTTPException(413, "图片过大，无法转换下载")
+    try:
+        with Image.open(io.BytesIO(payload)) as source:
+            if source.width * source.height > 40_000_000:
+                raise HTTPException(413, "图片尺寸过大，无法转换下载")
+            image = ImageOps.exif_transpose(source)
+            image = image.convert("RGBA" if "A" in image.getbands() or "transparency" in image.info else "RGB")
+            output = io.BytesIO()
+            image.save(output, format="PNG")
+    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError) as error:
+        raise HTTPException(422, "无法转换此图片，请重新提取后重试") from error
+    return Response(output.getvalue(), media_type="image/png", headers={
+        "Content-Disposition": f'attachment; filename="xiaohongshu-{key}.png"',
+        "Cache-Control": "private, max-age=86400",
+    })
+
+
 @router.get("/api/xhs/media")
-def api_media(url: str = Query(min_length=8, max_length=2048)):
+def api_media(url: str = Query(min_length=8, max_length=2048), image_format: str | None = Query(None, alias="format", pattern="^png$")):
     """同源提供媒体：有缓存读本地文件，没有才去上游取。
 
     只允许小红书自己的图床与视频域名，防止这个端点被当成任意 URL 的代理。
@@ -460,6 +482,8 @@ def api_media(url: str = Query(min_length=8, max_length=2048)):
             os.utime(blob, None)
         except OSError:
             pass
+        if image_format == "png":
+            return png_download(blob.read_bytes(), key)
         return FileResponse(
             blob,
             media_type=meta.get("content_type", "application/octet-stream"),
@@ -472,6 +496,8 @@ def api_media(url: str = Query(min_length=8, max_length=2048)):
     except requests.RequestException as error:
         raise HTTPException(502, "媒体下载失败") from error
     store_media(key, payload, content_type, url)
+    if image_format == "png":
+        return png_download(payload, key)
     return StreamingResponse(
         iter([payload]), media_type=content_type,
         headers={"Cache-Control": "private, max-age=86400"},
