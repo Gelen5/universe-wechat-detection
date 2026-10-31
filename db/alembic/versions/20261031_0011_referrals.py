@@ -4,6 +4,11 @@ The invite code on ``users`` is the only way to resolve an inviter, so it gets a
 unique index. ``referrals`` keeps one row per invited account (``invitee_id`` is
 unique), which is what makes "reward once per person" enforceable in SQL rather
 than in application logic.
+
+Every step is guarded: production never runs this migration (``deploy.sh``
+starts the stack with ``--no-deps``, so the compose ``migrate`` service is
+skipped and ``referrals.init_schema()`` creates the same shape at import time).
+A later ``alembic upgrade head`` against such a database must not collide.
 """
 from alembic import op
 import sqlalchemy as sa
@@ -15,34 +20,55 @@ branch_labels = None
 depends_on = None
 
 
+def _columns(table: str) -> set[str]:
+    return {column["name"] for column in sa.inspect(op.get_bind()).get_columns(table)}
+
+
+def _indexes(table: str) -> set[str]:
+    return {index["name"] for index in sa.inspect(op.get_bind()).get_indexes(table)}
+
+
 def upgrade():
-    op.add_column("users", sa.Column("invite_code", sa.String(16), nullable=True))
-    op.create_index("uq_users_invite_code", "users", ["invite_code"], unique=True)
-    op.create_table(
-        "referrals",
-        sa.Column("id", sa.String(64), primary_key=True),
-        sa.Column("inviter_id", sa.String(64),
-                  sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
-        sa.Column("invitee_id", sa.String(64),
-                  sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True),
-        sa.Column("code", sa.String(16), nullable=False),
-        sa.Column("status", sa.String(16), nullable=False, server_default="pending"),
-        sa.Column("signup_ip", sa.String(64)),
-        sa.Column("reject_reason", sa.String(64)),
-        sa.Column("created_at", sa.Text(), nullable=False),
-        sa.Column("activated_at", sa.Text()),
-        sa.Column("rewarded_at", sa.Text()),
-        sa.CheckConstraint("status IN ('pending','activated','rewarded')",
-                           name="ck_referrals_status"),
-    )
-    op.create_index("idx_referrals_inviter_time", "referrals", ["inviter_id", "created_at"])
-    op.create_index("idx_referrals_signup_ip", "referrals",
-                    ["signup_ip", "inviter_id", "created_at"])
+    if "invite_code" not in _columns("users"):
+        op.add_column("users", sa.Column("invite_code", sa.String(16), nullable=True))
+    if "uq_users_invite_code" not in _indexes("users"):
+        op.create_index("uq_users_invite_code", "users", ["invite_code"], unique=True)
+
+    if "referrals" not in sa.inspect(op.get_bind()).get_table_names():
+        op.create_table(
+            "referrals",
+            sa.Column("id", sa.String(64), primary_key=True),
+            sa.Column("inviter_id", sa.String(64),
+                      sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
+            sa.Column("invitee_id", sa.String(64),
+                      sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True),
+            sa.Column("code", sa.String(16), nullable=False),
+            sa.Column("status", sa.String(16), nullable=False, server_default="pending"),
+            sa.Column("signup_ip", sa.String(64)),
+            sa.Column("reject_reason", sa.String(64)),
+            sa.Column("created_at", sa.Text(), nullable=False),
+            sa.Column("activated_at", sa.Text()),
+            sa.Column("rewarded_at", sa.Text()),
+            sa.CheckConstraint("status IN ('pending','activated','rewarded')",
+                               name="ck_referrals_status"),
+        )
+
+    existing = _indexes("referrals")
+    if "idx_referrals_inviter_time" not in existing:
+        op.create_index("idx_referrals_inviter_time", "referrals",
+                        ["inviter_id", "created_at"])
+    if "idx_referrals_signup_ip" not in existing:
+        op.create_index("idx_referrals_signup_ip", "referrals",
+                        ["signup_ip", "inviter_id", "created_at"])
 
 
 def downgrade():
-    op.drop_index("idx_referrals_signup_ip", table_name="referrals")
-    op.drop_index("idx_referrals_inviter_time", table_name="referrals")
-    op.drop_table("referrals")
-    op.drop_index("uq_users_invite_code", table_name="users")
-    op.drop_column("users", "invite_code")
+    if "referrals" in sa.inspect(op.get_bind()).get_table_names():
+        for name in ("idx_referrals_signup_ip", "idx_referrals_inviter_time"):
+            if name in _indexes("referrals"):
+                op.drop_index(name, table_name="referrals")
+        op.drop_table("referrals")
+    if "uq_users_invite_code" in _indexes("users"):
+        op.drop_index("uq_users_invite_code", table_name="users")
+    if "invite_code" in _columns("users"):
+        op.drop_column("users", "invite_code")

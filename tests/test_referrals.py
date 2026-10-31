@@ -194,5 +194,50 @@ def _owner_id():
         ).fetchone()["id"]
 
 
+class ReferralSchemaTests(unittest.TestCase):
+    """线上是靠 init_schema 补表的：deploy.sh 用 --no-deps 起服务，
+    compose 里的 migrate 服务不会跑，所以这条路径必须自己成立。
+    """
+
+    def test_init_schema_upgrades_a_database_that_predates_the_column(self):
+        import sqlite3
+        import tempfile
+        from pathlib import Path
+
+        from sqlalchemy import create_engine
+
+        from server import database
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory, "old.db")
+            raw = sqlite3.connect(path)
+            raw.execute("CREATE TABLE users (id TEXT PRIMARY KEY, email TEXT)")
+            raw.commit()
+            raw.close()
+
+            engine = create_engine(f"sqlite:///{path.as_posix()}")
+            previous = database.ENGINE
+            database.ENGINE = engine
+            try:
+                referrals.init_schema()
+                referrals.init_schema()  # 第二次必须是空操作
+            finally:
+                database.ENGINE = previous
+                engine.dispose()
+
+            check = sqlite3.connect(path)
+            try:
+                columns = {row[1] for row in check.execute("PRAGMA table_info(users)")}
+                tables = {row[0] for row in check.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'")}
+                indexes = {row[0] for row in check.execute(
+                    "SELECT name FROM sqlite_master WHERE type='index'")}
+            finally:
+                check.close()  # Windows 上不关连接，临时目录删不掉
+        self.assertIn("invite_code", columns)
+        self.assertIn("referrals", tables)
+        self.assertIn("uq_users_invite_code", indexes)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -19,10 +19,47 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import HTTPException
+from sqlalchemy import Column, Index, MetaData, String, Table, Text, inspect, text
 
-from . import accounts
+from . import accounts, database
 
 logger = logging.getLogger(__name__)
+
+# 生产库的建表路径是各模块自己的 init_schema，不是 alembic。
+# deploy.sh 用 `up -d --no-deps` 起服务，compose 里的 migrate 服务根本不会跑，
+# 线上 alembic 版本号停在 20261025_0009，新表必须由本模块自己创建。
+metadata = MetaData()
+referral_table = Table(
+    "referrals", metadata,
+    Column("id", String(64), primary_key=True),
+    Column("inviter_id", String(64), nullable=False),
+    Column("invitee_id", String(64), nullable=False, unique=True),
+    Column("code", String(16), nullable=False),
+    Column("status", String(16), nullable=False, server_default="pending"),
+    Column("signup_ip", String(64)),
+    Column("reject_reason", String(64)),
+    Column("created_at", Text, nullable=False),
+    Column("activated_at", Text),
+    Column("rewarded_at", Text),
+)
+# 外键只写在 alembic 迁移里：在同一个 MetaData 里引用 users 会让 create_all
+# 在空库上建出一张形状不对的 users 表。清理靠 invitee_id 唯一约束兜底。
+Index("idx_referrals_inviter_time", referral_table.c.inviter_id, referral_table.c.created_at)
+Index("idx_referrals_signup_ip", referral_table.c.signup_ip,
+      referral_table.c.inviter_id, referral_table.c.created_at)
+
+
+def init_schema() -> None:
+    """幂等地补上 referrals 表与 users.invite_code，两种方言都能跑。"""
+    metadata.create_all(database.ENGINE, checkfirst=True)
+    columns = {column["name"] for column in inspect(database.ENGINE).get_columns("users")}
+    if "invite_code" not in columns:
+        with database.ENGINE.begin() as connection:
+            connection.execute(text("ALTER TABLE users ADD COLUMN invite_code VARCHAR(16)"))
+    with database.ENGINE.begin() as connection:
+        connection.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_users_invite_code ON users (invite_code)"
+        ))
 
 # 数值即活动规则，改这里就等于改活动。对外文案在 static 侧同步说明。
 INVITE_SIGNUP_BONUS = 10      # 被邀请人注册即得

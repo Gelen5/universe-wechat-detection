@@ -51,10 +51,11 @@ app = FastAPI(
 )
 
 accounts.init_db()
+from . import referrals
+referrals.init_schema()
 community.init_schema()
 app.include_router(community.router)
 from . import admin_activity
-from . import referrals
 admin_activity.init_db()
 app.include_router(admin_activity.router)
 database.ensure_local_workflow_schema()
