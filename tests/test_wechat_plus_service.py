@@ -2,6 +2,7 @@ from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch
+import os
 
 from server import wechat_plus_service as service
 from server import wechat_plus_runtime as runtime
@@ -154,6 +155,29 @@ class NativeConversationTests(unittest.TestCase):
         self.assertEqual(state['article_state']['draft'], '已经保存的正文')
         self.assertEqual(state['article_state']['evidence_pack']['limitations'], ['保留原有证据限制'])
         self.assertNotIn('imported', state)
+
+    def test_importing_a_different_article_replaces_stale_title_and_preserves_old_draft(self):
+        article = runtime.initialize('之前的选题')
+        article.update(selected_title='之前的标题', topic='之前的选题', draft='之前保存的正文')
+        imported = '# 新稿标题\n\n这是用户新贴入的正文。'
+        state = self.run_turn({'article_state':article}, '保存下面的新稿，暂时不用处理：\n'+imported, [
+            {'action':'answer','existing_draft':imported,'reply':'已保存新稿。'}])
+        self.assertEqual(state['article_state']['selected_title'], '新稿标题')
+        self.assertEqual(state['article_state']['topic'], '新稿标题')
+        self.assertEqual([version['draft'] for version in state['versions']], ['之前保存的正文', imported])
+
+    def test_plus_model_override_does_not_change_legacy_request_settings(self):
+        observed = []
+        def generate(prompt, *, model=None, base_url=None):
+            observed.append((model, workbench._setting('WECHAT_TEXT_MODEL')))
+            return {'ok':True}
+        with patch.dict(os.environ, {'WECHAT_PLUS_TEXT_MODEL':'claude-sonnet-5-5'}), \
+             patch.object(workbench.accounts, 'provider_settings', return_value={'text_model':'legacy-writer'}), \
+             patch.object(workbench, '_json_text', side_effect=generate):
+            with workbench.provider_overrides(text_model='legacy-writer'):
+                self.assertEqual(service.generate_json('test'), {'ok':True})
+                self.assertEqual(workbench._setting('WECHAT_TEXT_MODEL'), 'legacy-writer')
+        self.assertEqual(observed, [('claude-sonnet-5-5','claude-sonnet-5-5')])
 
 
 if __name__ == '__main__':

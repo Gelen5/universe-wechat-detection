@@ -158,8 +158,9 @@ def _execute(state, message, generate, *, output_dir, progress,
     if isinstance(imported, str) and imported.strip():
         if imported.strip() not in message:
             raise ValueError('导入正文必须来自你本次提供的原文')
+        record_version(state, '导入新稿前')
         article['draft'] = imported.strip()
-        article['selected_title'] = article.get('selected_title') or imported.strip().splitlines()[0].lstrip('# ')[:240]
+        article['selected_title'] = imported.strip().splitlines()[0].lstrip('# ')[:240]
         article['topic'] = article['selected_title']
         article['angle'] = '基于用户已有正文编辑'
         article['intent']['goal'] = article['intent'].get('goal') or '编辑用户已有文章'
@@ -279,7 +280,7 @@ def _execute(state, message, generate, *, output_dir, progress,
 
 def configured_model():
     # Independent setting: never mutate the existing workbench's global model.
-    return os.getenv('WECHAT_PLUS_TEXT_MODEL', 'gpt-6.1-sol').strip() or 'gpt-6.1-sol'
+    return os.getenv('WECHAT_PLUS_TEXT_MODEL', 'claude-sonnet-5-5').strip() or 'claude-sonnet-5-5'
 
 
 def generate_json(prompt):
