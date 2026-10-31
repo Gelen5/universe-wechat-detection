@@ -29,6 +29,8 @@ from .xhs_extract import router as xhs_extract_router
 from .alipay_pay import router as alipay_pay_router
 from .wallet_page import router as wallet_page_router
 from .bill_page import router as bill_page_router
+from .wechat_plus_api import router as wechat_plus_router
+from . import wechat_plus_repository
 from .workflow_events import redis_ready
 from .observability import event as log_event
 from .auth_rate_limit import check_auth_attempt, record_auth_result, client_ip
@@ -67,6 +69,8 @@ app.include_router(xhs_extract_router)
 app.include_router(alipay_pay_router)
 app.include_router(wallet_page_router)
 app.include_router(bill_page_router)
+wechat_plus_repository.init_schema()
+app.include_router(wechat_plus_router)
 
 
 @app.on_event("startup")
@@ -1383,7 +1387,7 @@ def index():
 
 # 每个功能 tab 对应一个真实路径（/workbench、/xiaohongshu、/tie-tu、/hit-detector、/morning-generator），
 # 由前端 SPA 根据 pathname 渲染对应 section；其余路径交给 /static 与 /api。
-TAB_PAGES = {"one-click-writing", "diagnose", "workbench", "xiaohongshu", "tie-tu", "viral-remix", "xhs-extract", "hit-detector", "morning-generator"}
+TAB_PAGES = {"wechat-plus", "one-click-writing", "diagnose", "workbench", "xiaohongshu", "tie-tu", "viral-remix", "xhs-extract", "hit-detector", "morning-generator"}
 
 
 @app.get("/{tab}", include_in_schema=False)

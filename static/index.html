@@ -4,13 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>宇宙第一工作台</title>
-    <script src="/static/routes.js?v=20261031-hide-diagnose-1"></script>
+    <script src="/static/routes.js?v=20261031-wechat-plus-1"></script>
     <style>html{scrollbar-gutter:stable}</style>
 <script src="/static/app-navigation.js?v=20261031-single-nav-2"></script>
     <style>
       /* A direct resource URL must never paint the homepage while app.js loads. */
       html[data-initial-view]:not([data-initial-view="home"]) #home { display:none !important; }
     </style>
+    <link rel="stylesheet" href="/static/wechat-plus.css?v=20261031-1" />
     <link rel="stylesheet" href="/static/fonts.css?v=20261027-unicode-1" />
     <link rel="stylesheet" href="/static/style.css?v=20260901-v3-merge" />
     <link rel="stylesheet" href="/static/taste-chatgpt.css?v=20260901-v3-merge" />
@@ -107,6 +108,7 @@
             <span>诊断</span>
           </a>
           -->
+          <a data-view="wechat-plus" href="/wechat-plus"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v12H9l-5 4z"/><path d="M9 10h6M12 7v6"/></svg><span>公众号创作 Plus</span></a>
           <a data-view="one-click-writing" href="/one-click-writing"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M4 20h16M5 15l10-10 4 4-10 10H5z"/></svg><span>公众号一键成文</span></a>
           <a data-view="hotspots" href="/hotspots"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l5-5 4 3 5-7 4 5"/><path d="M3 21h18"/></svg><span>热点广场</span></a><a data-view="workbench" href="/workbench">
             <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 13.5V4a2 2 0 0 1 2-2h8.5L20 7.5V20a2 2 0 0 1-2 2h-9.5"/><polyline points="14 2 14 8 20 8"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="13" y1="14" x2="7" y2="14"/></svg>
@@ -505,6 +507,26 @@
         <div class="hs-grid" id="hs-grid"></div>
       </section>
 
+<section id="wechat-plus" class="wechat-plus-page" aria-label="公众号创作 Plus" hidden>
+  <header class="wp-header"><div><p class="wp-eyebrow">内容创作 / PLUS</p><h1>公众号创作 <span>Plus</span></h1><p>从一个想法开始，一起把文章写好。</p></div><button type="button" data-wp-new>＋ 新创作</button></header>
+  <div class="wp-workspace">
+    <aside class="wp-conversation" aria-label="创作对话">
+      <div class="wp-conversation-head"><span class="wp-online"></span><strong>你的写作搭档</strong><label class="wp-history-label">历史创作<select data-wp-history aria-label="打开历史创作"><option value="">历史创作</option></select></label></div>
+      <div data-wp-messages class="wp-messages" aria-live="polite"></div>
+      <div data-wp-options class="wp-options"></div>
+      <div data-wp-progress class="wp-progress" role="status" hidden><span data-wp-progress-text></span><button type="button" data-wp-cancel>取消</button></div>
+      <p data-wp-error class="wp-error" role="alert" hidden></p>
+      <form data-wp-form class="wp-composer"><label for="wp-input">告诉我你想写什么</label><textarea id="wp-input" data-wp-input rows="3" placeholder="想写的方向、已有素材，或者直接粘贴文章…" maxlength="30000"></textarea><div><small data-wp-pricing>Plus 内测期间暂不扣积分</small><button type="submit" data-wp-send>发送 ↑</button></div></form>
+    </aside>
+    <article class="wp-document" aria-label="文章工作区">
+      <div class="wp-doc-toolbar"><div class="wp-tabs" role="tablist" aria-label="文章视图"><button type="button" role="tab" aria-selected="true" data-wp-tab="draft">正文</button><button type="button" role="tab" aria-selected="false" data-wp-tab="preview">排版预览</button><button type="button" role="tab" aria-selected="false" data-wp-tab="review">复核与来源</button></div><span data-wp-save-state></span></div>
+      <div data-wp-panel="draft" class="wp-draft-panel" role="tabpanel"><div data-wp-empty class="wp-empty"><span class="wp-paper-icon" aria-hidden="true">✎</span><h2>好文章，从一个具体想法开始</h2><p>在左侧聊想法、选角度，正文会出现在这里。<br>你也可以带着已有文章来修改。</p><div class="wp-starters"><button type="button" data-wp-prompt="我想写一篇关于普通人使用 AI 提高工作效率的公众号文章，先帮我推荐几个选题。">帮我找到值得写的角度 ↗</button><button type="button" data-wp-import>我有文章，想继续打磨 ↗</button></div></div><textarea data-wp-editor aria-label="文章 Markdown 正文" spellcheck="false" hidden></textarea></div>
+      <div data-wp-panel="preview" class="wp-preview-panel" role="tabpanel" hidden><p data-wp-preview-empty>成稿后，告诉我“排版看看”，即可生成预览。</p><iframe data-wp-preview title="公众号文章排版预览" sandbox hidden></iframe></div>
+      <div data-wp-panel="review" class="wp-review-panel" role="tabpanel" hidden></div>
+      <footer class="wp-doc-footer"><label>版本 <select data-wp-versions aria-label="查看历史版本"><option value="">尚无正文</option></select></label><div><button type="button" data-wp-copy disabled>复制正文</button><button type="button" data-wp-download disabled>下载 Markdown</button><button type="button" data-wp-save disabled>保存修改</button></div></footer>
+    </article>
+  </div>
+</section>
 <section id="workbench" class="workbench-page article-workspace normalized-conversation" hidden><div class="mobile-site-brand"><a href="/" aria-label="宇宙第一工作台首页"><img src="/static/galaxy-logo.svg?v=20261025-galaxy-1" width="32" height="32" alt="" /><span>宇宙第一工作台<small>Creator OS</small></span></a></div>
         <header class="studio-heading"><div><h1>公众号创作</h1><p>发来一个主题，创作助手会调用完整 Skill 带你做到可交付。</p></div><div class="studio-heading-actions" hidden><button id="studio-details-toggle" type="button" aria-expanded="false" aria-controls="studio-details">结构与版本</button><button id="assistant-toggle" type="button" aria-expanded="true" aria-controls="creation-assistant">收起助手</button></div></header>
         <nav id="workbench-stage-nav" class="workbench-stage-nav" aria-label="公众号创作阶段"></nav>
@@ -991,7 +1013,8 @@
     <script src="/static/vendor/lucide.min.js"></script>
     <script src="/static/market.js?v=20261026-loading-1" defer></script>
     <script src="/static/auth-challenge.js?v=20261031-glass-2"></script>
-    <script src="/static/app.js?v=20261031-remix-output-tab-1"></script>
+    <script src="/static/wechat-plus.js?v=20261031-1"></script>
+    <script src="/static/app.js?v=20261031-wechat-plus-1"></script>
     <script src="/static/flow.js?v=20261031-hide-diagnose-1"></script>
     <script src="/static/studio-tools.js?v=20261028-tietu-1"></script>
     <link rel="stylesheet" href="/static/creator-chat.css?v=20260906-conversation-1">

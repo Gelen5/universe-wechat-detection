@@ -1769,6 +1769,7 @@ const viewMap = {
   home: homePage,
   diagnose: diagnosePage,
   workbench,
+  'wechat-plus': document.querySelector('#wechat-plus'),
   'one-click-writing': document.querySelector('#one-click-writing'),
   xiaohongshu: xiaohongshuPage,
   'tie-tu': tieTuPage,
@@ -1785,6 +1786,7 @@ const viewMap = {
 const viewTitles = {
   home: '宇宙第一工作台',
   workbench: '公众号创作',
+  'wechat-plus': '公众号创作 Plus',
   'one-click-writing': '公众号一键成文',
   xiaohongshu: '小红书创作',
   'tie-tu': '微信贴图号',
@@ -1814,6 +1816,7 @@ function setActiveView(view, updateHash = false) {
   document.body.classList.toggle('market-body', view === 'market');
   document.body.classList.toggle('hotspots-body', view === 'hotspots');
   if (view === 'market') window.MarketView?.ensureLoaded?.();
+  if (view === 'wechat-plus') window.WechatPlus?.ensureLoaded?.();
   if (view === 'bookshelf') {
     const frame=document.querySelector('#bookshelf-frame');
     if(frame && !frame.hasAttribute('src'))frame.src='/bookshelf?embed=1';

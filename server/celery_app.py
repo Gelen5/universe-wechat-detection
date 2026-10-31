@@ -10,7 +10,7 @@ from celery.schedules import crontab
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 celery_app = Celery("universe_creator", broker=REDIS_URL, backend=REDIS_URL,
                     include=["server.workflow_tasks", "server.agent_tasks", "server.hotspots",
-                             "server.provider_health"])
+                             "server.provider_health", "server.wechat_plus_tasks"])
 celery_app.conf.update(
     task_serializer="json", result_serializer="json", accept_content=["json"],
     task_acks_late=True, task_reject_on_worker_lost=True,
@@ -23,12 +23,15 @@ celery_app.conf.update(
         "workflow.recover_stale": {"queue": "workflow"},
         "agent.run": {"queue": "chat"},
         "agent.recover_stale": {"queue": "chat"},
+        "wechat_plus.run": {"queue": "chat"},
+        "wechat_plus.recover": {"queue": "chat"},
         "market.sync": {"queue": "text"},
         "hotspot.sync": {"queue": "text"},
         "provider.health": {"queue": "text"},
     },
     worker_concurrency=max(1, int(os.getenv("CELERY_WORKER_CONCURRENCY", "4"))),
     beat_schedule={
+        "recover-wechat-plus": {"task": "wechat_plus.recover", "schedule": 60.0},
         "recover-stale-workflow-nodes": {
             "task": "workflow.recover_stale", "schedule": 60.0,
         },

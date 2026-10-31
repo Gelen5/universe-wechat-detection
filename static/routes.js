@@ -25,6 +25,9 @@ window.APP_NAV = (() => {
      icon: svg('<path d="M4 13.5V4a2 2 0 0 1 2-2h8.5L20 7.5V20a2 2 0 0 1-2 2h-9.5"/>' +
                '<polyline points="14 2 14 8 20 8"/><line x1="10" y1="11" x2="10" y2="17"/>' +
                '<line x1="13" y1="14" x2="7" y2="14"/>')},
+    {group: '内容创作', href: '/wechat-plus', view: 'wechat-plus', label: '公众号创作 Plus', short: '创作 Plus',
+     fallback: true,
+     icon: svg('<path d="M4 4h16v12H9l-5 4z"/><path d="M9 10h6M12 7v6"/>')},
     {group: '内容创作', href: '/one-click-writing', view: 'one-click-writing',
      label: '公众号一键成文', short: '一键成文',
      icon: svg('<path d="M4 20h16M5 15l10-10 4 4-10 10H5z"/>')},
