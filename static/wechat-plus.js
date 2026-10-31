@@ -3,7 +3,7 @@
   const root = document.querySelector('#wechat-plus');
   if (!root) return;
   const $ = name => root.querySelector(`[data-wp-${name}]`);
-  let session = null, active = null, owner = null, epoch = 0, loading = false;
+  let session = null, active = null, owner = null, epoch = 0, loading = false, submitting = false;
   let timer = null, polling = false, dirty = false, saving = null, pending = null;
   let selectedTab = 'draft', shownVersion = '', previewKey = '';
   const key = suffix => `universe.wechat-plus.${owner}.${suffix}`;
@@ -17,7 +17,7 @@
   const reportError = error => { $('error').textContent = error?.message || String(error); $('error').hidden = false; };
   async function api(path, options = {}) {
     const response = await fetch('/api/wechat-plus' + path, {
-      cache: 'no-store', credentials: 'same-origin', ...options,
+      cache: 'no-store', credentials: 'same-origin', signal: AbortSignal.timeout(30000), ...options,
       headers: {'Content-Type': 'application/json', ...options.headers},
     });
     await window.AccountLifecycle?.checkResponse(response);
@@ -33,11 +33,11 @@
     root.querySelectorAll('[data-wp-panel]').forEach(node => {node.hidden = node.dataset.wpPanel !== name;});
   }
   function updateBusy() {
-    const busy = Boolean(active || pending);
+    const busy = Boolean(active || pending || submitting);
     $('send').disabled = busy || !owner;
     $('input').disabled = busy || !owner;
-    $('history').disabled = Boolean(pending);
-    $('new').disabled = Boolean(pending);
+    $('history').disabled = Boolean(pending || submitting);
+    $('new').disabled = Boolean(pending || submitting);
     editor.readOnly = busy || Boolean(shownVersion);
     $('save').disabled = busy || !dirty || Boolean(shownVersion);
     root.querySelectorAll('.wp-topic,.wp-options button').forEach(button => {button.disabled = busy;});
@@ -45,7 +45,7 @@
     if (active) {
       const seconds = Math.max(0, Math.floor((Date.now() - new Date(active.created_at).getTime()) / 1000));
       $('progress-text').textContent = `${active.progress || '正在处理'} · ${Math.floor(seconds / 60)}分${seconds % 60}秒`;
-    } else if (pending) $('progress-text').textContent = '正在提交…';
+    } else if (pending || submitting) $('progress-text').textContent = '正在提交…';
     $('cancel').hidden = !active;
   }
   function drawReview(article) {
@@ -158,6 +158,7 @@
       if (sequence !== epoch || session?.id !== id) return;
       const changed = result.session.version !== session.version;
       session = result.session;
+      $('error').hidden = true;
       render();
       if (!active && changed) {
         await list();
@@ -194,9 +195,9 @@
     $('error').hidden = true; $('input').value = ''; editor.value = ''; tab('draft'); render();
   }
   async function send(value) {
-    if (pending || active || !owner) return;
+    if (pending || active || submitting || !owner) return;
     const content = (value || $('input').value).trim(); if (!content) return;
-    const sequence = epoch; $('error').hidden = true;
+    const sequence = epoch; $('error').hidden = true; submitting = true; updateBusy();
     try {
       await save();
       if (sequence !== epoch) return;
@@ -211,6 +212,7 @@
       localStorage.setItem(key('pending'), JSON.stringify(pending)); updateBusy();
       await publishPending();
     } catch (error) { if (sequence === epoch) reportError(error); }
+    finally { submitting = false; updateBusy(); }
   }
   async function publishPending() {
     if (!pending) return;
@@ -288,7 +290,7 @@
   window.addEventListener('account-changed', () => {
     const next = typeof currentAccount === 'undefined' ? null : currentAccount?.id;
     if (owner === next) return;
-    ++epoch; clearInterval(timer); timer=null; owner=null; session=null; active=null; pending=null; dirty=false; shownVersion=''; previewKey='';
+    ++epoch; clearInterval(timer); timer=null; owner=null; session=null; active=null; pending=null; submitting=false; dirty=false; shownVersion=''; previewKey='';
     editor.value=''; $('preview').removeAttribute('src'); $('input').value=''; $('error').hidden=true;
     render(); ensureLoaded();
   });

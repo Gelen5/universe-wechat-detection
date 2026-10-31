@@ -17,7 +17,7 @@ class PlusAPITests(unittest.TestCase):
         self.engine = create_engine('sqlite://', connect_args={'check_same_thread':False}, poolclass=StaticPool)
         self.patches = [patch.object(database, 'ENGINE', self.engine),
             patch.object(api.tasks, 'dispatch', return_value='task'),
-            patch.object(api, 'check_agent_submission', return_value=LimitResult(True))]
+            patch.object(api, 'check_agent_submission', autospec=True, return_value=LimitResult(True))]
         for item in self.patches:
             item.start()
         repo.init_schema()

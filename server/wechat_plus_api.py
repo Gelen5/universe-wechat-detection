@@ -65,7 +65,7 @@ def session(session_id: str, request: Request):
 def message(session_id: str, payload: Message, request: Request):
     if not payload.message.strip():
         raise HTTPException(422, '请输入内容')
-    limit = check_agent_submission(owner(request), client_ip(request), 'wechat_plus')
+    limit = check_agent_submission(user_id=owner(request), ip=client_ip(request), skill_id='wechat_plus')
     if not limit.allowed:
         raise HTTPException(429, '操作较频繁，请稍后再试', headers={'Retry-After': str(limit.retry_after)})
     try:
@@ -112,7 +112,7 @@ def edit(session_id: str, payload: Edit, request: Request):
 
 @router.post('/sessions/{session_id}/retry/{turn_id}', status_code=202)
 def retry(session_id: str, turn_id: str, request: Request):
-    limit = check_agent_submission(owner(request), client_ip(request), 'wechat_plus')
+    limit = check_agent_submission(user_id=owner(request), ip=client_ip(request), skill_id='wechat_plus')
     if not limit.allowed:
         raise HTTPException(429, '操作较频繁，请稍后再试')
     try:
