@@ -1,0 +1,352 @@
+/* 宇宙第一工作台 · 统一层 (ui-system.css)
+ * 只做三件事：统一可读性下限、统一控件热区、抹平模块间皮肤差异。
+ * 加载顺序放在所有历史样式之后；不触碰首页 hero（#home 与 .home-page 均不在选择器里）。
+ */
+
+:root {
+  --uw-ink: #1d2f25;
+  --uw-ink-2: #3f574b;
+  --uw-ink-3: #4f6657;
+  --uw-green: #2f6f4f;
+  --uw-green-ink: #ffffff;
+  --uw-line: rgba(47, 111, 79, .16);
+  --uw-paper: #fbfbf8;
+  --uw-radius: 12px;
+}
+
+/* ---------- 1. 可读性：正文与辅助文字下限 12px / 4.5:1 ---------- */
+
+#workbench .composer-hint,
+#workbench .fl-tip,
+#workbench .article-canvas-foot,
+#workbench .version-strip {
+  font-size: 12px !important;
+  color: var(--uw-ink-3) !important;
+}
+
+/* 步骤条与主按钮内的字号/对比度（覆盖 folio / design-parity 的小字规则） */
+body.atelier #workbench#workbench #workbench-stage-nav button .pd-step-t,
+body.atelier #workbench#workbench #workbench-stage-nav button .pd-step-n,
+body.atelier #workbench#workbench #workbench-stage-nav .pd-step-t {
+  color: var(--uw-ink-2) !important;
+  font-size: 12.5px !important;
+  opacity: 1 !important;
+}
+
+body.atelier #workbench#workbench .composer-hint {
+  font-size: 12px !important;
+  color: var(--uw-ink-3) !important;
+}
+
+#workbench .begin-writing span { font-size: 15px !important; line-height: 1.2; }
+
+#workbench .composer-shell label,
+#workbench .chat-thread .chat-message p,
+#workbench #workbench-decision p {
+  color: var(--uw-ink-2) !important;
+}
+
+#lowfans :is(.lf-meta, .lf-sub, .lf-note, .lf-track, .lf-act) {
+  font-size: 12.5px !important;
+  color: var(--uw-ink-3) !important;
+}
+
+#lowfans .lf-track n { color: var(--uw-ink-2) !important; opacity: 1 !important; }
+
+#hotspots :is(.hs-item-meta, .hs-card-count, .hs-chip, .hs-updated) {
+  font-size: 12.5px !important;
+  color: var(--uw-ink-3) !important;
+}
+
+#market :is(.pd-step-t, .market-kicker, .market-meta, .market-row small) {
+  color: var(--uw-ink-3) !important;
+}
+
+#market-main :is(#meta-updated, .market-foot p, .market-wrap p, .market-row .n, a.on .n) {
+  color: var(--uw-ink-3) !important;
+}
+
+/* ---------- 2. 控件热区：行内操作不少于 44px，筛选 chip 不少于 32px ---------- */
+
+#lowfans .lf-act {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  line-height: 1.1;
+}
+
+#lowfans .lf-track { min-height: 32px; padding: 6px 12px; }
+
+#hotspots .hs-item-tools :is(button, a) {
+  min-height: 32px;
+  min-width: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#hotspots .hs-chip { min-height: 40px; }
+
+#workbench .composer-send,
+#workbench #workbench-stage-next,
+#workbench #workbench-stage-rerun {
+  min-height: 44px;
+}
+
+/* ---------- 3. 热点广场：平台色只留小标记，卡片回到纸色 ---------- */
+
+#hotspots .hs-card[data-platform] {
+  --hs-platform-paper: var(--uw-paper) !important;
+}
+
+#hotspots .hs-card {
+  --hs-platform-paper: var(--uw-paper);
+  border-color: var(--uw-line) !important;
+  box-shadow: 0 10px 30px -26px rgba(28, 54, 40, .45) !important;
+}
+
+#hotspots .hs-card-head :is(strong, b) { color: var(--uw-ink) !important; }
+
+/* ---------- 4. 工作台空态：一个主按钮，收起重复入口 ---------- */
+
+#workbench #workbench-decision.is-empty-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
+  padding: 40px 24px 44px;
+  min-height: 280px;
+}
+
+#workbench #workbench-decision.is-empty-stage > strong { font-size: clamp(22px, 2vw, 28px); }
+
+#workbench #workbench-decision.is-empty-stage > p {
+  max-width: 46ch;
+  margin: 6px auto 0;
+  line-height: 1.7;
+}
+
+#workbench .begin-writing {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 20px;
+  min-height: 48px;
+  padding: 0 24px;
+  border: 0;
+  border-radius: var(--uw-radius);
+  background: var(--uw-green);
+  color: var(--uw-green-ink);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 10px 22px -14px rgba(30, 82, 58, .7);
+}
+
+#workbench .begin-writing:hover { background: #285f43; }
+#workbench .begin-writing:focus-visible { outline: 3px solid #37734d; outline-offset: 3px; }
+
+/* 没有候选选题时，"换一批方向" 没有对象可换 */
+#workbench:not(.has-topics) #workbench-regenerate-topics { display: none !important; }
+
+/* ---------- 5. 创作页模式切换（替代侧栏里三个近义入口） ---------- */
+
+#workbench .studio-modes {
+  display: inline-flex;
+  gap: 4px;
+  margin: 0 0 14px;
+  padding: 4px;
+  border: 1px solid var(--uw-line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .6);
+}
+
+#workbench .studio-modes a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 14px;
+  border-radius: 999px;
+  color: var(--uw-ink-2);
+  font-size: 13px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+#workbench .studio-modes a:hover { background: rgba(47, 111, 79, .08); }
+
+#workbench .studio-modes a.is-current {
+  background: var(--uw-green);
+  color: #fff;
+  font-weight: 600;
+}
+
+/* ---------- 6. 素笺落地（手机/空态）：阶段条与画布入口 ---------- */
+
+#workbench .fl-stagebar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 14px 0 4px;
+}
+
+#workbench .fl-stage {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--uw-line);
+  border-radius: 999px;
+  color: var(--uw-ink-3);
+  font-size: 12px;
+  line-height: 1;
+}
+
+#workbench .fl-stage i {
+  font-style: normal;
+  font-size: 11px;
+  opacity: .8;
+}
+
+#workbench .fl-stage.is-on {
+  border-color: transparent;
+  background: rgba(47, 111, 79, .12);
+  color: #245239;
+  font-weight: 600;
+}
+
+#workbench .fl-canvas-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 18px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--uw-line);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .7);
+  color: var(--uw-ink-2);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+#workbench .fl-canvas-link:hover { border-color: rgba(47, 111, 79, .34); }
+
+/* ---------- 7. AI 超市：与其余模块同一张纸 ---------- */
+
+#market-main.market-page,
+#market.market-page {
+  background: transparent !important;
+}
+
+#market-main .market-foot,
+#market .market-foot {
+  background: transparent !important;
+}
+
+#market .market-fcard,
+#market .market-card,
+#market .market-row {
+  border-color: var(--uw-line);
+}
+
+/* ---------- 8. 手机上给工作台留出底部导航的空间 ---------- */
+
+@media (max-width: 760px) {
+  #workbench { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
+  #workbench .fl-stagebar { margin-top: 12px; }
+}
+
+/* ---------- 9. 空态只保留一处说明：画布里的那张卡 ---------- */
+
+body.atelier #workbench:not([data-stage]) #workbench-decision,
+body.atelier #workbench[data-stage="0"] #workbench-decision {
+  display: flex !important;
+  position: relative;
+  z-index: 3;
+  background: var(--uw-paper) !important;
+  border: 1px solid var(--uw-line) !important;
+  border-radius: 16px !important;
+}
+
+/* 空态不再重复第二遍“作品会在这里出现” */
+body.atelier #workbench#workbench:not([data-stage]) #workbench-result > .article-canvas-head,
+body.atelier #workbench#workbench[data-stage=""] #workbench-result > .article-canvas-head,
+body.atelier #workbench#workbench[data-stage="0"] #workbench-result > .article-canvas-head {
+  display: none !important;
+}
+
+/* 空态卡片里那张“示例排版”的装饰文稿会和小字打架，空态时不显示 */
+#workbench-decision.is-empty-stage::after { display: none !important; }
+
+/* 主按钮内的文字统一白字（页面里有针对 span 的绿色规则） */
+#workbench .begin-writing,
+#workbench .begin-writing :is(span, i) { color: #fff !important; }
+
+body.atelier #workbench:not([data-stage]) #workbench-action-card,
+body.atelier #workbench[data-stage="0"] #workbench-action-card {
+  display: none !important;
+}
+
+/* 模式切换在顶栏内靠右 */
+#workbench .studio-heading { flex-wrap: wrap; gap: 12px; }
+#workbench .studio-heading .studio-modes { margin: 0 0 0 auto; align-self: center; }
+
+/* ---------- 10. 侧栏分组：工具 / 资源默认收起 ---------- */
+
+#workspace-navigation .nav-groups { display: block; }
+
+#workspace-navigation .nav-group[data-group="工具"],
+#workspace-navigation .nav-group[data-group="资源"] { display: none; }
+
+#workspace-navigation.nav-expanded .nav-group[data-group="工具"],
+#workspace-navigation.nav-expanded .nav-group[data-group="资源"] { display: block; }
+
+#workspace-navigation .nav-more-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 40px;
+  margin: 8px 0 4px;
+  padding: 0 14px;
+  border: 1px dashed var(--uw-line);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--uw-ink-2);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+#workspace-navigation .nav-more-toggle small { color: var(--uw-ink-3); font-size: 12px; }
+#workspace-navigation .nav-more-toggle:hover { background: rgba(47, 111, 79, .06); }
+#workspace-navigation .nav-more-toggle[aria-expanded="true"] { border-style: solid; }
+
+@media (max-width: 760px) {
+  #workbench .studio-modes {
+    display: inline-flex;
+    flex-wrap: nowrap;
+    width: auto;
+    max-width: 100%;
+    gap: 2px;
+    padding: 3px;
+  }
+  #workbench .studio-modes a { flex: 0 0 auto; padding: 0 9px; font-size: 12px; }
+  #workbench .studio-heading .studio-modes {
+    flex: 0 0 auto;
+    order: 3;
+    margin: 8px 0 0;
+  }
+  #workspace-navigation .nav-more-toggle { display: none !important; }
+}

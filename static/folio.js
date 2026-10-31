@@ -43,6 +43,7 @@
         '<div class="fl-main">' +
           '<h1>公众号创作</h1>' +
           '<p class="fl-sub"><span class="fl-desktop-copy">从一个主题开始，其余的交给我 —— 选题、大纲、正文、去 AI、排版，一共五步。左边聊，右边出稿。</span><span class="fl-mobile-copy">写下一个想法，一起把它变成文章。<br>从选题到排版，一步一步来。</span></p>' +
+          '<div class="fl-stagebar" aria-label="创作进度"><span class="fl-stage is-on"><i>1</i>选题</span><span class="fl-stage"><i>2</i>大纲</span><span class="fl-stage"><i>3</i>写作</span><span class="fl-stage"><i>4</i>去 AI</span><span class="fl-stage"><i>5</i>排版</span></div>' +
           '<div class="fl-ask">' +
             '<textarea id="folio-ask" aria-label="创作要求：主题、读者和已有素材" placeholder="想写什么、写给谁？也可以粘贴已有素材"></textarea>' +
             '<div class="fl-ask-row">' +
@@ -51,6 +52,7 @@
             '</div>' +
           '</div>' +
           '<div class="fl-starts"><p class="fl-lbl">或者从这里开始</p>' + starts + '</div>' +
+          '<button class="fl-canvas-link" id="folio-canvas" type="button">先看看文章画布 <span aria-hidden="true">↗</span></button>' +
         '</div>' +
         '<aside class="fl-side">' +
           '<div class="fl-recent" id="folio-recent" hidden><p>最近创作</p></div>' +
@@ -480,6 +482,13 @@
         box.value = a.getAttribute('data-fill') || '';
         box.focus();
       });
+    });
+    var canvasBtn = $('#folio-canvas', landing);
+    if (canvasBtn) canvasBtn.addEventListener('click', function () {
+      var sw = document.querySelector('#workbench .studio-switch [data-studio-view="article"]');
+      if (sw) sw.click();
+      var result = document.getElementById('workbench-result');
+      if (result && result.scrollIntoView) result.scrollIntoView({ block: 'start', behavior: 'smooth' });
     });
   }
 

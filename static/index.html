@@ -1,10 +1,10 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>宇宙第一工作台</title>
-    <script src="/static/routes.js?v=20261031-wechat-plus-1"></script>
+    <script src="/static/routes.js?v=20261031-ia-2"></script>
     <style>html{scrollbar-gutter:stable}</style>
 <script src="/static/app-navigation.js?v=20261031-single-nav-2"></script>
     <style>
@@ -632,6 +632,7 @@
 </section>
 <section id="workbench" class="workbench-page article-workspace normalized-conversation" hidden><div class="mobile-site-brand"><a href="/" aria-label="宇宙第一工作台首页"><img src="/static/galaxy-logo.svg?v=20261025-galaxy-1" width="32" height="32" alt="" /><span>宇宙第一工作台<small>Creator OS</small></span></a></div>
         <header class="studio-heading"><div><h1>公众号创作</h1><p>发来一个主题，创作助手会调用完整 Skill 带你做到可交付。</p></div><div class="studio-heading-actions" hidden><button id="studio-details-toggle" type="button" aria-expanded="false" aria-controls="studio-details">结构与版本</button><button id="assistant-toggle" type="button" aria-expanded="true" aria-controls="creation-assistant">收起助手</button></div></header>
+        <nav class="studio-modes" aria-label="创作模式"><a href="/workbench" class="is-current" aria-current="page">完整创作</a><a href="/wechat-plus">Plus</a><a href="/one-click-writing">一键成文</a></nav>
         <nav id="workbench-stage-nav" class="workbench-stage-nav" aria-label="公众号创作阶段"></nav>
         <div id="workflow-steps" class="workflow-rail"></div>
         <div class="studio-switch" role="group" aria-label="工作区视图"><button type="button" data-studio-view="chat" aria-pressed="true">对话与选题</button><button type="button" data-studio-view="article" aria-pressed="false">文章画布</button></div>
@@ -658,7 +659,7 @@
             <header class="article-canvas-head"><div><h2 id="result-title">还没有开始写</h2><p><i></i><span id="article-save-state">输入一个主题后，我会先和你确认写作方向</span></p></div><div class="canvas-actions"><button id="version-back" class="icon-action" type="button" title="上一个版本" aria-label="上一个版本"><i data-lucide="undo-2"></i></button><button id="version-forward" class="icon-action" type="button" title="下一个版本" aria-label="下一个版本"><i data-lucide="redo-2"></i></button><button id="edit-current" class="icon-action" type="button" title="编辑正文" aria-label="编辑正文"><i data-lucide="pen-line"></i></button><button id="copy-current-artifact" class="icon-action" type="button" title="复制当前作品" aria-label="复制当前作品"><i data-lucide="copy"></i></button><button id="download-current-artifact" class="icon-action" type="button" title="下载当前作品" aria-label="下载当前作品"><i data-lucide="download"></i></button></div></header>
             <div class="version-strip"><span id="article-version-label">当前草稿 · 尚未生成</span><span>·</span><span id="article-change-label">等待你的写作意图</span></div>
             <details class="artifact-history" hidden><summary>历史版本</summary><div id="workbench-version-list"></div></details>
-            <section id="workbench-decision" class="current-work-card" aria-live="polite"><strong>先告诉我，你想写什么</strong><p>在对话区输入主题、目标读者和已有素材。先确认选题，再确定框架；每一步确认后继续。</p></section>
+            <section id="workbench-decision" class="current-work-card" aria-live="polite"><strong>先告诉我，你想写什么</strong><p>一句主题 + 目标读者就够，也可以粘贴已有素材。确认选题后，再走大纲、正文、去 AI、排版。</p></section>
             <section id="studio-stage-output" aria-label="当前步骤产物"></section>
             <div id="workbench-stage-choices" class="workbench-stage-choices"></div>
             <iframe id="workbench-html-preview" class="workbench-html-preview" title="公众号排版预览" sandbox="allow-same-origin" hidden></iframe>
@@ -1122,8 +1123,9 @@
     <script src="/static/studio-tools.js?v=20261028-tietu-1"></script>
     <link rel="stylesheet" href="/static/creator-chat.css?v=20260906-conversation-1">
   <link rel="stylesheet" href="/static/tie-tu-studio.css?v=20261030-image-preview-1">
+    <link rel="stylesheet" href="/static/ui-system.css?v=20261031-unify-15">
     <script src="/static/creator-chat.js?v=20261030-image-timer-1"></script>
-    <script src="/static/notion-workspace.js?v=20261031-hide-diagnose-1"></script>
+    <script src="/static/notion-workspace.js?v=20261031-ia-7"></script>
     <script src="/static/xhs-extract.js?v=20261031-extract-1"></script>
     <script src="/static/douyin-extract.js?v=20261031-douyin-2"></script>
     <script>
@@ -1294,7 +1296,7 @@
 <script src="/static/conversation-workbench.js?v=20261029-deai-structure-1"></script>
     <script src="/static/atelier.js?v=20261031-workbench-hidden-1"></script>
     <script src="/static/design-parity.js?v=20261026-wallet-1" defer></script>
-    <script src="/static/folio.js?v=20261027-trust-1" defer></script>
+    <script src="/static/folio.js?v=20261031-stages-1" defer></script>
     <script src="/static/wechat-mint.js?v=20261025-mint-4" defer></script>
 <script src="/static/sidebar.js?v=20261031-community-1" defer></script>
 <script src="/static/mobile-creator.js?v=20261025-mobile-1" defer></script>

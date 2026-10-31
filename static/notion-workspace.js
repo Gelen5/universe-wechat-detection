@@ -27,7 +27,10 @@
   });
   // 菜单清单只有一个来源：/static/routes.js。这里不再写死分组与顺序。
   const NAV = window.APP_NAV;
-  if (NAV) {
+  function buildSidebar() {
+    if (!NAV) return;
+    // 手机端沿用 shell.js 的扁平底栏，不做分组（分组只服务桌面侧栏）。
+    if (window.matchMedia('(max-width: 760px)').matches) return;
     function buildNavItem(href, spec) {
       const a = document.createElement('a');
       a.href = href;
@@ -39,21 +42,41 @@
     const extras = {};
     for (const spec of NAV.extras) extras[spec.href] = spec;
     const home = nav.querySelector('a[href="/"]');
-    const frag = document.createDocumentFragment();
+    const moreBtn = nav.querySelector('.shell-mobile-more');
+    const groups = document.createElement('div');
+    groups.className = 'nav-groups';
     for (const [label, hrefs] of NAV.notionPlan) {
+      const section = document.createElement('section');
+      section.className = 'nav-group';
+      section.dataset.group = label;
       const cap = document.createElement('div');
       cap.className = 'nav-group-label';
       cap.textContent = label;
-      frag.appendChild(cap);
+      section.appendChild(cap);
       for (const href of hrefs) {
         let el = nav.querySelector(`a[href="${href}"], a[data-view][href$="${href}"]`);
         if (!el && extras[href]) el = buildNavItem(href, extras[href]);
-        if (el) frag.appendChild(el);
+        if (el) section.appendChild(el);
       }
+      groups.appendChild(section);
     }
     nav.innerHTML = '';
     if (home) nav.appendChild(home);
-    nav.appendChild(frag);
+    nav.appendChild(groups);
+    if (moreBtn) nav.appendChild(moreBtn);
+    // 工具与资源默认收起：首屏只留 7 个入口，其余一按展开，路由一个都不少。
+    if (groups.querySelector('[data-group="工具"]') || groups.querySelector('[data-group="资源"]')) {
+      const toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.className = 'nav-more-toggle';
+      toggle.setAttribute('aria-expanded', 'false');
+      toggle.innerHTML = '<span>更多功能</span><small>工具 · 资源</small>';
+      toggle.addEventListener('click', () => {
+        const open = nav.classList.toggle('nav-expanded');
+        toggle.setAttribute('aria-expanded', String(open));
+      });
+      nav.appendChild(toggle);
+    }
   }
 
   // Nav anchors are optional now: a hidden module (e.g. /diagnose) has none,
@@ -76,6 +99,10 @@
   nav.addEventListener('click', e => { if(e.target.closest('a')) closeMenu(); });
   document.addEventListener('keydown',e=>{ if(e.key==='Escape' && header.classList.contains('nav-open')) { closeMenu(); menu.focus(); } });
   document.addEventListener('click',e=>{ if(!header.contains(e.target)) closeMenu(); });
+  // 创作模式切换放进顶栏，避免在页面上多出一条独立横条。
+  const studioModes = document.querySelector('#workbench .studio-modes');
+  const studioHeading = document.querySelector('#workbench .studio-heading');
+  if (studioModes && studioHeading) studioHeading.append(studioModes);
   const workspace = document.querySelector('#workbench');
   const toggle = document.querySelector('#assistant-toggle');
   function showAssistant(open) {
@@ -90,16 +117,35 @@
     document.querySelector('#workbench-topic').focus();
   }
   const decision = document.querySelector('#workbench-decision');
-  const start = document.createElement('button'); start.type='button'; start.className='begin-writing'; start.textContent='输入我的写作需求 →';
-  start.addEventListener('click',focusComposer);
+  const start = document.createElement('button');
+  start.type = 'button';
+  start.className = 'begin-writing';
+  start.innerHTML = '<span>描述主题，生成 3 个选题方向</span><i aria-hidden="true">→</i>';
+  start.addEventListener('click', focusComposer);
   function syncEmpty() {
-    if(workspace.dataset.stage==='0' && !decision.contains(start)) decision.append(start);
-    else if(workspace.dataset.stage!=='0' && decision.contains(start)) start.remove();
+    const stage = workspace.dataset.stage;
+    const isEmpty = !stage || stage === '0';
+    if (isEmpty && !decision.contains(start)) decision.append(start);
+    else if (!isEmpty && decision.contains(start)) start.remove();
+    // 还没有任何候选选题时，“换一批方向”没有可换的对象，收起来减少抢焦点。
+    const topics = document.querySelectorAll('#topic-list .topic-item, #topic-list > *').length;
+    workspace.classList.toggle('has-topics', topics > 0);
+    decision.classList.toggle('is-empty-stage', isEmpty);
   }
-  new MutationObserver(syncEmpty).observe(decision,{childList:true});
-  new MutationObserver(syncEmpty).observe(workspace,{attributes:true,attributeFilter:['data-stage']});
+  new MutationObserver(syncEmpty).observe(decision, {childList: true});
+  new MutationObserver(syncEmpty).observe(workspace, {attributes: true, attributeFilter: ['data-stage']});
+  const topicList = document.querySelector('#topic-list');
+  if (topicList) new MutationObserver(syncEmpty).observe(topicList, {childList: true});
   syncEmpty();
   document.querySelector('#new-workbench-chat').addEventListener('click',()=>showAssistant(true));
   const names = {'/diagnose':'账号诊断','/hit-detector':'发布前复核'};
   document.querySelectorAll('#home .hc-card').forEach(a=>{ if(names[a.getAttribute('href')]) a.querySelector('.t').textContent=names[a.getAttribute('href')]; });
+
+  // shell.js 是 defer 脚本，会在本文件之后重建一次导航，所以分组要等它跑完再收一次。
+  function scheduleSidebarBuild() {
+    buildSidebar();
+    window.setTimeout(buildSidebar, 0);
+  }
+  if (document.readyState === 'complete') scheduleSidebarBuild();
+  else window.addEventListener('load', scheduleSidebarBuild, {once: true});
 })();
