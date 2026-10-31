@@ -77,6 +77,42 @@ DEFAULT_PRICING = [
     ("POST", "/api/douyin/extract", "抖音内容提取", 1, 0),
 ]
 
+# ---------------------------------------------------------------- Plus 按动作计费
+# 公众号创作 Plus 的所有动作共用一条路径（POST /api/wechat-plus/sessions/{id}/messages），
+# 中间件按「方法 + 路径」根本分不出这次是闲聊还是出稿；而且这个接口是 202 异步的，
+# 中间件结算时模型还没开始跑。所以 Plus 的计费不走 pricing_rules：
+#   API 层按最高档预扣 → worker 拿到 action 后按真实档位结算，差额退回。
+# 闲聊/追问不收费，否则用户不敢说话；成本几乎全在 write（一次成稿要跑 6~8 次模型）。
+PLUS_ACTION_POINTS: dict[str, int] = {
+    'clarify': 0,   # 只是澄清一个问题
+    'answer': 0,    # 只是回答一个问题
+    'topics': 2,    # 推荐选题方向
+    'write': 12,    # 生成初稿（最贵的一档）
+    'revise': 6,    # 按要求改稿
+    'review': 5,    # 复核与来源检查
+    'format': 2,    # 生成排版预览
+}
+PLUS_FEATURE = '公众号创作 Plus'
+PLUS_MAX_POINTS = max(PLUS_ACTION_POINTS.values())
+
+
+def plus_rule(points: int) -> dict[str, Any]:
+    """构造一条临时计价规则，给 reserve_points 用（不进 pricing_rules 表）。"""
+    return {'points': int(points), 'feature': PLUS_FEATURE}
+
+
+def plus_points_for(action: str | None) -> int:
+    return int(PLUS_ACTION_POINTS.get(str(action or ''), PLUS_MAX_POINTS))
+
+
+def usage_state(request_id: str) -> str | None:
+    """预扣记录当前状态：reserved / completed / refunded。"""
+    with DB_LOCK, _connect() as connection:
+        row = connection.execute(
+            "SELECT status FROM usage_records WHERE request_id=?", (request_id,)
+        ).fetchone()
+        return row['status'] if row else None
+
 
 class ClosingConnection(sqlite3.Connection):
     """sqlite context manager that commits/rolls back and then closes."""
@@ -905,6 +941,78 @@ def settle_usage(request_id: str, http_status: int, duration_ms: int) -> None:
     if settled:
         # 邀请奖励的门槛是「一次真实扣分任务跑完」，而这里是所有收费路径唯一的
         # 完成落点，所以激活判定挂在这里，不额外引入第二套完成事件。
+        _notify_referral_activation(request_id)
+
+
+def settle_usage_with_points(request_id: str, http_status: int, duration_ms: int,
+                             points: int, note: str = '按实际动作结算') -> None:
+    """按实际档位结算一笔预扣，比预扣多的部分原路退回。
+
+    Plus 只能先按最高档（12）预扣，执行完才知道这次是闲聊(0)、选题(2) 还是成稿(12)。
+    差额按预扣时的扣费桶倒序退回（paid → bonus → trial），保证 balance 与三个桶的
+    合计始终对得上。
+    """
+    now = utc_now()
+    refunded = 0
+    actual = 0
+    with DB_LOCK, _connect() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        lock = " FOR UPDATE" if database.ENGINE.dialect.name == "postgresql" else ""
+        usage = connection.execute(
+            "SELECT * FROM usage_records WHERE request_id=? AND status='reserved'" + lock,
+            (request_id,),
+        ).fetchone()
+        if not usage:
+            connection.execute("ROLLBACK")
+            return
+        reserved = int(usage["points"])
+        actual = max(0, min(int(points), reserved))
+        refunded = reserved - actual
+        if refunded:
+            allocation = json.loads(usage["allocation_json"] or "{}")
+            wallet = _locked_wallet(connection, usage["user_id"])
+            remaining = refunded
+            trial = wallet["trial_balance"]
+            bonus = wallet["bonus_balance"]
+            paid = wallet["paid_balance"]
+            for bucket in ("paid", "bonus", "trial"):
+                give = min(int(allocation.get(bucket, 0)), remaining)
+                if not give:
+                    continue
+                if bucket == "paid":
+                    paid += give
+                elif bucket == "bonus":
+                    bonus += give
+                else:
+                    trial += give
+                remaining -= give
+                if remaining == 0:
+                    break
+            # 正常情况 remaining 必然归零；万一 allocation 与预扣数不一致，差额补到
+            # paid，宁可多退一积分，也不能让用户被多扣。
+            if remaining:
+                paid += remaining
+            before = wallet["balance"]
+            after = before + refunded
+            connection.execute(
+                """UPDATE wallets SET balance=?,trial_balance=?,bonus_balance=?,paid_balance=?,updated_at=?
+                   WHERE user_id=?""",
+                (after, trial, bonus, paid, now, usage["user_id"]),
+            )
+            connection.execute(
+                """INSERT INTO point_transactions
+                   (id,user_id,amount,balance_before,balance_after,bucket,kind,source,feature,request_id,note,allocation_json,created_at)
+                   VALUES (?,?,?,?,?,'mixed','refund','usage',?,?,?, ?,?)""",
+                (uuid.uuid4().hex, usage["user_id"], refunded, before, after, usage["feature"],
+                 f"{request_id}:settle", note, usage["allocation_json"], now),
+            )
+        connection.execute(
+            """UPDATE usage_records SET status='completed',points=?,http_status=?,duration_ms=?,finished_at=?
+               WHERE request_id=?""",
+            (actual, http_status, duration_ms, now, request_id),
+        )
+        connection.execute("COMMIT")
+    if actual > 0:
         _notify_referral_activation(request_id)
 
 

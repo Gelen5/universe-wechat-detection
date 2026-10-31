@@ -3,11 +3,21 @@ from pathlib import Path
 from threading import Event, Thread
 import hashlib
 import json
+import time
 
 from .celery_app import celery_app
+from . import accounts
+from . import wechat_plus_billing as billing
 from . import wechat_plus_repository as repo
 from . import wechat_plus_service as service
 from . import workbench, workbench_research
+
+# worker 进程不经过 server.main，计费表得在这里自己建一次（create_all 幂等）。
+try:
+    billing.init_schema()
+except Exception:  # noqa: BLE001 - 建表失败不该让 worker 起不来
+    import logging
+    logging.getLogger(__name__).warning('wechat_plus charges table not ready at import')
 
 
 def dispatch(turn_id):
@@ -62,6 +72,20 @@ def execute_turn(self, turn_id):
         cache[key] = result
         return result
 
+    started = time.monotonic()
+
+    def settle(action, points):
+        """按这次实际的动作结算；0 分就是全额退回，失败也走这里。"""
+        usage_id = billing.usage_for(turn_id)
+        if not usage_id:
+            return
+        elapsed = int((time.monotonic() - started) * 1000)
+        if points > 0:
+            accounts.settle_usage_with_points(usage_id, 200, elapsed, points)
+        else:
+            accounts.refund_usage(usage_id, 200, elapsed)
+        billing.record(turn_id, action, points)
+
     try:
         session = repo.get(turn['session_id'], turn['user_id'])
         if session['version'] != turn['input_version']:
@@ -73,8 +97,14 @@ def execute_turn(self, turn_id):
             output_dir=directory, check_cancelled=check,
             progress=lambda text: repo.heartbeat(turn_id, self.request.id, text), search=search)
         committed = repo.commit_turn(turn_id, self.request.id, session['version'], state)
+        if committed:
+            action = str(state.get('last_action') or '')
+            settle(action, accounts.plus_points_for(action))
+        else:
+            settle('cancelled', 0)
         return {'status': 'completed' if committed else 'cancelled'}
     except service.Cancelled:
+        settle('cancelled', 0)
         return {'status': 'cancelled'}
     except Exception as exc:
         # Provider exceptions may contain upstream bodies. Keep private details
@@ -84,6 +114,7 @@ def execute_turn(self, turn_id):
         safe = str(exc) if isinstance(exc, (ValueError, repo.Conflict)) else '本次处理未完成，原有内容已保留。请稍后重试。'
         if isinstance(exc, workbench.ProviderError):
             safe = '模型服务暂时不可用，文章已保留。稍后可以继续上次未完成的处理。'
+        settle('failed', 0)
         repo.finish(turn_id, self.request.id, 'failed', safe)
         return {'status': 'failed'}
     finally:

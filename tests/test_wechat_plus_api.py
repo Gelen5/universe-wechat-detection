@@ -7,7 +7,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.pool import StaticPool
 
 from server import database
+from server import accounts
 from server import wechat_plus_api as api
+from server import wechat_plus_billing as billing
 from server import wechat_plus_repository as repo
 from server.rate_limit import LimitResult
 
@@ -21,6 +23,16 @@ class PlusAPITests(unittest.TestCase):
         for item in self.patches:
             item.start()
         repo.init_schema()
+        billing.init_schema()
+        # Plus 现在按动作计费：发消息要预扣 12 积分，所以测试用户得先有钱。
+        accounts.init_db()
+        try:
+            accounts.create_user('plus-owner@example.com', 'testing-pass-123', 'Owner', user_id='owner')
+        except Exception:
+            pass
+        with accounts._connect() as conn:
+            conn.execute(
+                "UPDATE wallets SET balance=100, trial_balance=100 WHERE user_id='owner'")
         app = FastAPI()
 
         @app.middleware('http')

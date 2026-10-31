@@ -36,6 +36,7 @@ from .invite_page import router as invite_page_router
 from .bill_page import router as bill_page_router
 from .wechat_plus_api import router as wechat_plus_router
 from . import wechat_plus_repository
+from . import wechat_plus_billing
 from .workflow_events import redis_ready
 from .observability import event as log_event
 from .auth_rate_limit import check_auth_attempt, record_auth_result, client_ip
@@ -82,6 +83,7 @@ app.include_router(wallet_page_router)
 app.include_router(invite_page_router)
 app.include_router(bill_page_router)
 wechat_plus_repository.init_schema()
+wechat_plus_billing.init_schema()
 app.include_router(wechat_plus_router)
 
 
@@ -198,7 +200,11 @@ async def account_and_points_gate(request: Request, call_next):
 
     # The long-running full workbench owns billing in its background job so a
     # later provider failure can refund points after the HTTP response returned.
-    rule = accounts.pricing_rule(request.method, path) if user and path not in {"/api/workbench/sessions", "/api/qihaoshou/generate"} and not public_pay else None
+    # /api/wechat-plus/… 同理，而且更极端：一条路径承载多种动作，接口又是 202 异步，
+    # 中间件在这里结算时模型还没跑。它的预扣与结算都在 wechat_plus_api / tasks 里。
+    billable = user and path not in {"/api/workbench/sessions", "/api/qihaoshou/generate"} \
+        and not path.startswith("/api/wechat-plus/") and not public_pay
+    rule = accounts.pricing_rule(request.method, path) if billable else None
     usage_id = None
     started = time.perf_counter()
     if rule:
