@@ -1611,8 +1611,9 @@ function paintViralFiles() {
 function resetViralRemixImage() {
   if (viralRemixPreviewUrl) URL.revokeObjectURL(viralRemixPreviewUrl);
   viralRemixPreviewUrl = '';
+  viralFiles.length = 0;
   if (viralRemixImage) viralRemixImage.value = '';
-  if (viralRemixPreview) viralRemixPreview.hidden = true;
+  if (viralRemixPreview) { viralRemixPreview.hidden = true; viralRemixPreview.replaceChildren(); }
 }
 
 viralRemixImage?.addEventListener('change', () => {
@@ -1622,8 +1623,51 @@ viralRemixImage?.addEventListener('change', () => {
   viralFiles.push(...files);viralRemixImage.value='';paintViralFiles();
 });
 document.querySelector('#viral-remix-clear')?.addEventListener('click', resetViralRemixImage);
+let remixSelectPanel = null;
+let remixRenderedSession = null;
+let remixRenderedOwner = null;
+// 生成原创图时立刻切到「成图交付」并在该面板里跑计时器，避免停在拆解报告看不到进度。
+function startRemixOutputWait(label) {
+  const root = document.querySelector('#viral-remix-result');
+  const output = document.querySelector('#remix-output-panel');
+  if (!root || !output) return () => {};
+  remixSelectPanel?.(2);
+  output.querySelector('.remix-output-placeholder')?.remove();
+  let box = output.querySelector('.remix-output-wait');
+  if (!box) {
+    box = document.createElement('div');
+    box.className = 'remix-output-wait';
+    box.innerHTML = '<h3 class="remix-wait-title"></h3><p class="wait-elapsed" role="status"></p><p class="remix-wait-hint">生成完成后这里会显示成图、配文方向与标签，可直接下载。</p>';
+    output.prepend(box);
+  }
+  box.querySelector('.remix-wait-title').textContent = label;
+  const status = box.querySelector('.wait-elapsed');
+  const started = performance.now();
+  const paint = () => {
+    const seconds = Math.floor((performance.now() - started) / 1000);
+    status.textContent = `已等待 ${Math.floor(seconds / 60)}分${String(seconds % 60).padStart(2, '0')}秒 · 图片一般每张约30—120秒，多张按顺序处理。`;
+  };
+  paint();
+  const timer = setInterval(paint, 1000);
+  root.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  let stopped = false;
+  return () => {
+    if (stopped) return;
+    stopped = true;
+    clearInterval(timer);
+    output.querySelector('.remix-output-wait')?.remove();
+    if (!output.querySelector('.viral-generated')) {
+      const placeholder = document.createElement('div');
+      placeholder.className = 'remix-output-placeholder';
+      placeholder.innerHTML = '<h3>成图与配文会放在这里</h3><p>选择翻新方案后生成，完成后可下载图片、查看配文方向和标签。</p>';
+      output.append(placeholder);
+    }
+  };
+}
 function renderViralRemix(result, sessionId) {
   const remixOwner = currentAccount?.id;
+  remixRenderedOwner = remixOwner || null;
+  remixRenderedSession = sessionId || null;
   const remixKey = remixOwner ? `viral-remix-draft:${remixOwner}` : null;
   let saved = {};
   try { saved = remixKey ? JSON.parse(localStorage.getItem(remixKey)||'{}') : {}; } catch {}
@@ -1645,18 +1689,30 @@ function renderViralRemix(result, sessionId) {
     const idea = (result.ideas || []).find(item => item.id === button.dataset.idea);
     if (!idea) return;
     const finish = beginButton(button, '正在生成原创图…');
+    storeDraft({pending:true,selectedIdea:idea.id});
+    const stopWaiting = startRemixOutputWait(`正在生成第 4/5 步原创图${idea.name ? `（${idea.name}）` : ''}`);
     try {
       const choices={track:root.querySelector('[name=remix-track]')?.value,emotion:root.querySelector('[name=remix-emotion]')?.value,boundaries:root.querySelector('[name=remix-boundaries]')?.value};
       const data = await postCreator('/api/viral-remix/image', { sessionId, idea: {...idea,choices,copy_directions:result.copy_directions,tags:result.tags} });
       const image = data.image;
       storeDraft({generated:[...(saved.generated||[]),image],pending:false});
-      const card = document.createElement('article'); card.className = 'viral-generated';
-      card.innerHTML = `<span class="tag">第 4/5 步 · 原创成图</span><img src="${safeUrl(image.url)}" alt="${esc(idea.headline || '原创贴图')}"/><div><strong>${esc(idea.headline)}</strong><a href="${safeUrl(image.url)}" download="爆款贴图复刻-${esc(idea.id)}.png">下载图片</a></div>`;
-      root.prepend(card);
-      for(const extra of (image.images || []).slice(1)){const item=document.createElement('article');item.className='viral-generated';item.innerHTML=`<img src="${safeUrl(extra.url)}" alt="原创图 ${Number(extra.index)}"><a href="${safeUrl(extra.url)}" download>下载第 ${Number(extra.index)} 张</a>`;root.prepend(item);}
-      const delivery=document.createElement('pre');delivery.className='viral-delivery';delivery.textContent=JSON.stringify({提示词:(image.images||[image]).map(i=>i.prompt),配文方向:image.copy_directions||result.copy_directions,标签:image.tags||result.tags,检查:(image.images||[image]).map(i=>({通过:i.check_passed,报告:i.check}))},null,2);root.append(delivery);
+      const all=image.images?.length?image.images:[image];
+      all.map((extra,position)=>({extra,ordinal:Number(extra.index)||position+1}))
+        .sort((a,b)=>b.ordinal-a.ordinal)
+        .forEach(({extra,ordinal})=>{
+          const name=all.length>1?`爆款贴图复刻-${idea.id}-${ordinal}.png`:`爆款贴图复刻-${idea.id}.png`;
+          const label=all.length>1?`下载第 ${ordinal} 张`:'下载图片';
+          const card=document.createElement('article');card.className='viral-generated';
+          card.innerHTML=`<span class="tag">第 4/5 步 · 原创成图${all.length>1?` · ${ordinal}/${all.length}`:''}</span><img src="${safeUrl(extra.url)}" alt="${esc(idea.headline||'原创贴图')} ${ordinal}"/><div><strong>${esc(idea.headline||'')}</strong><a href="${safeUrl(extra.url)}" download="${esc(name)}">${label}</a></div>`;
+          output.append(card);
+        });
+      const delivery=document.createElement('pre');delivery.className='viral-delivery';delivery.textContent=JSON.stringify({提示词:(image.images||[image]).map(i=>i.prompt),配文方向:image.copy_directions||result.copy_directions,标签:image.tags||result.tags,检查:(image.images||[image]).map(i=>({通过:i.check_passed,报告:i.check}))},null,2);output.append(delivery);
+      stopWaiting();
+      output.hidden = false;
+      remixSelectPanel?.(2);
+      root.scrollIntoView({block:'start',behavior:'smooth'});
       showToast('原创图已生成；参考图没有进入生图请求。');
-    } catch (error) { showToast(error.message, 'error'); } finally { finish(); }
+    } catch (error) { showToast(error.message, 'error'); } finally { stopWaiting(); finish(); }
   }));
   const context=document.createElement('section');context.className='viral-result-card';
   context.innerHTML=`<h3>顺序与逐页分析</h3><p>${esc((result.order||[]).join(' → '))} · ${esc(result.order_reason||'单图，无需排序')}</p><p>${esc(JSON.stringify(result.pages||[]))}</p><p>${esc(result.verification?.message||'待核实')}</p><h3>确认创作方向</h3><label>赛道<select name="remix-track">${['情感关系','育儿成长','赚钱职场','生活消费','娱乐搞笑'].map(t=>`<option>${t}</option>`).join('')}</select></label><label>想让读者感到<select name="remix-emotion">${['被理解','被点醒','被教会','被逗笑','有点急'].map(t=>`<option>${t}</option>`).join('')}</select></label><label>画面禁区<select name="remix-boundaries"><option>不出现真人正脸</option><option>不出现品牌和产品</option><option>不出现特定人物或同行</option><option>无额外禁区</option></select></label><p>确认后点选下方 A/B/C 方案。文字与画面由 GPT Image 一体生成，整组保持相同视觉方向。</p>`;
@@ -1673,6 +1729,7 @@ function renderViralRemix(result, sessionId) {
   const tabs=document.createElement('div');tabs.className='remix-result-tabs';tabs.setAttribute('role','tablist');tabs.setAttribute('aria-label','创作结果');
   const panels=[report,ideas,output];
   const selectPanel=index=>{panels.forEach((p,i)=>p.hidden=i!==index);[...tabs.children].forEach((b,i)=>{b.setAttribute('aria-selected',String(i===index));b.tabIndex=i===index?0:-1;});};
+  remixSelectPanel=selectPanel;
   ['拆解报告','翻新方案','成图交付'].forEach((label,index)=>{const b=document.createElement('button');b.type='button';b.textContent=`0${index+1} ${label}`;b.setAttribute('role','tab');b.setAttribute('aria-controls',panels[index].id);b.onclick=()=>selectPanel(index);b.onkeydown=e=>{if(['ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();const next=(index+(e.key==='ArrowRight'?1:2))%3;selectPanel(next);tabs.children[next].focus();}};tabs.append(b);});
   root.replaceChildren(tabs,...panels);selectPanel(0);
   if(saved.choices) for(const [key,value] of Object.entries(saved.choices)){const field=root.querySelector(`[name="remix-${key}"]`);if(field)field.value=value;}
@@ -1680,14 +1737,18 @@ function renderViralRemix(result, sessionId) {
   root.querySelectorAll('.viral-generate').forEach(button=>button.addEventListener('click',()=>storeDraft({selectedIdea:button.dataset.idea})));
   for(const generated of saved.generated||[]){output.querySelector('.remix-output-placeholder')?.remove();for(const image of generated.images||[generated]){const card=document.createElement('article');card.className='viral-generated';card.innerHTML=`<img src="${safeUrl(image.url)}" alt="已保存原创图 ${Number(image.index)||1}"><a href="${safeUrl(image.url)}" download>下载图片</a>`;output.append(card);}}
   if(saved.generated?.length)selectPanel(2);
+  else if(saved.pending){const note=document.createElement('p');note.className='remix-output-pending';note.textContent='上次的原创图生成没有完成，重新点选下面的方案即可再次生成。';output.prepend(note);selectPanel(2);}
   if(result.timings){const duration=document.createElement('p');duration.className='wait-elapsed';duration.textContent=`拆解总计 ${result.timings.total_seconds} 秒 · 视觉与方案 ${result.timings.vision_seconds} 秒 · 数字核实 ${result.timings.verification_seconds||0} 秒`;report.prepend(duration);}
   const next=document.createElement('button');next.type='button';next.className='remix-next';next.textContent='查看三种翻新方案 →';next.onclick=()=>{selectPanel(1);root.scrollIntoView({block:'start',behavior:'smooth'});};report.append(next);
-  new MutationObserver(()=>{const generated=[...root.querySelectorAll(':scope > .viral-generated, :scope > .viral-delivery')];if(generated.length){output.querySelector('.remix-output-placeholder')?.remove();generated.forEach(el=>output.append(el));selectPanel(2);}}).observe(root,{childList:true});
 }
 window.addEventListener('account-changed',()=>{
   const root=document.querySelector('#viral-remix-result');
   if(!root)return;
+  // 同一账号重复触发的 account-changed（切窗口、钱包刷新等）不要重绘，
+  // 否则会把正在看的面板重置回「拆解报告」。
+  if(currentAccount?.id && currentAccount.id===remixRenderedOwner && remixRenderedSession) return;
   root.replaceChildren();root.hidden=true;document.querySelector('#viral-remix-empty').hidden=false;
+  remixSelectPanel=null;remixRenderedSession=null;remixRenderedOwner=currentAccount?.id||null;
   if(!currentAccount?.id)return;
   try{const draft=JSON.parse(localStorage.getItem(`viral-remix-draft:${currentAccount.id}`)||'null');if(draft?.result&&draft.sessionId)renderViralRemix(draft.result,draft.sessionId);}catch{}
 });

@@ -50,6 +50,11 @@ body #viral-remix { padding:36px 40px!important; background:transparent!importan
 #viral-remix .viral-generate:disabled{background:#e0eee5!important;color:#38664c!important;cursor:wait}
 #viral-remix .button-spinner{display:inline-block!important;position:static!important;width:15px!important;height:15px!important;flex:0 0 15px;border:2px solid #91b39f;border-top-color:#38664c;border-radius:50%;animation:remix-spin .9s linear infinite}
 #viral-remix .remix-output-placeholder{padding:60px 24px;text-align:center;color:#678373}
+#viral-remix .remix-output-wait{padding:44px 24px;text-align:center;border:1px solid #d6e7dc;border-radius:16px;background:#f7fcf8}
+#viral-remix .remix-output-wait h3{font-size:17px;color:#244b39;margin:0 0 12px}
+#viral-remix .remix-output-wait .wait-elapsed{margin:0;color:#2c8a5d;font-size:14px;font-weight:600}
+#viral-remix .remix-output-wait .remix-wait-hint{margin:10px 0 0;font-size:13px;color:#789284}
+#viral-remix .remix-output-pending{margin:0 0 16px;padding:14px 16px;border:1px solid #f2ddb5;border-radius:12px;background:#fdf7ea;color:#8a6420;font-size:13px}
 #viral-remix .viral-delivery{max-width:100%;font-size:14px;line-height:1.8}
 @keyframes remix-spin{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){#viral-remix .button-spinner{animation:none}}
