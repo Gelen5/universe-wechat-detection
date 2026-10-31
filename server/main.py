@@ -355,6 +355,10 @@ class ViralRemixImageRequest(BaseModel):
     idea: dict[str, Any]
 
 
+class ViralRemixVerifyRequest(BaseModel):
+    claims: list[str] = Field(min_length=1,max_length=3)
+
+
 class CreatorImageRequest(BaseModel):
     tool: str = Field(pattern="^(xiaohongshu|tie-tu)$")
     sessionId: str = Field(min_length=8, max_length=80)
@@ -1082,6 +1086,14 @@ def generate_viral_remix_image(payload: ViralRemixImageRequest):
             return {"status": "success", "image": creator_tools.generate_viral_remix_image(payload.sessionId, payload.idea)}
     except (ValueError, workbench.ProviderError) as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@app.post('/api/viral-remix/verify')
+def verify_viral_remix(payload: ViralRemixVerifyRequest):
+    if any(len(c)>500 for c in payload.claims):
+        raise HTTPException(status_code=422,detail='声明过长')
+    with workbench.provider_overrides():
+        return creator_tools.verify_remix_claims(payload.claims)
 
 
 @app.post("/api/creator-tools/image")
