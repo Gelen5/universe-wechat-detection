@@ -356,16 +356,16 @@ def build_plan(article: dict[str, Any]) -> dict[str, Any]:
         .replace("__ACCOUNT__", article["account"])
         .replace("__BODY__", article["markdown"][:4000])
     )
-    # 拆解只做结构化抽取：sonnet 快且稳；再兜底到 gpt-6.1-sol 的低思考档。
-    # 每个模型最多 40 秒，最坏 80 秒一定给用户一个结果，不再无限转圈。
+    # 线上实测：Anthropic 系（haiku / sonnet）在这个出口是 transport 失败，
+    # 每次要卡 133 秒；只有 gpt-6.1-sol 稳定。低思考档实测 33 秒，
+    # 再给 55 秒硬上限，超时就退回规则拆解，绝不让用户无限等。
     raw_text = ""
-    for model in ("claude-sonnet-5", "gpt-6.1-sol"):
-        try:
-            raw_text = _text_with_deadline(prompt, model=model, reasoning="low", timeout=35)
-            if raw_text.strip():
-                break
-        except Exception:
-            raw_text = ""
+    try:
+        raw_text = _text_with_deadline(
+            prompt, model="gpt-6.1-sol", reasoning="low", timeout=55
+        )
+    except Exception:
+        raw_text = ""
     try:
         plan = _normalize_plan(_extract_json(raw_text), article)
     except Exception:
