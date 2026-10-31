@@ -1,4 +1,4 @@
-﻿/* 宇宙第一工作台 · 统一层 (ui-system.css)
+/* 宇宙第一工作台 · 统一层 (ui-system.css)
  * 只做三件事：统一可读性下限、统一控件热区、抹平模块间皮肤差异。
  * 加载顺序放在所有历史样式之后；不触碰首页 hero（#home 与 .home-page 均不在选择器里）。
  */
@@ -103,17 +103,7 @@ body.atelier #workbench#workbench .composer-hint {
   min-height: 44px;
 }
 
-/* ---------- 3. 热点广场：平台色只留小标记，卡片回到纸色 ---------- */
-
-#hotspots .hs-card[data-platform] {
-  --hs-platform-paper: var(--uw-paper) !important;
-}
-
-#hotspots .hs-card {
-  --hs-platform-paper: var(--uw-paper);
-  border-color: var(--uw-line) !important;
-  box-shadow: 0 10px 30px -26px rgba(28, 54, 40, .45) !important;
-}
+/* ---------- 3. 热点广场：保留各平台底色，只统一文字对比度 ---------- */
 
 #hotspots .hs-card-head :is(strong, b) { color: var(--uw-ink) !important; }
 
