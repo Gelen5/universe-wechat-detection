@@ -262,10 +262,12 @@ def test_more_menu_can_open_a_secondary_module(ui):
     page, _ = ui
     page.goto('http://ui.test/')
     page.get_by_role('button', name='更多', exact=True).click()
-    page.get_by_role('navigation', name='全部功能').get_by_role('link', name='发布前复核', exact=True).click()
-    page.wait_for_url('http://ui.test/hit-detector')
+    menu = page.get_by_role('navigation', name='全部功能')
+    expect(menu.get_by_role('link', name='发布前复核', exact=True)).to_have_count(0)
+    menu.get_by_role('link', name='小红书内容提取', exact=True).click()
+    page.wait_for_url('http://ui.test/xhs-extract')
     expect(page.get_by_role('dialog', name='全部功能')).not_to_be_visible()
-    expect(page.locator('#hit-detector .creator-conversation textarea')).to_be_visible()
+    expect(page.locator('#xhs-extract-form')).to_be_visible()
     expect(page.get_by_role('button', name='更多', exact=True)).to_have_class('shell-mobile-more active')
 
 @pytest.mark.parametrize('width', [1920,1280,1101,1100,390])

@@ -26,7 +26,6 @@ LEGACY_SHELL_ROUTES = [
     ['/xhs-extract', '小红书内容提取'],
     ['/douyin-extract', '抖音内容提取'],
     ['/morning-generator', '早安祝福'],
-    ['/hit-detector', '发布前复核'],
     ['/market', 'AI 超市', '超市'], ['/bookshelf', 'AI 书架'],
     ['/pricing', '积分套餐'],
     ['/invite', '邀请好友'],
@@ -34,7 +33,7 @@ LEGACY_SHELL_ROUTES = [
 LEGACY_NOTION_PLAN = [
     ['创作', ['/hotspots', '/lowfans', '/wechat-plus', '/xiaohongshu', '/tie-tu',
               '/viral-remix', '/article-visual']],
-    ['工具', ['/xhs-extract', '/douyin-extract', '/hit-detector']],
+    ['工具', ['/xhs-extract', '/douyin-extract']],
     ['资源', ['/market', '/bookshelf']],
     ['账户', ['/pricing', '/invite']],
 ]
@@ -137,6 +136,13 @@ class SingleSourceTests(unittest.TestCase):
         self.assertNotIn('/workbench', [h for _, hrefs in self.data['plan'] for h in hrefs])
         self.assertNotIn('/workbench', self.data['extras'])
         self.assertEqual('workbench', self.data['views'].get('/workbench'))
+
+    def test_hit_detector_entry_is_hidden_but_the_route_still_opens(self):
+        """发布前复核按用户要求从侧栏收起，但 /hit-detector 直链仍可用。"""
+        self.assertNotIn('/hit-detector', [route[0] for route in self.data['shell']])
+        self.assertNotIn('/hit-detector', [h for _, hrefs in self.data['plan'] for h in hrefs])
+        self.assertNotIn('/hit-detector', self.data['extras'])
+        self.assertEqual('hit-detector', self.data['views'].get('/hit-detector'))
 
     def test_hidden_modules_have_no_live_anchor_in_any_page(self):
         """The page shells still ship server-rendered anchors.

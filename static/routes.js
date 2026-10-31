@@ -87,7 +87,11 @@ window.APP_NAV = (() => {
     {group: '分析', href: '/diagnose', view: 'diagnose', label: '账号诊断',
      hidden: true,
      icon: svg('<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>')},
+    // 发布前复核入口按用户要求隐藏：侧栏和「更多」菜单不再出现，但路由与
+    // #hit-detector 章节保留，直链照常打开。恢复时删掉 hidden 并放开各页面
+    // 里被注释掉的静态锚点。
     {group: '工具', href: '/hit-detector', view: 'hit-detector', label: '发布前复核',
+     hidden: true,
      icon: svg('<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 ' +
                '1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>' +
                '<polyline points="9 12 11 14 15 10"/>')},
