@@ -434,34 +434,75 @@ def _seller_matches(config: dict[str, str], params: dict[str, str]) -> bool:
 
 # ------------------------------------------------------------------ 页面
 _STYLE = """
+:root{
+  --g500:#1B7A58;--g600:#14684A;--g700:#0F5132;--g900:#0A3B26;
+  --g100:#E2F3EA;--g50:#F3FAF6;
+  --ink1:#1A1E1B;--ink2:#4F5751;--ink3:#828B84;
+  --hairline:rgba(15,45,32,.085);
+  --lg-fill:rgba(255,255,255,.73);
+  --lg-hi:radial-gradient(128% 92% at 6% -14%,rgba(255,255,255,.58) 0%,rgba(255,255,255,.18) 32%,rgba(255,255,255,0) 52%),
+          linear-gradient(148deg,rgba(255,255,255,.55) 0%,rgba(255,255,255,.08) 26%,rgba(255,255,255,0) 50%,
+                          rgba(255,255,255,0) 68%,rgba(255,255,255,.22) 100%);
+  --lg-shadow:inset 0 1px 0 rgba(255,255,255,1),inset 0 -1px 1px rgba(255,255,255,.5),
+              0 1px 1.5px rgba(12,45,30,.028),0 18px 40px -26px rgba(12,45,30,.26);
+}
 *{box-sizing:border-box}
-body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
-background:radial-gradient(1200px 600px at 50% -10%,#eef2ff 0%,#f7f7f5 45%,#f4f1ec 100%);
-color:#1f2328;font-family:"PingFang SC","Microsoft YaHei",-apple-system,system-ui,sans-serif;padding:32px}
-.card{width:min(560px,100%);background:#fff;border:1px solid rgba(23,26,31,.08);border-radius:20px;
-box-shadow:0 24px 60px -32px rgba(23,26,31,.35);padding:32px}
-.brand{display:flex;align-items:center;gap:10px;font-size:13px;letter-spacing:.08em;color:#6b7280}
-.dot{width:8px;height:8px;border-radius:50%;background:#1677ff}
-h1{font-size:22px;margin:18px 0 6px}
-p.lead{margin:0 0 22px;color:#5b6472;font-size:14px;line-height:1.6}
-label{display:block;font-size:13px;color:#374151;margin:14px 0 6px}
-input{width:100%;padding:12px 14px;border:1px solid #e3e6ea;border-radius:12px;font-size:15px;background:#fbfbfa}
-input:focus{outline:none;border-color:#1677ff;background:#fff;box-shadow:0 0 0 3px rgba(22,119,255,.12)}
-button{margin-top:22px;width:100%;padding:13px 16px;border:0;border-radius:12px;background:#1677ff;color:#fff;
-font-size:15px;font-weight:600;cursor:pointer}
-button:disabled{opacity:.6;cursor:progress}
-.hint{margin-top:14px;font-size:12px;color:#8b94a3;line-height:1.6}
-.status{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;font-size:13px;font-weight:600}
-.status.ok{background:#e8f7ee;color:#0f7b3f}
-.status.wait{background:#fff5e6;color:#a15c00}
-.status.bad{background:#fdecec;color:#b42318}
-dl{display:grid;grid-template-columns:auto 1fr;gap:10px 18px;margin:22px 0 0;font-size:14px}
-dt{color:#6b7280}
-dd{margin:0;font-weight:600;word-break:break-all}
-.actions{margin-top:24px;display:flex;gap:12px}
-.actions a{flex:1;text-align:center;padding:11px 14px;border-radius:12px;text-decoration:none;font-size:14px;
-border:1px solid #e3e6ea;color:#1f2328}
-.actions a.primary{background:#1677ff;border-color:#1677ff;color:#fff}
+body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px 24px;
+  background:
+    radial-gradient(760px 600px at 4% -14%,rgba(150,214,182,.52) 0%,rgba(150,214,182,0) 62%),
+    radial-gradient(720px 600px at 103% 0%,rgba(246,226,202,.56) 0%,rgba(246,226,202,0) 60%),
+    radial-gradient(880px 660px at 72% 110%,rgba(178,219,190,.46) 0%,rgba(178,219,190,0) 64%),
+    linear-gradient(178deg,#FAFBF7 0%,#F0F3EC 52%,#E8EEE6 100%);
+  background-attachment:fixed;color:var(--ink1);
+  font-family:"PingFang SC","Microsoft YaHei",-apple-system,system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased}
+.card{width:min(760px,100%);background-color:var(--lg-fill);background-image:var(--lg-hi);
+  -webkit-backdrop-filter:blur(24px) saturate(165%);backdrop-filter:blur(24px) saturate(165%);
+  border:1px solid rgba(255,255,255,.72);border-radius:26px;box-shadow:var(--lg-shadow);
+  padding:36px 38px 30px}
+.brand{display:flex;align-items:center;gap:10px;font-size:12.5px;letter-spacing:.1em;color:var(--ink3)}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--g500);
+  box-shadow:0 0 0 4px rgba(27,122,88,.14),0 0 12px rgba(27,122,88,.35)}
+h1{font-size:27px;line-height:1.25;margin:20px 0 8px;letter-spacing:-.01em;color:var(--g900)}
+p.lead{margin:0 0 24px;color:var(--ink2);font-size:14px;line-height:1.75}
+label{display:block;font-size:13px;color:var(--ink2);margin:16px 0 7px}
+input{width:100%;padding:13px 15px;border:1px solid var(--hairline);border-radius:14px;font-size:15px;
+  background:rgba(255,255,255,.78);color:var(--ink1);
+  transition:border-color .16s ease,box-shadow .16s ease,background .16s ease}
+input::placeholder{color:#9AA69F}
+input:focus{outline:none;border-color:rgba(27,122,88,.55);background:#fff;
+  box-shadow:0 0 0 4px rgba(27,122,88,.12)}
+button{margin-top:24px;width:100%;padding:14px 16px;border:0;border-radius:14px;
+  background:linear-gradient(158deg,#1B7A58,#0F5132);color:#fff;font-size:15px;font-weight:600;cursor:pointer;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 12px 26px -16px rgba(12,45,30,.5);
+  transition:transform .16s ease,box-shadow .16s ease,filter .16s ease}
+button:hover{transform:translateY(-1px);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.32),0 16px 32px -16px rgba(12,45,30,.55)}
+button:active{transform:translateY(0);filter:brightness(.97)}
+button:disabled{opacity:.6;cursor:progress;transform:none}
+.hint{margin-top:16px;font-size:12px;color:var(--ink3);line-height:1.7}
+.status{display:inline-flex;align-items:center;gap:8px;padding:6px 13px;border-radius:999px;
+  font-size:13px;font-weight:600;border:1px solid transparent}
+.status.ok{background:var(--g100);color:var(--g700);border-color:rgba(27,122,88,.16)}
+.status.wait{background:#FFF6E8;color:#9A5B00;border-color:rgba(154,91,0,.14)}
+.status.bad{background:#FDEDEC;color:#B42318;border-color:rgba(180,35,24,.14)}
+dl{display:grid;grid-template-columns:auto 1fr;gap:11px 20px;margin:24px 0 0;font-size:14px}
+dt{color:var(--ink3)}
+dd{margin:0;font-weight:600;word-break:break-all;color:var(--ink1)}
+.actions{margin-top:26px;display:flex;gap:12px}
+.actions a{flex:1;text-align:center;padding:12px 14px;border-radius:14px;text-decoration:none;font-size:14px;
+  border:1px solid var(--hairline);color:var(--ink1);background:rgba(255,255,255,.6);
+  transition:border-color .16s,transform .16s,background .16s}
+.actions a:hover{border-color:rgba(27,122,88,.35);background:#fff;transform:translateY(-1px)}
+.actions a.primary{background:linear-gradient(158deg,#1B7A58,#0F5132);border-color:transparent;color:#fff;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 12px 26px -18px rgba(12,45,30,.55)}
+.actions a.primary:hover{filter:brightness(1.03)}
+@media (max-width:640px){
+  body{padding:20px 14px}
+  .card{padding:26px 20px 22px;border-radius:22px}
+  h1{font-size:23px}
+  .actions{flex-direction:column}
+}
 """
 
 
@@ -655,12 +696,12 @@ def pay_page(
             f"<dt>到账账号</dt><dd>{user.get('display_name') or user.get('email') or user.get('id')}</dd>"
             "</dl>"
             '<label>支付方式</label>'
-            '<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid #1677ff;'
-            'border-radius:12px;background:#f5f9ff">'
-            '<span style="display:inline-flex;width:22px;height:22px;border-radius:6px;background:#1677ff;'
+            '<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid rgba(27,122,88,.45);'
+            'border-radius:12px;background:rgba(226,243,234,.6)">'
+            '<span style="display:inline-flex;width:22px;height:22px;border-radius:6px;background:linear-gradient(158deg,#1B7A58,#0F5132);'
             'color:#fff;font-size:12px;font-weight:700;align-items:center;justify-content:center">支</span>'
             '<span style="font-size:15px;font-weight:600">支付宝</span>'
-            '<span style="margin-left:auto;font-size:12px;color:#1677ff">推荐</span>'
+            '<span style="margin-left:auto;font-size:12px;color:#14684A">推荐</span>'
             "</div>"
             f'<button id="submit" type="submit">支付 ¥{chosen["price"]} 购买 {chosen["credits"]} 积分</button>'
             "</form>"
@@ -685,12 +726,12 @@ def pay_page(
         '<label for="amount">应付金额（元）</label>'
         f'<input id="amount" name="amount" value="{safe_amount}" inputmode="decimal" required>'
         '<label>支付方式</label>'
-        '<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid #1677ff;'
-        'border-radius:12px;background:#f5f9ff">'
-        '<span style="display:inline-flex;width:22px;height:22px;border-radius:6px;background:#1677ff;'
+        '<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid rgba(27,122,88,.45);'
+        'border-radius:12px;background:rgba(226,243,234,.6)">'
+        '<span style="display:inline-flex;width:22px;height:22px;border-radius:6px;background:linear-gradient(158deg,#1B7A58,#0F5132);'
         'color:#fff;font-size:12px;font-weight:700;align-items:center;justify-content:center">支</span>'
         '<span style="font-size:15px;font-weight:600">支付宝</span>'
-        '<span style="margin-left:auto;font-size:12px;color:#1677ff">推荐</span>'
+        '<span style="margin-left:auto;font-size:12px;color:#14684A">推荐</span>'
         "</div>"
         '<button id="submit" type="submit">前往支付宝付款</button>'
         "</form>"
@@ -715,16 +756,21 @@ def pricing_page() -> HTMLResponse:
         )
     extra_style = (
         "<style>"
-        ".plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin:22px 0 0}"
-        ".plan{display:block;padding:18px;border:1px solid #e3e6ea;border-radius:16px;text-decoration:none;color:#1f2328;"
-        "background:#fbfbfa;transition:border-color .15s ease,transform .15s ease}"
-        ".plan:hover{border-color:#1677ff;transform:translateY(-2px)}"
-        ".plan-name{font-size:13px;color:#6b7280}"
-        ".plan-credits{font-size:20px;font-weight:700;margin-top:6px}"
-        ".plan-blurb{font-size:12px;color:#8b94a3;margin-top:6px;min-height:32px}"
-        ".plan-price{font-family:Georgia,serif;font-size:26px;margin-top:10px}"
-        ".plan-cta{margin-top:12px;text-align:center;padding:9px 12px;border-radius:10px;"
-        "background:#1677ff;color:#fff;font-size:13px;font-weight:600}"
+        ".plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:14px;margin:24px 0 0}"
+        ".plan{display:flex;flex-direction:column;padding:20px 18px;border:1px solid var(--hairline);"
+        "border-radius:18px;text-decoration:none;color:var(--ink1);background:rgba(255,255,255,.62);"
+        "box-shadow:0 1px 2px rgba(12,45,30,.03),0 10px 24px -22px rgba(12,45,30,.28);"
+        "transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease,background .18s ease}"
+        ".plan:hover{transform:translateY(-3px);border-color:rgba(27,122,88,.45);background:rgba(255,255,255,.9);"
+        "box-shadow:0 18px 36px -24px rgba(12,45,30,.4)}"
+        ".plan-name{font-size:12.5px;letter-spacing:.04em;color:var(--ink3)}"
+        ".plan-credits{font-size:22px;font-weight:700;margin-top:7px;color:var(--g900);letter-spacing:-.01em}"
+        ".plan-blurb{font-size:12px;color:var(--ink3);margin-top:7px;min-height:34px;line-height:1.5}"
+        ".plan-price{font-family:Georgia,'Songti SC',serif;font-size:27px;margin-top:auto;"
+        "padding-top:14px;color:var(--g700)}"
+        ".plan-cta{margin-top:12px;text-align:center;padding:10px 12px;border-radius:12px;"
+        "background:linear-gradient(158deg,#1B7A58,#0F5132);color:#fff;font-size:13px;font-weight:600;"
+        "box-shadow:inset 0 1px 0 rgba(255,255,255,.26)}"
         "</style>"
     )
     body = (
