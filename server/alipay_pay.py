@@ -595,6 +595,7 @@ _PACKAGES = (
     {"id": "starter", "name": "入门", "credits": 100, "price": "10.00", "blurb": "偶尔写作与配图"},
     {"id": "pro", "name": "进阶", "credits": 300, "price": "29.00", "blurb": "每周稳定产出，赠 10 积分"},
     {"id": "master", "name": "专业", "credits": 1000, "price": "88.00", "blurb": "高频创作与批量改稿，赠 120 积分"},
+    {"id": "trial", "name": "体验包", "credits": 1, "price": "0.01", "blurb": "联调专用：¥0.01 得 1 积分"},
 )
 
 
