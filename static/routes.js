@@ -60,7 +60,7 @@ window.APP_NAV = (() => {
                '<path d="M8 7V5.5a4 4 0 0 1 8 0V7"/>')},
     // 独立页面（服务端渲染），不是应用内视图：不能带 view，
     // 否则 app-navigation.js 会拦下点击、SPA 把内容区清空 → 白屏。
-    {group: '资源', href: '/bookshelf', label: 'AI 书架', page: true,
+    {group: '资源', href: '/bookshelf', view: 'bookshelf', label: 'AI 书架',
      icon: svg('<path d="M4 4h6a3 3 0 0 1 2 1 3 3 0 0 1 2-1h6v15h-6a3 3 0 0 0-2 1 3 3 0 0 0-2-1H4z"/>' +
                '<path d="M12 5v15"/>')},
     {group: '账户', href: '/pricing', label: '积分套餐', page: true,

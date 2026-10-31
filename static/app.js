@@ -1706,6 +1706,7 @@ const viewMap = {
   morning: morningGenerator,
   report: reportRoot,
   market: document.querySelector('#market'),
+  bookshelf: document.querySelector('#bookshelf'),
   hotspots: document.querySelector('#hotspots'),
 };
 
@@ -1721,6 +1722,7 @@ const viewTitles = {
   morning: '早安祝福',
   report: '诊断报告',
   market: 'AI 超市',
+  bookshelf: 'AI 书架',
   hotspots: '热点广场',
 };
 
@@ -1740,6 +1742,10 @@ function setActiveView(view, updateHash = false) {
   document.body.classList.toggle('market-body', view === 'market');
   document.body.classList.toggle('hotspots-body', view === 'hotspots');
   if (view === 'market') window.MarketView?.ensureLoaded?.();
+  if (view === 'bookshelf') {
+    const frame=document.querySelector('#bookshelf-frame');
+    if(frame && !frame.hasAttribute('src'))frame.src='/bookshelf?embed=1';
+  }
   if (view === 'hotspots') window.HotspotsView?.ensureLoaded?.();
   if (downloadButton) downloadButton.hidden = view !== 'report';
   if (view === 'one-click-writing') {
@@ -1753,7 +1759,7 @@ function setActiveView(view, updateHash = false) {
     const url = view === 'home' ? '/' : `/${view === 'morning' ? 'morning-generator' : view}`;
     history.replaceState(null, '', url);
   }
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  window.scrollTo({ top: 0, behavior: 'instant' });
 }
 
 document.querySelector('#command-settings')?.addEventListener('click', openWallet);

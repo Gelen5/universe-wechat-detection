@@ -12,7 +12,9 @@ STATIC = Path(__file__).resolve().parents[1] / 'static'
 
 @router.get('/bookshelf', response_class=HTMLResponse, include_in_schema=False)
 @router.get('/bookshelf/{book_id}', response_class=HTMLResponse, include_in_schema=False)
-def page(book_id: str | None = None):
+def page(book_id: str | None = None, embed: str = '0'):
+    if book_id is None and embed != '1':
+        return HTMLResponse((STATIC / 'index.html').read_text(encoding='utf-8'))
     html = (STATIC / 'bookshelf.html').read_text(encoding='utf-8')
     if book_id:
         books = json.loads((STATIC / 'bookshelf-data.json').read_text(encoding='utf-8'))['books']

@@ -4,7 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>宇宙第一工作台</title>
-    <script src="/static/routes.js?v=20261031-xhs-extract-1"></script>
+    <script src="/static/routes.js?v=20261031-resource-nav-2"></script>
+    <style>html{scrollbar-gutter:stable}</style>
 <script src="/static/app-navigation.js?v=20261031-single-nav-2"></script>
     <style>
       /* A direct resource URL must never paint the homepage while app.js loads. */
@@ -820,6 +821,7 @@
            TAB · 诊断报告 #report（由 app.js renderReport 渲染）
            innerHTML 内容结构由 renderReport 控制，className 兼容旧选择器
            ============================================================ -->
+      <section id="bookshelf" class="skill-page" hidden aria-label="AI 书架" style="padding:0;max-width:none"><iframe id="bookshelf-frame" title="AI 书架" style="display:block;width:100%;height:calc(100dvh - 32px);border:0;border-radius:24px;background:transparent"></iframe></section>
       <section id="market" class="market-view" hidden aria-label="AI 超市">
   <div class="market-page market-v2" id="market-main">
     <section class="market-hero">
@@ -983,7 +985,7 @@
     <script src="/static/vendor/lucide.min.js"></script>
     <script src="/static/market.js?v=20261026-loading-1" defer></script>
     <script src="/static/auth-challenge.js?v=20261031-glass-2"></script>
-    <script src="/static/app.js?v=20261031-native-type-1"></script>
+    <script src="/static/app.js?v=20261031-resource-nav-2"></script>
     <script src="/static/flow.js?v=20260904-tools-1"></script>
     <script src="/static/studio-tools.js?v=20261028-tietu-1"></script>
     <link rel="stylesheet" href="/static/creator-chat.css?v=20260906-conversation-1">
