@@ -1,5 +1,11 @@
 /* Shared navigation behavior for the app and standalone resource pages. */
 (() => {
+  // Standalone resource pages use the same sign-in requirement as the main shell.
+  if (!document.getElementById('auth-modal') && !new URLSearchParams(location.search).has('embed')) {
+    fetch('/api/auth/me',{credentials:'same-origin',cache:'no-store'}).then(r=>{
+      if(r.status===401)location.replace('/?register=1');
+    }).catch(()=>{});
+  }
   const nav = document.querySelector('.v3-topbar .app-tabs');
   if (!nav) return;
   // 清单来自 /static/routes.js：不再在本文件维护第二份路由表。

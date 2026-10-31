@@ -263,9 +263,12 @@ function renderWallet(wallet = {}) {
 }
 
 function showAuth(force = false) {
-  if (authDismissed && !force) return;
+  if (currentAccount) return;
   if (force) authDismissed = false;
   if (authModal && authModal.hidden) {
+    if (!authModal.dataset.initialModeSet) { setAuthMode('register'); authModal.dataset.initialModeSet='true'; }
+    const close=document.querySelector('#auth-close');if(close)close.hidden=true;
+    for(const child of appShell?.children||[])if(!child.contains(authModal)&&child!==authModal)child.inert=true;
     authModal.hidden = false;
     document.body.classList.add('auth-open');
     // Keep the keyboard closed on touch devices until a field is chosen.
@@ -276,6 +279,7 @@ function showAuth(force = false) {
 function hideAuth() {
   if (authModal) authModal.hidden = true;
   document.body.classList.remove('auth-open');
+  for(const child of appShell?.children||[])child.inert=false;
 }
 
 function setAuthMode(mode) {
@@ -296,6 +300,7 @@ function setAuthMode(mode) {
 }
 
 function dismissAuth() {
+  if (!currentAccount) return;
   authDismissed = true;
   hideAuth();
   document.querySelector('#logout-button')?.focus({preventScroll:true});
@@ -376,6 +381,7 @@ document.querySelector('#auth-form')?.addEventListener('submit', async event => 
     window.dispatchEvent(new Event('account-changed'));
     syncAdminVisibility();
     renderWallet(data.wallet);
+    hideAuth();
     document.querySelector('#wallet-user-line').textContent = `${currentAccount.display_name} · ${currentAccount.email}`;
     document.querySelector('.api-live-dot')?.classList.remove('offline');
     hideAuth();
