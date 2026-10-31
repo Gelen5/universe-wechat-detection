@@ -402,6 +402,23 @@ def _page_pay_form(
 
 
 # ------------------------------------------------------------------ 验签
+def _sign_content(params: dict[str, str]) -> str:
+    """按支付宝验签规则拼接待验签内容。
+
+    规则：去掉 ``sign`` 和 ``sign_type``，剔除空值参数，按 key 字典序升序，
+    用 ``k=v`` 以 ``&`` 连接。SDK 自带的 ``get_sign_content`` 不剔除空值，
+    遇到支付宝通知里常见的空字段会导致验签必然失败。
+    """
+
+    items = [
+        (str(key), str(value))
+        for key, value in params.items()
+        if key not in ("sign", "sign_type") and str(value) != ""
+    ]
+    items.sort(key=lambda item: item[0])
+    return "&".join(f"{key}={value}" for key, value in items)
+
+
 def verify_alipay_signature(params: dict[str, str], config: dict[str, str] | None = None) -> bool:
     """用项目已安装的支付宝 SDK 验签能力校验同步/异步参数的 sign。"""
 
@@ -410,8 +427,21 @@ def verify_alipay_signature(params: dict[str, str], config: dict[str, str] | Non
         return False
     config = config or load_payment_config()
     payload = {key: value for key, value in params.items() if key not in ("sign", "sign_type")}
+    content = _sign_content(payload)
     try:
-        return bool(verify_with_rsa(config["alipay_public_key"], get_sign_content(payload), sign))
+        if bool(verify_with_rsa(config["alipay_public_key"], content, sign)):
+            return True
+        # 兼容 SDK 原始拼接（不剔除空值）的报文，避免历史通知重放时全部失败。
+        legacy = get_sign_content(payload)
+        if legacy != content and bool(verify_with_rsa(config["alipay_public_key"], legacy, sign)):
+            return True
+        logger.warning(
+            "alipay signature rejected: params=%d empty=%s content_len=%d",
+            len(payload),
+            sorted(key for key, value in payload.items() if str(value) == ""),
+            len(content),
+        )
+        return False
     except Exception:  # noqa: BLE001 - 验签异常一律视为未通过
         logger.warning("alipay signature check raised", exc_info=True)
         return False
