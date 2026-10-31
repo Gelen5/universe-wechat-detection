@@ -417,7 +417,12 @@ body { color: var(--text); background: var(--canvas); }
 .field-wide { margin-top: 14px; }
 .skill-primary { width: 100%; margin-top: 20px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 8px; background: var(--accent); box-shadow: none; }
 .skill-primary svg { width: 17px; height: 17px; }
-.button-spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.42); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; }
+/* 等待态转圈。曾经只给了宽高没给 display，而 span 默认是行内元素 —— 行内元素的
+   width/height 会被忽略，只剩 4px 的边框，于是「圆」被压成一个小扁圈。
+   在 .skill-primary（display:flex）里它是 flex item，会被阻断化，所以那些按钮
+   一直正常；登录按钮是普通的 inline-block button，才把这个问题露出来。
+   display:inline-block + box-sizing 让它不依赖父元素的布局模式。 */
+.button-spinner { display: inline-block; box-sizing: border-box; width: 14px; height: 14px; vertical-align: -2px; border: 2px solid rgba(255,255,255,.42); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 .output-empty { min-height: 590px; display: grid; place-content: center; justify-items: center; text-align: center; color: var(--muted); }

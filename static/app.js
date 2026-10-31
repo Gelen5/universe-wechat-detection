@@ -1457,7 +1457,7 @@ function beginButton(button, label) {
   button.disabled = true;
   const status = document.createElement('p');status.className='wait-elapsed';status.setAttribute('role','status');
   button.after(status);
-  const paint=()=>{const seconds=Math.floor((performance.now()-started)/1000);const time=`${Math.floor(seconds/60)}分${String(seconds%60).padStart(2,'0')}秒`;button.innerHTML=`<span class="button-spinner"></span>${esc(label)} · ${time}`;status.textContent=label.includes('拆解') ? `已等待 ${time} · 参考范围1—4分钟，含视觉分析、方案组织及必要的数据核实。${seconds>180?'耗时偏长，请勿重复提交。':''}` : `已等待 ${time}${label.includes('原创图')?' · 图片一般每张约30—120秒，多张按顺序处理。':''}`;};
+  const paint=()=>{const seconds=Math.floor((performance.now()-started)/1000);const time=`${Math.floor(seconds/60)}分${String(seconds%60).padStart(2,'0')}秒`;/* 转圈后面的空格是给普通 button 的间距；flex 按钮会忽略纯空白文本节点，仍然吃 gap */button.innerHTML=`<span class="button-spinner"></span> ${esc(label)} · ${time}`;status.textContent=label.includes('拆解') ? `已等待 ${time} · 参考范围1—4分钟，含视觉分析、方案组织及必要的数据核实。${seconds>180?'耗时偏长，请勿重复提交。':''}` : `已等待 ${time}${label.includes('原创图')?' · 图片一般每张约30—120秒，多张按顺序处理。':''}`;};
   paint();const timer=setInterval(paint,1000);
   return () => { clearInterval(timer);status.textContent=`本次用时 ${((performance.now()-started)/1000).toFixed(1)} 秒`;button.disabled = false; button.innerHTML = original; window.lucide?.createIcons(); };
 }
