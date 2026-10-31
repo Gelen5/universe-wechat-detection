@@ -420,7 +420,11 @@ def _sign_content(params: dict[str, str]) -> str:
 
 
 def verify_alipay_signature(params: dict[str, str], config: dict[str, str] | None = None) -> bool:
-    """用项目已安装的支付宝 SDK 验签能力校验同步/异步参数的 sign。"""
+    """用项目已安装的支付宝 SDK 验签能力校验同步/异步参数的 sign。
+
+    注意：当前 ``rsa`` 版本要求待验签内容是 bytes；直接传 str 会在
+    ``rsa.verify`` 内部抛 AssertionError，表现为“所有通知验签失败”。
+    """
 
     sign = str(params.get("sign") or "").strip()
     if not sign:
@@ -429,11 +433,13 @@ def verify_alipay_signature(params: dict[str, str], config: dict[str, str] | Non
     payload = {key: value for key, value in params.items() if key not in ("sign", "sign_type")}
     content = _sign_content(payload)
     try:
-        if bool(verify_with_rsa(config["alipay_public_key"], content, sign)):
+        if bool(verify_with_rsa(config["alipay_public_key"], content.encode("utf-8"), sign)):
             return True
         # 兼容 SDK 原始拼接（不剔除空值）的报文，避免历史通知重放时全部失败。
         legacy = get_sign_content(payload)
-        if legacy != content and bool(verify_with_rsa(config["alipay_public_key"], legacy, sign)):
+        if legacy != content and bool(
+            verify_with_rsa(config["alipay_public_key"], legacy.encode("utf-8"), sign)
+        ):
             return True
         logger.warning(
             "alipay signature rejected: params=%d empty=%s content_len=%d",
