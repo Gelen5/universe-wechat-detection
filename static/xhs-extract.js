@@ -55,10 +55,10 @@
   }
   function renderMedia() {
     if (note.kind !== 'video') return imageViewer();
-    if (!note.video?.url) return `<p class="xe-media-note">这条视频暂未返回可播放地址${images.length ? '，先展示封面。' : '。'}</p>${imageViewer()}`;
+    if (!safeLink(note.video?.url)) return `<p class="xe-media-note">这条视频暂未返回可播放地址${images.length ? '，先展示封面。' : '。'}</p>${imageViewer()}`;
     const video = note.video;
     const details = [video.width && video.height ? `${video.width}×${video.height}` : '', video.quality || ''].filter(Boolean).join(' · ');
-    const poster = video.poster || images[0]?.url;
+    const poster = safeLink(video.poster) || safeLink(images[0]?.url);
     return `<div class="xe-section-head"><h3>视频素材</h3><span>${esc(details)}</span></div>
       <video class="xe-video" controls playsinline preload="metadata" ${poster ? `poster="${esc(mediaSrc(poster))}"` : ''}><source src="${esc(mediaSrc(video.url))}" type="video/mp4">当前浏览器无法播放，请使用“打开视频”。</video>
       <div class="xe-media-note xe-video-error" hidden>视频暂时无法播放，可以重新加载或打开视频。 <button type="button" class="xe-button" data-xe-reload-video>重新加载视频</button></div>

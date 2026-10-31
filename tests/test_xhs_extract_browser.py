@@ -76,11 +76,13 @@ def test_video_only_renders_player_when_video_url_exists(ui):
     expect(page.locator('.xe-media-note')).to_contain_text('暂未返回可播放地址')
     expect(page.locator('.xe-badges')).to_contain_text('视频作品')
     expect(page.locator('.xe-thumbs')).to_have_count(0)
-    state['note']['video'] = {'url':'https://sns-video.xhscdn.com/test.mp4','width':1080,'height':1920}
+    state['note']['video'] = {'url':'https://sns-video.xhscdn.com/test.mp4','width':1080,'height':1920,'poster':'bare-file-id'}
     page.locator('#xhs-extract-start').click()
     expect(page.locator('video.xe-video')).to_have_count(1)
     expect(page.locator('.xe-cover')).to_be_visible()
     expect(page.locator('.xe-main-image')).to_have_count(0)
+    assert 'bare-file-id' not in page.locator('video').get_attribute('poster')
+    assert '0.png' in page.locator('video').get_attribute('poster')
 
 
 def test_wait_timer_duplicate_guard_and_mobile_layout(ui):
