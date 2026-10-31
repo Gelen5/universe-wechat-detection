@@ -203,7 +203,10 @@ def generate_viral_remix_image(session_id: str, idea: dict[str, Any]) -> dict[st
                 if not re.fullmatch(r'#[0-9a-fA-F]{6}',color):
                     raise workbench.ProviderError('标题颜色配置无效，请重新拆解')
             spec.pop('preset',None)
-            spec['layers']=[{'type':'text','text':str(page.get('headline') or ''),'box':box,'size':104,'min_size':42,'max_lines':4,'color':title_color,'font':'hei','align':'left','valign':'center','line_gap':1.15}, {'type':'text','text':str(page.get('accent_text') or ''),'box':[0.06,0.54,0.92,0.66],'size':76,'min_size':36,'max_lines':2,'color':accent_color,'font':'hei'}, {'type':'text','text':str(page.get('subtitle') or ''),'box':[0.06,0.87,0.94,0.96],'size':34,'min_size':22,'max_lines':2,'color':title_color,'font':'hei'}]
+            title = str(page.get('headline') or '')
+            longest = max((len(line) for line in title.split('\n')), default=1)
+            title_size = min(104, int((box[2]-box[0])*1080/max(1,longest)*0.92))
+            spec['layers']=[{'type':'text','text':title,'box':box,'size':max(36,title_size),'min_size':30,'max_lines':4,'color':title_color,'font':'hei','align':'left','valign':'center','line_gap':1.15}, {'type':'text','text':str(page.get('accent_text') or ''),'box':[0.06,0.54,0.92,0.66],'size':76,'min_size':36,'max_lines':2,'color':accent_color,'font':'hei'}, {'type':'text','text':str(page.get('subtitle') or ''),'box':[0.06,0.87,0.94,0.96],'size':34,'min_size':22,'max_lines':2,'color':title_color,'font':'hei'}]
             if len(cards)>1:
                 spec['layers'].append({'type':'text','text':f'{index}/{len(cards)}','box':[0.85,0.025,0.96,0.065],'size':24,'color':title_color,'font':'hei'})
         compose.render(compose.expand_preset(spec) if spec.get('preset') else spec)
