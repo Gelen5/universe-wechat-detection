@@ -461,7 +461,7 @@ def _clean_label(text: str, limit: int = 22) -> str:
     return value[:limit].rstrip()
 
 
-def build_image_prompt(slot: dict[str, Any]) -> str:
+def build_image_prompt(slot: dict[str, Any], cover_style: str = "compare") -> str:
     form = slot.get("form")
     headline = slot.get("headline") or ""
     detail = slot.get("detail") or ""
@@ -476,15 +476,36 @@ def build_image_prompt(slot: dict[str, Any]) -> str:
         sub = _clean_label(str(items[0])) if items else ""
         bottom = _clean_label(str(items[1])) if len(items) > 1 else ""
         scene = _safe_scene(brief)
-        kicker_line = f"顶部一行小号金色中文「{kicker}」。" if kicker else ""
+        badge = (facts[0] if facts else "") or kicker
+        if cover_style == "number":
+            return (
+                "竖版数字冲击海报，纯黑背景，极简大字报风格。"
+                "画面中央是巨大的白色中文粗体「" + headline + "」，占画面宽度九成、高度约四成，"
+                "是整个画面的绝对主角。"
+                f"其下一行亮黄色中文粗体「{sub}」，字高约百分之八。"
+                + (f"再下一行白色小字「{bottom}」。 " if bottom else " ")
+                + f"底部一行浅灰小字「{badge}」。 "
+                "背景只有很淡的设计网格、色板和字体线稿，不抢主体。"
+                "文字锐利，高对比。" + STYLE_SUFFIX
+            )
+        if cover_style == "object":
+            return (
+                "竖版实物海报，深色桌面上的静物特写，强侧光，印刷品质感。"
+                f"画面主体：{scene}。"
+                f"画面上方压一行粗体白色中文「{headline}」，占画面宽度八成，字重很粗。"
+                f"其后一行浅灰中文小字「{sub}」。"
+                + (f"右下角一枚亮黄色标签，写黑色中文「{badge}」。 " if badge else " ")
+                + "构图干净，主体清晰，只有一个视觉焦点。" + STYLE_SUFFIX
+            )
+        # compare：默认，问题状态 vs 解决状态的强对比
         return (
-            "竖版财经杂志封面设计，深黑蓝色背景，高级商业质感。"
-            f"{kicker_line}"
-            f"画面中部是超大的金色文字「{headline}」，无衬线粗体，占画面宽度的九成，是绝对视觉中心。"
-            f"其下一行白色粗体中文「{sub}」。"
-            f"画面主体：{scene}，从画面底部延伸上来托住文字，画面里只有物件与光影。"
-            f"底部一行浅金色中文「{bottom}」。"
-            "画面只出现以上这几行文字。黑金配色，对比强烈，像商业杂志封面。" + STYLE_SUFFIX
+            "竖版对比海报，画面上下（或左右）分成两半，中间一条粗黑分隔线。"
+            f"一半是问题状态：{scene}，配色刺眼、排版混乱、元素歪斜；"
+            "另一半是解决后的状态：同样的主体，配色克制、网格整齐、留白干净。"
+            f"画面上方压一行超大红色中文「{headline}」，粗黑体，是画面最强的视觉元素。"
+            f"其下一行白色中文「{sub}」。"
+            + (f"角落一枚亮黄色徽章，写黑色中文「{badge}」。 " if badge else " ")
+            + "背景深灰，对比强烈，文字锐利。" + STYLE_SUFFIX
         )
 
     if form == "data":
@@ -756,6 +777,7 @@ class GenerateBody(BaseModel):
     job_id: str = Field(min_length=4, max_length=32)
     slot_id: str = Field(min_length=1, max_length=40)
     headline: str | None = Field(default=None, max_length=24)
+    cover_style: str | None = Field(default=None, pattern="^(compare|number|object)$")
 
 
 @router.post("/plan", status_code=201)
@@ -809,7 +831,7 @@ def generate_one(payload: GenerateBody, request: Request):
             slot["headline"] = _clip(payload.headline, 24)
             _write_job(job)
 
-    prompt = build_image_prompt(slot)
+    prompt = build_image_prompt(slot, cover_style=payload.cover_style or "compare")
     try:
         raw = generate_slot_image(prompt)
     except Exception as exc:  # noqa: BLE001 - 前端需要可读的失败原因

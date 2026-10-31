@@ -129,3 +129,16 @@
 .av-editor input:focus { border-color: var(--ikb); }
 .av-editor .av-editor-hint { margin: 6px 0 0; font-size: 11.5px; color: var(--text-4); }
 .av-price { font-size: 12px; color: var(--text-4); margin-left: 2px; }
+
+/* SPA 内嵌：skill-page 已提供页面留白，这里只管内容宽度 */
+.av-shell { width: min(1160px, 100%); margin: 0 auto; }
+#article-visual .av-panel { border-radius: 18px; }
+.av-cover-styles { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 14px 0 0; }
+.av-cover-styles-label { font-size: 12px; color: var(--text-4); margin-right: 2px; }
+.av-style-chip {
+  height: 32px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line-2);
+  background: var(--bg); color: var(--text-2); font-size: 13px; cursor: pointer;
+  transition: border-color .15s, background .15s, color .15s;
+}
+.av-style-chip:hover { border-color: var(--line-4); }
+.av-style-chip.is-active { border-color: var(--ikb); background: var(--ikb); color: #fff; }

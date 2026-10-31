@@ -108,7 +108,7 @@ def test_cover_prompt_drops_people_scene():
         }
     )
     assert "晚宴圆桌" not in prompt
-    assert "只有物件与光影" in prompt
+    assert "一件与文章主题相关的核心物件" in prompt
 
 
 def test_parse_invalid_link_gets_actionable_hint():

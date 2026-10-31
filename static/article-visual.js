@@ -12,7 +12,12 @@
     quote: "金句",
   };
 
-  const state = { job: null, activeId: null, busy: false, stamp: 0 };
+  const state = { job: null, activeId: null, busy: false, stamp: 0, coverStyle: "compare" };
+  const COVER_STYLES = [
+    { id: "compare", label: "对比式", hint: "问题 vs 解决，冲突最强" },
+    { id: "number", label: "数字式", hint: "大数字砸脸，缩略图最清楚" },
+    { id: "object", label: "实物式", hint: "实物特写，最有质感" },
+  ];
 
   const $ = (id) => document.getElementById(id);
   const els = {
@@ -33,6 +38,7 @@
     previewImg: $("av-preview-img"),
     previewEmpty: $("av-preview-empty"),
     actions: $("av-actions"),
+    coverStyles: $("av-cover-styles"),
     editor: $("av-editor"),
     note: $("av-note"),
     galleryPanel: $("av-gallery-panel"),
@@ -197,8 +203,37 @@
     els.stageStatus.className = "av-stage-status" + (kind ? ` is-${kind}` : "");
   }
 
+  function renderCoverStyles(slot) {
+    if (!els.coverStyles) return;
+    if (slot.form !== "cover") {
+      els.coverStyles.hidden = true;
+      els.coverStyles.innerHTML = "";
+      return;
+    }
+    els.coverStyles.hidden = false;
+    els.coverStyles.innerHTML = "";
+    const label = document.createElement("span");
+    label.className = "av-cover-styles-label";
+    label.textContent = "封面样式";
+    els.coverStyles.appendChild(label);
+    COVER_STYLES.forEach((style) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "av-style-chip" + (state.coverStyle === style.id ? " is-active" : "");
+      button.title = style.hint;
+      button.textContent = style.label;
+      button.addEventListener("click", () => {
+        state.coverStyle = style.id;
+        renderCoverStyles(slot);
+        els.note.textContent = `已选「${style.label}」：${style.hint}。点「重做这张」按这个样式生成。`;
+      });
+      els.coverStyles.appendChild(button);
+    });
+  }
+
   function renderStage(slot, slots) {
     els.stageTitle.textContent = `${FORM_LABEL[slot.form] || "图位"} · ${slot.headline || ""}`.trim();
+    renderCoverStyles(slot);
     const url = imageUrl(slot.id);
     if (url) {
       els.previewImg.src = url;
@@ -328,7 +363,12 @@
     try {
       const result = await api("/api/article-visual/generate", {
         method: "POST",
-        body: JSON.stringify({ job_id: state.job.id, slot_id: slotId, headline: slot ? slot.headline : undefined }),
+        body: JSON.stringify({
+          job_id: state.job.id,
+          slot_id: slotId,
+          headline: slot ? slot.headline : undefined,
+          cover_style: slot && slot.form === "cover" ? state.coverStyle : undefined,
+        }),
       });
       state.job.images[slotId] = { file: result.url.split("/").pop().split("?")[0] };
       const target = state.job.slots.find((s) => s.id === slotId);
@@ -447,12 +487,20 @@
     if (event.key === "Enter") analyze();
   });
 
-  api("/api/auth/me")
-    .then((data) => {
-      const user = (data && (data.user || data)) || {};
-      $("av-user").textContent = user.display_name || user.email || "已登录";
+  // SPA 内嵌视图：切到这个 tab 时才初始化一次（保留 URL 里的 job 续接）。
+  let booted = false;
+  window.ArticleVisual = {
+    ensureLoaded() {
+      if (booted) return;
+      booted = true;
       const jobId = new URLSearchParams(window.location.search).get("job");
       if (jobId) loadJob(jobId).catch(() => {});
-    })
-    .catch(() => { /* api() 已处理 401 跳转 */ });
+      els.url.focus();
+    },
+  };
+
+  // 直接打开 /article-visual 时 app.js 可能早于本脚本初始化，补一次首屏初始化。
+  if (location.pathname.replace(/\/+$/, "") === "/article-visual") {
+    window.ArticleVisual.ensureLoaded();
+  }
 })();
