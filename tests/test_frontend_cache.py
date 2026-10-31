@@ -78,7 +78,7 @@ def test_new_view_is_declared_in_both_the_page_and_the_bundle():
     root = Path(__file__).resolve().parents[1]
     html = (root / 'static/index.html').read_text(encoding='utf-8')
     bundle = (root / 'static/app.js').read_text(encoding='utf-8')
-    for view in ('xhs-extract', 'viral-remix'):
+    for view in ('xhs-extract', 'douyin-extract', 'viral-remix'):
         assert f'id="{view}"' in html, f'{view} section missing from index.html'
         assert f"'{view}':" in bundle, f'{view} missing from app.js view map'
 

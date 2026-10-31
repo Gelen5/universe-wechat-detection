@@ -28,6 +28,7 @@ from .hotspots import router as hotspots_router
 from .lowfans import router as lowfans_router
 from . import lowfans_sync
 from .xhs_extract import router as xhs_extract_router
+from .douyin_extract import router as douyin_extract_router
 from .alipay_pay import router as alipay_pay_router
 from .wallet_page import router as wallet_page_router
 from .bill_page import router as bill_page_router
@@ -72,6 +73,7 @@ app.include_router(market_router)
 app.include_router(hotspots_router)
 app.include_router(lowfans_router)
 app.include_router(xhs_extract_router)
+app.include_router(douyin_extract_router)
 app.include_router(alipay_pay_router)
 app.include_router(wallet_page_router)
 app.include_router(bill_page_router)
@@ -1408,7 +1410,7 @@ def index():
 
 # 每个功能 tab 对应一个真实路径（/workbench、/xiaohongshu、/tie-tu、/hit-detector、/morning-generator），
 # 由前端 SPA 根据 pathname 渲染对应 section；其余路径交给 /static 与 /api。
-TAB_PAGES = {"wechat-plus", "one-click-writing", "diagnose", "workbench", "xiaohongshu", "tie-tu", "viral-remix", "xhs-extract", "hit-detector", "morning-generator"}
+TAB_PAGES = {"wechat-plus", "one-click-writing", "diagnose", "workbench", "xiaohongshu", "tie-tu", "viral-remix", "xhs-extract", "douyin-extract", "hit-detector", "morning-generator"}
 
 
 @app.get("/{tab}", include_in_schema=False)

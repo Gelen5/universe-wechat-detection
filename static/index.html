@@ -73,6 +73,7 @@
 <script src="/static/points-notice.js?v=20261031-points-packages-1" defer></script>
 <link rel="stylesheet" href="/static/viral-remix.css?v=20261031-remix-output-tab-1">
 <link rel="stylesheet" href="/static/xhs-extract.css?v=20261031-extract-1">
+<link rel="stylesheet" href="/static/douyin-extract.css?v=20261031-douyin-1">
 <link rel="stylesheet" href="/static/review-studio.css?v=20261031-mint-1">
 <link rel="stylesheet" href="/static/referrals.css?v=20261031-invite-1">
 </head>
@@ -132,6 +133,10 @@
           <a data-view="xhs-extract" href="/xhs-extract">
             <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="3.5" width="12" height="17" rx="2.5"/><path d="M19 8.5v9a2.5 2.5 0 0 1-2.5 2.5H8"/><path d="M7 8h4.5M7 12h3"/></svg>
             <span>小红书内容提取</span>
+          </a>
+          <a data-view="douyin-extract" href="/douyin-extract">
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.5 3v9.2a3.6 3.6 0 1 1-3.1-3.57"/><path d="M15.5 5.4a5 5 0 0 0 4.3 4.2"/><rect x="2.5" y="2.5" width="19" height="19" rx="5.5" opacity=".35"/></svg>
+            <span>抖音内容提取</span>
           </a>
           <a data-view="hit-detector" href="/hit-detector">
             <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><polyline points="9 12 11 14 15 10"/></svg>
@@ -490,6 +495,55 @@
             </div>
             <div id="xhs-extract-result" class="xhs-extract-result" hidden></div>
             <div id="xhs-extract-error" class="xhs-extract-error" role="alert" hidden></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           TAB · /douyin-extract — 抖音内容提取
+           ============================================================ -->
+      <section id="douyin-extract" class="skill-page douyin-extract" hidden>
+        <div class="v3-meta">
+          <span class="l"><span class="line"></span><span>CREATOR WORKSPACE / DOUYIN</span></span>
+          <span class="r"><i></i>抖音内容提取</span>
+        </div>
+        <div class="skill-shell">
+          <div class="skill-form-col">
+            <span class="micro-label"><span class="line"></span><span>LINK → 素材</span></span>
+            <h1>粘一条抖音，<br>把作品<span class="serif">拆成素材</span>。</h1>
+            <p>提取文案、话题标签、作者与互动数据，视频给最高码率的播放地址，图文逐张给原图。只读公开内容，不碰私信和登录态。</p>
+
+            <form id="douyin-extract-form" class="skill-form">
+              <div class="form-section">
+                <div class="head"><span class="num">01</span><div class="copy"><strong>作品链接</strong><small>短链、完整链接、分享文案都行</small></div></div>
+                <label class="field-wide">粘贴链接或分享文案
+                  <textarea id="douyin-extract-url" name="url" autocomplete="off" required rows="3" placeholder="https://v.douyin.com/… 或 https://www.douyin.com/video/…"></textarea>
+                </label>
+                <p class="douyin-extract-hint">
+                  <b>怎么拿到：</b>在抖音打开作品 → 「分享」→「复制链接」→ 整段粘进来。
+                  分享文案里夹着说明文字也没关系，会自动认出那条链接；只粘作品 ID 也可以。
+                </p>
+              </div>
+
+              <button id="douyin-extract-start" class="skill-primary" type="submit">开始提取 →</button>
+              <p class="douyin-extract-notice">每提取一次扣 1 积分，提取失败会自动退还。请只用于已获授权的素材整理与二创参考，不要直接搬运他人作品。</p>
+            </form>
+          </div>
+
+          <div class="skill-output-col" aria-live="polite">
+            <div id="douyin-extract-empty" class="skill-empty douyin-extract-empty">
+              <span class="tag">提取工作流 <span class="dy-dot"></span> 准备开始</span>
+              <h2>先拿到干净素材，<br>再谈二创。</h2>
+              <p>一次提取会给出结构化元数据、文案原文，以及全部原图或最高码率的视频地址。</p>
+              <ol class="dy-steps" aria-label="抖音内容提取流程">
+                <li><b>01</b><span>粘贴作品链接</span></li>
+                <li><b>02</b><span>解析作品数据</span></li>
+                <li><b>03</b><span>取原图 / 转存视频</span></li>
+                <li><b>04</b><span>整理进你的内容库</span></li>
+              </ol>
+            </div>
+            <div id="douyin-extract-result" class="douyin-extract-result" hidden></div>
+            <div id="douyin-extract-error" class="douyin-extract-error" role="alert" hidden></div>
           </div>
         </div>
       </section>
@@ -1066,6 +1120,7 @@
     <script src="/static/creator-chat.js?v=20261030-image-timer-1"></script>
     <script src="/static/notion-workspace.js?v=20261031-hide-diagnose-1"></script>
     <script src="/static/xhs-extract.js?v=20261031-extract-1"></script>
+    <script src="/static/douyin-extract.js?v=20261031-douyin-1"></script>
     <script>
       // CDN/embedded clients may retain an older sidebar builder. Keep these
       // entries in the HTML response as a final, cache-independent insertion.
@@ -1077,8 +1132,8 @@
           const nav = document.querySelector('.app-tabs');
           let anchor = nav?.querySelector('[data-view="tie-tu"]');
           if (!nav || !anchor) return;
-          // 只要排在贴图号之后的条目：爆款贴图复刻、小红书内容提取。
-          const wanted = ['/viral-remix', '/xhs-extract'];
+          // 只要排在贴图号之后的条目：爆款贴图复刻、小红书内容提取、抖音内容提取。
+          const wanted = ['/viral-remix', '/xhs-extract', '/douyin-extract'];
           for (const href of wanted) {
             const spec = NAV.itemFor(href);
             if (!spec) continue;

@@ -19,18 +19,22 @@ STATIC = Path(__file__).resolve().parents[1] / 'static'
 # whenever a module is added: the point is that all three renderers agree with
 # this list, not that the list never changes.
 LEGACY_SHELL_ROUTES = [
-    ['/', '首页', '首页'], ['/hotspots', '热点广场'], ['/workbench', '公众号创作', '创作'],
+    ['/', '首页', '首页'], ['/hotspots', '热点广场'], ['/lowfans', '低粉爆文'],
+    ['/workbench', '公众号创作', '创作'],
+    ['/wechat-plus', '公众号创作 Plus'],
     ['/one-click-writing', '公众号一键成文', '一键成文'],
     ['/xiaohongshu', '小红书'], ['/tie-tu', '贴图号'], ['/viral-remix', '爆款贴图复刻'],
     ['/xhs-extract', '小红书内容提取'],
+    ['/douyin-extract', '抖音内容提取'],
     ['/morning-generator', '早安祝福'],
     ['/hit-detector', '发布前复核'],
     ['/market', 'AI 超市', '超市'], ['/bookshelf', 'AI 书架'],
     ['/pricing', '积分套餐'],
 ]
 LEGACY_NOTION_PLAN = [
-    ['内容创作', ['/hotspots', '/workbench', '/one-click-writing', '/xiaohongshu',
-                  '/tie-tu', '/viral-remix', '/xhs-extract', '/morning-generator']],
+    ['内容创作', ['/hotspots', '/lowfans', '/workbench', '/wechat-plus', '/one-click-writing',
+                  '/xiaohongshu', '/tie-tu', '/viral-remix', '/xhs-extract', '/douyin-extract',
+                  '/morning-generator']],
     ['分析', ['/hit-detector']],
     ['资源', ['/market', '/bookshelf']],
     ['账户', ['/pricing']],
@@ -38,7 +42,9 @@ LEGACY_NOTION_PLAN = [
 LEGACY_VIEWS = {
     '/': 'home', '/workbench': 'workbench', '/one-click-writing': 'one-click-writing',
     '/xiaohongshu': 'xiaohongshu', '/tie-tu': 'tie-tu', '/viral-remix': 'viral-remix',
+    '/lowfans': 'lowfans',
     '/xhs-extract': 'xhs-extract',
+    '/douyin-extract': 'douyin-extract',
     '/diagnose': 'diagnose', '/hit-detector': 'hit-detector',
     '/morning-generator': 'morning', '/market': 'market', '/hotspots': 'hotspots',
     # 书架现在内嵌在常驻外壳里（section + iframe），所以是应用内视图。
@@ -55,7 +61,7 @@ def _dump():
         "const n = window.APP_NAV;"
         "const views = {};"
         "for (const p of ['/', '/workbench', '/one-click-writing', '/xiaohongshu', '/tie-tu', '/pricing', '/bookshelf',"
-        " '/viral-remix', '/xhs-extract', '/diagnose', '/hit-detector', '/morning-generator', '/market', '/hotspots'])"
+        " '/viral-remix', '/xhs-extract', '/douyin-extract', '/lowfans', '/diagnose', '/hit-detector', '/morning-generator', '/market', '/hotspots'])"
         " views[p] = n.viewFor(p);"
         "process.stdout.write(JSON.stringify({shell: n.shellRoutes, plan: n.notionPlan,"
         " extras: n.extras.map(e => e.href), views}));"
@@ -85,7 +91,10 @@ class SingleSourceTests(unittest.TestCase):
     def test_only_the_fallback_entries_are_created(self):
         # Entries absent from the server-rendered HTML declare fallback: true so
         # every renderer can build them instead of silently dropping them.
-        self.assertEqual(['/hotspots', '/xhs-extract', '/pricing'], self.data['extras'])
+        self.assertEqual(
+            ['/hotspots', '/lowfans', '/wechat-plus', '/xhs-extract', '/douyin-extract', '/pricing'],
+            self.data['extras'],
+        )
 
     def test_every_legacy_view_mapping_is_preserved(self):
         self.assertEqual(LEGACY_VIEWS, self.data['views'])

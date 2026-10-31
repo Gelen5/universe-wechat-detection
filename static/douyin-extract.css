@@ -1,0 +1,421 @@
+/*
+ * douyin-extract.css — 抖音内容提取（/douyin-extract）
+ * ────────────────────────────────────────────────────────────────
+ * 材质沿用全站液态玻璃：直接吃 liquid-glass.css 的 --lg-* 令牌，
+ * 不另起一套色板，避免这个页面看起来像「另一个产品」。
+ *
+ * 用材分级（和 liquid-glass.css 的约定一致）：
+ *   A 级真玻璃：左右两块主面片（表单 / 结果）
+ *   B 级磨砂片：元数据格、图片格、提示条 —— 只给白度和发丝边，不做模糊
+ *
+ * 交互层只做一件事：把「提取出来的素材」排成能直接用的样子，
+ * 不在这里重复实现任何抓取逻辑。
+ * ────────────────────────────────────────────────────────────────
+ */
+
+/* ---------------- 00 页面骨架 ---------------- */
+body #douyin-extract {
+  padding: 36px 40px !important;
+  background: transparent !important;
+  border: 0 !important;
+}
+
+#douyin-extract .v3-meta { display: flex !important; margin-bottom: 24px; color: #638675; }
+
+#douyin-extract .skill-shell {
+  display: grid !important;
+  grid-template-columns: minmax(340px, 420px) minmax(0, 1fr) !important;
+  gap: 24px !important;
+  align-items: start;
+}
+
+/* A 级：两块主面片 */
+#douyin-extract .skill-form-col,
+#douyin-extract .skill-output-col {
+  position: relative;
+  min-width: 0;
+  padding: 30px !important;
+  border: 1px solid var(--lg-edge, rgba(255, 255, 255, .72)) !important;
+  border-radius: 24px !important;
+  background-color: var(--lg-fill, rgba(255, 255, 255, .73)) !important;
+  background-image: var(--lg-hi, linear-gradient(148deg, rgba(255, 255, 255, .9), rgba(255, 255, 255, 0) 58%)) !important;
+  box-shadow: var(--lg-shadow, 0 18px 48px rgba(34, 87, 59, .10), inset 0 1px 0 rgba(255, 255, 255, .95)) !important;
+  -webkit-backdrop-filter: var(--lg-blur, blur(24px) saturate(165%));
+  backdrop-filter: var(--lg-blur, blur(24px) saturate(165%));
+}
+
+#douyin-extract .skill-output-col { padding: 24px !important; }
+
+/* ---------------- 01 表单 ---------------- */
+#douyin-extract h1 {
+  font-family: inherit !important;
+  font-size: 30px !important;
+  line-height: 1.35;
+  color: #244b39;
+  margin: 16px 0;
+}
+
+#douyin-extract p { font-size: 14px; line-height: 1.8; color: #678373; }
+
+#douyin-extract .skill-form {
+  padding: 0 !important;
+  margin-top: 24px;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+#douyin-extract .form-section { border: 0; padding: 0; }
+#douyin-extract .head { margin-bottom: 18px; }
+
+#douyin-extract .field-wide {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 13px;
+  color: #476e59;
+}
+
+#douyin-extract textarea {
+  padding: 14px;
+  min-height: 96px;
+  border: 1px solid #cce0d2 !important;
+  border-radius: 12px !important;
+  background: rgba(255, 255, 255, .74) !important;
+  font-size: 13px !important;
+  line-height: 1.6;
+  resize: vertical;
+  overflow-wrap: anywhere;
+}
+
+#douyin-extract textarea:focus-visible {
+  outline: 3px solid #68aa83;
+  outline-offset: 2px;
+  border-color: #9ac8ae !important;
+}
+
+/* B 级：提示条 */
+#douyin-extract .douyin-extract-hint {
+  margin: 14px 0 0;
+  padding: 14px 16px;
+  font-size: 12px;
+  line-height: 1.75;
+  color: #4f6f5d;
+  border: 1px solid rgba(154, 200, 174, .42);
+  border-radius: 12px;
+  background: rgba(240, 250, 243, .72);
+}
+
+#douyin-extract .douyin-extract-hint b { color: #2c6e4f; font-weight: 600; }
+
+#douyin-extract .douyin-extract-hint code {
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, .85);
+  border: 1px solid rgba(154, 200, 174, .5);
+  font-size: 11px;
+  color: #2c6e4f;
+  overflow-wrap: anywhere;
+}
+
+#douyin-extract .skill-primary {
+  margin-top: 24px;
+  width: 100%;
+  min-height: 48px;
+  border-radius: 12px !important;
+  background: linear-gradient(110deg, #24875e, #125333) !important;
+  color: #fff;
+  font-size: 15px !important;
+  cursor: pointer;
+}
+
+#douyin-extract .skill-primary:disabled { cursor: wait; opacity: .82; }
+
+#douyin-extract .douyin-extract-notice {
+  margin: 14px 0 0;
+  font-size: 12px;
+  line-height: 1.7;
+  color: #8ba396;
+}
+
+/* ---------------- 02 空状态 ---------------- */
+#douyin-extract .douyin-extract-empty {
+  display: flex !important;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 20px;
+  min-height: 480px;
+  padding: 20px !important;
+  text-align: left !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+#douyin-extract .douyin-extract-empty[hidden],
+#douyin-extract .douyin-extract-result[hidden],
+#douyin-extract .douyin-extract-error[hidden] { display: none !important; }
+
+#douyin-extract .douyin-extract-empty h2 {
+  font-size: 28px !important;
+  line-height: 1.5;
+  color: #244b39;
+  margin: 0;
+}
+
+#douyin-extract .tag { font-size: 12px; color: #518268; letter-spacing: .04em; }
+
+#douyin-extract .dy-dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #88bda1;
+}
+
+#douyin-extract .dy-steps {
+  display: grid !important;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+  width: 100%;
+  margin: 12px 0;
+  padding: 0;
+  list-style: none;
+}
+
+#douyin-extract .dy-steps li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid #d9e9de;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .6);
+  font-size: 14px;
+  color: #527460;
+}
+
+#douyin-extract .dy-steps b { color: #2c8a5d; font-size: 13px; }
+
+/* ---------------- 03 结果区 ---------------- */
+#douyin-extract .douyin-extract-result { display: flex; flex-direction: column; gap: 20px; }
+
+#douyin-extract .dy-card {
+  padding: 22px;
+  border: 1px solid rgba(214, 231, 220, .9);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, .56);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .9);
+}
+
+#douyin-extract .dy-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+#douyin-extract .dy-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border: 1px solid rgba(154, 200, 174, .55);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .8);
+  font-size: 12px;
+  color: #2c6e4f;
+  white-space: nowrap;
+}
+
+#douyin-extract .dy-chip.muted { color: #6b8778; border-color: rgba(196, 214, 203, .8); }
+
+#douyin-extract .dy-card h3 {
+  margin: 0 0 12px;
+  font-size: 20px;
+  line-height: 1.5;
+  color: #1f4633;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+#douyin-extract .dy-author {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  color: #4f6f5d;
+}
+
+#douyin-extract .dy-author img {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, .9);
+  background: #eef6f0;
+}
+
+/* 元数据格：B 级磨砂片 */
+#douyin-extract .dy-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0 0 16px;
+}
+
+#douyin-extract .dy-stats div {
+  padding: 12px 14px;
+  border: 1px solid rgba(219, 233, 224, .95);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .72);
+}
+
+#douyin-extract .dy-stats dt { font-size: 11px; color: #7d9a8b; margin-bottom: 4px; }
+#douyin-extract .dy-stats dd { margin: 0; font-size: 17px; font-weight: 600; color: #24503a; font-variant-numeric: tabular-nums; }
+
+#douyin-extract .dy-body {
+  margin: 0;
+  padding: 16px;
+  max-height: 340px;
+  overflow: auto;
+  border: 1px solid rgba(219, 233, 224, .95);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .78);
+  font-family: inherit;
+  font-size: 13.5px;
+  line-height: 1.85;
+  color: #33543f;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+#douyin-extract .dy-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+
+#douyin-extract .dy-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+
+#douyin-extract .dy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 8px 14px;
+  border: 1px solid rgba(140, 180, 156, .5);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .85);
+  color: #2c6e4f;
+  font-size: 13px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background .16s, transform .16s;
+}
+
+#douyin-extract .dy-btn:hover { background: #fff; transform: translateY(-1px); }
+#douyin-extract .dy-btn.primary { background: #21744c; border-color: #21744c; color: #fff; }
+#douyin-extract .dy-btn.primary:hover { background: #1b5f3f; }
+
+/* 图片墙 */
+#douyin-extract .dy-media-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+#douyin-extract .dy-media-head span { font-size: 12px; color: #7d9a8b; }
+
+#douyin-extract .dy-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+#douyin-extract .dy-shot {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .9);
+  border-radius: 14px;
+  background: linear-gradient(145deg, rgba(238, 248, 242, .8), rgba(255, 255, 255, .4));
+  aspect-ratio: 3 / 4;
+}
+
+#douyin-extract .dy-shot img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform .3s;
+}
+
+#douyin-extract .dy-shot:hover img { transform: scale(1.04); }
+
+#douyin-extract .dy-shot .dy-shot-index {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(32, 60, 50, .62);
+  color: #fff;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  backdrop-filter: blur(6px);
+}
+
+#douyin-extract .dy-shot .dy-shot-live {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .86);
+  color: #2c6e4f;
+  font-size: 10px;
+}
+
+/* 视频卡 */
+#douyin-extract .dy-video {
+  width: 100%;
+  max-height: 420px;
+  border-radius: 14px;
+  background: #0e1a14;
+  border: 1px solid rgba(255, 255, 255, .8);
+}
+
+/* 错误提示 */
+#douyin-extract .douyin-extract-error {
+  display: flex;
+  gap: 12px;
+  padding: 18px 20px;
+  border: 1px solid rgba(217, 140, 122, .5);
+  border-radius: 14px;
+  background: rgba(255, 246, 243, .9);
+  color: #8c3f2a;
+  font-size: 13.5px;
+  line-height: 1.75;
+}
+
+#douyin-extract .douyin-extract-error b { color: #7a2f1c; }
+
+/* ---------------- 04 响应式 ---------------- */
+@media (max-width: 1100px) {
+  body #douyin-extract { padding: 24px !important; }
+  #douyin-extract .skill-shell { grid-template-columns: 1fr !important; }
+  #douyin-extract .douyin-extract-empty { min-height: 300px; }
+}
+
+@media (max-width: 720px) {
+  #douyin-extract .dy-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 560px) {
+  #douyin-extract .skill-form-col, #douyin-extract .skill-output-col { padding: 22px !important; }
+  #douyin-extract .dy-steps { grid-template-columns: 1fr; }
+  #douyin-extract h1 { font-size: 26px !important; }
+  #douyin-extract .dy-gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

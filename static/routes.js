@@ -56,6 +56,11 @@ window.APP_NAV = (() => {
      fallback: true,
      icon: svg('<rect x="2.5" y="3.5" width="12" height="17" rx="2.5"/><path d="M19 8.5v9a2.5 2.5 0 0 1-2.5 2.5H8"/>' +
                '<path d="M7 8h4.5M7 12h3"/>')},
+    // 抖音内容提取：同上，应用内视图，靠 fallback 让渲染器建出节点。
+    {group: '内容创作', href: '/douyin-extract', view: 'douyin-extract', label: '抖音内容提取',
+     fallback: true,
+     icon: svg('<path d="M15.5 3v9.2a3.6 3.6 0 1 1-3.1-3.57"/><path d="M15.5 5.4a5 5 0 0 0 4.3 4.2"/>' +
+               '<rect x="2.5" y="2.5" width="19" height="19" rx="5.5" opacity=".35"/>')},
     // 早安祝福入口在页面上暂时隐藏，但清单保留（渲染器找不到节点会跳过）。
     {group: '内容创作', href: '/morning-generator', view: 'morning', label: '早安祝福',
      hidden: true,
