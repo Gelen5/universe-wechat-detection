@@ -30,7 +30,9 @@
   if (NAV) {
     function buildNavItem(href, spec) {
       const a = document.createElement('a');
-      a.href = href; a.dataset.view = spec.view;
+      a.href = href;
+      // 独立页面不能挂 data-view：app.js 会把它当应用内视图处理，导致白屏。
+      if (spec.view && !spec.page) a.dataset.view = spec.view;
       a.innerHTML = `${spec.icon}<span>${spec.label}</span>`;
       return a;
     }

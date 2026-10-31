@@ -53,10 +53,12 @@ window.APP_NAV = (() => {
     {group: '资源', href: '/market', view: 'market', label: 'AI 超市', short: '超市',
      icon: svg('<path d="M3 7h18l-1.4 12.1a2 2 0 0 1-2 1.9H6.4a2 2 0 0 1-2-1.9z"/>' +
                '<path d="M8 7V5.5a4 4 0 0 1 8 0V7"/>')},
-    {group: '资源', href: '/bookshelf', view: 'bookshelf', label: 'AI 书架',
+    // 独立页面（服务端渲染），不是应用内视图：不能带 view，
+    // 否则 app-navigation.js 会拦下点击、SPA 把内容区清空 → 白屏。
+    {group: '资源', href: '/bookshelf', label: 'AI 书架', page: true,
      icon: svg('<path d="M4 4h6a3 3 0 0 1 2 1 3 3 0 0 1 2-1h6v15h-6a3 3 0 0 0-2 1 3 3 0 0 0-2-1H4z"/>' +
                '<path d="M12 5v15"/>')},
-    {group: '账户', href: '/pricing', view: 'pricing', label: '积分套餐',
+    {group: '账户', href: '/pricing', label: '积分套餐', page: true,
      fallback: true,
      icon: svg('<rect x="2" y="6" width="20" height="13" rx="2.5"/><path d="M2 10h20"/><path d="M6 15h4"/>')},
   ];
@@ -77,9 +79,10 @@ window.APP_NAV = (() => {
     notionPlan: groups.map((group) => [group, items.filter((i) => i.group === group).map((i) => i.href)]),
     /* notion-workspace.js: nodes to create when the page lacks them. */
     extras: items.filter((item) => item.fallback),
+    /* 只有应用内视图才返回；独立页面返回 undefined，交给浏览器正常跳转。 */
     viewFor: (path) => {
       const match = all.find((item) => item.href === normalize(path));
-      return match && match.view;
+      return (match && !match.page && match.view) || undefined;
     },
     itemFor: (href) => all.find((item) => item.href === href),
   };

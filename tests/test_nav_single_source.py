@@ -1,4 +1,4 @@
-"""Navigation must come from one list.
+﻿"""Navigation must come from one list.
 
 The sidebar was rebuilt by notion-workspace.js while shell.js and
 app-navigation.js kept their own copies, so adding a module meant editing three
@@ -47,7 +47,7 @@ def _dump():
         f"require({json.dumps(str(STATIC / 'routes.js'))});"
         "const n = window.APP_NAV;"
         "const views = {};"
-        "for (const p of ['/', '/workbench', '/one-click-writing', '/xiaohongshu', '/tie-tu',"
+        "for (const p of ['/', '/workbench', '/one-click-writing', '/xiaohongshu', '/tie-tu', '/pricing', '/bookshelf',"
         " '/viral-remix', '/diagnose', '/hit-detector', '/morning-generator', '/market', '/hotspots'])"
         " views[p] = n.viewFor(p);"
         "process.stdout.write(JSON.stringify({shell: n.shellRoutes, plan: n.notionPlan,"
@@ -77,8 +77,17 @@ class SingleSourceTests(unittest.TestCase):
     def test_every_legacy_view_mapping_is_preserved(self):
         self.assertEqual(LEGACY_VIEWS, self.data['views'])
 
-    def test_trailing_slash_still_resolves(self):
-        self.assertEqual({}, {})
+    def test_page_links_are_not_spa_views(self):
+        # /pricing and /bookshelf are server-rendered pages; treating them as
+        # views hid every panel and left a blank screen until a refresh.
+        self.assertIsNone(self.data['views'].get('/pricing'))
+        self.assertIsNone(self.data['views'].get('/bookshelf'))
+        self.assertEqual('market', self.data['views'].get('/market'))
+
+    def test_page_links_stay_in_the_menu(self):
+        hrefs = [route[0] for route in self.data['shell']]
+        self.assertIn('/pricing', hrefs)
+        self.assertIn('/bookshelf', hrefs)
 
 
 class IncludeTests(unittest.TestCase):
@@ -106,3 +115,4 @@ class IncludeTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+

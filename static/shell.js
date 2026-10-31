@@ -19,7 +19,9 @@
     let link = nav.querySelector(`a[href="${href}"]`);
     const spec = NAV.itemFor(href);
     if (!link && spec && spec.fallback) {
-      link = document.createElement('a'); link.href = href; link.dataset.view = spec.view;
+      link = document.createElement('a'); link.href = href;
+      // 独立页面不能挂 data-view：app.js 会把它当应用内视图处理，导致白屏。
+      if (spec.view && !spec.page) link.dataset.view = spec.view;
       link.innerHTML = `${spec.icon}<span>${spec.label}</span>`;
     }
     if (!link) continue;
