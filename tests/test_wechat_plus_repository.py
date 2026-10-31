@@ -64,6 +64,18 @@ class PlusPublicationTests(unittest.TestCase):
         self.assertFalse(repository.commit_turn(turn['id'], 'worker', 1, {}))
         self.assertNotIn('cache', repository.get(self.session['id'], 'owner')['turns'][0])
 
+    def test_retry_reuses_results_but_cannot_replay_over_new_edits(self):
+        turn = self.claim()
+        repository.cache_result(turn['id'], 'worker', 'completed-node', {'draft':'已有结果'})
+        repository.finish(turn['id'], 'worker', 'failed', '暂不可用')
+        retry = repository.retry(self.session['id'], turn['id'], 'owner')
+        self.assertEqual(retry['cache']['completed-node']['draft'], '已有结果')
+        repository.claim(turn['id'], 'retry-worker')
+        repository.finish(turn['id'], 'retry-worker', 'failed', '仍不可用')
+        repository.save(self.session['id'], 'owner', 1, {'draft':'新内容'})
+        with self.assertRaises(repository.Conflict):
+            repository.retry(self.session['id'], turn['id'], 'owner')
+
 
 if __name__ == '__main__':
     unittest.main()

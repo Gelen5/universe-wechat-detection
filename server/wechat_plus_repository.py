@@ -141,3 +141,25 @@ def cache_result(turn_id, task_id, key, result):
         cache[key] = result
         db.execute(update(turns).where(turns.c.id == turn_id).values(cache=cache, updated_at=now()))
         return True
+
+
+def retry(session_id, turn_id, user_id):
+    with database.ENGINE.begin() as db:
+        session = db.execute(select(sessions).where(sessions.c.id == session_id,
+            sessions.c.user_id == user_id).with_for_update()).mappings().first()
+        if not session:
+            raise KeyError('创作不存在')
+        turn = db.execute(select(turns).where(turns.c.id == turn_id,
+            turns.c.session_id == session_id, turns.c.user_id == user_id).with_for_update()).mappings().first()
+        if not turn:
+            raise KeyError('操作不存在')
+        if turn['status'] != 'failed':
+            raise Conflict('只能重试未完成的失败操作')
+        if session['version'] != turn['input_version']:
+            raise Conflict('内容已更新，请基于当前内容重新提出要求')
+        if db.execute(select(turns.c.id).where(turns.c.session_id == session_id,
+            turns.c.status.in_(['queued', 'running']))).first():
+            raise Conflict('当前操作仍在执行')
+        db.execute(update(turns).where(turns.c.id == turn_id).values(
+            status='queued', task_id=None, error='', progress='正在恢复上次处理', updated_at=now()))
+        return dict(db.execute(select(turns).where(turns.c.id == turn_id)).mappings().one())

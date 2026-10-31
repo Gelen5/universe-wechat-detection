@@ -225,6 +225,8 @@ def _execute(state, message, generate, *, output_dir, progress,
                     if not state.get('imported'):
                         progress('检索公开资料')
                         check_cancelled()
+                        states, _ = runtime.skill_article_adapter._skill_modules()
+                        article['evidence_pack'] = states.ArticleState().to_dict()['evidence_pack']
                         raw = search(article['topic'], fetch=True, max_sources=10, max_fetch=3, timeout=10)
                         state['research'] = workbench_research.compact(raw, excerpt_chars=2500)
                     node('research')

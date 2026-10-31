@@ -89,8 +89,11 @@
       const node = text('p', message.content, 'wp-message'); node.dataset.role = message.role; messageRoot.append(node);
     });
     active = session?.turns?.find(turn => ['queued', 'running'].includes(turn.status)) || null;
-    if (active) {
-      const node = text('p', active.message, 'wp-message'); node.dataset.role = 'user'; messageRoot.append(node);
+    const lastTurn = session?.turns?.[0];
+    const uncommitted = active || (['failed', 'cancelled'].includes(lastTurn?.status) ? lastTurn : null);
+    if (uncommitted) {
+      const node = text('p', uncommitted.message, 'wp-message'); node.dataset.role = 'user'; messageRoot.append(node);
+      if (uncommitted.status === 'cancelled') messageRoot.append(text('p', '已取消，本次未更新正文。', 'wp-message'));
     }
     (state.choices || []).forEach((choice, index) => {
       const button = text('button', '', 'wp-topic'); button.type = 'button';
@@ -104,10 +107,17 @@
     (state.reply_options || []).forEach(option => {
       const button = text('button', option); button.type = 'button'; button.onclick = () => send(option); $('options').append(button);
     });
-    const lastTurn = session?.turns?.[0];
     if (lastTurn?.status === 'failed') {
       $('error').textContent = lastTurn.error || '本次处理未完成，原稿已保留。'; $('error').hidden = false;
-      const retry = text('button', '重试这次操作'); retry.type = 'button'; retry.onclick = () => send(lastTurn.message); $('options').append(retry);
+      const retry = text('button', '继续上次未完成的处理'); retry.type = 'button';
+      retry.onclick = async () => {
+        try {
+          await save();
+          const response = await api(`/sessions/${session.id}/retry/${lastTurn.id}`, {method:'POST'});
+          $('error').hidden = true; session.turns[0] = response.turn; active = response.turn; render();
+        } catch(error) {reportError(error);}
+      };
+      $('options').append(retry);
     }
     if (!dirty && !shownVersion) editor.value = article.draft || '';
     $('empty').hidden = Boolean(editor.value);

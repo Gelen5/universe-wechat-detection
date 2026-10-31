@@ -110,6 +110,24 @@ def edit(session_id: str, payload: Edit, request: Request):
         raise HTTPException(409, str(exc)) from exc
 
 
+@router.post('/sessions/{session_id}/retry/{turn_id}', status_code=202)
+def retry(session_id: str, turn_id: str, request: Request):
+    limit = check_agent_submission(owner(request), client_ip(request), 'wechat_plus')
+    if not limit.allowed:
+        raise HTTPException(429, '操作较频繁，请稍后再试')
+    try:
+        turn = repo.retry(session_id, turn_id, owner(request))
+    except KeyError as exc:
+        raise HTTPException(404, '操作不存在') from exc
+    except repo.Conflict as exc:
+        raise HTTPException(409, str(exc)) from exc
+    try:
+        tasks.dispatch(turn_id)
+    except Exception:
+        pass
+    return {'turn': {key:value for key,value in turn.items() if key != 'cache'}}
+
+
 @router.get('/sessions/{session_id}/preview')
 def preview(session_id: str, request: Request):
     row = get(session_id, request)
