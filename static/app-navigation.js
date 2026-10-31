@@ -2,7 +2,7 @@
 (() => {
   const views = new Map([
     ['/', 'home'], ['/workbench', 'workbench'], ['/one-click-writing', 'one-click-writing'],
-    ['/xiaohongshu', 'xiaohongshu'], ['/tie-tu', 'tie-tu'], ['/diagnose', 'diagnose'],
+    ['/xiaohongshu', 'xiaohongshu'], ['/tie-tu', 'tie-tu'], ['/viral-remix', 'viral-remix'], ['/diagnose', 'diagnose'],
     ['/hit-detector', 'hit-detector'], ['/morning-generator', 'morning'],
     ['/market', 'market'], ['/hotspots', 'hotspots'],
   ]);

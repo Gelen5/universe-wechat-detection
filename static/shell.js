@@ -5,7 +5,7 @@
   const routes = [
     ['/', '首页', '首页'], ['/hotspots', '热点广场'], ['/workbench', '公众号创作', '创作'],
     ['/one-click-writing', '公众号一键成文', '一键成文'],
-    ['/xiaohongshu', '小红书'], ['/tie-tu', '贴图号'], ['/morning-generator', '早安祝福'],
+    ['/xiaohongshu', '小红书'], ['/tie-tu', '贴图号'], ['/viral-remix', '爆款贴图复刻'], ['/morning-generator', '早安祝福'],
     ['/diagnose', '账号诊断'], ['/hit-detector', '发布前复核'],
     ['/market', 'AI 超市', '超市'], ['/bookshelf', 'AI 书架'],
     ['/pricing', '积分套餐'],
