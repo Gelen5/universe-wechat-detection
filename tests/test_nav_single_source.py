@@ -20,7 +20,6 @@ STATIC = Path(__file__).resolve().parents[1] / 'static'
 # this list, not that the list never changes.
 LEGACY_SHELL_ROUTES = [
     ['/', '首页', '首页'], ['/hotspots', '热点广场'], ['/lowfans', '低粉爆文'],
-    ['/workbench', '公众号创作', '创作'],
     ['/wechat-plus', '公众号创作 Plus'],
     ['/one-click-writing', '公众号一键成文', '一键成文'],
     ['/xiaohongshu', '小红书'], ['/tie-tu', '贴图号'], ['/viral-remix', '爆款贴图复刻'],
@@ -33,7 +32,7 @@ LEGACY_SHELL_ROUTES = [
     ['/invite', '邀请好友', '邀请'],
 ]
 LEGACY_NOTION_PLAN = [
-    ['内容创作', ['/hotspots', '/lowfans', '/workbench', '/wechat-plus', '/one-click-writing',
+    ['内容创作', ['/hotspots', '/lowfans', '/wechat-plus', '/one-click-writing',
                   '/xiaohongshu', '/tie-tu', '/viral-remix', '/xhs-extract', '/douyin-extract',
                   '/morning-generator']],
     ['分析', ['/hit-detector']],
@@ -133,6 +132,13 @@ class SingleSourceTests(unittest.TestCase):
         self.assertNotIn('/diagnose', self.data['extras'])
         self.assertEqual('diagnose', self.data['views'].get('/diagnose'))
 
+    def test_workbench_entry_is_hidden_but_the_route_still_opens(self):
+        """公众号创作按用户要求从所有入口收起，但直链和已保存的对话照常打开。"""
+        self.assertNotIn('/workbench', [route[0] for route in self.data['shell']])
+        self.assertNotIn('/workbench', [h for _, hrefs in self.data['plan'] for h in hrefs])
+        self.assertNotIn('/workbench', self.data['extras'])
+        self.assertEqual('workbench', self.data['views'].get('/workbench'))
+
     def test_hidden_modules_have_no_live_anchor_in_any_page(self):
         """The page shells still ship server-rendered anchors.
 
@@ -146,6 +152,10 @@ class SingleSourceTests(unittest.TestCase):
             with self.subTest(page=page):
                 self.assertNotIn('/diagnose', live,
                                  f'{page} still renders a live /diagnose link')
+                self.assertNotIn('href="/workbench"', live,
+                                 f'{page} still renders a live /workbench link')
+                self.assertNotIn('data-target="/workbench"', live,
+                                 f'{page} still offers /workbench as a compose target')
 
 
 class IncludeTests(unittest.TestCase):

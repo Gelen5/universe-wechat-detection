@@ -5,7 +5,9 @@
   const draft = document.querySelector('#atelier-draft');
   const start = document.querySelector('#atelier-start-go');
   if (!draft || !start) return;
-  let target = '/workbench';
+  // 公众号创作的入口已隐藏，快捷区默认落到小红书；恢复时把这一行改回 '/workbench'，
+  // 并在 index.html 里把「公众号」chip 放回来。
+  let target = '/xiaohongshu';
   const chips = [...document.querySelectorAll('.hv-chip')];
   chips.forEach(chip => chip.addEventListener('click', () => {
     target = chip.dataset.target;
