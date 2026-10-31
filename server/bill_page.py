@@ -517,6 +517,29 @@ def _summary(rows: list[dict[str, Any]], cash_rows: list[dict[str, Any]]) -> dic
     }
 
 
+def _is_owner(user: dict[str, Any]) -> bool:
+    """账单页只对站长本人开放：既是管理员，又必须是配置里的站长邮箱。"""
+    return (
+        str(user.get("role") or "") == "admin"
+        and str(user.get("email") or "").lower() == accounts.OWNER_EMAIL
+    )
+
+
+def _forbidden_page() -> HTMLResponse:
+    return HTMLResponse(
+        _page(
+            "无权访问",
+            '<div class="bl-head"><a class="bl-back" href="/">← 返回工作台</a></div>'
+            "<h1>无权访问</h1>"
+            '<p class="bl-account">账单包含平台经营数据，仅站长账号可查看。'
+            '查看自己的积分与消费记录请前往「我的积分」。</p>'
+            '<p style="margin-top:20px"><a class="bl-cta" href="/wallet">去我的积分</a></p>',
+        ),
+        status_code=403,
+        headers={"Cache-Control": "no-store"},
+    )
+
+
 def _collect(request: Request) -> tuple[dict[str, Any] | None, HTMLResponse | None]:
     try:
         user = accounts.user_from_request(request)
@@ -524,22 +547,22 @@ def _collect(request: Request) -> tuple[dict[str, Any] | None, HTMLResponse | No
         user = None
     if user is None:
         return None, _login_required_page()
+    # 入口对普通用户隐藏，但隐藏只是 UI；直接访问 /bill 必须在这里拦下来，
+    # 否则知道地址的人就能看到全站收入。
+    if not _is_owner(user):
+        return None, _forbidden_page()
     package_names = _package_names()
     cash = _cash_rows(user["id"], package_names)
     points = _point_rows(user["id"], package_names)
     rows = sorted(cash + points, key=lambda item: str(item["at"]), reverse=True)
     summary = _summary(sorted(points, key=lambda i: i["at"]), cash)
     wallet = accounts.wallet_summary(user["id"])
-    is_owner = (
-        str(user.get("role") or "") == "admin"
-        and str(user.get("email") or "").lower() == accounts.OWNER_EMAIL
-    )
     payload = {
         "rows": rows,
         "summary": summary,
         "wallet": wallet,
-        "owner": is_owner,
-        "revenue": _revenue() if is_owner else None,
+        "owner": True,
+        "revenue": _revenue(),
         "email": user.get("email") or "",
     }
     return payload, None
@@ -766,7 +789,10 @@ _SCRIPT = """
 def export_csv(request: Request) -> Response:
     payload, failure = _collect(request)
     if payload is None:
-        return Response("请先登录", status_code=401, media_type="text/plain; charset=utf-8")
+        # 未登录 401；已登录但不是站长 403，两者不能都当 401 报。
+        status = 401 if failure is not None and failure.status_code == 401 else 403
+        message = "请先登录" if status == 401 else "账单仅站长账号可导出"
+        return Response(message, status_code=status, media_type="text/plain; charset=utf-8")
     buffer = io.StringIO()
     writer = csv.writer(buffer)
     writer.writerow(["时间", "类型", "说明", "状态", "金额/积分", "积分桶", "订单号"])

@@ -115,6 +115,9 @@ function syncAdminVisibility() {
   const isAdmin = currentAccount?.role === 'admin' && currentAccount?.email?.toLowerCase() === 'gelen5@163.com';
   if (apiSettingsButton) apiSettingsButton.hidden = !isAdmin;
   if (adminUsersButton) adminUsersButton.hidden = !isAdmin;
+  // 账单页含平台经营收入，只对站长本人（gelen5@163.com 且为管理员）开放入口。
+  // 后端 /bill 另有独立拦截，这里只负责不给其他人看到这个按钮。
+  if (billSettingsButton) billSettingsButton.hidden = !isAdmin;
   if (!isAdmin && apiSettingsModal) apiSettingsModal.hidden = true;
   if (!isAdmin && adminUsersModal) adminUsersModal.hidden = true;
   const impersonating = Boolean(currentAccount?.impersonation?.active);

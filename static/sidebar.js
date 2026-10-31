@@ -14,10 +14,17 @@
      const wrapper = document.createElement('span'); wrapper.id='nav-menu-wrap';
      const trigger=oldAvatar || document.createElement('span'); trigger.id='nav-avatar'; trigger.className='avatar';
      const menu=document.createElement('div'); menu.id='settings-menu'; menu.className='settings-popover'; menu.setAttribute('role','menu'); menu.hidden=true;
-     menu.innerHTML='<a role="menuitem" href="/workbench?sidebar=settings">设置</a><a role="menuitem" href="/wallet">我的积分</a><a role="menuitem" href="/bill">账单</a>';
+     menu.innerHTML='<a role="menuitem" href="/workbench?sidebar=settings">设置</a><a role="menuitem" href="/wallet">我的积分</a><a role="menuitem" href="/bill" hidden>账单</a>';
      trigger.addEventListener('click',()=>{menu.hidden=!menu.hidden;});
      wrapper.append(trigger,menu);right.append(wrapper);
      document.addEventListener('click',event=>{if(!wrapper.contains(event.target))menu.hidden=true;});
+     // 账单只给站长本人看。主壳里有 currentAccount，这里没有，独立查一次当前账号。
+     fetch('/api/auth/me',{credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(data=>{
+       const user=data?.user;
+       const owner=user?.role==='admin' && (user?.email||'').toLowerCase()==='gelen5@163.com';
+       const link=menu.querySelector('a[href="/bill"]');
+       if(link)link.hidden=!owner;
+     }).catch(()=>{});
    }
  }
   const wrap = document.getElementById('nav-menu-wrap');
