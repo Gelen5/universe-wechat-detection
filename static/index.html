@@ -72,7 +72,7 @@
 <link rel="stylesheet" href="/static/auth-mint.css?v=20261031-glass-2" />
 <script src="/static/points-notice.js?v=20261031-points-packages-1" defer></script>
 <link rel="stylesheet" href="/static/viral-remix.css?v=20261031-remix-output-tab-1">
-<link rel="stylesheet" href="/static/xhs-extract.css?v=20261031-extract-1">
+<link rel="stylesheet" href="/static/xhs-extract.css?v=20261031-workspace-2">
 <link rel="stylesheet" href="/static/douyin-extract.css?v=20261031-douyin-2">
 <link rel="stylesheet" href="/static/review-studio.css?v=20261031-mint-1">
 <link rel="stylesheet" href="/static/referrals.css?v=20261031-invite-1">
@@ -458,50 +458,22 @@
       <!-- ============================================================
            TAB · /xhs-extract — 小红书内容提取
            ============================================================ -->
-      <section id="xhs-extract" class="skill-page xhs-extract" hidden>
-        <div class="v3-meta">
-          <span class="l"><span class="line"></span><span>CREATOR WORKSPACE / EXTRACT</span></span>
-          <span class="r"><i></i>小红书内容提取</span>
+      <section id="xhs-extract" class="skill-page xhs-extract" aria-label="小红书内容提取" hidden>
+        <header class="xe-page-head"><div><p class="xe-breadcrumb">内容创作 / 小红书内容提取</p><h1>小红书内容提取</h1><p class="xe-subtitle">粘贴分享链接，把文案和原始素材整理到一起。</p></div><span class="xe-auto-label">图文 / 视频自动识别</span></header>
+        <form id="xhs-extract-form" class="xe-input-card">
+          <label for="xhs-extract-url">作品链接或分享文案</label>
+          <div class="xe-input-row"><textarea id="xhs-extract-url" name="url" autocomplete="off" required rows="2" placeholder="粘贴小红书分享链接，或整段分享文案…"></textarea><button id="xhs-extract-start" class="xe-button xe-primary" type="submit">开始提取 →</button></div>
+          <div class="xe-input-footer"><details><summary>在哪里复制分享链接？</summary><p>打开小红书作品，点击“分享 → 复制链接”，将整段分享文案粘贴到这里。若链接无法提取，请重新复制完整分享链接。</p></details><span>每次提取 1 积分 · 提取失败自动退还</span></div>
+        </form>
+        <div id="xhs-extract-progress" class="xe-progress" hidden><span class="xe-spinner" aria-hidden="true"></span><span id="xhs-extract-progress-text" role="status" aria-live="polite"></span><span class="xe-progress-hint">完成后更新结果</span></div>
+        <div id="xhs-extract-error" class="xe-error" role="alert" hidden></div>
+        <div id="xhs-extract-empty" class="xe-empty">
+          <svg viewBox="0 0 80 80" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="17" y="9" width="43" height="59" rx="9"/><path d="M28 25h21M28 33h15M28 43h21M28 51h14"/><rect x="43" y="44" width="26" height="23" rx="5" fill="#edf5ee"/><path d="m48 60 7-8 7 8"/></svg>
+          <h2>一条链接，文案和素材一次整理好</h2><p>提取后，左边预览原图或视频，右边阅读与复制原文。<br>作品信息、话题标签和来源会一并保留。</p><div class="xe-output-tags"><span>标题与正文</span><span>原图 / 视频</span><span>话题与作品信息</span></div>
         </div>
-        <div class="skill-shell">
-          <div class="skill-form-col">
-            <span class="micro-label"><span class="line"></span><span>LINK → 素材</span></span>
-            <h1>粘一条链接，<br>把作品<span class="serif">拆成素材</span>。</h1>
-            <p>提取标题、正文、标签、作者与互动数据，图文逐张给原图，视频给最高清晰度地址。只读公开内容，不碰私信和登录态。</p>
-
-            <form id="xhs-extract-form" class="skill-form">
-              <div class="form-section">
-                <div class="head"><span class="num">01</span><div class="copy"><strong>作品链接</strong><small>必须是带 xsec_token 的完整链接</small></div></div>
-                <label class="field-wide">粘贴链接或分享文案
-                  <textarea id="xhs-extract-url" name="url" autocomplete="off" required rows="3" placeholder="https://www.xiaohongshu.com/explore/…?xsec_token=…"></textarea>
-                </label>
-                <p class="xhs-extract-hint">
-                  <b>怎么拿到：</b>在小红书打开作品 → 「分享」→「复制链接」→ 整段粘进来（分享文案里的链接也可以）。
-                  裸链接（不带 <code>xsec_token</code>）平台只回空页面，这是平台限制，不是提取失败。
-                </p>
-              </div>
-
-              <button id="xhs-extract-start" class="skill-primary" type="submit">开始提取 →</button>
-              <p class="xhs-extract-notice">每提取一次扣 1 积分，提取失败会自动退还。请只用于已获授权的素材整理与二创参考，不要直接搬运他人作品。</p>
-            </form>
-          </div>
-
-          <div class="skill-output-col" aria-live="polite">
-            <div id="xhs-extract-empty" class="skill-empty xhs-extract-empty">
-              <span class="tag">提取工作流 <span class="xhs-dot"></span> 准备开始</span>
-              <h2>先拿到干净素材，<br>再谈二创。</h2>
-              <p>一次提取会给出结构化元数据、正文原文和全部原始图片或视频地址。</p>
-              <ol class="xhs-steps" aria-label="小红书内容提取流程">
-                <li><b>01</b><span>粘贴作品链接</span></li>
-                <li><b>02</b><span>解析作品数据</span></li>
-                <li><b>03</b><span>逐张下载原图</span></li>
-                <li><b>04</b><span>整理进你的内容库</span></li>
-              </ol>
-            </div>
-            <div id="xhs-extract-result" class="xhs-extract-result" hidden></div>
-            <div id="xhs-extract-error" class="xhs-extract-error" role="alert" hidden></div>
-          </div>
-        </div>
+        <div id="xhs-extract-result" hidden></div>
+        <p class="xe-footer-note">请用于已获授权的素材整理与创作参考。</p>
+        <dialog id="xhs-extract-lightbox" aria-labelledby="xe-lightbox-title"><header><h2 id="xe-lightbox-title">图片预览</h2><button type="button" class="xe-button" data-xe-close>关闭</button></header><div class="xe-lightbox-image"><img alt=""></div><footer><button type="button" class="xe-button" data-xe-prev aria-label="上一张图片">← 上一张</button><span data-xe-lightbox-index></span><button type="button" class="xe-button" data-xe-next aria-label="下一张图片">下一张 →</button><button type="button" class="xe-button xe-primary" data-xe-download>下载原图 ↓</button></footer></dialog>
       </section>
 
       <!-- ============================================================
@@ -1126,7 +1098,7 @@
     <link rel="stylesheet" href="/static/ui-system.css?v=20261031-no-collapse-3">
     <script src="/static/creator-chat.js?v=20261030-image-timer-1"></script>
     <script src="/static/notion-workspace.js?v=20261031-no-collapse-1"></script>
-    <script src="/static/xhs-extract.js?v=20261031-extract-1"></script>
+    <script src="/static/xhs-extract.js?v=20261031-workspace-2"></script>
     <script src="/static/douyin-extract.js?v=20261031-douyin-2"></script>
     <script>
       // CDN/embedded clients may retain an older sidebar builder. Keep these
