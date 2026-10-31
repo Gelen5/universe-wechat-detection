@@ -63,6 +63,22 @@ app.include_router(xhs_extract_router)
 app.include_router(alipay_pay_router)
 
 
+@app.on_event("startup")
+async def _start_alipay_reconciler() -> None:
+    """支付宝订单对账：后台定时核对长时间未支付的订单，异常写观测事件。"""
+
+    if os.getenv("ALIPAY_RECONCILE_ENABLED", "1") != "1":
+        return
+    try:
+        import asyncio
+
+        from .alipay_pay import reconcile_loop
+
+        asyncio.create_task(reconcile_loop())
+    except Exception:  # noqa: BLE001 - 对账启动失败不影响主服务
+        pass
+
+
 async def request_observability(request: Request, call_next):
     request_id = request.headers.get("X-Request-ID", "").strip()[:128] or uuid.uuid4().hex
     request.state.request_id = request_id

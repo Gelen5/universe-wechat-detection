@@ -922,6 +922,97 @@ def credit_alipay_recharge(user_id: str, points: int, out_trade_no: str, note: s
     return {"credited": True, "reason": "credited", "points": points, "balance": after}
 
 
+def alipay_clawed_back(out_trade_no: str) -> int:
+    """返回某笔支付宝订单已经扣回的积分总数（用于多笔部分退款）。"""
+
+    prefix = f"alipay-refund:{out_trade_no}:%"
+    with DB_LOCK, _connect() as connection:
+        row = connection.execute(
+            "SELECT COALESCE(SUM(-amount),0) FROM point_transactions WHERE request_id LIKE ?",
+            (prefix,),
+        ).fetchone()
+    return int(row[0] if row else 0)
+
+
+def clawback_alipay_recharge(
+    user_id: str,
+    points: int,
+    out_trade_no: str,
+    refund_ref: str,
+    note: str = "",
+) -> dict[str, Any]:
+    """退款后按订单扣回积分，余额不足时扣到 0 为止。
+
+    扣减顺序 paid → bonus → trial；``request_id`` 固定为
+    ``alipay-refund:<out_trade_no>:<refund_ref>``，同一笔退款重试不会重复扣。
+    """
+
+    if points <= 0 or points > 1_000_000:
+        raise HTTPException(status_code=422, detail="单次扣回积分需要在 1—1,000,000 之间")
+    refund_key = f"alipay-refund:{out_trade_no}:{refund_ref}"
+    now = utc_now()
+    with DB_LOCK, _connect() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        existing = connection.execute(
+            "SELECT id FROM point_transactions WHERE request_id=?", (refund_key,)
+        ).fetchone()
+        wallet = _locked_wallet(connection, user_id)
+        if not wallet:
+            connection.execute("ROLLBACK")
+            raise HTTPException(status_code=404, detail="用户不存在")
+        if existing:
+            connection.execute("ROLLBACK")
+            return {
+                "deducted": 0,
+                "shortfall": 0,
+                "reason": "already_deducted",
+                "balance": wallet["balance"],
+            }
+
+        remaining = points
+        allocation: dict[str, int] = {}
+        balances = {
+            "paid": wallet["paid_balance"],
+            "bonus": wallet["bonus_balance"],
+            "trial": wallet["trial_balance"],
+        }
+        for bucket in ("paid", "bonus", "trial"):
+            take = min(balances[bucket], remaining)
+            if take:
+                balances[bucket] -= take
+                allocation[bucket] = take
+                remaining -= take
+            if remaining == 0:
+                break
+        deducted = points - remaining
+        shortfall = remaining
+        before = wallet["balance"]
+        after = before - deducted
+        connection.execute(
+            """UPDATE wallets SET balance=?,trial_balance=?,bonus_balance=?,paid_balance=?,updated_at=?
+               WHERE user_id=?""",
+            (after, balances["trial"], balances["bonus"], balances["paid"], now, user_id),
+        )
+        reason = note or f"支付宝退款扣回 {out_trade_no}"
+        if shortfall:
+            reason += f"（余额不足，少扣 {shortfall} 积分）"
+        connection.execute(
+            """INSERT INTO point_transactions
+               (id,user_id,amount,balance_before,balance_after,bucket,kind,source,request_id,note,allocation_json,created_at)
+               VALUES (?,?,?,?,?,'mixed','refund','alipay',?,?,?,?)""",
+            (uuid.uuid4().hex, user_id, -deducted, before, after, refund_key,
+             reason, json.dumps(allocation), now),
+        )
+        connection.execute("COMMIT")
+    return {
+        "deducted": deducted,
+        "shortfall": shortfall,
+        "reason": "deducted",
+        "balance": after,
+        "allocation": allocation,
+    }
+
+
 def recharge(operator_id: str, user_id: str, points: int, bucket: str, note: str) -> dict[str, Any]:
     if points <= 0 or points > 1_000_000:
         raise HTTPException(status_code=422, detail="单次充值积分需要在 1—1,000,000 之间")

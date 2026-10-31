@@ -13,6 +13,7 @@
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -740,6 +741,8 @@ def pay_page(
             '<span style="font-size:15px;font-weight:600">支付宝</span>'
             '<span style="margin-left:auto;font-size:12px;color:#14684A">推荐</span>'
             "</div>"
+            '<p class="hint">请使用非收款商户本人的支付宝账号付款；在电脑上也可直接点支付宝收银台的'
+            "「登录账户付款」完成付款，不要用手机扫电脑收银台的二维码（会提示 AE150003030 系统有点忙）。</p>"
             f'<button id="submit" type="submit">支付 ¥{chosen["price"]} 购买 {chosen["credits"]} 积分</button>'
             "</form>"
             '<p class="hint" id="hint">付款完成后会自动跳回结果页，可查看积分到账情况。</p>'
@@ -772,7 +775,8 @@ def pay_page(
         "</div>"
         '<button id="submit" type="submit">前往支付宝付款</button>'
         "</form>"
-        '<p class="hint" id="hint">金额范围 0.01 – 100000000.00 元；付款完成后可回到本页查询订单状态。</p>'
+        '<p class="hint" id="hint">金额范围 0.01 – 100000000.00 元；请使用非收款商户本人的支付宝账号付款，'
+        "电脑上也可点支付宝收银台的「登录账户付款」。付款完成后可回到本页查询订单状态。</p>"
         + _PAY_PAGE_SCRIPT
         + '<div class="actions"><a href="/pricing">返回积分套餐</a><a href="/">返回工作台</a></div>'
     )
@@ -954,6 +958,48 @@ def _sync_from_query(order: dict[str, Any]) -> dict[str, Any]:
     return {"query": result, "order": order}
 
 
+def _claw_back_refund(
+    order: dict[str, Any],
+    refunded_before: Decimal,
+    refund_amount: Decimal,
+    out_request_no: str,
+) -> dict[str, Any] | None:
+    """按退款金额比例扣回该订单已入账的积分；非充值订单返回 None。"""
+
+    recharge = _recharge_for(order["out_trade_no"])
+    if recharge is None:
+        return None
+    total = _amount_of(order["total_amount"])
+    credits = int(recharge["credits"])
+    if total <= 0 or credits <= 0:
+        return None
+    cumulative = refunded_before + refund_amount
+    target = credits if cumulative >= total else int(
+        (Decimal(credits) * cumulative / total).to_integral_value(rounding="ROUND_FLOOR")
+    )
+    already = accounts.alipay_clawed_back(order["out_trade_no"])
+    delta = target - already
+    if delta <= 0:
+        return {"credits_deducted": 0, "credits_shortfall": 0, "reason": "already_deducted"}
+    try:
+        result = accounts.clawback_alipay_recharge(
+            recharge["user_id"],
+            delta,
+            order["out_trade_no"],
+            out_request_no,
+            f"支付宝退款扣回 {order['out_trade_no']}",
+        )
+    except Exception:  # noqa: BLE001 - 扣回失败不阻断退款结果
+        logger.warning("alipay refund clawback failed", exc_info=True)
+        return {"credits_deducted": 0, "credits_shortfall": delta, "reason": "deduct_failed"}
+    return {
+        "credits_deducted": int(result.get("deducted") or 0),
+        "credits_shortfall": int(result.get("shortfall") or 0),
+        "reason": result.get("reason") or "",
+        "balance": result.get("balance"),
+    }
+
+
 @router.post("/api/pay/alipay/orders/{out_trade_no}/query")
 def query_order(out_trade_no: str) -> JSONResponse:
     order = _find_order(out_trade_no)
@@ -1030,9 +1076,11 @@ def refund_order(out_trade_no: str, payload: RefundPayload) -> JSONResponse:
         raise HTTPException(status_code=502, detail="退款请求失败，请使用同一退款请求号重试") from exc
 
     fund_change = result.get("fund_change")
+    clawback = None
     if result.get("code") == "10000" and fund_change == "Y":
         _bump_refunded(out_trade_no, Decimal(refund_amount))
         _set_order_status(out_trade_no, "REFUNDED")
+        clawback = _claw_back_refund(order, refunded, Decimal(refund_amount), out_request_no)
     return JSONResponse(
         {
             "out_trade_no": out_trade_no,
@@ -1043,8 +1091,69 @@ def refund_order(out_trade_no: str, payload: RefundPayload) -> JSONResponse:
             "refund_fee": result.get("refund_fee"),
             "refund_amount": refund_amount,
             "needs_refund_query": fund_change != "Y",
+            "credits_clawback": clawback,
         }
     )
+
+
+def reconcile_pending_orders(older_than_minutes: int = 10, limit: int = 20) -> dict[str, Any]:
+    """对账：主动查询“创建超过 N 分钟仍未支付”的订单，补齐状态与积分。"""
+
+    cutoff = (_beijing_now() - timedelta(minutes=max(1, older_than_minutes))).strftime(
+        _TIMESTAMP_FORMAT
+    )
+    with ENGINE.begin() as connection:
+        rows = connection.execute(
+            select(alipay_orders)
+            .where(
+                alipay_orders.c.status.in_(("CREATED", "PENDING_PAYMENT")),
+                alipay_orders.c.created_at < cutoff,
+            )
+            .order_by(alipay_orders.c.created_at.asc())
+            .limit(max(1, limit))
+        ).mappings().all()
+
+    summary: dict[str, Any] = {"checked": 0, "paid": 0, "closed": 0, "failed": 0}
+    for row in rows:
+        summary["checked"] += 1
+        try:
+            synced = _sync_from_query(dict(row))
+            status = (synced.get("order") or {}).get("status")
+            if status == "PAID":
+                summary["paid"] += 1
+            elif status == "CLOSED":
+                summary["closed"] += 1
+        except Exception:  # noqa: BLE001 - 单笔失败不影响其他订单
+            summary["failed"] += 1
+            logger.warning("alipay reconcile query failed: %s", row["out_trade_no"], exc_info=True)
+
+    if summary["paid"] or summary["failed"]:
+        logger.warning("alipay reconcile: %s", summary)
+        try:
+            from .observability import event as log_event
+
+            log_event("alipay.reconcile", **summary)
+        except Exception:  # noqa: BLE001 - 观测失败不影响对账
+            pass
+    return summary
+
+
+async def reconcile_loop() -> None:
+    """后台对账循环：默认 15 分钟一轮，可用环境变量关闭或调整间隔。"""
+
+    interval = max(60, int(os.getenv("ALIPAY_RECONCILE_INTERVAL_SECONDS", "900") or 900))
+    while True:
+        await asyncio.sleep(interval)
+        try:
+            await asyncio.to_thread(reconcile_pending_orders)
+        except Exception:  # noqa: BLE001 - 循环不因单轮异常退出
+            logger.warning("alipay reconcile loop error", exc_info=True)
+
+
+@router.post("/api/pay/alipay/reconcile")
+def reconcile_now(request: Request) -> JSONResponse:
+    accounts.require_admin(request)
+    return JSONResponse(reconcile_pending_orders(older_than_minutes=0, limit=50))
 
 
 @router.get("/api/pay/alipay/orders/{out_trade_no}/refund-query")
