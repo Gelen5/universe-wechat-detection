@@ -1,4 +1,4 @@
-"""文章配图：贴一条公众号链接，拆解成图位，逐张生成 3:4 配图。
+﻿"""文章配图：贴一条公众号链接，拆解成图位，逐张生成 3:4 配图。
 
 产品约束（来自需求确认）：
   * 所有图片固定 3:4（1086x1448），封面也不例外；
@@ -186,57 +186,67 @@ def parse_article_html(html: str, url: str = "") -> dict[str, Any]:
 
 # --------------------------------------------------------------------------- 拆解
 
-PLAN_INSTRUCTION = """你是公众号视觉编辑。读这篇文章，产出一份配图方案。
+PLAN_INSTRUCTION = """你是公众号视觉编辑。你的任务不是"配几张图"，而是用 4-6 张图把这篇文章讲清楚。
+
+先想清楚三件事：
+A. 这篇文章最反常识、最有信息量的结论是什么？
+B. 支撑这个结论的有哪 3-5 个要点？每个要点要有：结论、一句解释、原文里的事实（数字/对比/案例）。
+C. 读者只看这组图，能不能复述出文章的核心？
 
 硬性规则：
 1. 只输出 JSON 对象，不要 markdown 代码块，不要任何解释。
-2. 图里出现的每个数字、人名、公司名、结论都必须能在原文找到，禁止编造。
-3. 结构固定为 1 个封面 + 2 到 4 个正文图位。正文图位按信息量取舍，不是每节都要配。
-4. 正文 form 只能取以下之一：
-   - data：一组关键数字（2-3 个）
-   - timeline：有先后顺序的履历/阶段（3-5 个节点）
-   - layers：结构分层、拆解、上下游关系
-   - compare：两组对照（前后/两种做法/两个对象）
-   - clients：客户、产品、应用场景这类并列清单
-   - quote：全文最值得单独记住的一句话
-5. 每个图位的文字要短：标题不超过 12 字，标签不超过 8 字，注脚不超过 20 字。
-6. brief 只描述物件、场景、结构或抽象图形，禁止描写真实人物、名人姓名、合影、晚宴、会议等会出现可辨认人脸的场面。封面尤其要用「物件 + 场景」表达主题。
+2. 图里出现的每个数字、产品名、结论都必须来自原文，禁止编造。
+3. 图里禁止出现公众号名称、作者名、媒体名、来源信息；只讲内容本身。
+4. 结构：1 个封面 + 3 到 5 个正文图位。每个正文图位只讲一个要点，不要与封面重复。
+5. headline 必须是"爆点"：一句让人愿意停下来看的结论，不超过 14 字。封面优先用原文最硬的数字（如 13.8 万 Star）或最反常识的结论。不要写"三个关键数字""核心要点"这类空话。
+6. detail 是一句解释，不超过 30 字，必须说清这张图在讲什么。
+7. facts 是 2-3 条原文事实（数字、对比、专有名词），每条不超过 16 字，用来支撑 headline。
+8. brief 描述画面主体：具体物件、场景、结构；不写排版、不写文字；禁止真实人物、名人、合影。
+9. 封面 kicker 用主题标签（如「AI 工具」「开源项目」），禁止用公众号名称。
+10. 正文 form 只能取：compare（问题 vs 解法、前后差异）、layers（机制/结构/流程）、data（一组关键数字）、timeline（有先后顺序）、clients（并列清单）、quote（全篇最值得记住的一句）。
 
 输出结构：
 {
-  "thesis": "一句话说清这篇文章在讲什么（20 字内）",
+  "thesis": "一句话说清这篇文章的核心结论（25 字内）",
   "slots": [
     {
       "id": "cover",
       "form": "cover",
-      "headline": "封面上最大的 4-8 个字（优先用数字或最刺激的钩子）",
-      "kicker": "封面顶部一行小字，如榜单名/栏目名",
-      "items": ["封面副标题一行", "封面底部一行人物或一句话"],
-      "brief": "画面主体，一句话，不写排版也不写文字"
+      "headline": "全文最大爆点，可含数字，不超过 14 字",
+      "kicker": "主题标签，如 AI 工具",
+      "items": ["副标题：一句话说清它解决什么", "底部一行：最值得记住的结论"],
+      "brief": "画面主体，具体物件或场景"
     },
     {
       "id": "body-01",
-      "form": "data",
-      "headline": "这张图的标题",
-      "items": [{"value": "1270亿", "label": "周群飞身家", "note": "夫妇合计 1280 亿 · 第 33 位"}],
-      "brief": "画面主体，一句话"
+      "form": "compare",
+      "headline": "爆点结论",
+      "detail": "一句话解释",
+      "facts": ["事实1", "事实2"],
+      "items": [
+        {"side": "没有规范", "points": ["配色靠猜", "每页间距不一样"]},
+        {"side": "先定规范", "points": ["按业务检索", "后续页面继承"]}
+      ],
+      "brief": "画面主体"
     },
     {
       "id": "body-02",
-      "form": "timeline",
-      "headline": "这张图的标题",
-      "items": [{"year": "2007", "text": "初代 iPhone 玻璃"}],
-      "brief": "画面主体，一句话"
+      "form": "layers",
+      "headline": "爆点结论",
+      "detail": "一句话解释",
+      "facts": ["事实1", "事实2"],
+      "items": [{"name": "检索", "note": "按业务找风格"}, {"name": "落地", "note": "存成规范"}],
+      "brief": "画面主体"
     }
   ]
 }
 
 不同 form 的 items 写法：
+- compare: [{"side":"左栏标题","points":["要点1","要点2"]},{"side":"右栏标题","points":["要点1","要点2"]}]
+- layers: [{"name","note"}]，2-4 层
 - data: [{"value","label","note"}]，2-3 项
 - timeline: [{"year","text"}]，3-5 项
-- layers: [{"name","note"}]，2-4 层，从外到内或从上到下
-- compare: [{"side":"左栏标题","points":["要点1","要点2"]},{"side":"右栏标题","points":["要点1","要点2"]}]
-- clients: [{"name":"苹果"}] 或直接 ["苹果","特斯拉"]
+- clients: [{"name":"苹果"}] 或 ["苹果","特斯拉"]
 - quote: items 留空数组
 
 文章标题：__TITLE__
@@ -275,6 +285,12 @@ def _normalize_plan(raw: dict[str, Any], article: dict[str, Any]) -> dict[str, A
                 "id": str(slot.get("id") or f"slot-{index + 1}")[:40],
                 "form": form,
                 "headline": _clip(str(slot.get("headline") or ""), 24),
+                "detail": _clip(str(slot.get("detail") or ""), 60),
+                "facts": [
+                    _clip(str(fact), 24)
+                    for fact in (slot.get("facts") or [])
+                    if str(fact).strip()
+                ][:3],
                 "kicker": _clip(str(slot.get("kicker") or ""), 24),
                 "items": items[:6],
                 "brief": _clip(str(slot.get("brief") or ""), 200),
@@ -287,7 +303,9 @@ def _normalize_plan(raw: dict[str, Any], article: dict[str, Any]) -> dict[str, A
                 "id": "cover",
                 "form": "cover",
                 "headline": _clip(article["title"], 12),
-                "kicker": article.get("account", ""),
+                "detail": "",
+                "facts": [],
+                "kicker": "",
                 "items": [],
                 "brief": "与文章主题相关的实物或场景",
             },
@@ -295,7 +313,18 @@ def _normalize_plan(raw: dict[str, Any], article: dict[str, Any]) -> dict[str, A
     body_slots = [s for s in slots[1:] if s["form"] != "cover"]
     if not body_slots:
         body_slots = _fallback_slots(article)
-    slots = [slots[0]] + body_slots[:4]
+    slots = [slots[0]] + body_slots[:5]
+    account = (article.get("account") or "").strip()
+    for slot in slots:
+        # 别人的公众号名字绝不进图：kicker 里出现就直接清空，
+        # 条目里带账号名的整条丢掉。
+        if account:
+            if slot.get("kicker") == account or account in (slot.get("kicker") or ""):
+                slot["kicker"] = ""
+            slot["items"] = [
+                item for item in slot["items"]
+                if account not in json.dumps(item, ensure_ascii=False)
+            ]
     for index, slot in enumerate(slots):
         slot["order"] = index
         slot["status"] = "pending"
@@ -377,7 +406,7 @@ def build_plan(article: dict[str, Any]) -> dict[str, Any]:
             image_model=stored.get("image_model", ""),
         ):
             raw_text = _text_with_deadline(
-                prompt, model="gpt-6.1-sol", reasoning="low", timeout=55
+                prompt, model="gpt-6.1-sol", reasoning="low", timeout=90
             )
     except Exception:
         raw_text = ""
@@ -421,20 +450,36 @@ def _join(values: list[Any], key: str) -> str:
     return "；".join(parts)
 
 
+def _fact_chips(facts: list[str]) -> str:
+    chips = "、".join(f"「{fact}」" for fact in facts[:3] if fact)
+    return f"画面底部横向排列事实标签：{chips}。" if chips else ""
+
+
+def _clean_label(text: str, limit: int = 22) -> str:
+    """模型爱写「副标题：」「底部一行：」，这些是字段名，不能印到图上。"""
+    value = re.sub(r"^(副标题|主标题|底部一行|底部|小字|标题)[：:]\s*", "", (text or "").strip())
+    return value[:limit].rstrip()
+
+
 def build_image_prompt(slot: dict[str, Any]) -> str:
     form = slot.get("form")
     headline = slot.get("headline") or ""
+    detail = slot.get("detail") or ""
+    facts = slot.get("facts") or []
     items = slot.get("items") or []
     brief = slot.get("brief") or ""
+    sub_line = f"标题下方一行白色中文小字「{detail}」。" if detail else ""
+    chips = _fact_chips(facts)
 
     if form == "cover":
         kicker = slot.get("kicker") or ""
-        sub = str(items[0]).strip() if items else ""
-        bottom = str(items[1]).strip() if len(items) > 1 else ""
+        sub = _clean_label(str(items[0])) if items else ""
+        bottom = _clean_label(str(items[1])) if len(items) > 1 else ""
         scene = _safe_scene(brief)
+        kicker_line = f"顶部一行小号金色中文「{kicker}」。" if kicker else ""
         return (
             "竖版财经杂志封面设计，深黑蓝色背景，高级商业质感。"
-            f"顶部一行小号金色中文「{kicker}」。"
+            f"{kicker_line}"
             f"画面中部是超大的金色文字「{headline}」，无衬线粗体，占画面宽度的九成，是绝对视觉中心。"
             f"其下一行白色粗体中文「{sub}」。"
             f"画面主体：{scene}，从画面底部延伸上来托住文字，画面里只有物件与光影。"
@@ -454,7 +499,9 @@ def build_image_prompt(slot: dict[str, Any]) -> str:
         return (
             "竖版财经数据海报，深墨蓝色背景，极细网格底纹，金色与白色为主色。"
             f"顶部一行白色中文标题「{headline}」。"
+            f"{sub_line}"
             f"下方纵向排列数据区块，用极细金线分隔：{body}。"
+            f"{chips}"
             "数字巨大，标签清楚，左对齐，装饰极简，留白充分。" + STYLE_SUFFIX
         )
 
@@ -466,9 +513,10 @@ def build_image_prompt(slot: dict[str, Any]) -> str:
         return (
             "竖版极简时间线信息图，米白色纸张质感背景，深墨绿色文字与金色节点。"
             f"顶部一行深墨绿色中文标题「{headline}」。"
+            f"{sub_line}"
             "画面中部一条从上到下的竖直细线，线上等距排列节点；"
             f"每个节点左侧是年份、右侧是说明，从上到下依次为：{'；'.join(rows)}。"
-            "衬线字体，印刷质感，留白充分。" + STYLE_SUFFIX
+            f"{chips}衬线字体，印刷质感，留白充分。" + STYLE_SUFFIX
         )
 
     if form == "layers":
@@ -479,8 +527,10 @@ def build_image_prompt(slot: dict[str, Any]) -> str:
         return (
             "竖版产品结构示意图，深灰蓝色背景，精密工程制图风格。"
             f"顶部一行白色中文标题「{headline}」。"
+            f"{sub_line}"
             f"画面中部是层层拆开的结构图，层与层略微分开：{'；'.join(rows)}。"
-            "每层用细线引出右侧标签，金色高亮最关键的一层。线条细而清晰。" + STYLE_SUFFIX
+            "每层用细线引出右侧标签，金色高亮最关键的一层。线条细而清晰。"
+            f"{chips}" + STYLE_SUFFIX
         )
 
     if form == "compare":
@@ -492,8 +542,10 @@ def build_image_prompt(slot: dict[str, Any]) -> str:
         return (
             "竖版左右对比信息图，深灰蓝背景，两栏用一条细金线分开。"
             f"顶部一行白色中文标题「{headline}」。"
+            f"{sub_line}"
             f"{'；'.join(columns)}。"
-            "两栏结构对称，文字大而清晰，用颜色区分优劣。" + STYLE_SUFFIX
+            "两栏结构对称，文字大而清晰，用颜色区分优劣。"
+            f"{chips}" + STYLE_SUFFIX
         )
 
     if form == "clients":
@@ -504,16 +556,20 @@ def build_image_prompt(slot: dict[str, Any]) -> str:
         return (
             "竖版商业信息图，深墨蓝色背景，金色点缀。"
             f"顶部一行白色中文标题「{headline}」。"
+            f"{sub_line}"
             f"画面中部是一块竖立的透明玻璃面板，面板两侧排列圆角标签：{'、'.join(names)}。"
             f"面板表面反射出与「{brief or headline}」相关的浅色轮廓。"
-            "整体克制清晰，信息密度高。" + STYLE_SUFFIX
+            "整体克制清晰，信息密度高。"
+            f"{chips}" + STYLE_SUFFIX
         )
 
     # quote
     return (
         "竖版大字海报，米白色纸张背景，深墨绿色文字。"
         f"画面居中排布中文大字「{headline}」，字大而醒目，分行自然。"
-        "上方一条短金线，下方一行浅灰小字注明出处。极简，只有文字和纸面质感。" + STYLE_SUFFIX
+        f"{sub_line}"
+        "上方一条短金线，下方一行浅灰小字注明出处。极简，只有文字和纸面质感。"
+        f"{chips}" + STYLE_SUFFIX
     )
 
 
@@ -714,6 +770,12 @@ def create_plan(payload: PlanBody, request: Request):
         raise HTTPException(status_code=502, detail=f"抓取失败：{exc}") from exc
 
     plan = build_plan(article)
+    if plan.get("source") != "model":
+        # 宁可明确失败并退款，也不要把「三个关键数字」这种兜底方案塞给用户。
+        raise HTTPException(
+            status_code=504,
+            detail="拆解模型这次没返回（超时或上游异常），积分已自动退回，请重试一次",
+        )
     job_id = uuid.uuid4().hex[:16]
     job = {
         "id": job_id,

@@ -54,8 +54,8 @@ def test_normalize_plan_keeps_cover_first_and_limits_body():
     plan = article_visual._normalize_plan(raw, {"title": "标题", "account": "号", "markdown": ""})
 
     assert plan["slots"][0]["form"] == "cover"
-    assert len(plan["slots"]) == 5  # 1 封面 + 最多 4 个正文
-    assert [s["order"] for s in plan["slots"]] == [0, 1, 2, 3, 4]
+    assert len(plan["slots"]) == 6  # 1 封面 + 最多 5 个正文
+    assert [s["order"] for s in plan["slots"]] == [0, 1, 2, 3, 4, 5]
     assert all(s["status"] == "pending" for s in plan["slots"])
 
 
