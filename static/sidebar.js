@@ -4,6 +4,7 @@
  if(queryMode.get('embed')==='1' || queryMode.get('embedded')==='1')document.body.classList.add('embedded');
  const nav = document.querySelector('.v3-topbar');
  if (!nav || document.body.classList.contains('embedded')) return;
+ const communityScript=document.createElement('script');communityScript.src='/static/community.js?v=20261031-1';document.body.append(communityScript);
  const desktop = matchMedia('(min-width:1101px)');
  const mainShell = !!document.getElementById('settings-menu');
  if (!mainShell) {

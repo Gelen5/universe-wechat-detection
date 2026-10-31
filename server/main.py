@@ -15,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from . import accounts, diagnosis_service, image_provider, email_verification
-from . import creator_tools, creator_conversation
+from . import creator_tools, creator_conversation, community
 from . import workbench
 from . import legacy_routes
 from . import conversation_repository, database
@@ -48,6 +48,8 @@ app = FastAPI(
 )
 
 accounts.init_db()
+community.init_schema()
+app.include_router(community.router)
 from . import admin_activity
 admin_activity.init_db()
 app.include_router(admin_activity.router)
