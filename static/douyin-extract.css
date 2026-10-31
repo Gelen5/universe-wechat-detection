@@ -425,3 +425,38 @@ body #douyin-extract {
   #douyin-extract h1 { font-size: 26px !important; }
   #douyin-extract .dy-gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* Unified extraction workspace: compact input, media and readable source text. */
+body #douyin-extract{padding:28px 32px!important;max-width:1600px;margin:auto}
+#douyin-extract .skill-shell{grid-template-columns:minmax(0,1fr)!important;gap:20px!important}
+#douyin-extract .skill-form-col{padding:24px 28px!important}
+#douyin-extract .micro-label{display:none}
+#douyin-extract h1{font-size:28px!important;margin:0 0 8px!important;letter-spacing:-.5px}
+#douyin-extract h1 br{display:none}
+#douyin-extract .skill-form-col>p{margin:0;max-width:850px}
+#douyin-extract .skill-form{display:grid;grid-template-columns:minmax(0,1fr) 150px;gap:12px 18px;margin-top:20px}
+#douyin-extract .form-section{grid-row:1/3;min-width:0}
+#douyin-extract .head{display:none}
+#douyin-extract textarea{min-height:84px;width:100%;box-sizing:border-box;font-size:14px!important}
+#douyin-extract .skill-primary{margin:27px 0 0!important;align-self:start;min-height:46px;border-radius:12px!important}
+#douyin-extract .douyin-extract-notice{margin:0;font-size:12px;line-height:1.7}
+#douyin-extract .douyin-extract-hint{padding:0;margin:9px 0 0;background:transparent;border:0;font-size:12px}
+#douyin-extract .skill-output-col{padding:24px!important}
+#douyin-extract .douyin-extract-empty{min-height:270px;padding:32px 20px!important}
+#douyin-extract .douyin-extract-empty h2{font-size:26px;line-height:1.5}
+#douyin-extract .dy-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;max-width:920px;margin:28px auto 0;padding:0;list-style:none}
+#douyin-extract .dy-steps li{padding:14px;border:1px solid #d7e7dd;border-radius:12px;background:#ffffff9c;display:flex;gap:10px;align-items:center}
+#douyin-extract .douyin-extract-result{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,.85fr);gap:20px;align-items:start}
+#douyin-extract .douyin-extract-result>.dy-card:first-child{grid-column:2;grid-row:1}
+#douyin-extract .douyin-extract-result>.dy-card:nth-child(2){grid-column:1;grid-row:1}
+#douyin-extract .dy-card{min-width:0;padding:22px;border:1px solid #d9e8df;border-radius:18px;background:#ffffffbd;box-shadow:none}
+#douyin-extract .dy-card h2{font-size:21px;line-height:1.5;overflow-wrap:anywhere}
+#douyin-extract .dy-body{white-space:pre-wrap;overflow-wrap:anywhere;font-family:inherit;font-size:14px;line-height:1.95;max-height:520px;overflow:auto;padding:16px;background:#f3f8f3;border-radius:12px}
+#douyin-extract .dy-video{display:block;width:100%;max-height:560px;object-fit:contain;border-radius:12px;background:#18271f}
+#douyin-extract .dy-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+#douyin-extract .dy-btn{min-height:40px;border-radius:10px}
+#douyin-extract .dy-gallery{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+#douyin-extract .dy-shot img{width:100%;height:260px;object-fit:contain;background:#eef4ee}
+#douyin-extract [hidden]{display:none!important}
+@media(max-width:900px){body #douyin-extract{padding:20px!important}#douyin-extract .douyin-extract-result{grid-template-columns:1fr}#douyin-extract .douyin-extract-result>.dy-card:first-child{grid-column:1;grid-row:2}#douyin-extract .dy-steps{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:560px){body #douyin-extract{padding:16px!important}#douyin-extract .skill-form-col,#douyin-extract .skill-output-col{padding:18px!important}#douyin-extract .skill-form{grid-template-columns:1fr}#douyin-extract .form-section{grid-row:auto}#douyin-extract .skill-primary{margin:0!important;width:100%}#douyin-extract h1{font-size:24px!important}#douyin-extract .dy-card{padding:16px}#douyin-extract .dy-shot img{height:200px}#douyin-extract .dy-btn{min-height:44px}}
