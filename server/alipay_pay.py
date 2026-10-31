@@ -28,7 +28,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import Column, Integer, MetaData, String, Table, insert, select, update
+from sqlalchemy import Column, Integer, MetaData, String, Table, func, insert, select, update
 from sqlalchemy.exc import IntegrityError
 
 from alipay.aop.api import DefaultAlipayClient as _sdk_client
@@ -217,6 +217,18 @@ alipay_notify_events = Table(
     Column("trade_no", String(64)),
     Column("trade_status", String(32)),
     Column("received_at", String(32), nullable=False),
+)
+
+alipay_reconcile_runs = Table(
+    "alipay_reconcile_runs",
+    metadata,
+    Column("id", String(32), primary_key=True),
+    Column("started_at", String(32), nullable=False),
+    Column("trigger", String(16), nullable=False),
+    Column("checked", Integer, nullable=False, default=0),
+    Column("paid", Integer, nullable=False, default=0),
+    Column("closed", Integer, nullable=False, default=0),
+    Column("failed", Integer, nullable=False, default=0),
 )
 
 
@@ -942,12 +954,14 @@ def _sync_from_query(order: dict[str, Any]) -> dict[str, Any]:
         "WAIT_BUYER_PAY": "PENDING_PAYMENT",
         "TRADE_CLOSED": "CLOSED",
     }.get(status, "UNKNOWN")
-    if mapped == "PAID" and order["status"] != "PAID":
-        _set_order_status(order["out_trade_no"], "PAID", trade_no=result.get("trade_no"), paid_at=_now())
-        order = _find_order(order["out_trade_no"]) or order
-        _credit_recharge(order["out_trade_no"])
-    elif mapped == "PAID":
-        # 订单已是 PAID：补一次幂等入账，修复通知丢失或上次入账中断。
+    # 已退款（含部分退款）是终态，不能被后续 PAID 查询覆盖回 PAID。
+    refunded_statuses = ("REFUNDED", "PARTIAL_REFUNDED")
+    if mapped == "PAID" and order["status"] not in refunded_statuses:
+        if order["status"] != "PAID":
+            _set_order_status(
+                order["out_trade_no"], "PAID", trade_no=result.get("trade_no"), paid_at=_now()
+            )
+            order = _find_order(order["out_trade_no"]) or order
         _credit_recharge(order["out_trade_no"])
     elif mapped == "CLOSED" and order["status"] == "CREATED":
         _set_order_status(order["out_trade_no"], "CLOSED")
@@ -1077,9 +1091,13 @@ def refund_order(out_trade_no: str, payload: RefundPayload) -> JSONResponse:
 
     fund_change = result.get("fund_change")
     clawback = None
+    status_after_refund = None
     if result.get("code") == "10000" and fund_change == "Y":
+        cumulative = refunded + Decimal(refund_amount)
+        full_refund = cumulative >= _amount_of(order["total_amount"])
+        status_after_refund = "REFUNDED" if full_refund else "PARTIAL_REFUNDED"
         _bump_refunded(out_trade_no, Decimal(refund_amount))
-        _set_order_status(out_trade_no, "REFUNDED")
+        _set_order_status(out_trade_no, status_after_refund)
         clawback = _claw_back_refund(order, refunded, Decimal(refund_amount), out_request_no)
     return JSONResponse(
         {
@@ -1092,11 +1110,14 @@ def refund_order(out_trade_no: str, payload: RefundPayload) -> JSONResponse:
             "refund_amount": refund_amount,
             "needs_refund_query": fund_change != "Y",
             "credits_clawback": clawback,
+            "order_status": status_after_refund,
         }
     )
 
 
-def reconcile_pending_orders(older_than_minutes: int = 10, limit: int = 20) -> dict[str, Any]:
+def reconcile_pending_orders(
+    older_than_minutes: int = 10, limit: int = 20, trigger: str = "scheduled"
+) -> dict[str, Any]:
     """对账：主动查询“创建超过 N 分钟仍未支付”的订单，补齐状态与积分。"""
 
     cutoff = (_beijing_now() - timedelta(minutes=max(1, older_than_minutes))).strftime(
@@ -1135,6 +1156,21 @@ def reconcile_pending_orders(older_than_minutes: int = 10, limit: int = 20) -> d
             log_event("alipay.reconcile", **summary)
         except Exception:  # noqa: BLE001 - 观测失败不影响对账
             pass
+    try:
+        with ENGINE.begin() as connection:
+            connection.execute(
+                insert(alipay_reconcile_runs).values(
+                    id=secrets.token_hex(16),
+                    started_at=_now(),
+                    trigger=trigger,
+                    checked=int(summary["checked"]),
+                    paid=int(summary["paid"]),
+                    closed=int(summary["closed"]),
+                    failed=int(summary["failed"]),
+                )
+            )
+    except Exception:  # noqa: BLE001 - 记录失败不影响对账结果
+        logger.warning("alipay reconcile run record failed", exc_info=True)
     return summary
 
 
@@ -1153,7 +1189,133 @@ async def reconcile_loop() -> None:
 @router.post("/api/pay/alipay/reconcile")
 def reconcile_now(request: Request) -> JSONResponse:
     accounts.require_admin(request)
-    return JSONResponse(reconcile_pending_orders(older_than_minutes=0, limit=50))
+    return JSONResponse(reconcile_pending_orders(older_than_minutes=0, limit=50, trigger="manual"))
+
+
+_ADMIN_PAY_STYLE = """
+<style>
+.dash{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin:20px 0}
+.dash div{border:1px solid #e3e6ea;border-radius:14px;padding:14px;background:#fbfbfa}
+.dash span{display:block;font-size:12px;color:#6b7280}
+.dash b{font-size:24px;margin-top:6px;display:block}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid #eef0f2}
+th{color:#6b7280;font-weight:600;font-size:12px}
+td.mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px}
+.tag{padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600}
+.tag.ok{background:#e8f7ee;color:#0f7b3f}
+.tag.wait{background:#fff5e6;color:#a15c00}
+.tag.bad{background:#fdecec;color:#b42318}
+h2{font-size:16px;margin:26px 0 6px}
+</style>
+"""
+
+
+@router.get("/admin/pay", response_class=HTMLResponse, include_in_schema=False)
+def admin_pay_dashboard(request: Request) -> HTMLResponse:
+    """对账看板：订单分布、异常候选、充值汇总、最近对账记录。"""
+
+    accounts.require_admin(request)
+    cutoff = (_beijing_now() - timedelta(minutes=10)).strftime(_TIMESTAMP_FORMAT)
+
+    with ENGINE.begin() as connection:
+        status_counts = {
+            row[0]: int(row[1])
+            for row in connection.execute(
+                select(alipay_orders.c.status, func.count()).group_by(alipay_orders.c.status)
+            ).all()
+        }
+        recent_orders = connection.execute(
+            select(alipay_orders).order_by(alipay_orders.c.created_at.desc()).limit(15)
+        ).mappings().all()
+        runs = connection.execute(
+            select(alipay_reconcile_runs).order_by(alipay_reconcile_runs.c.started_at.desc()).limit(10)
+        ).mappings().all()
+        recharge_row = connection.execute(
+            select(func.count(), func.coalesce(func.sum(alipay_recharges.c.credits), 0)).where(
+                alipay_recharges.c.status == "CREDITED"
+            )
+        ).first()
+        pending_old = connection.execute(
+            select(func.count()).where(
+                alipay_orders.c.status.in_(("CREATED", "PENDING_PAYMENT")),
+                alipay_orders.c.created_at < cutoff,
+            )
+        ).scalar_one()
+
+    credited_count = int(recharge_row[0] or 0)
+    credited_points = int(recharge_row[1] or 0)
+
+    def tag(status: str) -> str:
+        cls = "ok" if status in ("PAID",) else "bad" if status in ("CLOSED", "REFUNDED", "PARTIAL_REFUNDED") else "wait"
+        return f'<span class="tag {cls}">{status}</span>'
+
+    cards = [
+        ("已支付 PAID", status_counts.get("PAID", 0)),
+        ("待支付 CREATED/PENDING", status_counts.get("CREATED", 0) + status_counts.get("PENDING_PAYMENT", 0)),
+        ("已关闭 CLOSED", status_counts.get("CLOSED", 0)),
+        ("已退款 REFUNDED", status_counts.get("REFUNDED", 0) + status_counts.get("PARTIAL_REFUNDED", 0)),
+        ("超 10 分钟未支付", int(pending_old or 0)),
+        ("充值成功笔数 / 积分", f"{credited_count} / {credited_points}"),
+    ]
+    dash = "".join(f"<div><span>{label}</span><b>{value}</b></div>" for label, value in cards)
+
+    order_rows = "".join(
+        "<tr>"
+        f"<td class='mono'>{order['out_trade_no']}</td>"
+        f"<td>{tag(order['status'])}</td>"
+        f"<td>{order['total_amount']}</td>"
+        f"<td class='mono'>{(order['trade_no'] or '—')}</td>"
+        f"<td>{order['created_at']}</td>"
+        f"<td>{(order['paid_at'] or '—')}</td>"
+        "</tr>"
+        for order in recent_orders
+    )
+    run_rows = "".join(
+        "<tr>"
+        f"<td>{run['started_at']}</td>"
+        f"<td>{run['trigger']}</td>"
+        f"<td>{run['checked']}</td>"
+        f"<td>{run['paid']}</td>"
+        f"<td>{run['closed']}</td>"
+        f"<td>{run['failed']}</td>"
+        "</tr>"
+        for run in runs
+    )
+
+    body = (
+        '<div class="brand"><span class="dot"></span>宇宙第一工作台 · 支付对账</div>'
+        "<h1>支付宝订单对账</h1>"
+        '<p class="lead">数字为实时统计；对账每 15 分钟自动执行一次，也可手动触发。</p>'
+        + _ADMIN_PAY_STYLE
+        + f'<div class="dash">{dash}</div>'
+        + '<p><button id="run-reconcile" type="button">立即对账</button> '
+        '<span id="reconcile-hint" class="hint"></span></p>'
+        + "<h2>最近订单</h2>"
+        + "<table><thead><tr><th>订单号</th><th>状态</th><th>金额</th><th>支付宝交易号</th><th>创建</th><th>支付</th></tr></thead><tbody>"
+        + (order_rows or "<tr><td colspan='6'>暂无订单</td></tr>")
+        + "</tbody></table>"
+        + "<h2>最近对账记录</h2>"
+        + "<table><thead><tr><th>时间</th><th>触发</th><th>检查</th><th>补支付</th><th>关闭</th><th>失败</th></tr></thead><tbody>"
+        + (run_rows or "<tr><td colspan='6'>暂无对账记录</td></tr>")
+        + "</tbody></table>"
+        + """
+<script>
+document.getElementById('run-reconcile')?.addEventListener('click', async () => {
+  const hint = document.getElementById('reconcile-hint');
+  hint.textContent = '对账中…';
+  try {
+    const response = await fetch('/api/pay/alipay/reconcile', {method: 'POST', credentials: 'same-origin'});
+    const data = await response.json();
+    hint.textContent = response.ok
+      ? `完成：检查 ${data.checked}，补支付 ${data.paid}，关闭 ${data.closed}，失败 ${data.failed}`
+      : (data.detail || '对账失败');
+    if (response.ok) setTimeout(() => location.reload(), 800);
+  } catch (error) { hint.textContent = '网络异常'; }
+});
+</script>"""
+    )
+    return HTMLResponse(_page("支付对账", body), headers={"Cache-Control": "no-store"})
 
 
 @router.get("/api/pay/alipay/orders/{out_trade_no}/refund-query")

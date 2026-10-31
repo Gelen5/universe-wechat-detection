@@ -524,7 +524,7 @@ def wallet_summary(user_id: str) -> dict[str, Any]:
 def list_transactions(user_id: str, limit: int = 50) -> list[dict[str, Any]]:
     with DB_LOCK, _connect() as connection:
         rows = connection.execute(
-            """SELECT id,amount,balance_before,balance_after,bucket,kind,source,feature,note,created_at
+            """SELECT id,amount,balance_before,balance_after,bucket,kind,source,feature,note,request_id,created_at
                FROM point_transactions WHERE user_id=? ORDER BY created_at DESC LIMIT ?""",
             (user_id, max(1, min(limit, 200))),
         ).fetchall()

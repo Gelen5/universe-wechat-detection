@@ -1957,6 +1957,25 @@ iframe.generator-frame {
 }
 .wallet-transactions article b.in { color: var(--good); }
 .wallet-transactions article b.out { color: var(--warn); }
+.wallet-transactions .tx-order {
+  display: block; margin-top: 4px;
+  font-family: var(--mono); font-size: 11px; color: var(--text-3);
+  word-break: break-all;
+}
+.wallet-filters {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  padding: 10px 0 4px;
+}
+.wallet-filters button {
+  padding: 5px 12px; border-radius: 999px;
+  border: 1px solid var(--line); background: transparent;
+  font-size: 12px; color: var(--text-3); cursor: pointer;
+}
+.wallet-filters button:hover { border-color: var(--line-4); color: var(--text); }
+.wallet-filters button.active {
+  border-color: var(--good); color: var(--good);
+  background: rgba(63, 185, 80, .1);
+}
 
 /* admin */
 .admin-users-card .admin-users-head {

@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
@@ -14,7 +14,7 @@
     <link rel="stylesheet" href="/static/style.css?v=20260901-v3-merge" />
     <link rel="stylesheet" href="/static/taste-chatgpt.css?v=20260901-v3-merge" />
     <link rel="stylesheet" href="/static/admin.css?v=20260901-v3-merge" />
-    <link rel="stylesheet" href="/static/glass-theme.css?v=20261031-viral-remix-1" />
+    <link rel="stylesheet" href="/static/glass-theme.css?v=20261031-pay-wallet-2" />
     <!-- 苹果浅色翻新层：覆盖暗色 token + 润色 + 未来组件系统（必须位于旧表之后） -->
     <link rel="stylesheet" href="/static/tokens.css?v=20260903-apple-light" />
     <link rel="stylesheet" href="/static/theme-apple.css?v=20260903-apple-light" />
@@ -190,7 +190,7 @@
           </div>
           <div class="wallet-total"><span>当前可用</span><strong><b id="wallet-modal-balance">0</b> 积分</strong><small>1 积分基础价值 0.1 元，仅用于平台功能</small></div>
           <div class="wallet-buckets"><div><span>试用</span><strong id="wallet-trial">0</strong></div><div><span>赠送</span><strong id="wallet-bonus">0</strong></div><div><span>付费</span><strong id="wallet-paid">0</strong></div></div>
-          <section class="wallet-history"><div class="wallet-section-title"><strong>积分明细</strong><button id="wallet-refresh" type="button">刷新</button></div><div id="wallet-transactions" class="wallet-transactions"><p>暂无积分记录</p></div></section>
+          <section class="wallet-history"><div class="wallet-section-title"><strong>积分明细</strong><button id="wallet-refresh" type="button">刷新</button></div><div id="wallet-filters" class="wallet-filters" role="group" aria-label="积分明细筛选"><button type="button" class="active" data-filter="all">全部</button><button type="button" data-filter="recharge">充值</button><button type="button" data-filter="refund">退款</button><button type="button" data-filter="consume">消费</button></div><div id="wallet-transactions" class="wallet-transactions"><p>暂无积分记录</p></div></section>
           <section id="admin-recharge-panel" class="admin-recharge" hidden>
             <div class="wallet-section-title"><strong>管理员充值</strong><span>人工收款与试用赠送必须分开记录</span></div>
             <label>查找用户<input id="admin-user-query" type="search" placeholder="邮箱或昵称"></label>
@@ -983,7 +983,7 @@
     <script src="/static/vendor/lucide.min.js"></script>
     <script src="/static/market.js?v=20261026-loading-1" defer></script>
     <script src="/static/auth-challenge.js?v=20261031-glass-2"></script>
-    <script src="/static/app.js?v=20261031-remix-fast-1"></script>
+    <script src="/static/app.js?v=20261031-pay-wallet-2"></script>
     <script src="/static/flow.js?v=20260904-tools-1"></script>
     <script src="/static/studio-tools.js?v=20261028-tietu-1"></script>
     <link rel="stylesheet" href="/static/creator-chat.css?v=20260906-conversation-1">

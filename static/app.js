@@ -387,12 +387,53 @@ document.querySelector('#auth-form')?.addEventListener('submit', async event => 
   } finally { finish(); window.AuthChallenge?.reset(); }
 });
 
-function renderTransactions(items = []) {
+let walletTransactions = [];
+let walletFilter = 'all';
+
+function transactionKind(item) {
+  const kind = String(item.kind || '').toLowerCase();
+  if (kind === 'recharge') return 'recharge';
+  if (kind === 'refund') return 'refund';
+  if (kind === 'consume') return 'consume';
+  return item.amount > 0 ? 'recharge' : 'consume';
+}
+
+function alipayOrderNo(item) {
+  const ref = String(item.request_id || '');
+  const match = ref.match(/^alipay(?:-refund)?:([^:]+)/);
+  return match ? match[1] : '';
+}
+
+function paintTransactions() {
   const root = document.querySelector('#wallet-transactions');
-  if (!items.length) { root.innerHTML = '<p>暂无积分记录</p>'; return; }
-  root.innerHTML = items.map(item => `<article><span class="transaction-icon ${item.amount > 0 ? 'in' : 'out'}"><i data-lucide="${item.amount > 0 ? 'plus' : 'sparkles'}"></i></span><div><strong>${esc(item.feature || item.note || (item.amount > 0 ? '积分充值' : '功能消费'))}</strong><small>${esc(item.note || item.source)} · ${new Date(item.created_at).toLocaleString('zh-CN')}</small></div><b class="${item.amount > 0 ? 'in' : 'out'}">${item.amount > 0 ? '+' : ''}${number(item.amount)}</b></article>`).join('');
+  if (!root) return;
+  const list = walletFilter === 'all'
+    ? walletTransactions
+    : walletTransactions.filter(item => transactionKind(item) === walletFilter);
+  if (!list.length) {
+    root.innerHTML = `<p>${walletTransactions.length ? '该分类暂无记录' : '暂无积分记录'}</p>`;
+    return;
+  }
+  root.innerHTML = list.map(item => {
+    const orderNo = alipayOrderNo(item);
+    const orderLine = orderNo ? `<span class="tx-order">订单 ${esc(orderNo)}</span>` : '';
+    return `<article><span class="transaction-icon ${item.amount > 0 ? 'in' : 'out'}"><i data-lucide="${item.amount > 0 ? 'plus' : 'sparkles'}"></i></span><div><strong>${esc(item.feature || item.note || (item.amount > 0 ? '积分充值' : '功能消费'))}</strong><small>${esc(item.note || item.source)} · ${new Date(item.created_at).toLocaleString('zh-CN')}</small>${orderLine}</div><b class="${item.amount > 0 ? 'in' : 'out'}">${item.amount > 0 ? '+' : ''}${number(item.amount)}</b></article>`;
+  }).join('');
   window.lucide?.createIcons();
 }
+
+function renderTransactions(items = []) {
+  walletTransactions = Array.isArray(items) ? items : [];
+  paintTransactions();
+}
+
+document.querySelector('#wallet-filters')?.addEventListener('click', event => {
+  const button = event.target.closest('button[data-filter]');
+  if (!button) return;
+  walletFilter = button.dataset.filter;
+  document.querySelectorAll('#wallet-filters button').forEach(node => node.classList.toggle('active', node === button));
+  paintTransactions();
+});
 
 async function refreshWallet(open = false) {
   if (!currentAccount) return;
