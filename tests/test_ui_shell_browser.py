@@ -114,6 +114,65 @@ def test_mobile_navigation_has_named_targets_and_more_menu(ui, path):
     expect(more).to_have_attribute("aria-expanded", "false")
 
 
+@pytest.mark.parametrize("width", [360, 390, 414])
+@pytest.mark.parametrize("path", ["/", "/bookshelf", "/market", "/qihaoshou"])
+def test_mobile_bottom_bar_keeps_every_control_on_screen(ui, path, width):
+    """The bottom bar is one row: tabs, 更多 and the community trigger all fit.
+
+    Clipping is the failure mode here, not collapsing, so every control has to be
+    inside the viewport and reachable — a hidden 更多 would take the settings menu
+    with it (the sidebar footer is display:none on phones).
+    """
+    page, _ = ui
+    page.set_viewport_size({"width": width, "height": 844})
+    page.goto("http://ui.test" + path)
+    page.wait_for_timeout(500)
+
+    boxes = page.evaluate("""() => {
+      const box = el => { if (!el) return null; const b = el.getBoundingClientRect();
+        return {left: b.left, right: b.right, top: b.top, bottom: b.bottom,
+                w: b.width, h: b.height}; };
+      return {
+        vw: innerWidth, vh: innerHeight,
+        tabs: [...document.querySelectorAll('.v3-topbar .app-tabs a[data-shell-primary]')].map(box),
+        more: box(document.querySelector('.shell-mobile-more')),
+        trigger: box(document.querySelector('.community-trigger')),
+        overflowX: document.documentElement.scrollWidth > innerWidth + 1,
+      };
+    }""")
+
+    assert len(boxes["tabs"]) == 4, boxes
+    assert boxes["more"], "the 更多 button must exist on phones"
+    assert boxes["trigger"], "the 快点我 trigger must exist on phones"
+    for name in ("more", "trigger"):
+        b = boxes[name]
+        assert b["w"] > 0 and b["h"] > 0, (name, b)
+    for i, b in enumerate(boxes["tabs"]):
+        assert 0 <= b["left"] and b["right"] <= boxes["vw"] + 1, (i, b, boxes["vw"])
+        assert b["w"] >= 44, (i, b)
+    more, trigger = boxes["more"], boxes["trigger"]
+    assert 0 <= more["left"] and more["right"] <= boxes["vw"] + 1, (more, boxes["vw"])
+    assert 0 <= trigger["left"] and trigger["right"] <= boxes["vw"] + 1, (trigger, boxes["vw"])
+    # Same row as the tabs: a wrapped bar is what hid them before.
+    assert abs(more["top"] - boxes["tabs"][0]["top"]) < 8, boxes
+    assert abs(trigger["top"] - boxes["tabs"][0]["top"]) < 8, boxes
+    assert not boxes["overflowX"], boxes
+
+
+def test_phone_trigger_opens_the_community_drawer(ui):
+    page, _ = ui
+    page.set_viewport_size({"width": 390, "height": 844})
+    page.goto("http://ui.test/")
+    page.wait_for_timeout(500)
+    trigger = page.locator('.community-trigger')
+    assert trigger.bounding_box()["width"] >= 44
+    trigger.click()
+    expect(page.locator('.community-drawer')).to_be_visible()
+    expect(page.locator('.community-tabs button')).to_have_count(4)
+    page.locator('.community-close').click()
+    expect(page.locator('.community-drawer')).to_be_hidden()
+
+
 def test_writer_has_one_shell_and_correct_mobile_operation_order(ui):
     page, _ = ui
     page.goto("http://ui.test/one-click-writing")
