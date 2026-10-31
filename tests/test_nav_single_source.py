@@ -7,6 +7,7 @@ static/routes.js; these tests lock the derived values to the ones that were
 hard-coded before the refactor, so rendering cannot drift.
 """
 import json
+import re
 import shutil
 import subprocess
 import unittest
@@ -40,6 +41,8 @@ LEGACY_VIEWS = {
     '/xhs-extract': 'xhs-extract',
     '/diagnose': 'diagnose', '/hit-detector': 'hit-detector',
     '/morning-generator': 'morning', '/market': 'market', '/hotspots': 'hotspots',
+    # 书架现在内嵌在常驻外壳里（section + iframe），所以是应用内视图。
+    '/bookshelf': 'bookshelf',
 }
 
 NODE = shutil.which('node')
@@ -88,10 +91,13 @@ class SingleSourceTests(unittest.TestCase):
         self.assertEqual(LEGACY_VIEWS, self.data['views'])
 
     def test_page_links_are_not_spa_views(self):
-        # /pricing and /bookshelf are server-rendered pages; treating them as
-        # views hid every panel and left a blank screen until a refresh.
+        # /pricing is still a server-rendered page: treating it as a view hid
+        # every panel and left a blank screen until a refresh. /bookshelf is
+        # now embedded via its own <section id="bookshelf"> + iframe, so it is
+        # a legitimate view; the invariant that matters is that any entry
+        # claiming a view has a matching section in index.html.
         self.assertIsNone(self.data['views'].get('/pricing'))
-        self.assertIsNone(self.data['views'].get('/bookshelf'))
+        self.assertEqual('bookshelf', self.data['views'].get('/bookshelf'))
         self.assertEqual('market', self.data['views'].get('/market'))
 
     def test_page_links_stay_in_the_menu(self):
@@ -114,6 +120,30 @@ class IncludeTests(unittest.TestCase):
                     if at >= 0:
                         self.assertLess(routes_at, at,
                                         f'{page} loads {script} before routes.js')
+
+    def test_every_view_resolves_to_a_real_element(self):
+        """A routed view whose element is missing hides every panel.
+
+        The selector is read from app.js (the view map), not assumed from the
+        view name: `morning` maps to #morning-generator, `home` to #home.
+        """
+        index = (STATIC / 'index.html').read_text(encoding='utf-8')
+        bundle = (STATIC / 'app.js').read_text(encoding='utf-8')
+        # Lines look like:   xiaohongshu: xiaohongshuPage,   'tie-tu': tieTuPage,
+        pattern = re.compile(r"^\s*'?([\w-]+)'?:\s*([A-Za-z_$][\w$]*),\s*$", re.M)
+        declarations = dict(re.findall(
+            r"^const\s+([A-Za-z_$][\w$]*)\s*=\s*document\.querySelector\('([^']+)'\);\s*$",
+            bundle, re.M))
+        checked = 0
+        for view, variable in pattern.findall(bundle):
+            selector = declarations.get(variable)
+            if not selector or not selector.startswith('#'):
+                continue
+            checked += 1
+            with self.subTest(view=view, selector=selector):
+                self.assertIn(f'id="{selector[1:]}"', index,
+                              f'{view} -> {selector} has no section in index.html')
+        self.assertGreaterEqual(checked, 8, f'view map parse looks wrong ({checked})')
 
     def test_renderers_no_longer_hard_code_a_route_list(self):
         for name in ('shell.js', 'app-navigation.js', 'notion-workspace.js'):
