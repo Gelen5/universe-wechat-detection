@@ -1,4 +1,4 @@
-/* 宇宙第一工作台 · 统一层 (ui-system.css)
+﻿/* 宇宙第一工作台 · 统一层 (ui-system.css)
  * 只做三件事：统一可读性下限、统一控件热区、抹平模块间皮肤差异。
  * 加载顺序放在所有历史样式之后；不触碰首页 hero（#home 与 .home-page 均不在选择器里）。
  */
@@ -329,6 +329,7 @@ body.atelier #workbench[data-stage="0"] #workbench-action-card {
 }
 
 #workspace-navigation .nav-more-toggle small { color: var(--uw-ink-3); font-size: 12px; }
+#workspace-navigation .nav-more-toggle { position: sticky; bottom: 0; z-index: 2; background: rgba(251, 251, 248, .96); backdrop-filter: blur(6px); }
 #workspace-navigation .nav-more-toggle:hover { background: rgba(47, 111, 79, .06); }
 #workspace-navigation .nav-more-toggle[aria-expanded="true"] { border-style: solid; }
 
