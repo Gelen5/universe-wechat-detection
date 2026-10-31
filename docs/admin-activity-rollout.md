@@ -14,3 +14,5 @@
 验证：专项 API（权限、北京时间边界、去重、排除代看、失败状态）与 1440/390 浏览器交互；现有 Better Auth/登录浏览器回归。accounts_and_billing 基线 2fac95f 与候选均 19 passed / 4 failed（原有 SQLite 流水唯一性及 mock 接口问题），不将这些失败计为通过。
 
 部署沿用官方脚本，requirements 未变时复用运行环境。上线后核对 readiness、静态文件哈希、匿名与普通账号权限、生产 PostgreSQL 聚合读取；不导出客户正文。
+
+补充：最近登录可读取 Better Auth auth_session 的真实 createdAt 证据，与业务表记录取较新值；不读取 token，也不据此回填访问活跃。移动导航旧测试期望 11 个链接，main 实际 12 个，本轮与 2fac95f 基线均复现同两项失败。

@@ -48,6 +48,24 @@ def stamp(value):
         return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
     except ValueError: return None
 
+def session_logins():
+    """Recover only actual Better Auth session creation times, never task times."""
+    from sqlalchemy import inspect
+    if not inspect(database.ENGINE).has_table('auth_session'):
+        return {}
+    with database.ENGINE.connect() as c:
+        rows=c.execute(text('SELECT "userId", MAX("createdAt") FROM auth_session GROUP BY "userId"')).all()
+    return {row[0]: stamp(row[1]).isoformat() for row in rows if stamp(row[1])}
+
+def enrich_logins(users):
+    logins=session_logins()
+    for user in users:
+        observed=logins.get(user['id'])
+        if observed and (not stamp(user['last_login_at']) or stamp(observed)>stamp(user['last_login_at'])):
+            user['last_login_at']=observed
+            user['login_source']='认证会话创建记录'
+    return users
+
 def period(start, end):
     try:
         first = date.fromisoformat(start) if start else datetime.now(TZ).date()
@@ -80,6 +98,7 @@ def report(request: Request, start: str='', end: str='', query: str='', metric: 
         jobs=[dict(r) for r in c.execute('SELECT id,user_id,type,lane,usage_id,status,error,attempts,created_at,started_at,finished_at FROM jobs WHERE created_at>=? AND created_at<?',(lower.astimezone(timezone.utc).isoformat(),upper.astimezone(timezone.utc).isoformat())).fetchall()]
         wb=[dict(r) for r in c.execute('SELECT id,user_id,usage_id,status,error,created_at,started_at,finished_at FROM workbench_jobs WHERE created_at>=? AND created_at<?',(lower.astimezone(timezone.utc).isoformat(),upper.astimezone(timezone.utc).isoformat())).fetchall()]
         started=c.execute("SELECT value FROM analytics_meta WHERE key='activity_started'").fetchone()[0]
+    users=enrich_logins(users)
     by_id={u['id']:u for u in users}
     linked={j['usage_id']:j for j in jobs+wb if j.get('usage_id')}
     tasks=[]
@@ -132,7 +151,7 @@ def report(request: Request, start: str='', end: str='', query: str='', metric: 
 @router.get('/api/admin/activity/users/{user_id}')
 def detail(user_id: str, request: Request):
     accounts.require_admin(request)
-    result=accounts.admin_user_detail(user_id)
+    result=enrich_logins([accounts.admin_user_detail(user_id)])[0]
     with accounts._connect() as c:
         result['activity']=[dict(r) for r in c.execute('SELECT kind,created_at FROM user_activity_events WHERE user_id=? ORDER BY created_at DESC LIMIT 50',(user_id,)).fetchall()]
         result['transactions']=[dict(r) for r in c.execute('SELECT amount,balance_before,balance_after,bucket,kind,feature,note,created_at FROM point_transactions WHERE user_id=? ORDER BY created_at DESC LIMIT 50',(user_id,)).fetchall()]

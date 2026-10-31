@@ -1,5 +1,5 @@
 const $=s=>document.querySelector(s), esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const names={creator_image:'图片生成',tie_tu:'贴图创作',wechat:'公众号创作',workbench:'公众号创作',completed:'已完成',succeeded:'已完成',failed:'失败',refunded:'失败已退分',reserved:'处理中',queued:'排队中',running:'执行中',canceled:'已取消',unknown:'无扣分记录',adjustment:'管理员调整',consume:'任务扣分',refund:'任务退款',register:'注册赠送',login:'登录',active:'访问 / 操作工作台'};
+const names={'起号兽写作':'一键成文','起号兽候选标题':'一键成文 · 标题','起号兽表达优化':'一键成文 · 去 AI','起号兽文章配图':'一键成文 · 配图','公众号完整工作流':'公众号创作',creator_chat:'创作对话',diagnose:'账号诊断',hit_detect:'发布前复核',hit_rewrite:'文章改稿',xiaohongshu:'小红书创作',morning_image:'早安图片生成',creator_image:'图片生成',tie_tu:'贴图创作',wechat:'公众号创作',workbench:'公众号创作',completed:'已完成',succeeded:'已完成',failed:'失败',refunded:'失败已退分',reserved:'处理中',queued:'排队中',running:'执行中',canceled:'已取消',unknown:'无扣分记录',adjustment:'管理员调整',consume:'任务扣分',refund:'任务退款',register:'注册赠送',login:'登录',active:'访问 / 操作工作台'};
 const label=v=>names[v]||v||'暂无记录';
 const time=v=>v?new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',dateStyle:'short',timeStyle:'medium',hour12:false}).format(new Date(v)):'暂无记录';
 const state={view:'users',metric:'all',page:1,feature:'',user_id:''};let serial=0,current;

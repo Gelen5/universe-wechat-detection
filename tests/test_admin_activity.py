@@ -67,3 +67,11 @@ def test_observation_failure_does_not_break_login(monkeypatch):
     def fail(*args, **kwargs): raise RuntimeError('fixture failure')
     monkeypatch.setattr(admin_activity, '_record', fail)
     admin_activity.record({'id':'fixture'}, 'login')
+
+
+def test_actual_auth_session_timestamp_can_recover_missing_login(monkeypatch):
+    monkeypatch.setattr(admin_activity,'session_logins',lambda:{'u':'2026-10-31T02:00:00+00:00'})
+    row=admin_activity.enrich_logins([{'id':'u','last_login_at':None}])[0]
+    assert row['last_login_at']=='2026-10-31T02:00:00+00:00'
+    assert row['login_source']=='认证会话创建记录'
+    assert admin_activity.enrich_logins([{'id':'u','last_login_at':'2026-10-31T03:00:00+00:00'}])[0]['last_login_at']=='2026-10-31T03:00:00+00:00'
