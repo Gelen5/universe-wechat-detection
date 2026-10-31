@@ -617,15 +617,30 @@ def pay_page(
 ) -> HTMLResponse:
     chosen = _package((package or "").strip())
     if chosen is not None:
-        user = accounts.user_from_request(request)
+        auth_error = ""
+        try:
+            user = accounts.user_from_request(request)
+        except HTTPException as exc:
+            user = None
+            auth_error = str(exc.detail or "登录状态校验失败")
+        except Exception:  # noqa: BLE001 - 认证服务异常时给出可读页面而不是 500
+            user = None
+            auth_error = "登录状态校验失败，请重新登录后再试"
         if user is None:
+            back = quote(f"/pay?package={chosen['id']}", safe="")
+            reason = (
+                f"<p class=\"lead\">登录状态校验失败：{auth_error}。</p>"
+                if auth_error
+                else '<p class="lead">积分套餐需要绑定到你的账号，请先登录工作台，登录后回到本页继续付款。</p>'
+            )
             return HTMLResponse(
                 _page(
                     "请先登录",
                     '<div class="brand"><span class="dot"></span>宇宙第一工作台 · 收银台</div>'
                     "<h1>请先登录后再购买</h1>"
-                    '<p class="lead">积分套餐需要绑定到你的账号，请先登录工作台再回来付款。</p>'
-                    '<div class="actions"><a class="primary" href="/">返回工作台登录</a></div>',
+                    + reason
+                    + '<div class="actions"><a class="primary" href="/?next=' + back + '">去登录</a>'
+                    + f'<a href="/pay?package={chosen["id"]}">我已登录，刷新本页</a></div>',
                 ),
                 status_code=401,
                 headers={"Cache-Control": "no-cache"},
@@ -715,7 +730,7 @@ def pricing_page() -> HTMLResponse:
     body = (
         '<div class="brand"><span class="dot"></span>宇宙第一工作台 · 商品</div>'
         "<h1>积分套餐</h1>"
-        '<p class="lead">积分用于公众号创作、账号诊断、配图与改稿等能力，1 积分 = ¥0.10。选择套餐后进入支付宝收银台付款。</p>'
+        '<p class="lead">积分用于公众号创作、账号诊断、配图与改稿等能力，1 积分 = ¥0.10。购买前需登录，积分会自动记入当前账号。</p>'
         + extra_style
         + '<div class="plans">'
         + "".join(cards)
