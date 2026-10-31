@@ -107,3 +107,15 @@ body #xhs-extract{--xe-ink:#244b39;--xe-muted:#5f7767;--xe-edge:#d9e8df;--xe-gre
 #xhs-extract #xhs-extract-lightbox[open]{position:fixed!important;animation:none!important;transition:none!important}
 #xhs-extract #xhs-extract-lightbox *{animation:none!important;transition:none!important}
 #xhs-extract #xhs-extract-lightbox header,#xhs-extract #xhs-extract-lightbox footer{padding:0;margin:0;min-height:0;background:transparent}
+
+/* Longer shared text and readable engagement figures. */
+#xhs-extract .xe-input-row{align-items:stretch}
+#xhs-extract #xhs-extract-url{box-sizing:border-box;min-width:0;min-height:88px;height:88px;line-height:1.65;overflow-y:auto;overflow-wrap:anywhere;word-break:break-word;resize:vertical}
+#xhs-extract #xhs-extract-start{align-self:stretch;min-height:48px}
+#xhs-extract .xe-result-info{min-width:0;flex:1}
+#xhs-extract .xe-stats{display:grid;grid-template-columns:repeat(4,minmax(78px,1fr));gap:9px;min-width:min(100%,380px)}
+#xhs-extract .xe-stats div{display:flex;flex-direction:column;align-items:flex-start;gap:5px;padding:12px 15px;border:1px solid #d9e9dd;border-radius:12px;background:#f0f8f1;white-space:normal}
+#xhs-extract .xe-stats dt{font-size:12px;color:#668574}
+#xhs-extract .xe-stats dd{font-size:21px;line-height:1.2;font-weight:700;color:#245e42}
+@media(max-width:1150px){#xhs-extract .xe-stats{width:100%;margin-top:12px}}
+@media(max-width:560px){#xhs-extract .xe-stats{grid-template-columns:repeat(2,minmax(0,1fr));min-width:0}#xhs-extract #xhs-extract-url{min-height:100px;height:100px}}
