@@ -1,0 +1,34 @@
+/* Publishing review shares the mint workbench palette and surfaces. */
+body #hit-detector{--review-ink:#234b38;--review-muted:#63816f;--review-line:#d7e7dc;--review-accent:#21764e;padding:32px 40px!important;background:transparent!important;border:0!important}
+#hit-detector .v3-meta{color:var(--review-muted);margin-bottom:20px}
+#hit-detector .skill-shell{display:grid!important;grid-template-columns:minmax(320px,400px) minmax(0,1fr)!important;gap:24px!important;align-items:start}
+#hit-detector .skill-form-col,#hit-detector .skill-output-col{min-width:0;padding:28px!important;border:1px solid #fff!important;border-radius:24px!important;background:linear-gradient(135deg,#fffffff0,#f0faf3d9)!important;box-shadow:0 12px 32px #34583f08!important;max-height:none!important}
+#hit-detector h1{font-family:inherit!important;font-size:28px!important;line-height:1.4!important;color:var(--review-ink)!important;letter-spacing:-.02em}
+#hit-detector :is(h2,h3,strong){color:var(--review-ink)}
+#hit-detector p{font-size:14px;line-height:1.8;color:var(--review-muted);max-width:65ch}
+#hit-detector .micro-label{color:var(--review-muted);font-size:11px;letter-spacing:.08em}
+#hit-detector .skill-form{padding:0!important;border:0!important;box-shadow:none!important;background:transparent!important;margin-top:24px}
+#hit-detector .form-section{padding:0;border:0}
+#hit-detector .head{margin-bottom:20px}#hit-detector .head .num{background:#e4f2e8;color:#28724c;border-radius:8px}
+#hit-detector label{display:flex;flex-direction:column;gap:8px;font-size:13px;line-height:1.5;color:#456951;letter-spacing:0;text-transform:none}
+#hit-detector .field-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:18px 0}
+#hit-detector :is(input,textarea,select){box-sizing:border-box;width:100%;padding:12px 14px!important;border:1px solid #c8ded0!important;border-radius:11px!important;background:#ffffffc9!important;color:#2d4937!important;font-size:14px!important;line-height:1.65;box-shadow:inset 0 1px 2px #254d3303!important}
+#hit-detector textarea{min-height:130px;resize:vertical}#hit-detector #hit-body{min-height:300px}
+#hit-detector :is(input,textarea,select):focus-visible{outline:2px solid #3c946b;outline-offset:3px}
+#hit-detector :is(.skill-primary,.primary-action){display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:12px 18px!important;border:0!important;border-radius:11px!important;background:linear-gradient(110deg,#25865d,#175b3c)!important;color:#fff!important;font-size:14px!important;box-shadow:0 4px 10px #21613e12!important;cursor:pointer}
+#hit-detector .skill-primary{width:100%;margin-top:22px}#hit-detector button:disabled{opacity:.65;cursor:wait}
+#hit-detector .secondary-action{border:1px solid #bad7c5!important;background:#eff9f2!important;color:#256743!important;border-radius:10px;padding:11px 16px}
+#hit-detector .creator-chat-history{background:transparent;max-height:380px}#hit-detector .creator-chat-history>div{border-radius:13px;font-size:14px;line-height:1.8}
+#hit-detector .creator-form-mode{margin-top:24px;padding-top:18px;border-top:1px solid var(--review-line)}#hit-detector summary{color:#387653;font-size:13px;cursor:pointer}
+#hit-detector .skill-empty{padding:18px!important;background:transparent!important;min-height:420px}#hit-detector .skill-empty h2{font-size:25px!important;line-height:1.5!important;margin:16px 0;color:var(--review-ink)}
+#hit-detector .empty-head{padding:0!important}#hit-detector .empty-grid{gap:14px;margin-top:24px}#hit-detector .empty-preview{border:1px solid var(--review-line)!important;border-radius:16px!important;background:#ffffff9c!important;padding:20px!important;box-shadow:none!important}
+#hit-detector .empty-preview header{font-size:12px;color:#698473}#hit-detector .empty-foot{margin-top:24px;padding-top:18px;border-color:var(--review-line);color:#789281;font-size:12px}
+#hit-detector .detector-hero{display:grid;grid-template-columns:150px minmax(0,1fr);gap:24px;align-items:center;padding:26px;border:1px solid var(--review-line);border-radius:18px;background:#eaf6ee!important}
+#hit-detector .detector-hero h2{font-size:56px;line-height:1.1;margin:14px 0 6px;color:#236b47}#hit-detector .detector-hero p{font-size:13px;margin:8px 0}#hit-detector .detector-verdict strong{font-size:18px;line-height:1.6}
+#hit-detector .result-status{display:inline-flex;padding:6px 11px;border-radius:20px;font-size:12px;background:#d9eee0;color:#246444}#hit-detector .result-status.blocked{background:#fae3df;color:#a24232}#hit-detector .result-status.revise{background:#faf0d8;color:#8c6923}
+#hit-detector .result-section{margin-top:22px;padding:22px;border:1px solid var(--review-line);border-radius:16px;background:#ffffff9c}#hit-detector .result-section-title{display:flex;justify-content:space-between;gap:12px;margin-bottom:20px;font-size:15px}#hit-detector .result-section-title span{font-size:12px;color:#718b79}
+#hit-detector .detector-score{display:grid;grid-template-columns:70px minmax(0,1fr) 55px;gap:14px;align-items:center;margin:14px 0;font-size:13px;color:#476451}#hit-detector .detector-score>div{height:6px;border-radius:6px;background:#e7f0e9;overflow:hidden}#hit-detector .detector-score i{display:block;height:100%;background:#69a784;border-radius:6px}#hit-detector .detector-score small{color:#849789;font-weight:400}
+#hit-detector .suggestion-list article{display:flex;align-items:start;gap:16px;padding:18px 0;border-bottom:1px solid #e5eee8}#hit-detector .suggestion-list article:last-child{border:0}#hit-detector .suggestion-list article>span{padding:5px 8px;border-radius:7px;background:#f6ecd6;color:#8d6b2d;font-size:12px}#hit-detector .suggestion-list p{margin:6px 0 0;color:#587362}
+#hit-detector .ledger-list>div{display:flex;gap:14px;align-items:start;padding:14px 0;border-bottom:1px solid #e5eee8}#hit-detector .ledger-list span{flex-shrink:0;font-size:12px;color:#65816e;padding-top:4px}#hit-detector .ledger-list p{margin:0;overflow-wrap:anywhere}
+@media(max-width:1100px){body #hit-detector{padding:24px!important}#hit-detector .skill-shell{grid-template-columns:1fr!important}}
+@media(max-width:560px){body #hit-detector{padding:16px!important}#hit-detector .skill-form-col,#hit-detector .skill-output-col{padding:20px!important;border-radius:18px!important}#hit-detector .detector-hero{grid-template-columns:1fr;padding:20px;gap:12px}#hit-detector .field-grid{grid-template-columns:1fr}#hit-detector .result-section{padding:16px}#hit-detector .result-section-title{flex-wrap:wrap}}
