@@ -95,11 +95,13 @@
         window.location.href = "/";
         throw new Error("请先登录");
       }
-      if (response.status === 503 && !options._retried) {
-        // 503 是网关还没把请求交给应用（多半是部署切换容器的几秒），
-        // 重试一次不会重复扣费；502 有可能是请求已进应用，不自动重试。
-        await new Promise((resolve) => setTimeout(resolve, 2500));
-        return api(path, { ...options, _retried: true });
+      const retries = options._retryCount || 0;
+      if (response.status === 503 && retries < 3) {
+        // 503 是网关还没把请求交给应用（部署切换容器的几秒），重试不会重复扣费。
+        // 502 有可能是请求已进应用后被重启打断，不自动重试，避免double charge。
+        const delay = [2000, 4000, 6000][retries];
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        return api(path, { ...options, _retryCount: retries + 1 });
       }
       if ([502, 503, 504].includes(response.status)) {
         throw new Error(`服务正在更新或重启（${response.status}），等 10 秒再点一次；不是你链接的问题`);
