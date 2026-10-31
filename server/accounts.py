@@ -59,6 +59,9 @@ DEFAULT_PRICING = [
     ("POST", "/api/creator/chat", "创作对话", 10, 0),
     ("POST", "/api/workbench/steps", "公众号工作流步骤", 0, 0),
     ("POST", "/api/images/generations", "早安图片生成", 2, 0),
+    # 小红书内容提取：抓取一次扣 1 积分。不调用模型，但消耗出口带宽和媒体
+    # 缓存磁盘；按次计价，请求失败时由中间件自动退款。
+    ("POST", "/api/xhs/extract", "小红书内容提取", 1, 0),
 ]
 
 
@@ -234,9 +237,13 @@ def init_db() -> None:
     with DB_LOCK, _connect() as connection:
         if database.ENGINE.dialect.name == "sqlite":
             connection.executescript(schema)
+            # 幂等索引只约束「非退款」流水：同一 request_id 先有扣费、后有退款冲正，
+            # 退款复用原 request_id。旧索引没有排除条件，退款写入会直接撞 UNIQUE 失败。
+            connection.execute("DROP INDEX IF EXISTS idx_point_transactions_request")
             connection.execute(
                 """CREATE UNIQUE INDEX IF NOT EXISTS idx_point_transactions_request
-                   ON point_transactions(request_id) WHERE request_id IS NOT NULL"""
+                   ON point_transactions(request_id)
+                   WHERE request_id IS NOT NULL AND kind <> 'refund'"""
             )
             session_columns = {row[1] for row in connection.execute("PRAGMA table_info(sessions)")}
             if "impersonator_id" not in session_columns:
@@ -866,7 +873,10 @@ def refund_usage(request_id: str, http_status: int, duration_ms: int) -> None:
             """INSERT INTO point_transactions
                (id,user_id,amount,balance_before,balance_after,bucket,kind,source,feature,request_id,note,allocation_json,created_at)
                VALUES (?,?,?,?,?,'mixed','refund','usage',?,?,?, ?,?)""",
-            (uuid.uuid4().hex, usage["user_id"], points, before, after, usage["feature"], request_id,
+            # request_id 上有唯一索引，而预扣那一行已经用掉了这个 id；退款条目
+            # 必须换一个键，否则整笔退款抛 IntegrityError，用户被扣了钱却拿不回来。
+            (uuid.uuid4().hex, usage["user_id"], points, before, after, usage["feature"],
+             f"{request_id}:refund",
              "请求失败，积分自动退还", usage["allocation_json"], now),
         )
         connection.execute(

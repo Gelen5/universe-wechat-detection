@@ -236,12 +236,43 @@ class RouteRegistrationTests(unittest.TestCase):
         with TestClient(app) as client:
             self.assertEqual(401, client.post('/api/xhs/extract', json={'url': 'x'}).status_code)
 
-    def test_extraction_is_free_but_rate_limited_by_the_paid_gate(self):
-        """Extraction calls no model, so it must not appear in the point table."""
+    def test_extraction_costs_one_point_and_media_stays_free(self):
+        """抓取一次扣 1 积分；媒体读取不再单独计费。
+
+        提取消耗出口带宽与缓存磁盘，按次计价；但同一作品的图片可能被反复
+        打开，为读一张已缓存的图再扣一次钱是用户最容易察觉的不一致。
+        """
         from server.accounts import DEFAULT_PRICING
-        paths = {path for _method, path, *_rest in DEFAULT_PRICING}
-        self.assertNotIn('/api/xhs/extract', paths)
-        self.assertNotIn('/api/xhs/media', paths)
+        prices = {(method, path): points for method, path, _f, points, _c in DEFAULT_PRICING}
+        self.assertEqual(1, prices[('POST', '/api/xhs/extract')])
+        self.assertNotIn('GET', {method for method, path in prices if path == '/api/xhs/media'})
+        self.assertNotIn(('GET', '/api/xhs/media'), prices)
+
+    def test_failed_extraction_is_refunded_not_charged(self):
+        """中间件只在 2xx/3xx 结算，4xx 与异常都退款。
+
+        这条锁的是「提取失败还扣钱」这个最伤用户的场景。
+        """
+        with TestClient(app) as client:
+            login = client.post('/api/auth/login', json={
+                'email': 'admin@example.com', 'password': 'testing-pass-123'})
+            self.assertEqual(200, login.status_code)
+            # 先备足余额，否则会先撞上 402（积分不足）而不是被测的退款路径。
+            recharge = client.post('/api/admin/recharge', json={
+                'user_id': login.json()['user']['id'], 'points': 10,
+                'bucket': 'trial', 'note': '退款路径测试'})
+            self.assertEqual(200, recharge.status_code, recharge.text)
+            before = client.get('/api/wallet').json()['wallet']['balance']
+            self.assertGreaterEqual(before, 10, before)
+            with mock.patch.object(xhs_extract, 'fetch_note',
+                                   side_effect=xhs_extract.HTTPException(422, 'token 失效')):
+                response = client.post('/api/xhs/extract',
+                                       json={'url': 'https://www.xiaohongshu.com/explore/'
+                                                   '6aa75cdc000000000b0036e7?xsec_token=x'})
+            self.assertEqual(422, response.status_code)
+            after = client.get('/api/wallet').json()['wallet']['balance']
+            self.assertEqual(before, after, '失败必须退还积分')
+            self.assertEqual('1', response.headers.get('X-Points-Refunded'))
 
 
 if __name__ == '__main__':

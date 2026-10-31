@@ -218,6 +218,12 @@
     const data = await response.json();
     window.PointsNotice?.fromResponse?.(response, data);
     if (!response.ok) throw new Error(data.detail || '提取失败');
+    // 现在按次扣费：告诉用户这一次花了多少、还剩多少，比默默扣掉更可信。
+    const charged = response.headers.get('X-Points-Charged');
+    if (charged && charged !== '0') {
+      const balance = response.headers.get('X-Points-Balance');
+      toast(`本次提取扣除 ${charged} 积分${balance ? `，余额 ${balance}` : ''}`);
+    }
     return data.note;
   }
 
