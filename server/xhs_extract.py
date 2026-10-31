@@ -16,16 +16,21 @@
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
+import os
 import re
+import threading
+import time
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any
-from urllib.parse import quote, urlparse
+from urllib.parse import urlparse
 
 import requests
 from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
@@ -45,14 +50,176 @@ STATE_PATTERN = re.compile(r"window\.__INITIAL_STATE__\s*=\s*(\{.*?\})\s*</scrip
 NOTE_ID = re.compile(r"(?:explore|discovery/item|item)/([0-9a-zA-Z]{16,32})")
 SHORT_LINK = re.compile(r"(?:https?://)?xhslink\.(?:com|cn)/[^\s\"<>\\^`{|}，。；！？、【】《》]+")
 CONTROL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+# 小红书图床把签名时间戳放在路径的第一段（12 位 YYYYMMDDHHMM）。
+STAMP_SEGMENT = re.compile(r"^\d{12}$")
 
 # 互动数在页面上是 "1.2万" / "10+" 这种给人看的写法，统一换算成整数。
 COUNT_UNITS = (("亿", 100_000_000), ("w", 10_000), ("万", 10_000), ("k", 1_000))
 BEIJING = timezone(timedelta(hours=8))
 
+# ------------------------------------------------------------------ 媒体缓存
+# 小红书的图片地址带签名时间戳，实测只在那一分钟内有效（前后各错一分钟就 403）。
+# 所以「把地址转给浏览器」这个做法注定会裂图：用户看到结果时签名往往已经过期。
+# 提取时就把字节取下来落盘，之后一律由本地文件响应。
+MEDIA_TTL = max(60, int(os.getenv("XHS_MEDIA_TTL", "21600")))          # 6 小时
+MEDIA_MAX_BYTES = max(4, int(os.getenv("XHS_MEDIA_MAX_MB", "512"))) * 1024 * 1024
+MEDIA_BUDGET = max(1, int(os.getenv("XHS_MEDIA_BUDGET_MB", "3072"))) * 1024 * 1024
+_cache_lock = threading.Lock()
+
+
+def cache_root() -> Path:
+    """和 AI 超市/作品输出一样落在持久卷上，容器重建后仍在。"""
+    configured = os.getenv("XHS_MEDIA_DIR", "").strip()
+    base = Path(configured) if configured else Path("/app/output/xhs-media")
+    try:
+        base.mkdir(parents=True, exist_ok=True)
+        return base
+    except OSError:
+        fallback = Path(__file__).resolve().parents[1] / "output" / "xhs-media"
+        fallback.mkdir(parents=True, exist_ok=True)
+        return fallback
+
+
+def media_key(url: str) -> str:
+    """稳定标识：去掉签名时间戳段，同一张图每次提取都落到同一个 key。
+
+    保留 host，避免不同子域的同名路径互相覆盖。
+    """
+    parsed = urlparse(url)
+    segments = [s for s in parsed.path.split("/") if s]
+    stable = [s for s in segments if not STAMP_SEGMENT.match(s)]
+    material = f"{(parsed.hostname or '').lower()}/{'/'.join(stable)}"
+    return hashlib.sha256(material.encode("utf-8")).hexdigest()[:40]
+
+
+def _entry_paths(key: str) -> tuple[Path, Path]:
+    root = cache_root()
+    return root / f"{key}.bin", root / f"{key}.meta.json"
+
+
+def cached_media(key: str) -> tuple[Path, dict[str, Any]] | None:
+    """返回 (文件, 元数据)；过期或缺失都当未命中。"""
+    blob, meta_path = _entry_paths(key)
+    if not blob.is_file() or not meta_path.is_file():
+        return None
+    try:
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        stored_at = float(meta.get("stored_at", 0))
+    except (OSError, ValueError):
+        return None
+    if time.time() - stored_at > MEDIA_TTL:
+        return None
+    return blob, meta
+
+
+def store_media(key: str, payload: bytes, content_type: str, url: str) -> None:
+    """原子写入：先写临时文件再改名，读方永远看不到半个文件。"""
+    if len(payload) > MEDIA_MAX_BYTES:
+        logger.info("xhs.media.cache_skip key=%s bytes=%s too_large", key, len(payload))
+        return
+    blob, meta_path = _entry_paths(key)
+    suffix = os.getpid()
+    # 用字符串拼后缀：Path.with_suffix 会替换掉已有的 .bin/.meta.json。
+    tmp_blob = blob.with_name(f"{blob.name}.{suffix}.tmp")
+    tmp_meta = meta_path.with_name(f"{meta_path.name}.{suffix}.tmp")
+    try:
+        tmp_blob.write_bytes(payload)
+        tmp_meta.write_text(json.dumps({
+            "stored_at": time.time(), "content_type": content_type, "url": url,
+            "bytes": len(payload),
+        }, ensure_ascii=False), encoding="utf-8")
+        os.replace(tmp_blob, blob)
+        os.replace(tmp_meta, meta_path)
+    except OSError as error:
+        logger.warning("xhs.media.cache_write_failed key=%s error=%s", key, type(error).__name__)
+        for path in (tmp_blob, tmp_meta):
+            try:
+                path.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+
+def prune_cache() -> None:
+    """超出预算就按最后使用时间删最旧的；顺带清掉过期条目。"""
+    root = cache_root()
+    try:
+        entries = []
+        total = 0
+        now = time.time()
+        for blob in root.glob("*.bin"):
+            try:
+                stat = blob.stat()
+            except OSError:
+                continue
+            total += stat.st_size
+            entries.append((stat.st_mtime, stat.st_size, blob))
+        if total <= MEDIA_BUDGET:
+            return
+        entries.sort()
+        for mtime, size, blob in entries:
+            if total <= MEDIA_BUDGET:
+                break
+            try:
+                blob.unlink(missing_ok=True)
+                blob.with_name(f"{blob.stem}.meta.json").unlink(missing_ok=True)
+                total -= size
+            except OSError:
+                continue
+        logger.info("xhs.media.pruned remaining_bytes=%s", total)
+    except OSError:
+        return
+
+
+def download_media(url: str) -> tuple[bytes, str]:
+    """取一次上游字节。签名过期时抛 502，由调用方决定是否重取。"""
+    response = requests.get(
+        url, headers={**HEADERS, "referer": "https://www.xiaohongshu.com/"},
+        timeout=25,
+    )
+    if response.status_code >= 400:
+        raise HTTPException(502, "媒体下载失败")
+    content_type = response.headers.get("content-type", "application/octet-stream")
+    if not content_type.startswith(("image/", "video/")):
+        raise HTTPException(415, "上游返回的不是图片或视频")
+    return response.content, content_type
+
+
+def warm_media(urls: list[str]) -> None:
+    """提取后立刻把图片字节存好，用户点开时不必再碰过期签名。
+
+    只预热图片：视频动辄几十 MB，按需取更合适；且它没有签名时效问题。
+    """
+    for url in urls:
+        key = media_key(url)
+        if cached_media(key):
+            continue
+        try:
+            payload, content_type = download_media(url)
+        except HTTPException as error:
+            logger.info("xhs.media.warm_skip key=%s status=%s", key, error.status_code)
+            continue
+        except requests.RequestException as error:
+            logger.info("xhs.media.warm_skip key=%s error=%s", key, type(error).__name__)
+            continue
+        store_media(key, payload, content_type, url)
+    prune_cache()
+
+
+def warm_media_async(urls: list[str]) -> None:
+    """预热放到后台线程：不要让用户等下载。"""
+    if not urls:
+        return
+
+    def run():
+        with _cache_lock:
+            warm_media(urls)
+
+    threading.Thread(target=run, name="xhs-warm", daemon=True).start()
+
 
 class ExtractRequest(BaseModel):
     url: str = Field(min_length=1, max_length=2048)
+
 
 
 def normalize_link(raw: str) -> str:
@@ -259,16 +426,21 @@ def fetch_note(link: str) -> dict[str, Any]:
 
 @router.post("/api/xhs/extract")
 def api_extract(payload: ExtractRequest):
-    """提取作品数据。只读公开信息，不下载、不落盘。"""
+    """提取作品数据，并把图片字节存到本地缓存。
+
+    只读公开信息。图片会落盘（不是正文搬运）——这是必要的：源站签名一分钟
+    就失效，不留一份就无法在用户点开时还出得来。
+    """
     link = normalize_link(payload.url)
     data = fetch_note(link)
+    warm_media_async([image["url"] for image in data["images"]])
     logger.info("xhs.extract id=%s kind=%s images=%s", data["id"], data["kind"], data["imageCount"])
     return {"status": "success", "note": data}
 
 
 @router.get("/api/xhs/media")
 def api_media(url: str = Query(min_length=8, max_length=2048)):
-    """同源转发图片/视频，避免前端直接跨域拉小红书 CDN 被拦。
+    """同源提供媒体：有缓存读本地文件，没有才去上游取。
 
     只允许小红书自己的图床与视频域名，防止这个端点被当成任意 URL 的代理。
     """
@@ -278,34 +450,29 @@ def api_media(url: str = Query(min_length=8, max_length=2048)):
         ("xhscdn.com", "xiaohongshu.com", "rednote.com")
     ):
         raise HTTPException(400, "只允许转发小红书媒体地址")
-    try:
-        upstream = requests.get(
-            url, headers={**HEADERS, "referer": "https://www.xiaohongshu.com/"},
-            timeout=25, stream=True,
+
+    key = media_key(url)
+    hit = cached_media(key)
+    if hit:
+        blob, meta = hit
+        # 顺手刷新 mtime，让容量清理按「最后使用」而不是「最初写入」淘汰。
+        try:
+            os.utime(blob, None)
+        except OSError:
+            pass
+        return FileResponse(
+            blob,
+            media_type=meta.get("content_type", "application/octet-stream"),
+            headers={"Cache-Control": "private, max-age=86400"},
         )
+
+    # 未命中（视频、或预热还没跑完）：这次直连上游，同时把它存下来。
+    try:
+        payload, content_type = download_media(url)
     except requests.RequestException as error:
         raise HTTPException(502, "媒体下载失败") from error
-    if upstream.status_code >= 400:
-        upstream.close()
-        raise HTTPException(502, "媒体下载失败")
-    content_type = upstream.headers.get("content-type", "application/octet-stream")
-    if not content_type.startswith(("image/", "video/")):
-        upstream.close()
-        raise HTTPException(415, "上游返回的不是图片或视频")
-
-    def stream():
-        try:
-            for chunk in upstream.iter_content(64 * 1024):
-                if chunk:
-                    yield chunk
-        finally:
-            upstream.close()
-
-    filename = quote(f"{note_id_of(url) or 'xhs'}-{parsed.path.rsplit('/', 1)[-1][:40]}")
+    store_media(key, payload, content_type, url)
     return StreamingResponse(
-        stream(), media_type=content_type,
-        headers={
-            "Cache-Control": "private, max-age=600",
-            "Content-Disposition": f"inline; filename*=UTF-8''{filename}",
-        },
+        iter([payload]), media_type=content_type,
+        headers={"Cache-Control": "private, max-age=86400"},
     )

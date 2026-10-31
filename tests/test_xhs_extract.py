@@ -1,6 +1,10 @@
 """Helpers and the extraction contract, offline (no upstream calls)."""
 import json
+import os
 import re
+import shutil
+import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -143,10 +147,88 @@ class MediaProxyTests(unittest.TestCase):
     def test_proxy_rejects_non_media_content_types(self):
         with mock.patch.object(xhs_extract.requests, 'get') as get:
             get.return_value = mock.Mock(status_code=200, headers={'content-type': 'text/html'},
-                                         iter_content=lambda *a, **k: iter([b'<html>']), close=lambda: None)
+                                         content=b'<html>')
             with self.assertRaises(xhs_extract.HTTPException) as caught:
                 xhs_extract.api_media('https://sns-webpic-qc.xhscdn.com/x')
             self.assertEqual(415, caught.exception.status_code)
+
+
+class MediaCacheTests(unittest.TestCase):
+    """The source URL expires within its own minute, so bytes must be kept."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix='xhs-media-')
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        patcher = mock.patch.dict(os.environ, {'XHS_MEDIA_DIR': self.tmp})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_signed_timestamp_is_not_part_of_the_cache_key(self):
+        first = ('https://sns-webpic-qc.xhscdn.com/202610311344/abc/notes_uhdr/x.jpg')
+        second = ('https://sns-webpic-qc.xhscdn.com/202610311401/abc/notes_uhdr/x.jpg')
+        self.assertEqual(xhs_extract.media_key(first), xhs_extract.media_key(second))
+        # Different hosts must not collide even with identical paths.
+        other = 'https://sns-img-bd.xhscdn.com/202610311344/abc/notes_uhdr/x.jpg'
+        self.assertNotEqual(xhs_extract.media_key(first), xhs_extract.media_key(other))
+
+    def test_stored_bytes_are_served_without_touching_the_upstream(self):
+        url = 'https://sns-webpic-qc.xhscdn.com/202610311344/abc/x.jpg'
+        xhs_extract.store_media(xhs_extract.media_key(url), b'\xff\xd8\xffJPEG', 'image/jpeg', url)
+        with mock.patch.object(xhs_extract.requests, 'get') as get:
+            get.side_effect = AssertionError('cache hit must not call upstream')
+            response = xhs_extract.api_media(url)
+        self.assertEqual('image/jpeg', response.media_type)
+        with open(response.path, 'rb') as handle:
+            self.assertEqual(b'\xff\xd8\xffJPEG', handle.read())
+
+    def test_expired_entry_is_a_miss(self):
+        url = 'https://sns-webpic-qc.xhscdn.com/202610311344/abc/old.jpg'
+        key = xhs_extract.media_key(url)
+        xhs_extract.store_media(key, b'old', 'image/jpeg', url)
+        blob, meta_path = xhs_extract._entry_paths(key)
+        meta = json.loads(meta_path.read_text(encoding='utf-8'))
+        meta['stored_at'] = time.time() - (xhs_extract.MEDIA_TTL + 60)
+        meta_path.write_text(json.dumps(meta), encoding='utf-8')
+        self.assertIsNone(xhs_extract.cached_media(key))
+
+    def test_warm_skips_videos_and_survives_upstream_failure(self):
+        good = 'https://sns-webpic-qc.xhscdn.com/202610311344/abc/good.jpg'
+        bad = 'https://sns-webpic-qc.xhscdn.com/202610311344/abc/bad.jpg'
+
+        def fake_get(url, **kwargs):
+            if url == bad:
+                return mock.Mock(status_code=403, headers={}, content=b'')
+            return mock.Mock(status_code=200, headers={'content-type': 'image/jpeg'},
+                             content=b'IMG')
+
+        with mock.patch.object(xhs_extract.requests, 'get', side_effect=fake_get):
+            xhs_extract.warm_media([good, bad])
+        self.assertIsNotNone(xhs_extract.cached_media(xhs_extract.media_key(good)))
+        self.assertIsNone(xhs_extract.cached_media(xhs_extract.media_key(bad)))
+
+    def test_prune_drops_oldest_entries_over_budget(self):
+        media = sorted(xhs_extract.cache_root().glob('*.bin'))
+        self.assertEqual([], media)
+        for index in range(4):
+            url = f'https://sns-webpic-qc.xhscdn.com/202610311344/abc/f{index}.jpg'
+            key = xhs_extract.media_key(url)
+            xhs_extract.store_media(key, b'x' * 1024, 'image/jpeg', url)
+            blob, _meta = xhs_extract._entry_paths(key)
+            os.utime(blob, (time.time() - 1000 + index, time.time() - 1000 + index))
+        with mock.patch.object(xhs_extract, 'MEDIA_BUDGET', 2048):
+            xhs_extract.prune_cache()
+        remaining = list(xhs_extract.cache_root().glob('*.bin'))
+        self.assertLessEqual(len(remaining), 2, remaining)
+        # The newest files are the ones kept.
+        self.assertTrue(any(p.name.startswith(xhs_extract.media_key(
+            'https://sns-webpic-qc.xhscdn.com/202610311344/abc/f3.jpg')) for p in remaining))
+
+    def test_oversized_payload_is_refused_rather_than_filling_the_disk(self):
+        url = 'https://sns-video-v6.xhscdn.com/stream/1/110/258/big.mp4'
+        key = xhs_extract.media_key(url)
+        with mock.patch.object(xhs_extract, 'MEDIA_MAX_BYTES', 16):
+            xhs_extract.store_media(key, b'x' * 64, 'video/mp4', url)
+        self.assertIsNone(xhs_extract.cached_media(key))
 
 
 class RouteRegistrationTests(unittest.TestCase):
