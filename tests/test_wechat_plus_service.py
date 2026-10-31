@@ -70,10 +70,11 @@ class NativeConversationTests(unittest.TestCase):
     def test_observed_research_aliases_preserve_unverified_status_and_limits(self):
         result = runtime.normalize_research({
             'sources':[{'id':'src_001','title':'参考资料','url':'https://example.com/source',
-                'verification':'fetched_excerpt','notes':'仅作旁证'}],
-            'claims':[{'id':'claim_001','text':'这是一个方法建议','type':'opinion',
-                'source_ids':['src_001'],'status':'illustrative','notes':'不能写成作者亲历'}],
-            'research_status':{'status':'partial','summary':'未核验直接证据','conditions':['不写效果数字']},
+                'verification':'fetched_excerpt','notes':'仅作旁证'},
+                {'id':'excluded','type':'public_web','title':'只有标题的结果','use_in_article':False,'exclusion_reason':'未取得正文'}],
+            'claims':[{'id':'claim_001','claim':'这是一个方法建议','type':'opinion',
+                'source_ids':['src_001'],'status':'illustrative','notes':'不能写成作者亲历','usage':'不得作为效果结论'}],
+            'research_status':{'status':'partial','assessment':'未核验直接证据','conditions':['不写效果数字']},
             'limitations':['材料不完整']})
         pack = result['evidence_pack']
         article = runtime.initialize('写一篇方法建议')
@@ -85,6 +86,8 @@ class NativeConversationTests(unittest.TestCase):
         self.assertEqual(native.evidence_pack.research_status, 'partial')
         self.assertIn('不写效果数字', native.evidence_pack.limitations)
         self.assertIn('claim_001: 不能写成作者亲历', native.evidence_pack.limitations)
+        self.assertIn('claim_001: 不得作为效果结论', native.evidence_pack.limitations)
+        self.assertEqual(len(native.evidence_pack.sources.records), 1)
 
     def test_cancellation_interrupts_before_model_call(self):
         def cancelled():

@@ -138,6 +138,7 @@
     }
     $('preview').hidden = !nextPreview;
     $('preview-empty').hidden = Boolean(nextPreview);
+    $('copy-html').disabled = !nextPreview || Boolean(shownVersion);
     updateBusy();
     if (nearBottom) messageRoot.scrollTop = messageRoot.scrollHeight;
   }
@@ -281,6 +282,27 @@
   root.querySelector('[data-wp-prompt]').onclick = event => send(event.currentTarget.dataset.wpPrompt);
   $('import').onclick = () => {$('input').value = '请帮我修改下面这篇文章：\n\n'; $('input').focus();};
   $('copy').onclick = async () => {try {await navigator.clipboard.writeText(editor.value); $('save-state').textContent='已复制';} catch(error) {reportError(error);}};
+  $('copy-html').onclick = async () => {
+    try {
+      await save();
+      if (!session?.state.article_state?.formatted_output || shownVersion) throw new Error('正文已修改，请重新排版后复制。');
+      if (!navigator.clipboard?.write || typeof ClipboardItem === 'undefined') throw new Error('当前浏览器不支持复制排版，请使用新版 Chrome 或 Edge。');
+      const response = await fetch(`/api/wechat-plus/sessions/${session.id}/preview`, {credentials:'same-origin', cache:'no-store', signal:AbortSignal.timeout(30000)});
+      await window.AccountLifecycle?.checkResponse(response);
+      if (!response.ok || !response.headers.get('content-type')?.includes('text/html')) throw new Error('读取排版未完成，请稍后重试。');
+      const html = await response.text();
+      const document = new DOMParser().parseFromString(html, 'text/html');
+      document.querySelectorAll('script,iframe,object,embed').forEach(node => node.remove());
+      document.querySelectorAll('*').forEach(node => [...node.attributes].forEach(attribute => {
+        if (/^on/i.test(attribute.name) || /^(href|src)$/i.test(attribute.name) && /^\s*javascript:/i.test(attribute.value)) node.removeAttribute(attribute.name);
+      }));
+      await navigator.clipboard.write([new ClipboardItem({
+        'text/html':new Blob([document.body.innerHTML],{type:'text/html'}),
+        'text/plain':new Blob([document.body.textContent],{type:'text/plain'}),
+      })]);
+      $('save-state').textContent='排版已复制，可粘贴到公众号编辑器';
+    } catch(error) {reportError(error);}
+  };
   $('download').onclick = () => {
     const url = URL.createObjectURL(new Blob([editor.value], {type:'text/markdown;charset=utf-8'}));
     const link = document.createElement('a'); link.href=url; link.download='公众号文章.md'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);

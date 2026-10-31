@@ -17,13 +17,19 @@ def plus_fixture(page):
         path = urlparse(request.url).path
         data = request.post_data_json if request.method in {'POST','PUT'} else {}
         requests.append((request.method, path, data))
+        if path.endswith('/preview'):
+            route.fulfill(content_type='text/html', body='<section style="color:#214d3d"><h2>会议记录</h2><p>排版后的正文</p><script>danger()</script></section>')
+            return
         if path.endswith('/sessions') and request.method == 'GET':
             body = {'sessions':[row] if row['state']['messages'] else [], 'pricing':'Plus 内测期间暂不扣积分'}
         elif path.endswith('/sessions'):
             body = {'session':row}
         elif path.endswith('/messages'):
             state['messages'].append({'role':'user','content':data['message']})
-            if not state['choices'] and not state['article_state']:
+            if data['message'] == '排版看看':
+                state['article_state']['formatted_output'] = '/private/article.html'
+                state['messages'].append({'role':'assistant','content':'排版完成。'})
+            elif not state['choices'] and not state['article_state']:
                 state['choices'] = [{'title':'会议结束后，怎样确认待办','angle':'从讨论到行动'}, {'title':'AI会议摘要为什么漏信息','angle':'核对原始材料'}]
                 state['messages'].append({'role':'assistant','content':'选一个切入点。'})
             else:
@@ -84,3 +90,29 @@ def test_plus_mobile_has_no_horizontal_overflow(ui):
     expect(page.locator('[data-wp-input]')).to_be_visible()
     assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
     assert not observed['errors']
+
+
+def test_copy_layout_keeps_html_styles_and_removes_executable_nodes(ui):
+    page, _ = ui
+    plus_fixture(page)
+    page.add_init_script('''
+      Object.defineProperty(window, 'ClipboardItem', {value:class {constructor(data){this.data=data;}}});
+      Object.defineProperty(navigator, 'clipboard', {value:{write:async items => {
+        window.copiedLayout = await items[0].data['text/html'].text();
+      }}});
+    ''')
+    page.goto('http://ui.test/wechat-plus')
+    page.locator('[data-wp-input]').fill('帮我选题')
+    page.locator('[data-wp-send]').click()
+    page.get_by_role('button', name='1. 会议结束后，怎样确认待办').click()
+    expect(page.locator('[data-wp-editor]')).to_be_visible()
+    page.locator('[data-wp-input]').fill('排版看看')
+    page.locator('[data-wp-send]').click()
+    button = page.locator('[data-wp-copy-html]')
+    expect(button).to_be_enabled()
+    button.click()
+    expect(page.locator('[data-wp-save-state]')).to_have_text('排版已复制，可粘贴到公众号编辑器')
+    html = page.evaluate('window.copiedLayout')
+    assert 'style="color:#214d3d"' in html
+    assert '<h2>会议记录</h2>' in html
+    assert '<script' not in html
