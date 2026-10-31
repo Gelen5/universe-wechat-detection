@@ -774,6 +774,7 @@ def pay_page(
         "</form>"
         '<p class="hint" id="hint">金额范围 0.01 – 100000000.00 元；付款完成后可回到本页查询订单状态。</p>'
         + _PAY_PAGE_SCRIPT
+        + '<div class="actions"><a href="/pricing">返回积分套餐</a><a href="/">返回工作台</a></div>'
     )
     return HTMLResponse(_page("收银台 · 确认支付", body), headers={"Cache-Control": "no-cache"})
 
