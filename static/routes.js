@@ -1,4 +1,4 @@
-/* Single source of truth for application navigation.
+﻿/* Single source of truth for application navigation.
  *
  * Every renderer (notion-workspace.js, shell.js, app-navigation.js) derives its
  * list from here, so adding a module means editing this file only. Values are
@@ -58,7 +58,7 @@ window.APP_NAV = (() => {
      icon: svg('<rect x="3" y="3" width="18" height="18" rx="3"/><path d="m8 15 3-3 2 2 3-4 2 3"/>' +
                '<circle cx="8.5" cy="8.5" r="1.2"/><path d="M16 3v4M14 5h4"/>')},
     // 文章配图：应用内视图（SPA section #article-visual），点击不跳页。
-    // 静态页面里没有节点，靠 fallback 让渲染器建出来。
+    // index.html 的 .app-tabs 里有静态 <a data-view> 节点，app.js 才能绑上监听器。
     {group: '创作', href: '/article-visual', view: 'article-visual', label: '文章配图', short: '配图',
      fallback: true,
      icon: svg('<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="1.6"/>' +
