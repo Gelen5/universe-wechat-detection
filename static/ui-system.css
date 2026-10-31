@@ -46,7 +46,7 @@ body.atelier #workbench#workbench .composer-hint {
   color: var(--uw-ink-2) !important;
 }
 
-#lowfans :is(.lf-meta, .lf-sub, .lf-note, .lf-track, .lf-type, .lf-base, #lf-stamp span) {
+#lowfans :is(.lf-meta, .lf-sub, .lf-note, .lf-track, .lf-type, .lf-base, .lf-score, #lf-stamp span) {
   font-size: 12.5px !important;
   color: var(--uw-ink-3) !important;
 }
