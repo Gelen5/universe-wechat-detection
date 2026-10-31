@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import base64
+import contextvars
 import io
 import json
 import re
@@ -342,7 +343,12 @@ def _text_with_deadline(prompt: str, *, model: str, reasoning: str, timeout: flo
     线上实测 haiku 这条链路会卡到 134 秒才报 transport 错，把用户晾在
     「拆解中」；单靠 provider 自己的 300 秒超时救不了体验。
     """
-    future = _PLAN_POOL.submit(workbench._text, prompt, model=model, reasoning=reasoning)
+    # ContextVar 不会自动带进新线程，必须把 provider_overrides 的上下文复制过去，
+    # 否则线程里读到空 base_url，会去连 api.openai.com 直接失败。
+    context = contextvars.copy_context()
+    future = _PLAN_POOL.submit(
+        context.run, workbench._text, prompt, model=model, reasoning=reasoning
+    )
     try:
         return future.result(timeout=timeout)
     except FutureTimeoutError as exc:
@@ -361,9 +367,18 @@ def build_plan(article: dict[str, Any]) -> dict[str, Any]:
     # 再给 55 秒硬上限，超时就退回规则拆解，绝不让用户无限等。
     raw_text = ""
     try:
-        raw_text = _text_with_deadline(
-            prompt, model="gpt-6.1-sol", reasoning="low", timeout=55
-        )
+        stored = accounts.provider_settings(include_secrets=True)
+        with workbench.provider_overrides(
+            text_api_key=stored.get("text_api_key", ""),
+            text_base_url=stored.get("text_base_url", ""),
+            text_model=stored.get("text_model", ""),
+            image_api_key=stored.get("image_api_key", ""),
+            image_base_url=stored.get("image_base_url", ""),
+            image_model=stored.get("image_model", ""),
+        ):
+            raw_text = _text_with_deadline(
+                prompt, model="gpt-6.1-sol", reasoning="low", timeout=55
+            )
     except Exception:
         raw_text = ""
     try:
