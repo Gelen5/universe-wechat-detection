@@ -57,6 +57,8 @@ def test_plus_entry_multiturn_edit_and_refresh(ui):
     expect(page.locator('#wechat-plus')).to_be_visible()
     page.locator('[data-wp-input]').fill('给上班族写会议记录，先帮我选题')
     page.locator('[data-wp-send]').click()
+    page.wait_for_function("document.querySelector('.wp-topic') || !document.querySelector('[data-wp-error]').hidden")
+    assert page.locator('[data-wp-error]').is_hidden(), page.locator('[data-wp-error]').inner_text()
     page.get_by_role('button', name='1. 会议结束后，怎样确认待办').wait_for()
     page.get_by_role('button', name='1. 会议结束后，怎样确认待办').click()
     editor = page.locator('[data-wp-editor]')

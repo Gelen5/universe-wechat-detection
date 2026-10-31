@@ -5,13 +5,14 @@ from sqlalchemy import engine_from_config, pool
 
 from server.database import database_url
 from server.models import Base
+from server.wechat_plus_repository import metadata as plus_metadata
 
 
 config = context.config
 config.set_main_option("sqlalchemy.url", database_url())
 if config.config_file_name:
     fileConfig(config.config_file_name)
-target_metadata = Base.metadata
+target_metadata = [Base.metadata, plus_metadata]
 
 
 def run_migrations_offline():

@@ -7,6 +7,7 @@
   let timer = null, polling = false, dirty = false, saving = null, pending = null;
   let selectedTab = 'draft', shownVersion = '', previewKey = '';
   const key = suffix => `universe.wechat-plus.${owner}.${suffix}`;
+  const uuid = () => crypto.randomUUID?.() || Array.from(crypto.getRandomValues(new Uint8Array(16)), value => value.toString(16).padStart(2, '0')).join('');
   const messageRoot = $('messages'), editor = $('editor');
   const text = (tag, value, className) => {
     const node = document.createElement(tag); node.textContent = value;
@@ -196,7 +197,7 @@
       }
       // Store the exact request before publishing. A transport retry uses the
       // same idempotency key rather than creating another generation.
-      pending = {session: session.id, message: content, version: session.version, idempotency_key: crypto.randomUUID()};
+      pending = {session: session.id, message: content, version: session.version, idempotency_key: uuid()};
       localStorage.setItem(key('pending'), JSON.stringify(pending)); updateBusy();
       await publishPending();
     } catch (error) { if (sequence === epoch) reportError(error); }

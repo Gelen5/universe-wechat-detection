@@ -83,6 +83,7 @@ def select_topic(state, title, angle):
     article['evidence_pack'] = states.ArticleState().to_dict()['evidence_pack']
     state.pop('research', None)
     state.pop('imported', None)
+    state.pop('topic_proposal', None)
     state['selected_topic'] = {'title': title, 'angle': angle}
     state['choices'] = []
     reset_from(article, 'topic')
@@ -194,6 +195,7 @@ def _execute(state, message, generate, *, output_dir, progress,
         if action == 'write' and not state.get('selected_topic') and not state.get('imported'):
             action = 'topics'
         if action == 'topics':
+            previous_article = deepcopy(article) if article.get('draft') else None
             node('intent')
             article['angle'] = ''
             reset_from(article, 'topic')
@@ -205,7 +207,13 @@ def _execute(state, message, generate, *, output_dir, progress,
             if len(choices) < 2:
                 raise ValueError('选题候选不足，请重试获取新的选题')
             state['choices'] = choices
-            state.pop('selected_topic', None)
+            state['topic_proposal'] = {'topic': article['topic'], 'angle': article['angle'],
+                                      'title_candidates': choices}
+            if previous_article is not None:
+                article = previous_article
+                state['article_state'] = article
+            else:
+                state.pop('selected_topic', None)
             reply = '先选一个你想写的切入点，也可以告诉我怎样调整。'
         elif action in {'write', 'revise', 'review', 'format'}:
             if action != 'write' and not article.get('draft'):

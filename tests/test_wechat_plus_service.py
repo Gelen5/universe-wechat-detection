@@ -107,6 +107,21 @@ class NativeConversationTests(unittest.TestCase):
         self.assertTrue(article['quality_report']['hard_gate']['blocked'])
         self.assertFalse(article['formatted_output'])
 
+    def test_requesting_alternative_topics_does_not_mutate_existing_article(self):
+        article = runtime.initialize('给上班族写邮件处理建议')
+        article = runtime.resume(article, 'intent', {'intent':{'goal':'实用建议'},
+            'audience':{'description':'上班族'},'topic':'处理邮件'})
+        article = runtime.resume(article, 'topic', {'topic':'处理邮件','angle':'行动分类'})
+        article['draft'] = '需要保留的原稿'
+        article['evidence_pack']['research_status'] = 'partial'
+        state = self.run_turn({'article_state':article,'selected_topic':{'title':'处理邮件'}}, '另外推荐几个新选题，原稿先保留', [
+            {'action':'topics'},
+            {'topic':'会议记录','angle':'会后执行','title_candidates':[
+                {'title':'整理待办','angle':'任务'}, {'title':'核对结论','angle':'结论'}]}])
+        self.assertEqual(state['article_state']['draft'], '需要保留的原稿')
+        self.assertEqual(state['article_state']['topic'], '处理邮件')
+        self.assertEqual(len(state['choices']), 2)
+
 
 if __name__ == '__main__':
     unittest.main()
