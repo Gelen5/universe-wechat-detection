@@ -50,6 +50,7 @@ def test_admin_navigation_filter_drawer(browser,width):
     expect(page.locator('#share-card')).to_contain_text('还差 4 个')
     expect(page.locator('#share-card')).to_contain_text('yuzoudiyigongzuotai.cn')
     expect(page.locator('#share-card')).not_to_contain_text('demo@example.test')
+    expect(page.locator('#share-card')).not_to_contain_text('测试账号')
     page.screenshot(path=f'D:/Download/workbench-audit-20261027/registration-share-{width}.png')
     page.keyboard.press('Escape')
     expect(page.locator('main')).to_be_visible()

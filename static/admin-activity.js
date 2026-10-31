@@ -37,7 +37,7 @@ $('#all-registered').onclick=()=>{Object.assign(state,{view:'users',metric:'all'
 $('#share-registration').onclick=()=>{
  if(!Number.isInteger(current?.summary?.registered_total))return;
  const card=$('.registration-card').cloneNode(true);card.querySelector('.registration-actions').remove();card.querySelectorAll('[id]').forEach(el=>el.removeAttribute('id'));card.removeAttribute('aria-labelledby');
- card.querySelector('.registration-scope').textContent='全站去重注册账号，含管理员，未剔除测试账号。';
+ card.querySelector('.registration-scope').textContent='按全站去重注册账号统计。';
  const footer=document.createElement('div');footer.className='share-brand';footer.innerHTML=`<span>宇宙第一工作台 / Creator OS<br>yuzoudiyigongzuotai.cn</span><span>数据截至<br>${esc(time(current.updated_at))} · 北京时间</span>`;card.querySelector('.registration-content').append(footer);
  $('#share-card').replaceChildren(card);document.body.classList.add('registration-sharing');$('#registration-share').showModal();
 };
