@@ -73,6 +73,7 @@
 <link rel="stylesheet" href="/static/viral-remix.css?v=20261031-remix-output-tab-1">
 <link rel="stylesheet" href="/static/xhs-extract.css?v=20261031-extract-1">
 <link rel="stylesheet" href="/static/review-studio.css?v=20261031-mint-1">
+<link rel="stylesheet" href="/static/referrals.css?v=20261031-invite-1">
 </head>
   <body class="atelier">
     <script>if(location.pathname.replace(/\/$/,'')==='/hotspots')document.body.classList.add('hotspots-body');</script>
@@ -184,6 +185,7 @@
             <div class="auth-password-wrap"><input id="auth-password" type="password" minlength="8" maxlength="128" autocomplete="current-password" placeholder="至少 8 位" required><button id="auth-password-toggle" type="button" aria-label="显示密码" aria-pressed="false" aria-controls="auth-password">显示</button></div>
             <div id="auth-challenge" hidden><div class="auth-verification-head"><span>安全验证</span><small class="auth-verification-note">验证通过后即可继续</small></div><div id="auth-challenge-widget"></div></div>
             <div id="auth-email-code-field" hidden><label for="auth-email-code">邮箱验证码</label><div><input id="auth-email-code" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="6 位验证码"><button id="auth-send-code" type="button">发送验证码</button></div></div>
+            <div id="invite-code-field" hidden><label for="auth-invite-code">邀请码（选填）</label><input id="auth-invite-code" type="text" maxlength="16" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="填了双方各得积分"><small class="invite-hint">好友邀请你来的话填这里，注册即送 <b id="auth-invite-bonus">10</b> 积分。</small></div>
             <p id="auth-error" class="auth-error" role="alert" hidden></p>
             <button id="auth-submit" class="primary-action" type="submit">登录</button>
           </form>
@@ -199,6 +201,15 @@
           </div>
           <div class="wallet-total"><span>当前可用</span><strong><b id="wallet-modal-balance">0</b> 积分</strong><small>1 积分基础价值 0.1 元，仅用于平台功能</small></div>
           <div class="wallet-buckets"><div><span>试用</span><strong id="wallet-trial">0</strong></div><div><span>赠送</span><strong id="wallet-bonus">0</strong></div><div><span>付费</span><strong id="wallet-paid">0</strong></div></div>
+          <section id="invite-panel" class="wallet-invite" hidden>
+            <div class="wallet-section-title"><strong>邀请好友</strong><span>好友注册即得 <b id="invite-signup-reward">10</b> 分，完成第一个任务后双方再各得积分</span></div>
+            <div class="invite-code-row">
+              <code id="invite-code" aria-label="我的邀请码">—</code>
+              <button id="invite-copy" type="button">复制邀请链接</button>
+            </div>
+            <p id="invite-stats" class="invite-stats"></p>
+            <div id="invite-list" class="invite-list"></div>
+          </section>
           <section class="wallet-history"><div class="wallet-section-title"><strong>积分明细</strong><button id="wallet-refresh" type="button">刷新</button></div><div id="wallet-filters" class="wallet-filters" role="group" aria-label="积分明细筛选"><button type="button" class="active" data-filter="all">全部</button><button type="button" data-filter="recharge">充值</button><button type="button" data-filter="refund">退款</button><button type="button" data-filter="consume">消费</button></div><div id="wallet-transactions" class="wallet-transactions"><p>暂无积分记录</p></div></section>
           <section id="admin-recharge-panel" class="admin-recharge" hidden>
             <div class="wallet-section-title"><strong>管理员充值</strong><span>人工收款与试用赠送必须分开记录</span></div>
@@ -1014,7 +1025,7 @@
     <script src="/static/market.js?v=20261026-loading-1" defer></script>
     <script src="/static/auth-challenge.js?v=20261031-glass-2"></script>
     <script src="/static/wechat-plus.js?v=20261031-4"></script>
-    <script src="/static/app.js?v=20261031-wechat-plus-1"></script>
+    <script src="/static/app.js?v=20261031-invite-1"></script>
     <script src="/static/flow.js?v=20261031-hide-diagnose-1"></script>
     <script src="/static/studio-tools.js?v=20261028-tietu-1"></script>
     <link rel="stylesheet" href="/static/creator-chat.css?v=20260906-conversation-1">

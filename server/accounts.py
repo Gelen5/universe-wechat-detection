@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import logging
 import os
 import re
 import secrets
@@ -103,8 +104,26 @@ def init_db() -> None:
       role TEXT NOT NULL DEFAULT 'user' CHECK(role IN ('user','admin')),
       status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active','disabled')),
       created_at TEXT NOT NULL,
-      last_login_at TEXT
+      last_login_at TEXT,
+      invite_code TEXT
     );
+    CREATE TABLE IF NOT EXISTS referrals (
+      id TEXT PRIMARY KEY,
+      inviter_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      invitee_id TEXT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+      code TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending'
+        CHECK(status IN ('pending','activated','rewarded')),
+      signup_ip TEXT,
+      reject_reason TEXT,
+      created_at TEXT NOT NULL,
+      activated_at TEXT,
+      rewarded_at TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_referrals_inviter_time
+      ON referrals(inviter_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_referrals_signup_ip
+      ON referrals(signup_ip, inviter_id, created_at);
     CREATE TABLE IF NOT EXISTS wallets (
       user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
       balance INTEGER NOT NULL DEFAULT 0 CHECK(balance >= 0),
@@ -248,6 +267,13 @@ def init_db() -> None:
             session_columns = {row[1] for row in connection.execute("PRAGMA table_info(sessions)")}
             if "impersonator_id" not in session_columns:
                 connection.execute("ALTER TABLE sessions ADD COLUMN impersonator_id TEXT REFERENCES users(id)")
+            # 邀请码是邀请关系的唯一定位手段；老库靠 ALTER 补齐，新库由上面的建表语句带上。
+            user_columns = {row[1] for row in connection.execute("PRAGMA table_info(users)")}
+            if "invite_code" not in user_columns:
+                connection.execute("ALTER TABLE users ADD COLUMN invite_code TEXT")
+            connection.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS uq_users_invite_code ON users(invite_code)"
+            )
             usage_columns = {row[1] for row in connection.execute("PRAGMA table_info(usage_records)")}
             for name, definition in (
                 ("conversation_id", "TEXT"), ("run_id", "TEXT"), ("skill_id", "TEXT"),
@@ -838,10 +864,25 @@ def recover_interrupted_jobs() -> int:
 
 def settle_usage(request_id: str, http_status: int, duration_ms: int) -> None:
     with DB_LOCK, _connect() as connection:
-        connection.execute(
+        settled = connection.execute(
             """UPDATE usage_records SET status='completed',http_status=?,duration_ms=?,finished_at=?
                WHERE request_id=? AND status='reserved'""",
             (http_status, duration_ms, utc_now(), request_id),
+        ).rowcount
+    if settled:
+        # 邀请奖励的门槛是「一次真实扣分任务跑完」，而这里是所有收费路径唯一的
+        # 完成落点，所以激活判定挂在这里，不额外引入第二套完成事件。
+        _notify_referral_activation(request_id)
+
+
+def _notify_referral_activation(request_id: str) -> None:
+    """Invite rewards must never be able to fail a settled request."""
+    try:
+        from . import referrals
+        referrals.on_usage_completed(request_id)
+    except Exception:
+        logging.getLogger(__name__).warning(
+            "Referral activation unavailable; request_id=%s", request_id
         )
 
 
@@ -1021,6 +1062,47 @@ def clawback_alipay_recharge(
         "balance": after,
         "allocation": allocation,
     }
+
+
+def credit_bucket(
+    connection, user_id: str, points: int, bucket: str, *,
+    request_id: str, source: str, feature: str | None = None, note: str = "",
+) -> bool:
+    """入账一次平台赠送，幂等由 request_id 唯一索引保证。
+
+    调用方已经开了事务，所以这里不 BEGIN/COMMIT：邀请奖励要在同一个事务里
+    同时写邀请人、被邀请人和邀请状态，跨事务会留下发一半的账。
+    ``kind='recharge'`` 让这笔钱落进钱包的「充值」分类，``source`` 区分来源。
+    """
+    points = int(points)
+    if points <= 0:
+        return False
+    if bucket not in {"trial", "bonus", "paid"}:
+        raise HTTPException(status_code=422, detail="积分类型无效")
+    taken = connection.execute(
+        "SELECT 1 FROM point_transactions WHERE request_id=?", (request_id,)
+    ).fetchone()
+    if taken:
+        return False
+    wallet = _locked_wallet(connection, user_id)
+    if not wallet:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    now = utc_now()
+    before = wallet["balance"]
+    after = before + points
+    column = f"{bucket}_balance"
+    connection.execute(
+        f"UPDATE wallets SET balance=?,{column}={column}+?,updated_at=? WHERE user_id=?",
+        (after, points, now, user_id),
+    )
+    connection.execute(
+        """INSERT INTO point_transactions
+           (id,user_id,amount,balance_before,balance_after,bucket,kind,source,feature,request_id,note,allocation_json,created_at)
+           VALUES (?,?,?,?,?,?,'recharge',?,?,?,?,?,?)""",
+        (uuid.uuid4().hex, user_id, points, before, after, bucket, source, feature,
+         request_id, note, json.dumps({bucket: points}), now),
+    )
+    return True
 
 
 def recharge(operator_id: str, user_id: str, points: int, bucket: str, note: str) -> dict[str, Any]:

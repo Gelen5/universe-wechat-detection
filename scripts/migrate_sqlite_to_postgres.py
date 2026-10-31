@@ -16,7 +16,7 @@ REQUIRED_TABLES = (
     "pricing_rules", "admin_actions", "provider_settings", "workbench_sessions",
     "workbench_jobs", "jobs",
 )
-OPTIONAL_TABLES = ("conversation_locks",)
+OPTIONAL_TABLES = ("conversation_locks", "referrals")
 
 
 def counts(engine, names):

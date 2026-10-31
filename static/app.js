@@ -294,6 +294,7 @@ function setAuthMode(mode) {
     button.setAttribute('aria-pressed', String(button.dataset.authMode === mode));
   });
   document.querySelector('#display-name-field').hidden = !register;
+  document.querySelector('#invite-code-field').hidden = !register;
   document.querySelector('#auth-email-code-field').hidden = !register || !emailVerificationRequired || Boolean(registrationToken);
   document.querySelector('#auth-title').textContent = register ? '创建你的账号' : '欢迎回来';
   document.querySelector('#auth-description').textContent = register ? '从一个想法，开始你的创作。' : '登录，继续你的创作。';
@@ -376,7 +377,7 @@ document.querySelector('#auth-form')?.addEventListener('submit', async event => 
         email: document.querySelector('#auth-email').value.trim(),
         password: document.querySelector('#auth-password').value,
         display_name: document.querySelector('#auth-display-name').value.trim(),
-        ...(mode === 'register' ? {email_code: document.querySelector('#auth-email-code').value.trim(), ...(registrationToken ? {registration_token: registrationToken} : {})} : {}),
+        ...(mode === 'register' ? {ref: document.querySelector('#auth-invite-code').value.trim(), email_code: document.querySelector('#auth-email-code').value.trim(), ...(registrationToken ? {registration_token: registrationToken} : {})} : {}),
         ...(challenge ? {turnstile_token: challenge} : {}),
       }),
     });
@@ -390,11 +391,97 @@ document.querySelector('#auth-form')?.addEventListener('submit', async event => 
     document.querySelector('.api-live-dot')?.classList.remove('offline');
     hideAuth();
     registrationToken = '';
-    showToast(mode === 'register' ? '账号创建成功' : '登录成功');
+    rememberInviteCode('');
+    showToast(inviteToast(mode, data.referral));
   } catch (exception) {
     error.textContent = exception.message;
     error.hidden = false;
   } finally { finish(); window.AuthChallenge?.reset(); }
+});
+
+// ---- 拉新活动：邀请码 ----
+
+const INVITE_CODE_KEY = 'universe-invite-code';
+
+function normalizeInviteCode(value) {
+  return String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 16);
+}
+
+function rememberInviteCode(code) {
+  try {
+    if (code) localStorage.setItem(INVITE_CODE_KEY, code);
+    else localStorage.removeItem(INVITE_CODE_KEY);
+  } catch { /* 隐私模式下 localStorage 会抛错，邀请码只是便利功能 */ }
+}
+
+function pendingInviteCode() {
+  // URL 上的 ?ref= 优先，其次是上次点进来时记住的那一个。
+  const fromUrl = new URLSearchParams(location.search).get('ref');
+  if (fromUrl) { const code = normalizeInviteCode(fromUrl); rememberInviteCode(code); return code; }
+  try { return normalizeInviteCode(localStorage.getItem(INVITE_CODE_KEY)); } catch { return ''; }
+}
+
+// 带着邀请链接进来的人，注册表单默认就是展开的。
+(function seedInviteCode() {
+  const code = pendingInviteCode();
+  if (!code) return;
+  const input = document.querySelector('#auth-invite-code');
+  if (input) input.value = code;
+  document.querySelector('#auth-modal')?.setAttribute('data-invited', '1');
+})();
+
+function inviteToast(mode, referral) {
+  if (mode !== 'register' || !referral || referral.status !== 'bound') {
+    return mode === 'register' ? '账号创建成功' : '登录成功';
+  }
+  return `账号创建成功，${referral.bonus} 积分的邀请奖励已到账`;
+}
+
+function inviteStatusLabel(status) {
+  return { pending: '待完成任务', activated: '奖励发放中', rewarded: '已发奖励' }[status] || status;
+}
+
+function inviteLink(code) {
+  return `${location.origin}/?ref=${encodeURIComponent(code)}`;
+}
+
+async function loadInvitePanel(panel) {
+  const response = await fetch('/api/referrals', { cache: 'no-store' });
+  const data = await readApiResponse(response);
+  const info = data.referrals;
+  panel.hidden = !info.enabled;
+  if (!info.enabled) return;
+  document.querySelector('#invite-code').textContent = info.code;
+  document.querySelector('#invite-signup-reward').textContent = info.rewards.signup;
+  const parts = [
+    `已邀请 ${info.counts.total} 人`,
+    `${info.counts.rewarded} 人已完成首个任务`,
+    `累计获得 ${number(info.earned_points)} 积分`,
+  ];
+  if (info.caps.remaining_today <= 0) {
+    parts.push(`今日名额已用完，明天再来`);
+  } else {
+    parts.push(`今天还能邀请 ${info.caps.remaining_today} 人`);
+  }
+  document.querySelector('#invite-stats').textContent = parts.join(' · ');
+  const list = document.querySelector('#invite-list');
+  list.innerHTML = info.invitees.length
+    ? info.invitees.map(item => `<article><div><strong>${esc(item.display_name)}</strong><small>${esc(item.email)} · ${new Date(item.created_at).toLocaleDateString('zh-CN')}</small></div><span class="invite-status ${item.status}">${inviteStatusLabel(item.status)}</span></article>`).join('')
+    : '<p>还没有人通过你的邀请码注册。把链接发出去试试。</p>';
+  document.querySelector('#invite-copy').dataset.code = info.code;
+}
+
+document.querySelector('#invite-copy')?.addEventListener('click', async event => {
+  const code = event.currentTarget.dataset.code || document.querySelector('#invite-code').textContent;
+  if (!code || code === '—') return;
+  const link = inviteLink(code);
+  try {
+    await navigator.clipboard.writeText(link);
+    showToast('邀请链接已复制');
+  } catch {
+    // 非 HTTPS 或旧浏览器没有 clipboard，退回到能选中的输入框。
+    window.prompt('复制这条邀请链接', link);
+  }
 });
 
 let walletTransactions = [];
@@ -463,6 +550,10 @@ async function openWallet() {
       document.querySelector('#admin-recharge-panel').hidden = false;
       await searchAdminUsers();
     }
+    // 邀请面板失败不能把钱包一起弄挂：钱包先开，面板再补。
+    loadInvitePanel(document.querySelector('#invite-panel')).catch(() => {
+      document.querySelector('#invite-panel').hidden = true;
+    });
   } catch (error) { showToast(error.message, 'error'); }
 }
 

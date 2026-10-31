@@ -1,0 +1,113 @@
+/* 拉新活动：注册表单的邀请码字段 + 钱包里的邀请面板。
+   只补这两个新增区域，不覆盖既有排版，配色沿用工作台的墨绿主色。 */
+
+#invite-code-field[hidden],
+#invite-panel[hidden] { display: none !important; }
+
+#auth-modal #invite-code-field { margin: 0 0 16px; }
+#auth-modal #invite-code-field input {
+  margin: 8px 0 6px !important;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+#auth-modal #invite-code-field .invite-hint {
+  display: block;
+  color: #62796a;
+  font-size: 12px;
+  line-height: 1.5;
+}
+#auth-modal #invite-code-field .invite-hint b { color: #2f7a52; font-weight: 650; }
+/* 带着邀请链接进来时，把这一栏做成一个轻提示，而不是又一格待填空。 */
+#auth-modal[data-invited="1"] #invite-code-field input {
+  border-color: #2f7a52 !important;
+  background: #f2faf5 !important;
+}
+
+.wallet-invite {
+  margin: 18px 0 4px;
+  padding: 16px;
+  border: 1px solid #d7e7dc;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #f7fcf9, #ffffff);
+}
+.wallet-invite .wallet-section-title { margin-bottom: 10px; }
+.wallet-invite .wallet-section-title span { color: #5c7a68; font-size: 12px; }
+
+.invite-code-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.invite-code-row code {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 10px 14px;
+  border: 1px dashed #a8cbb6;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #1f4030;
+  font: 650 17px/1.2 var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  letter-spacing: .22em;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.invite-code-row button {
+  flex: 0 0 auto;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 12px;
+  background: #2f7a52;
+  color: #fff;
+  font: 600 14px/1.2 var(--font-sans, system-ui, sans-serif);
+  cursor: pointer;
+}
+.invite-code-row button:hover { background: #286844; }
+.invite-code-row button:focus-visible { outline: 2px solid #2f7a52; outline-offset: 2px; }
+
+.invite-stats {
+  margin: 10px 0 0;
+  color: #5c7a68;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.invite-list { margin-top: 12px; display: grid; gap: 8px; }
+.invite-list p { margin: 0; color: #6b8273; font-size: 13px; }
+.invite-list article {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #f4f9f6;
+}
+.invite-list article div { min-width: 0; }
+.invite-list article strong { display: block; font-size: 14px; color: #1f4030; }
+.invite-list article small {
+  display: block;
+  color: #6b8273;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.invite-status {
+  flex: 0 0 auto;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.invite-status.pending { background: #fdf3e0; color: #8a6416; }
+.invite-status.activated { background: #e8f1fd; color: #23558f; }
+.invite-status.rewarded { background: #e4f6ec; color: #22684a; }
+
+@media (max-width: 560px) {
+  .invite-code-row { gap: 8px; }
+  .invite-code-row button { width: 100%; }
+  .invite-list article { align-items: flex-start; }
+}

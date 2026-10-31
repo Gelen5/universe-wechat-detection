@@ -76,6 +76,17 @@ CREATOR_NEW_USER_TRIAL_POINTS=30
 - 基础锚点为 `1 积分 = 0.1 元`，积分只用于平台功能，不可提现或转账。
 - 运行数据库默认位于 `data/creator_accounts.db`，可用 `CREATOR_ACCOUNTS_DB` 指定持久化路径。
 
+### 拉新活动（邀请码）
+
+- `server/referrals.py` 是唯一实现，奖励与限额数值在文件顶部；`INVITE_PROGRAM_ENABLED=0` 可整体关闭。
+- 奖励只发 `bonus` 桶，不发 `paid`、不发现金：积分不可提现，这是防套现的前提。
+- 注册奖励在被邀请人**注册**时发放（10 分）；激活奖励在**跑完首个扣分任务**后双向发放（邀请人 15、被邀请人 10）。
+- 激活信号复用 `accounts.settle_usage`——它是所有收费路径唯一的完成落点，所以不需要第二套「任务完成」事件；0 积分的步骤（如 `/api/workbench/steps`）不算激活。
+- 邀请关系存在 `referrals`（`invitee_id` 唯一），邀请码是 `users.invite_code`；奖励流水 `source='referral'`，可单独对账。
+- 防刷：不能自邀、一个被邀请人只能被认领一次、单邀请人每天 5 人且 30 天 20 人、同一 IP 24 小时内为同一邀请人最多计 3 次。
+- 邀请码失效或触发限额时注册照常成功，只降级成一句提示。
+- 管理端漏斗在 `GET /api/admin/overview` 的 `referrals` 字段：绑定数、激活数、发放积分、转化率、Top 邀请人。
+
 ## 正式部署
 
 生产环境不能只启动 Uvicorn。复制 `.env.example` 为 `.env` 并配置密钥、PostgreSQL 密码及对象存储后，使用：

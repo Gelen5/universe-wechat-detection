@@ -54,6 +54,7 @@ accounts.init_db()
 community.init_schema()
 app.include_router(community.router)
 from . import admin_activity
+from . import referrals
 admin_activity.init_db()
 app.include_router(admin_activity.router)
 database.ensure_local_workflow_schema()
@@ -317,6 +318,7 @@ class RegisterRequest(AuthRequest):
     email_code: str = Field(default="", max_length=12)
     turnstile_token: str = Field(default="", max_length=2048)
     registration_token: str = Field(default="", max_length=64)
+    ref: str = Field(default="", max_length=16)
 
 
 class EmailCodeRequest(BaseModel):
@@ -704,7 +706,9 @@ def register_account(payload: RegisterRequest, response: Response, request: Requ
         user = better_auth_bridge.business_user(result['user'], rollback_password=payload.password)
         admin_activity.record(user, 'login')
         better_auth_bridge.copy_cookies(response, result)
-        return {'status': 'success', 'user': user, 'wallet': accounts.wallet_summary(user['id'])}
+        referral = referrals.bind_signup(user['id'], payload.ref, ip)
+        return {'status': 'success', 'user': user, 'wallet': accounts.wallet_summary(user['id']),
+                'referral': referral}
     if email_verification.required():
         email_verification.verify_code(payload.email, payload.email_code)
     try:
@@ -713,9 +717,12 @@ def register_account(payload: RegisterRequest, response: Response, request: Requ
         record_auth_result('register', payload.email, ip, False)
         raise
     record_auth_result('register', payload.email, ip, True)
+    # 邀请码失效、超额、命中防刷都只降级成一句提示，注册本身必须成功。
+    referral = referrals.bind_signup(user["id"], payload.ref, ip)
     accounts.create_session(user["id"], response)
     admin_activity.record(user, "login")
-    return {"status": "success", "user": user, "wallet": accounts.wallet_summary(user["id"])}
+    return {"status": "success", "user": user, "wallet": accounts.wallet_summary(user["id"]),
+            "referral": referral}
 
 
 @app.get("/api/auth/config")
@@ -815,6 +822,12 @@ def get_pricing(request: Request):
     return {"status": "success", "rules": accounts.list_pricing(), "currency": "points", "face_value_cny": 0.1}
 
 
+@app.get("/api/referrals")
+def get_referrals(request: Request):
+    user = accounts.require_user(request)
+    return {"status": "success", "referrals": referrals.summary(user["id"])}
+
+
 @app.get("/api/admin/users")
 def admin_users(request: Request, query: str = ""):
     accounts.require_admin(request)
@@ -824,7 +837,8 @@ def admin_users(request: Request, query: str = ""):
 @app.get("/api/admin/overview")
 def admin_overview(request: Request):
     accounts.require_admin(request)
-    return {"status": "success", "overview": accounts.admin_overview()}
+    return {"status": "success", "overview": accounts.admin_overview(),
+            "referrals": referrals.admin_summary()}
 
 
 @app.get("/api/admin/provider-health")
