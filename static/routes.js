@@ -49,7 +49,12 @@ window.APP_NAV = (() => {
                '<path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/>' +
                '<path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/>' +
                '<path d="m19.07 4.93-1.41 1.41"/>')},
+    // 账号诊断入口暂时隐藏：上游数据源（Redfox）额度用尽，任何查询都会失败，
+    // 先不让人点进去。路由与 #diagnose 章节都保留，恢复时删掉 hidden: true，
+    // 再把 index.html / bookshelf.html / market.html / qihaoshou.html 里注释掉
+    // 的导航节点放开即可。
     {group: '分析', href: '/diagnose', view: 'diagnose', label: '账号诊断',
+     hidden: true,
      icon: svg('<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>')},
     {group: '分析', href: '/hit-detector', view: 'hit-detector', label: '发布前复核',
      icon: svg('<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 ' +
@@ -71,19 +76,23 @@ window.APP_NAV = (() => {
   const groups = ['内容创作', '分析', '资源', '账户'];
   const all = [home, ...items];
   const normalize = (path) => (path || '/').replace(/\/+$/, '') || '/';
+  /* 隐藏项不进任何渲染器的菜单，但路由照样能解析（可直接访问 URL、可被
+     程序跳转）。早安祝福是历史遗留例外：它只在侧栏里保留条目。 */
+  const inMenu = (item) => !item.hidden || item.href === '/morning-generator';
 
   return {
     home,
     items,
     groups,
-    /* shell.js: [href, label, short?] in sidebar order (-morning, hidden entries dropped). */
+    /* shell.js: [href, label, short?] in sidebar order (hidden entries dropped). */
     shellRoutes: all
-      .filter((item) => !item.hidden || item.href === '/morning-generator')
+      .filter(inMenu)
       .map((item) => (item.short ? [item.href, item.label, item.short] : [item.href, item.label])),
     /* notion-workspace.js: [[groupLabel, [href...]], ...] */
-    notionPlan: groups.map((group) => [group, items.filter((i) => i.group === group).map((i) => i.href)]),
+    notionPlan: groups.map((group) => [group, items
+      .filter((i) => i.group === group && inMenu(i)).map((i) => i.href)]),
     /* notion-workspace.js: nodes to create when the page lacks them. */
-    extras: items.filter((item) => item.fallback),
+    extras: items.filter((item) => item.fallback && inMenu(item)),
     /* 只有应用内视图才返回；独立页面返回 undefined，交给浏览器正常跳转。 */
     viewFor: (path) => {
       const match = all.find((item) => item.href === normalize(path));

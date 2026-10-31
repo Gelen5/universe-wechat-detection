@@ -56,8 +56,14 @@
     nav.appendChild(frag);
   }
 
-  nav.querySelector('[data-view=diagnose] span').textContent='账号诊断';
-  nav.querySelector('[data-view=hit-detector] span').textContent='发布前复核';
+  // Nav anchors are optional now: a hidden module (e.g. /diagnose) has none,
+  // and a bare querySelector would throw here and abort the whole script.
+  const relabel = (view, label) => {
+    const span = nav.querySelector(`[data-view=${view}] span`);
+    if (span) span.textContent = label;
+  };
+  relabel('diagnose', '账号诊断');
+  relabel('hit-detector', '发布前复核');
   function syncNav() {
     // Some legacy theme selectors highlight href="/" on every route.
     nav.querySelectorAll('a').forEach(a => {

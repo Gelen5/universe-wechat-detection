@@ -24,14 +24,14 @@ LEGACY_SHELL_ROUTES = [
     ['/xiaohongshu', '小红书'], ['/tie-tu', '贴图号'], ['/viral-remix', '爆款贴图复刻'],
     ['/xhs-extract', '小红书内容提取'],
     ['/morning-generator', '早安祝福'],
-    ['/diagnose', '账号诊断'], ['/hit-detector', '发布前复核'],
+    ['/hit-detector', '发布前复核'],
     ['/market', 'AI 超市', '超市'], ['/bookshelf', 'AI 书架'],
     ['/pricing', '积分套餐'],
 ]
 LEGACY_NOTION_PLAN = [
     ['内容创作', ['/hotspots', '/workbench', '/one-click-writing', '/xiaohongshu',
                   '/tie-tu', '/viral-remix', '/xhs-extract', '/morning-generator']],
-    ['分析', ['/diagnose', '/hit-detector']],
+    ['分析', ['/hit-detector']],
     ['资源', ['/market', '/bookshelf']],
     ['账户', ['/pricing']],
 ]
@@ -104,6 +104,33 @@ class SingleSourceTests(unittest.TestCase):
         hrefs = [route[0] for route in self.data['shell']]
         self.assertIn('/pricing', hrefs)
         self.assertIn('/bookshelf', hrefs)
+
+    def test_hidden_modules_leave_every_menu_but_keep_their_route(self):
+        """A module can be switched off without deleting it.
+
+        /diagnose is hidden because its upstream data source is out of quota, so
+        it must drop out of all three renderers while `viewFor` keeps resolving
+        the route. Restoring it is one flag flip plus the page anchors that were
+        commented out next to it.
+        """
+        self.assertNotIn('/diagnose', [route[0] for route in self.data['shell']])
+        self.assertNotIn('/diagnose', [h for _, hrefs in self.data['plan'] for h in hrefs])
+        self.assertNotIn('/diagnose', self.data['extras'])
+        self.assertEqual('diagnose', self.data['views'].get('/diagnose'))
+
+    def test_hidden_modules_have_no_live_anchor_in_any_page(self):
+        """The page shells still ship server-rendered anchors.
+
+        shell.js renders whatever anchors the HTML already contains, so a hidden
+        module's anchor has to be commented out there as well, otherwise the
+        entry reappears on every standalone page.
+        """
+        for page in ('index.html', 'bookshelf.html', 'market.html', 'qihaoshou.html'):
+            text = (STATIC / page).read_text(encoding='utf-8')
+            live = re.sub(r'<!--.*?-->', '', text, flags=re.S)
+            with self.subTest(page=page):
+                self.assertNotIn('/diagnose', live,
+                                 f'{page} still renders a live /diagnose link')
 
 
 class IncludeTests(unittest.TestCase):

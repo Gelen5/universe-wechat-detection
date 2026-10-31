@@ -297,9 +297,14 @@ class CreatorApiIntegrationTests(unittest.TestCase):
         self.assertIn("确认框架，生成初稿", script)
         self.assertIn("打开预览并复制", script)
         self.assertNotIn("shared-use-real", html)
-        views = set(re.findall(r'data-view="([a-z-]+)"', html))
-        self.assertTrue({"home", "diagnose", "one-click-writing", "workbench", "xiaohongshu",
-                         "tie-tu", "hit-detector", "morning", "market"} <= views, views)
+        # Only live (uncommented) anchors render: hidden modules keep their
+        # route and #section but must not appear in the tab bar.
+        live = re.sub(r'<!--.*?-->', '', html, flags=re.S)
+        views = set(re.findall(r'data-view="([a-z-]+)"', live))
+        self.assertTrue({"home", "one-click-writing", "workbench", "xiaohongshu",
+                         "tie-tu", "hit-detector", "market"} <= views, views)
+        self.assertNotIn("diagnose", views, views)
+        self.assertIn('id="diagnose"', live)
 
 
 if __name__ == "__main__":
