@@ -361,5 +361,6 @@ body.atelier #workbench[data-stage="0"] #workbench-action-card {
 /* ---------- 11. 低粉爆文：序号与筛选条尾部 ---------- */
 
 #lowfans #lf-bar-tail { color: var(--uw-ink-3) !important; }
+#lowfans .lf-metrics span { color: var(--uw-ink-3) !important; }
 #lowfans .lf-rank { color: var(--uw-ink-3) !important; }
 #lowfans .lf-row:nth-child(-n+3) .lf-rank { color: var(--uw-green) !important; }
