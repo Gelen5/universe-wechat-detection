@@ -21,7 +21,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
-from urllib.parse import quote
+from urllib.parse import parse_qsl, quote
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
@@ -990,12 +990,21 @@ def refund_query_order(out_trade_no: str, out_request_no: str) -> JSONResponse:
 
 @router.post("/api/pay/alipay/notify")
 async def alipay_notify(request: Request) -> PlainTextResponse:
+    # 支付宝异步通知是 application/x-www-form-urlencoded 表单；直接解析原始报文，
+    # 不依赖 python-multipart，避免容器缺包时整条通知链路失效。
     params: dict[str, str] = {}
     try:
-        form = await request.form()
-        params = {key: str(value) for key, value in form.items()}
+        raw = await request.body()
+        if raw:
+            params = {
+                key: value
+                for key, value in parse_qsl(raw.decode("utf-8", "replace"), keep_blank_values=True)
+            }
+        if not params:
+            form = await request.form()
+            params = {key: str(value) for key, value in form.items()}
     except Exception:  # noqa: BLE001
-        logger.warning("alipay notify form parse failed", exc_info=True)
+        logger.warning("alipay notify body parse failed", exc_info=True)
         return PlainTextResponse("fail")
 
     if not params.get("app_id") or not params.get("out_trade_no"):
