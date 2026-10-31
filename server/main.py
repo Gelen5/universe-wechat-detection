@@ -103,6 +103,8 @@ async def disable_frontend_cache(request, call_next):
         response.headers["Cache-Control"] = (
             "public, max-age=31536000, immutable" if request.query_params.get("v")
             else "public, max-age=0, must-revalidate")
+        if request.url.path in {'/static/shell.js', '/static/app-navigation.js', '/static/notion-workspace.js', '/static/sidebar.js'}:
+            response.headers['Cache-Control'] = 'no-cache, max-age=0, must-revalidate'
     return response
 
 
