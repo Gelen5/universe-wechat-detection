@@ -67,6 +67,7 @@ def viral_remix_analysis(image_data_url: str | list[str], goal: str = "") -> dic
     if not 1 <= len(images) <= 8:
         raise ValueError('请上传1到8张参考图')
     measured_all = []
+    normalized_images = []
     for source in images:
         parts = re.fullmatch(r'data:image/(?:png|jpeg|webp);base64,([A-Za-z0-9+/=]+)', source)
         if not parts:
@@ -75,6 +76,14 @@ def viral_remix_analysis(image_data_url: str | list[str], goal: str = "") -> dic
         if len(decoded) > 10 * 1024 * 1024:
             raise ValueError('每张图片最大10MB')
         measured_all.append(_image_measurement(decoded))
+        from PIL import Image
+        with Image.open(io.BytesIO(decoded)) as im:
+            rgb = im.convert('RGB')
+            rgb.thumbnail((1600,1600))
+            buffer = io.BytesIO()
+            rgb.save(buffer,format='JPEG',quality=85)
+            normalized_images.append('data:image/jpeg;base64,'+base64.b64encode(buffer.getvalue()).decode('ascii'))
+    images = normalized_images
     image_data_url = images[0]
     match = re.fullmatch(r"data:(image/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)", image_data_url.strip())
     if not match:
@@ -108,11 +117,15 @@ def viral_remix_analysis(image_data_url: str | list[str], goal: str = "") -> dic
     }
     try:
         response = requests.post(workbench._api_url("text", "/chat/completions"), headers=workbench._headers("text"),
-                                 json=body, timeout=120, verify=workbench._verify_ssl())
+                                 json=body, timeout=(15,240), verify=workbench._verify_ssl())
         response.raise_for_status()
         content = response.json()["choices"][0]["message"]["content"]
     except (requests.RequestException, KeyError, IndexError, TypeError, ValueError) as exc:
-        raise workbench.ProviderError("视觉拆解请求失败：请确认文本模型支持图片输入后重试") from exc
+        status = getattr(getattr(exc,'response',None),'status_code',None)
+        from .observability import event
+        event('remix.vision_failed', model=model, status=status, error_type=type(exc).__name__, image_count=len(images))
+        reason = '上游模型响应超时，请重试' if isinstance(exc,requests.Timeout) else f'上游视觉服务返回 {status}' if status else '视觉服务连接或返回格式异常'
+        raise workbench.ProviderError(reason) from exc
     cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", str(content).strip(), flags=re.I)
     try:
         data = json.loads(cleaned[cleaned.find("{"):cleaned.rfind("}") + 1])
