@@ -395,9 +395,9 @@
               <div class="form-section">
                 <div class="head"><span class="num">01</span><div class="copy"><strong>放入对标图</strong><small>支持截图；原图只用于本次结构拆解。</small></div></div>
                 <label class="viral-upload" for="viral-remix-image">
-                  <input id="viral-remix-image" name="reference_image" type="file" accept="image/png,image/jpeg,image/webp" required>
+                  <input id="viral-remix-image" name="reference_image" type="file" accept="image/png,image/jpeg,image/webp" multiple>
                   <span class="viral-upload-icon" aria-hidden="true">+</span>
-                  <strong>选择一张对标图</strong><small>PNG、JPG 或 WebP，最大 10 MB</small>
+                  <strong>选择 1—8 张对标图</strong><small>支持分次添加，每张最大 10 MB</small>
                 </label>
                 <div id="viral-remix-preview" class="viral-preview" hidden><img alt="已选择的对标图预览"><span></span><button type="button" id="viral-remix-clear" class="secondary-action">移除</button></div>
                 <label class="field-wide">你想做的内容（可留空）<textarea id="viral-remix-goal" name="goal" maxlength="300" placeholder="例如：同样讲职场成长，但换成新人第一次做述职的角度"></textarea></label>
@@ -928,7 +928,7 @@
     <script src="/static/vendor/lucide.min.js"></script>
     <script src="/static/market.js?v=20261026-loading-1" defer></script>
     <script src="/static/auth-challenge.js?v=20261031-glass-2"></script>
-    <script src="/static/app.js?v=20261031-viral-remix-1"></script>
+    <script src="/static/app.js?v=20261031-remix-multi-1"></script>
     <script src="/static/flow.js?v=20260904-tools-1"></script>
     <script src="/static/studio-tools.js?v=20261028-tietu-1"></script>
     <link rel="stylesheet" href="/static/creator-chat.css?v=20260906-conversation-1">

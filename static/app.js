@@ -1538,6 +1538,17 @@ const viralRemixForm = document.querySelector('#viral-remix-form');
 const viralRemixImage = document.querySelector('#viral-remix-image');
 const viralRemixPreview = document.querySelector('#viral-remix-preview');
 let viralRemixPreviewUrl = '';
+let viralFiles = [];
+function paintViralFiles() {
+  viralRemixPreview.replaceChildren(); viralRemixPreview.hidden = !viralFiles.length;
+  viralFiles.forEach((file,index) => {
+    const row = document.createElement('div'); row.className = 'viral-file';
+    const img = document.createElement('img'); const url = URL.createObjectURL(file); img.src=url; img.onload=()=>URL.revokeObjectURL(url); img.alt=`参考图 ${index+1}`;
+    const label=document.createElement('span');label.textContent=`${index+1}. ${file.name}`;
+    const remove=document.createElement('button');remove.type='button';remove.textContent='移除';remove.onclick=()=>{viralFiles.splice(index,1);paintViralFiles();};
+    row.append(img,label,remove);viralRemixPreview.append(row);
+  });
+}
 
 function resetViralRemixImage() {
   if (viralRemixPreviewUrl) URL.revokeObjectURL(viralRemixPreviewUrl);
@@ -1547,14 +1558,10 @@ function resetViralRemixImage() {
 }
 
 viralRemixImage?.addEventListener('change', () => {
-  const file = viralRemixImage.files?.[0];
-  if (!file) return resetViralRemixImage();
-  if (file.size > 10 * 1024 * 1024) { resetViralRemixImage(); showToast('图片不能超过 10 MB', 'error'); return; }
-  if (viralRemixPreviewUrl) URL.revokeObjectURL(viralRemixPreviewUrl);
-  viralRemixPreviewUrl = URL.createObjectURL(file);
-  viralRemixPreview.querySelector('img').src = viralRemixPreviewUrl;
-  viralRemixPreview.querySelector('span').textContent = file.name;
-  viralRemixPreview.hidden = false;
+  const files = [...(viralRemixImage.files || [])];
+  if(viralFiles.length+files.length>8){showToast('最多上传8张参考图','error');viralRemixImage.value='';return;}
+  if(files.some(f=>f.size>10*1024*1024 || !['image/png','image/jpeg','image/webp'].includes(f.type))){showToast('请选择每张小于10MB的PNG、JPG或WebP','error');viralRemixImage.value='';return;}
+  viralFiles.push(...files);viralRemixImage.value='';paintViralFiles();
 });
 document.querySelector('#viral-remix-clear')?.addEventListener('click', resetViralRemixImage);
 function renderViralRemix(result, sessionId) {
@@ -1563,29 +1570,35 @@ function renderViralRemix(result, sessionId) {
   root.hidden = false;
   const analysis = result.analysis || {};
   const rows = [['视觉锚点', analysis.visual_anchor], ['信息层级', analysis.hierarchy], ['构图', analysis.composition], ['色彩', analysis.palette], ['情绪', analysis.emotion], ['钩子', analysis.hook]];
+  rows.push(['质感',analysis.texture],['平台表达',analysis.platform_language]);
   root.innerHTML = `<article class="viral-result-card"><span class="tag">第 2/5 步 · 结构拆解</span><h2>${esc(result.content_guess || '对标图结构')}</h2><div class="viral-analysis">${rows.map(([label, text]) => `<div><b>${esc(label)}</b><span>${esc(text || '未识别')}</span></div>`).join('')}</div><p><b>可补的信息：</b>${esc(result.missing || '未提供')}</p></article><section class="viral-ideas"><div class="result-section-title"><strong>第 3/5 步 · 选择翻新方向</strong><span>保留结构，不复用画面</span></div>${(result.ideas || []).map(idea => `<article class="viral-idea"><span class="idea-id">${esc(idea.id)}</span><h3>${esc(idea.name)}</h3><p>${esc(idea.summary)}</p><dl><div><dt>保留</dt><dd>${esc(idea.keep)}</dd></div><div><dt>改变</dt><dd>${esc(idea.change)}</dd></div><div><dt>为什么不撞</dt><dd>${esc(idea.why_original)}</dd></div></dl><button type="button" class="primary-action viral-generate" data-idea="${esc(idea.id)}">选这版，生成原创图 →</button></article>`).join('')}</section>`;
   root.querySelectorAll('.viral-generate').forEach(button => button.addEventListener('click', async () => {
     const idea = (result.ideas || []).find(item => item.id === button.dataset.idea);
     if (!idea) return;
     const finish = beginButton(button, '正在生成原创图…');
     try {
-      const data = await postCreator('/api/viral-remix/image', { sessionId, idea });
+      const choices={track:root.querySelector('[name=remix-track]')?.value,emotion:root.querySelector('[name=remix-emotion]')?.value,boundaries:root.querySelector('[name=remix-boundaries]')?.value};
+      const data = await postCreator('/api/viral-remix/image', { sessionId, idea: {...idea,choices,copy_directions:result.copy_directions,tags:result.tags} });
       const image = data.image;
       const card = document.createElement('article'); card.className = 'viral-generated';
       card.innerHTML = `<span class="tag">第 4/5 步 · 原创成图</span><img src="${safeUrl(image.url)}" alt="${esc(idea.headline || '原创贴图')}"/><div><strong>${esc(idea.headline)}</strong><a href="${safeUrl(image.url)}" download="爆款贴图复刻-${esc(idea.id)}.png">下载图片</a></div>`;
       root.prepend(card);
+      for(const extra of (image.images || []).slice(1)){const item=document.createElement('article');item.className='viral-generated';item.innerHTML=`<img src="${safeUrl(extra.url)}" alt="原创图 ${Number(extra.index)}"><a href="${safeUrl(extra.url)}" download>下载第 ${Number(extra.index)} 张</a>`;root.prepend(item);}
+      const delivery=document.createElement('pre');delivery.className='viral-delivery';delivery.textContent=JSON.stringify({提示词:(image.images||[image]).map(i=>i.prompt),配文方向:result.copy_directions,标签:result.tags,检查:(image.images||[image]).map(i=>({通过:i.check_passed,报告:i.check}))},null,2);root.append(delivery);
       showToast('原创图已生成；参考图没有进入生图请求。');
     } catch (error) { showToast(error.message, 'error'); } finally { finish(); }
   }));
+  const context=document.createElement('section');context.className='viral-result-card';
+  context.innerHTML=`<h3>顺序与逐页分析</h3><p>${esc((result.order||[]).join(' → '))} · ${esc(result.order_reason||'单图，无需排序')}</p><p>${esc(JSON.stringify(result.pages||[]))}</p><p>${esc(result.verification?.message||'待核实')}</p><h3>确认创作方向</h3><label>赛道<select name="remix-track">${['情感关系','育儿成长','赚钱职场','生活消费','娱乐搞笑'].map(t=>`<option>${t}</option>`).join('')}</select></label><label>想让读者感到<select name="remix-emotion">${['被理解','被点醒','被教会','被逗笑','有点急'].map(t=>`<option>${t}</option>`).join('')}</select></label><label>画面禁区<select name="remix-boundaries"><option>不出现真人正脸</option><option>不出现品牌和产品</option><option>不出现特定人物或同行</option><option>无额外禁区</option></select></label><p>确认后点选下方 A/B/C 方案。中文由程序排版，整组保持相同版式。</p>`;
+  root.querySelector('.viral-ideas').before(context);
 }
 viralRemixForm?.addEventListener('submit', async event => {
   event.preventDefault();
-  const file = viralRemixImage?.files?.[0];
-  if (!file) return;
+  if (!viralFiles.length) {showToast('请先选择1—8张参考图','error');return;}
   const button = document.querySelector('#viral-remix-start');
   const finish = beginButton(button, '正在拆解图片结构…');
   try {
-    const imageData = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = () => reject(new Error('图片读取失败')); reader.readAsDataURL(file); });
+    const imageData = await Promise.all(viralFiles.map(file=>new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = () => reject(new Error('图片读取失败')); reader.readAsDataURL(file); })));
     const sessionId = crypto.randomUUID().replaceAll('-', '');
     const data = await postCreator('/api/viral-remix/analyze', { imageData, goal: document.querySelector('#viral-remix-goal').value.trim() });
     renderViralRemix(data.result, sessionId);

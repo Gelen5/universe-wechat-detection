@@ -1,6 +1,7 @@
 FROM python:3.12-slim
 
 WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends fonts-noto-cjk && rm -rf /var/lib/apt/lists/*
 COPY requirements.txt ./
 ARG PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/
 RUN pip install --no-cache-dir --timeout 120 --index-url "$PIP_INDEX_URL" -r requirements.txt

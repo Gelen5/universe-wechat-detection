@@ -341,7 +341,7 @@ class TieTuPlanRequest(BaseModel):
 
 
 class ViralRemixAnalyzeRequest(BaseModel):
-    imageData: str = Field(min_length=32, max_length=14_000_000)
+    imageData: str | list[str]
     goal: str = Field(default="", max_length=300)
 
 
