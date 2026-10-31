@@ -36,6 +36,7 @@ LEGACY_NOTION_PLAN = [
               '/viral-remix', '/article-visual']],
     ['工具', ['/xhs-extract', '/douyin-extract', '/hit-detector']],
     ['资源', ['/market', '/bookshelf']],
+    ['账户', ['/pricing', '/invite']],
 ]
 LEGACY_VIEWS = {
     '/': 'home', '/workbench': 'workbench', '/one-click-writing': 'one-click-writing',
