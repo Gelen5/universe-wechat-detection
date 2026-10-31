@@ -25,6 +25,7 @@ from .qihaoshou import router as qihaoshou_router
 from .bookshelf import router as bookshelf_router
 from .market import router as market_router
 from .hotspots import router as hotspots_router
+from .xhs_extract import router as xhs_extract_router
 from .alipay_pay import router as alipay_pay_router
 from .workflow_events import redis_ready
 from .observability import event as log_event
@@ -58,6 +59,7 @@ app.include_router(qihaoshou_router)
 app.include_router(bookshelf_router)
 app.include_router(market_router)
 app.include_router(hotspots_router)
+app.include_router(xhs_extract_router)
 app.include_router(alipay_pay_router)
 
 
@@ -1357,7 +1359,7 @@ def index():
 
 # 每个功能 tab 对应一个真实路径（/workbench、/xiaohongshu、/tie-tu、/hit-detector、/morning-generator），
 # 由前端 SPA 根据 pathname 渲染对应 section；其余路径交给 /static 与 /api。
-TAB_PAGES = {"one-click-writing", "diagnose", "workbench", "xiaohongshu", "tie-tu", "viral-remix", "hit-detector", "morning-generator"}
+TAB_PAGES = {"one-click-writing", "diagnose", "workbench", "xiaohongshu", "tie-tu", "viral-remix", "xhs-extract", "hit-detector", "morning-generator"}
 
 
 @app.get("/{tab}", include_in_schema=False)

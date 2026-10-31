@@ -37,6 +37,11 @@ window.APP_NAV = (() => {
     {group: '内容创作', href: '/viral-remix', view: 'viral-remix', label: '爆款贴图复刻',
      icon: svg('<rect x="3" y="3" width="18" height="18" rx="3"/><path d="m8 15 3-3 2 2 3-4 2 3"/>' +
                '<circle cx="8.5" cy="8.5" r="1.2"/><path d="M16 3v4M14 5h4"/>')},
+    // 小红书内容提取：应用内视图，静态页面里没有节点，标记 fallback 让渲染器建出来。
+    {group: '内容创作', href: '/xhs-extract', view: 'xhs-extract', label: '小红书内容提取',
+     fallback: true,
+     icon: svg('<rect x="2.5" y="3.5" width="12" height="17" rx="2.5"/><path d="M19 8.5v9a2.5 2.5 0 0 1-2.5 2.5H8"/>' +
+               '<path d="M7 8h4.5M7 12h3"/>')},
     // 早安祝福入口在页面上暂时隐藏，但清单保留（渲染器找不到节点会跳过）。
     {group: '内容创作', href: '/morning-generator', view: 'morning', label: '早安祝福',
      hidden: true,

@@ -12,7 +12,14 @@ def test_sidebar_stays_identical_across_all_main_tabs(ui, width):
     def style():
         return page.locator('.v3-topbar').evaluate("e=>{const s=getComputedStyle(e),r=e.getBoundingClientRect();return [r.x,r.y,r.width,r.height,s.padding,s.backgroundColor,s.borderRadius,getComputedStyle(e.querySelector('.app-tabs a > span')).fontSize]}")
     baseline = style()
-    for view in ['home','one-click-writing','xiaohongshu','tie-tu','morning','diagnose','hit-detector','workbench']:
+    # Derive the targets from the sidebar itself: a hand-written list rots as
+    # soon as an entry is added or hidden, and then this test only proves it is
+    # out of date.
+    views = page.evaluate(
+        "() => [...document.querySelectorAll('.v3-topbar .app-tabs a[data-view]')]"
+        ".map(a => a.dataset.view).filter(v => v && v !== 'bookshelf')")
+    assert views, 'the sidebar should expose at least one view'
+    for view in views:
         page.locator('.app-tabs [data-view="'+view+'"]').click()
         assert style() == baseline
         expect(page.get_by_role('button',name='打开设置菜单')).to_be_visible()

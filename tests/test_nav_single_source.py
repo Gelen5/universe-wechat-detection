@@ -1,4 +1,4 @@
-﻿"""Navigation must come from one list.
+"""Navigation must come from one list.
 
 The sidebar was rebuilt by notion-workspace.js while shell.js and
 app-navigation.js kept their own copies, so adding a module meant editing three
@@ -14,11 +14,14 @@ from pathlib import Path
 
 STATIC = Path(__file__).resolve().parents[1] / 'static'
 
-# The exact arrays that used to live in shell.js / notion-workspace.js.
+# The exact arrays that used to live in shell.js / notion-workspace.js, updated
+# whenever a module is added: the point is that all three renderers agree with
+# this list, not that the list never changes.
 LEGACY_SHELL_ROUTES = [
     ['/', '首页', '首页'], ['/hotspots', '热点广场'], ['/workbench', '公众号创作', '创作'],
     ['/one-click-writing', '公众号一键成文', '一键成文'],
     ['/xiaohongshu', '小红书'], ['/tie-tu', '贴图号'], ['/viral-remix', '爆款贴图复刻'],
+    ['/xhs-extract', '小红书内容提取'],
     ['/morning-generator', '早安祝福'],
     ['/diagnose', '账号诊断'], ['/hit-detector', '发布前复核'],
     ['/market', 'AI 超市', '超市'], ['/bookshelf', 'AI 书架'],
@@ -26,7 +29,7 @@ LEGACY_SHELL_ROUTES = [
 ]
 LEGACY_NOTION_PLAN = [
     ['内容创作', ['/hotspots', '/workbench', '/one-click-writing', '/xiaohongshu',
-                  '/tie-tu', '/viral-remix', '/morning-generator']],
+                  '/tie-tu', '/viral-remix', '/xhs-extract', '/morning-generator']],
     ['分析', ['/diagnose', '/hit-detector']],
     ['资源', ['/market', '/bookshelf']],
     ['账户', ['/pricing']],
@@ -34,6 +37,7 @@ LEGACY_NOTION_PLAN = [
 LEGACY_VIEWS = {
     '/': 'home', '/workbench': 'workbench', '/one-click-writing': 'one-click-writing',
     '/xiaohongshu': 'xiaohongshu', '/tie-tu': 'tie-tu', '/viral-remix': 'viral-remix',
+    '/xhs-extract': 'xhs-extract',
     '/diagnose': 'diagnose', '/hit-detector': 'hit-detector',
     '/morning-generator': 'morning', '/market': 'market', '/hotspots': 'hotspots',
 }
@@ -48,12 +52,16 @@ def _dump():
         "const n = window.APP_NAV;"
         "const views = {};"
         "for (const p of ['/', '/workbench', '/one-click-writing', '/xiaohongshu', '/tie-tu', '/pricing', '/bookshelf',"
-        " '/viral-remix', '/diagnose', '/hit-detector', '/morning-generator', '/market', '/hotspots'])"
+        " '/viral-remix', '/xhs-extract', '/diagnose', '/hit-detector', '/morning-generator', '/market', '/hotspots'])"
         " views[p] = n.viewFor(p);"
         "process.stdout.write(JSON.stringify({shell: n.shellRoutes, plan: n.notionPlan,"
         " extras: n.extras.map(e => e.href), views}));"
     )
-    out = subprocess.run([NODE, '-e', script], capture_output=True, text=True, timeout=60)
+    # Node writes UTF-8; without an explicit encoding, Windows decodes stdout as
+    # GBK and every assertion here dies on a UnicodeDecodeError instead of
+    # checking anything.
+    out = subprocess.run([NODE, '-e', script], capture_output=True, text=True,
+                         encoding='utf-8', timeout=60)
     if out.returncode != 0:
         raise AssertionError(out.stderr[-400:])
     return json.loads(out.stdout)
@@ -71,8 +79,10 @@ class SingleSourceTests(unittest.TestCase):
     def test_sidebar_plan_matches_the_old_grouping_exactly(self):
         self.assertEqual(LEGACY_NOTION_PLAN, self.data['plan'])
 
-    def test_only_the_two_fallback_entries_are_created(self):
-        self.assertEqual(['/hotspots', '/pricing'], self.data['extras'])
+    def test_only_the_fallback_entries_are_created(self):
+        # Entries absent from the server-rendered HTML declare fallback: true so
+        # every renderer can build them instead of silently dropping them.
+        self.assertEqual(['/hotspots', '/xhs-extract', '/pricing'], self.data['extras'])
 
     def test_every_legacy_view_mapping_is_preserved(self):
         self.assertEqual(LEGACY_VIEWS, self.data['views'])

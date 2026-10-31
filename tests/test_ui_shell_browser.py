@@ -100,7 +100,15 @@ def test_mobile_navigation_has_named_targets_and_more_menu(ui, path):
     more = page.get_by_role("button", name="更多", exact=True)
     more.click()
     expect(page.get_by_role("dialog", name="全部功能")).to_be_visible()
-    expect(page.get_by_role("navigation", name="全部功能").get_by_role("link")).to_have_count(11)
+    # The invariant is "every sidebar destination is reachable from 更多", not a
+    # literal count: a hardcoded number silently rots whenever a tab is added.
+    nav_hrefs = page.evaluate(
+        "() => [...document.querySelectorAll('.v3-topbar .app-tabs a[href]')].map(a => a.getAttribute('href'))")
+    menu_hrefs = page.evaluate(
+        "() => [...document.querySelectorAll('#shell-more-menu nav a')].map(a => a.getAttribute('href'))")
+    assert nav_hrefs, "sidebar should expose at least one destination"
+    assert set(nav_hrefs) <= set(menu_hrefs), set(nav_hrefs) - set(menu_hrefs)
+    assert len(menu_hrefs) == len(set(menu_hrefs)), menu_hrefs
     page.keyboard.press("Escape")
     expect(more).to_be_focused()
     expect(more).to_have_attribute("aria-expanded", "false")

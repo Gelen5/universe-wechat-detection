@@ -24,6 +24,7 @@ const configDot = document.querySelector('#settings-config-dot');
 const xiaohongshuPage = document.querySelector('#xiaohongshu');
 const tieTuPage = document.querySelector('#tie-tu');
 const viralRemixPage = document.querySelector('#viral-remix');
+const xhsExtractPage = document.querySelector('#xhs-extract');
 const hitDetectorPage = document.querySelector('#hit-detector');
 const authModal = document.querySelector('#auth-modal');
 const walletModal = document.querySelector('#wallet-modal');
@@ -1659,6 +1660,7 @@ const viewMap = {
   xiaohongshu: xiaohongshuPage,
   'tie-tu': tieTuPage,
   'viral-remix': viralRemixPage,
+  'xhs-extract': xhsExtractPage,
   'hit-detector': hitDetectorPage,
   morning: morningGenerator,
   report: reportRoot,
@@ -1673,6 +1675,7 @@ const viewTitles = {
   xiaohongshu: '小红书创作',
   'tie-tu': '微信贴图号',
   'viral-remix': '爆款贴图复刻',
+  'xhs-extract': '小红书内容提取',
   'hit-detector': '爆文检测',
   morning: '早安祝福',
   report: '诊断报告',

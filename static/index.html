@@ -1,10 +1,10 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>宇宙第一工作台</title>
-    <script src="/static/routes.js?v=20261031-single-nav-2"></script>
+    <script src="/static/routes.js?v=20261031-xhs-extract-1"></script>
 <script src="/static/app-navigation.js?v=20261031-single-nav-2"></script>
     <style>
       /* A direct resource URL must never paint the homepage while app.js loads. */
@@ -69,6 +69,7 @@
 <link rel="stylesheet" href="/static/auth-mint.css?v=20261031-glass-2" />
 <script src="/static/points-notice.js?v=20261025-points-1" defer></script>
 <link rel="stylesheet" href="/static/viral-remix.css?v=20261031-reading-3">
+<link rel="stylesheet" href="/static/xhs-extract.css?v=20261031-extract-1">
 </head>
   <body class="atelier">
     <script>if(location.pathname.replace(/\/$/,'')==='/hotspots')document.body.classList.add('hotspots-body');</script>
@@ -117,6 +118,10 @@
           <a data-view="viral-remix" href="/viral-remix">
             <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="m8 15 3-3 2 2 3-4 2 3"/><circle cx="8.5" cy="8.5" r="1.2"/><path d="M16 3v4M14 5h4"/></svg>
             <span>爆款贴图复刻</span>
+          </a>
+          <a data-view="xhs-extract" href="/xhs-extract">
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="3.5" width="12" height="17" rx="2.5"/><path d="M19 8.5v9a2.5 2.5 0 0 1-2.5 2.5H8"/><path d="M7 8h4.5M7 12h3"/></svg>
+            <span>小红书内容提取</span>
           </a>
           <a data-view="hit-detector" href="/hit-detector">
             <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><polyline points="9 12 11 14 15 10"/></svg>
@@ -415,6 +420,55 @@
               <ol class="tie-steps" aria-label="爆款贴图复刻流程"><li aria-current="step"><b>01</b><span>上传对标图</span></li><li><b>02</b><span>拆解结构</span></li><li><b>03</b><span>选择翻新方向</span></li><li><b>04</b><span>生成原创图</span></li></ol>
             </div>
             <div id="viral-remix-result" class="viral-result" hidden></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           TAB · /xhs-extract — 小红书内容提取
+           ============================================================ -->
+      <section id="xhs-extract" class="skill-page xhs-extract" hidden>
+        <div class="v3-meta">
+          <span class="l"><span class="line"></span><span>CREATOR WORKSPACE / EXTRACT</span></span>
+          <span class="r"><i></i>小红书内容提取</span>
+        </div>
+        <div class="skill-shell">
+          <div class="skill-form-col">
+            <span class="micro-label"><span class="line"></span><span>LINK → 素材</span></span>
+            <h1>粘一条链接，<br>把作品<span class="serif">拆成素材</span>。</h1>
+            <p>提取标题、正文、标签、作者与互动数据，图文逐张给原图，视频给最高清晰度地址。只读公开内容，不碰私信和登录态。</p>
+
+            <form id="xhs-extract-form" class="skill-form">
+              <div class="form-section">
+                <div class="head"><span class="num">01</span><div class="copy"><strong>作品链接</strong><small>必须是带 xsec_token 的完整链接</small></div></div>
+                <label class="field-wide">粘贴链接或分享文案
+                  <textarea id="xhs-extract-url" name="url" autocomplete="off" required rows="3" placeholder="https://www.xiaohongshu.com/explore/…?xsec_token=…"></textarea>
+                </label>
+                <p class="xhs-extract-hint">
+                  <b>怎么拿到：</b>在小红书打开作品 → 「分享」→「复制链接」→ 整段粘进来（分享文案里的链接也可以）。
+                  裸链接（不带 <code>xsec_token</code>）平台只回空页面，这是平台限制，不是提取失败。
+                </p>
+              </div>
+
+              <button id="xhs-extract-start" class="skill-primary" type="submit">开始提取 →</button>
+              <p class="xhs-extract-notice">提取不消耗积分。请只用于已获授权的素材整理与二创参考，不要直接搬运他人作品。</p>
+            </form>
+          </div>
+
+          <div class="skill-output-col" aria-live="polite">
+            <div id="xhs-extract-empty" class="skill-empty xhs-extract-empty">
+              <span class="tag">提取工作流 <span class="xhs-dot"></span> 准备开始</span>
+              <h2>先拿到干净素材，<br>再谈二创。</h2>
+              <p>一次提取会给出结构化元数据、正文原文和全部原始图片或视频地址。</p>
+              <ol class="xhs-steps" aria-label="小红书内容提取流程">
+                <li><b>01</b><span>粘贴作品链接</span></li>
+                <li><b>02</b><span>解析作品数据</span></li>
+                <li><b>03</b><span>逐张下载原图</span></li>
+                <li><b>04</b><span>整理进你的内容库</span></li>
+              </ol>
+            </div>
+            <div id="xhs-extract-result" class="xhs-extract-result" hidden></div>
+            <div id="xhs-extract-error" class="xhs-extract-error" role="alert" hidden></div>
           </div>
         </div>
       </section>
@@ -936,25 +990,36 @@
   <link rel="stylesheet" href="/static/tie-tu-studio.css?v=20261030-image-preview-1">
     <script src="/static/creator-chat.js?v=20261030-image-timer-1"></script>
     <script src="/static/notion-workspace.js?v=20261031-viral-remix-2"></script>
+    <script src="/static/xhs-extract.js?v=20261031-extract-1"></script>
     <script>
-      // CDN/embedded clients may retain an older sidebar builder. Keep this
-      // entry in the HTML response as a final, cache-independent insertion.
+      // CDN/embedded clients may retain an older sidebar builder. Keep these
+      // entries in the HTML response as a final, cache-independent insertion.
+      // Labels and icons come from routes.js so this block carries no list.
       (() => {
-        const addRemixLink = () => {
+        const NAV = window.APP_NAV;
+        if (!NAV) return;
+        const ensure = () => {
           const nav = document.querySelector('.app-tabs');
-          const tieTu = nav?.querySelector('[data-view="tie-tu"]');
-          if (!nav || !tieTu) return;
-          let link = nav.querySelector('[data-view="viral-remix"]');
-          if (!link) {
-            link = document.createElement('a');
-            link.href = '/viral-remix'; link.dataset.view = 'viral-remix';
-            link.innerHTML = '<svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="m8 15 3-3 2 2 3-4 2 3"/><circle cx="8.5" cy="8.5" r="1.2"/><path d="M16 3v4M14 5h4"/></svg><span>爆款贴图复刻</span>';
-            link.addEventListener('click', event => { event.preventDefault(); window.AppNav?.setActiveView?.('viral-remix', true); });
+          let anchor = nav?.querySelector('[data-view="tie-tu"]');
+          if (!nav || !anchor) return;
+          // 只要排在贴图号之后的条目：爆款贴图复刻、小红书内容提取。
+          const wanted = ['/viral-remix', '/xhs-extract'];
+          for (const href of wanted) {
+            const spec = NAV.itemFor(href);
+            if (!spec) continue;
+            let link = nav.querySelector(`[data-view="${spec.view}"]`);
+            if (!link) {
+              link = document.createElement('a');
+              link.href = href; link.dataset.view = spec.view;
+              link.innerHTML = `${spec.icon}<span>${spec.label}</span>`;
+              link.addEventListener('click', event => { event.preventDefault(); window.AppNav?.setActiveView?.(spec.view, true); });
+            }
+            anchor.insertAdjacentElement('afterend', link);
+            anchor = link;
           }
-          tieTu.insertAdjacentElement('afterend', link);
         };
-        addRemixLink();
-        setTimeout(addRemixLink, 0);
+        ensure();
+        setTimeout(ensure, 0);
       })();
     </script>
 <script src="/static/hotspots.js?v=20261025-stable-filter-1"></script>
