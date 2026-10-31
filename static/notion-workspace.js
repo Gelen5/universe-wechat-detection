@@ -1,4 +1,4 @@
-/* Presentation only: reuse all existing navigation and Skill request handlers. */
+﻿/* Presentation only: reuse all existing navigation and Skill request handlers. */
 (() => {
   const header = document.querySelector('.v3-topbar');
   const nav = header.querySelector('.app-tabs');
@@ -70,7 +70,7 @@
       toggle.type = 'button';
       toggle.className = 'nav-more-toggle';
       toggle.setAttribute('aria-expanded', 'false');
-      toggle.innerHTML = '<span>更多功能</span><small>工具 · 资源</small>';
+      toggle.innerHTML = '<span>更多功能</span><small>工具 · 资源 · 账户</small>';
       toggle.addEventListener('click', () => {
         const open = nav.classList.toggle('nav-expanded');
         toggle.setAttribute('aria-expanded', String(open));

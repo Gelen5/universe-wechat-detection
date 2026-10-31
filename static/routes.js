@@ -112,7 +112,7 @@ window.APP_NAV = (() => {
   ];
 
   // 账户类入口（积分套餐、邀请好友）留在「更多」与右上角菜单里，不再占用侧栏。
-  const groups = ['创作', '工具', '资源'];
+  const groups = ['创作', '工具', '资源', '账户'];
   const all = [home, ...items];
   const normalize = (path) => (path || '/').replace(/\/+$/, '') || '/';
   /* 隐藏项不进任何渲染器的菜单，但路由照样能解析（可直接访问 URL、可被

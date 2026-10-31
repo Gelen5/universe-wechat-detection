@@ -313,10 +313,12 @@ body.atelier #workbench[data-stage="0"] #workbench-action-card {
 #workspace-navigation .nav-groups { display: block; }
 
 #workspace-navigation .nav-group[data-group="工具"],
-#workspace-navigation .nav-group[data-group="资源"] { display: none; }
+#workspace-navigation .nav-group[data-group="资源"],
+#workspace-navigation .nav-group[data-group="账户"] { display: none; }
 
 #workspace-navigation.nav-expanded .nav-group[data-group="工具"],
-#workspace-navigation.nav-expanded .nav-group[data-group="资源"] { display: block; }
+#workspace-navigation.nav-expanded .nav-group[data-group="资源"],
+#workspace-navigation.nav-expanded .nav-group[data-group="账户"] { display: block; }
 
 #workspace-navigation .nav-more-toggle {
   display: flex;
