@@ -21,6 +21,7 @@ from . import legacy_routes
 from . import conversation_repository, database
 from .workflow_api import router as workflow_router
 from .conversation_api import router as conversation_router
+from .article_visual import router as article_visual_router
 from .qihaoshou import router as qihaoshou_router
 from .bookshelf import router as bookshelf_router
 from .market import router as market_router
@@ -68,6 +69,7 @@ accounts.recover_interrupted_workbench_jobs()
 database.require_postgres_in_production()
 app.include_router(workflow_router)
 app.include_router(conversation_router)
+app.include_router(article_visual_router)
 app.include_router(qihaoshou_router)
 app.include_router(bookshelf_router)
 app.include_router(market_router)
@@ -1408,6 +1410,11 @@ def publish_workbench(payload: WorkbenchPublishRequest, request: Request):
 @app.get("/", include_in_schema=False)
 def index():
     return FileResponse(STATIC_DIR / "index.html", media_type="text/html; charset=utf-8")
+
+
+@app.get("/article-visual", include_in_schema=False)
+def article_visual_page():
+    return FileResponse(STATIC_DIR / "article-visual.html", media_type="text/html; charset=utf-8")
 
 
 # 每个功能 tab 对应一个真实路径（/workbench、/xiaohongshu、/tie-tu、/hit-detector、/morning-generator），
