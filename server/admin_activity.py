@@ -20,6 +20,14 @@ def init_db():
         c.execute(text("INSERT INTO analytics_meta(key,value) VALUES ('activity_started',:now) ON CONFLICT(key) DO NOTHING"), {'now': accounts.utc_now()})
 
 def record(user, kind='active'):
+    # Analytics must never turn a successful login into a failed login.
+    try:
+        _record(user, kind)
+    except Exception:
+        import logging
+        logging.getLogger(__name__).warning('Activity observation unavailable; kind=%s', kind)
+
+def _record(user, kind='active'):
     if not user or user.get('impersonation'):
         return
     now = datetime.now(timezone.utc)
@@ -83,6 +91,9 @@ def report(request: Request, start: str='', end: str='', query: str='', metric: 
         if j.get('usage_id') in usage_ids: continue
         tasks.append(dict(id=j['id'],user_id=j['user_id'],feature=j.get('type','公众号创作'),status=j['status'],created_at=j['created_at'],started_at=j.get('started_at'),finished_at=j.get('finished_at'),duration_ms=None,points=None,billing_status='unknown',error=j.get('error'),attempts=j.get('attempts')))
     allowed={u['id'] for u in users if (role=='all' or u['role']==role) and (not user_id or u['id']==user_id) and (not query or query.lower() in (u['email']+' '+u['display_name']).lower())}
+    job_ids={j['id'] for j in jobs}
+    for task in tasks:
+        task['refundable']=task['id'] in job_ids and task['status'] in ('queued','running')
     tasks=[t for t in tasks if t['user_id'] in allowed and (not feature or t['feature']==feature)]
     creators={t['user_id'] for t in tasks}
     if feature: allowed &= creators

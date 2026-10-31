@@ -61,3 +61,9 @@ def test_impersonation_is_not_user_activity():
     admin_activity.record(dict(who,impersonation={'active':True}))
     with accounts._connect() as c:
         assert c.execute('SELECT count(*) FROM user_activity_events WHERE user_id=?',(who['id'],)).fetchone()[0]==before
+
+
+def test_observation_failure_does_not_break_login(monkeypatch):
+    def fail(*args, **kwargs): raise RuntimeError('fixture failure')
+    monkeypatch.setattr(admin_activity, '_record', fail)
+    admin_activity.record({'id':'fixture'}, 'login')
