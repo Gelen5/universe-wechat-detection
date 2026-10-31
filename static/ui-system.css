@@ -1,4 +1,4 @@
-﻿/* 宇宙第一工作台 · 统一层 (ui-system.css)
+/* 宇宙第一工作台 · 统一层 (ui-system.css)
  * 只做三件事：统一可读性下限、统一控件热区、抹平模块间皮肤差异。
  * 加载顺序放在所有历史样式之后；不触碰首页 hero（#home 与 .home-page 均不在选择器里）。
  */
@@ -46,18 +46,6 @@ body.atelier #workbench#workbench .composer-hint {
   color: var(--uw-ink-2) !important;
 }
 
-#lowfans :is(.lf-meta, .lf-sub, .lf-note, .lf-track, .lf-type, .lf-base, .lf-score, #lf-stamp span) {
-  font-size: 12.5px !important;
-  color: var(--uw-ink-3) !important;
-}
-
-/* 行内操作：文字按钮用深墨绿，主按钮保持白字（否则会变成绿底深绿字） */
-#lowfans .lf-act { color: var(--uw-ink-2) !important; }
-#lowfans .lf-act.is-primary,
-#lowfans .lf-act.is-primary :is(span, i) { color: #fff !important; }
-
-#lowfans .lf-track n { color: var(--uw-ink-2) !important; opacity: 1 !important; }
-
 #hotspots :is(.hs-item-meta, .hs-card-count, .hs-chip, .hs-updated) {
   font-size: 12.5px !important;
   color: var(--uw-ink-3) !important;
@@ -74,18 +62,6 @@ body.atelier #workbench#workbench .composer-hint {
 }
 
 /* ---------- 2. 控件热区：行内操作不少于 44px，筛选 chip 不少于 32px ---------- */
-
-#lowfans .lf-act {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 44px;
-  padding: 10px 14px;
-  border-radius: 10px;
-  line-height: 1.1;
-}
-
-#lowfans .lf-track { min-height: 32px; padding: 6px 12px; }
 
 #hotspots .hs-item-tools :is(button, a) {
   min-height: 32px;
@@ -321,10 +297,3 @@ body.atelier #workbench[data-stage="0"] #workbench-action-card {
     margin: 8px 0 0;
   }
 }
-
-/* ---------- 11. 低粉爆文：序号与筛选条尾部 ---------- */
-
-#lowfans #lf-bar-tail { color: var(--uw-ink-3) !important; }
-#lowfans .lf-metrics span { color: var(--uw-ink-3) !important; }
-#lowfans .lf-rank { color: var(--uw-ink-3) !important; }
-#lowfans .lf-row:nth-child(-n+3) .lf-rank { color: var(--uw-green) !important; }
