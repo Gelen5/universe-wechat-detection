@@ -86,6 +86,14 @@ class TestSettlement:
         assert wallet(user_id)["balance"] == 100
         assert accounts.usage_state(usage) == "refunded"
 
+    def test_free_turn_settled_as_completed_is_not_counted_as_failure(self, user_id):
+        """闲聊（0 分）必须结算成 completed：后台把 refunded 一律算作失败任务。"""
+        seed(user_id)
+        usage = accounts.reserve_points(user_id, accounts.plus_rule(12), "POST", "/api/wechat-plus/x")
+        accounts.settle_usage_with_points(usage, 200, 800, 0)
+        assert wallet(user_id)["balance"] == 100, "0 分动作要全额退回"
+        assert accounts.usage_state(usage) == "completed", "不能留成 refunded"
+
     def test_partial_settlement_refunds_only_the_difference(self, user_id):
         seed(user_id)
         usage = accounts.reserve_points(user_id, accounts.plus_rule(12), "POST", "/api/wechat-plus/x")

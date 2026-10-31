@@ -74,17 +74,28 @@ def execute_turn(self, turn_id):
 
     started = time.monotonic()
 
-    def settle(action, points):
-        """按这次实际的动作结算；0 分就是全额退回，失败也走这里。"""
+    def settle_completed(action, points):
+        """正常跑完：按实际动作结算。
+
+        注意 0 分也要走 settle_usage_with_points，而不是 refund——后台的「失败任务」
+        统计把 status='refunded' 一律算作失败，如果闲聊也退款，管理员会看到一片
+        「失败」。0 分结算 = 差额全额退回 + 状态 completed。
+        """
         usage_id = billing.usage_for(turn_id)
         if not usage_id:
             return
         elapsed = int((time.monotonic() - started) * 1000)
-        if points > 0:
-            accounts.settle_usage_with_points(usage_id, 200, elapsed, points)
-        else:
-            accounts.refund_usage(usage_id, 200, elapsed)
+        accounts.settle_usage_with_points(usage_id, 200, elapsed, points)
         billing.record(turn_id, action, points)
+
+    def refund(action):
+        """没跑成：全额退回，状态留 refunded（后台会把它算进失败/退分）。"""
+        usage_id = billing.usage_for(turn_id)
+        if not usage_id:
+            return
+        elapsed = int((time.monotonic() - started) * 1000)
+        accounts.refund_usage(usage_id, 200, elapsed)
+        billing.record(turn_id, action, 0)
 
     try:
         session = repo.get(turn['session_id'], turn['user_id'])
@@ -99,12 +110,12 @@ def execute_turn(self, turn_id):
         committed = repo.commit_turn(turn_id, self.request.id, session['version'], state)
         if committed:
             action = str(state.get('last_action') or '')
-            settle(action, accounts.plus_points_for(action))
+            settle_completed(action, accounts.plus_points_for(action))
         else:
-            settle('cancelled', 0)
+            refund('cancelled')
         return {'status': 'completed' if committed else 'cancelled'}
     except service.Cancelled:
-        settle('cancelled', 0)
+        refund('cancelled')
         return {'status': 'cancelled'}
     except Exception as exc:
         # Provider exceptions may contain upstream bodies. Keep private details
@@ -114,7 +125,7 @@ def execute_turn(self, turn_id):
         safe = str(exc) if isinstance(exc, (ValueError, repo.Conflict)) else '本次处理未完成，原有内容已保留。请稍后重试。'
         if isinstance(exc, workbench.ProviderError):
             safe = '模型服务暂时不可用，文章已保留。稍后可以继续上次未完成的处理。'
-        settle('failed', 0)
+        refund('failed')
         repo.finish(turn_id, self.request.id, 'failed', safe)
         return {'status': 'failed'}
     finally:
