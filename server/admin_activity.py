@@ -91,6 +91,7 @@ def report(request: Request, start: str='', end: str='', query: str='', metric: 
         d=stamp(value)
         return d is not None and lower <= d < upper
     with accounts._connect() as c:
+        registered_total=c.execute('SELECT COUNT(*) FROM users').fetchone()[0]
         users=[dict(r) for r in c.execute('SELECT u.id,u.email,u.display_name,u.role,u.status,u.created_at,u.last_login_at,w.balance FROM users u JOIN wallets w ON u.id=w.user_id').fetchall()]
         ev=[dict(r) for r in c.execute('SELECT user_id,kind,created_at FROM user_activity_events WHERE created_at>=? AND created_at<?', (lower.astimezone(timezone.utc).isoformat(),upper.astimezone(timezone.utc).isoformat())).fetchall()]
         latest={r['user_id']:r['latest'] for r in c.execute('SELECT user_id,MAX(created_at) AS latest FROM user_activity_events GROUP BY user_id').fetchall()}
@@ -119,7 +120,7 @@ def report(request: Request, start: str='', end: str='', query: str='', metric: 
     active={e['user_id'] for e in ev if inside(e['created_at'])} & allowed
     new={u['id'] for u in users if u['id'] in allowed and inside(u['created_at'])}
     failed=lambda t: t['status'] in ('failed','refunded','error')
-    summary={'new':len(new),'active':len(active),'creators':len(creators),'tasks':len(tasks),'failed':sum(failed(t) for t in tasks),'total':len(allowed)}
+    summary={'registered_total':registered_total,'new':len(new),'active':len(active),'creators':len(creators),'tasks':len(tasks),'failed':sum(failed(t) for t in tasks),'total':len(allowed)}
     trend=[]
     day=lower
     while day<upper:

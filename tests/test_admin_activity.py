@@ -75,3 +75,13 @@ def test_actual_auth_session_timestamp_can_recover_missing_login(monkeypatch):
     assert row['last_login_at']=='2026-10-31T02:00:00+00:00'
     assert row['login_source']=='认证会话创建记录'
     assert admin_activity.enrich_logins([{'id':'u','last_login_at':'2026-10-31T03:00:00+00:00'}])[0]['last_login_at']=='2026-10-31T03:00:00+00:00'
+
+
+def test_registration_total_is_global_and_ignores_filters():
+    a,u,who=clients()
+    with accounts._connect() as c:
+        count=c.execute('SELECT COUNT(*) FROM users').fetchone()[0]
+    for params in ({'role':'user'}, {'query':'no-such-account','start':'2020-01-01','end':'2020-01-01','metric':'new'}, {'role':'admin','feature':'absent','user_id':who['id']}):
+        response=a.get('/api/admin/activity',params=params)
+        assert response.status_code==200
+        assert response.json()['summary']['registered_total']==count

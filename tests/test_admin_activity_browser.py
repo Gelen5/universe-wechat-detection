@@ -17,7 +17,7 @@ def test_admin_navigation_filter_drawer(browser,width):
         parsed=urlparse(route.request.url);calls.append(route.request.url)
         if parsed.path=='/api/admin/activity':
             q=parse_qs(parsed.query)
-            route.fulfill(json={'summary':{'new':1,'active':1,'creators':1,'tasks':1,'failed':1,'total':1},'trend':[{'date':'2026-10-31','new':1,'active':1}],'features':{'贴图创作':1},'rows':[task if q.get('view')==['tasks'] else user],'total':1,'page':1,'page_size':25,'updated_at':'2026-10-31T02:00:00Z','activity_started':'2026-10-31T00:00:00Z'})
+            route.fulfill(json={'summary':{'registered_total':196,'new':1,'active':1,'creators':1,'tasks':1,'failed':1,'total':1},'trend':[{'date':'2026-10-31','new':1,'active':1}],'features':{'贴图创作':1},'rows':[task if q.get('view')==['tasks'] else user],'total':1,'page':1,'page_size':25,'updated_at':'2026-10-31T02:00:00Z','activity_started':'2026-10-31T00:00:00Z'})
         elif parsed.path.startswith('/api/admin/activity/users/'):
             route.fulfill(json={**user,'usage':{'completed':1},'activity':[{'kind':'login','created_at':user['last_login_at']}],'transactions':[{'amount':-5,'kind':'consume','balance_before':11,'balance_after':6,'note':'生成贴图','created_at':user['last_login_at']}]})
         else:
@@ -41,5 +41,22 @@ def test_admin_navigation_filter_drawer(browser,width):
     expect(page.locator('#filter-label')).to_contain_text('活跃用户')
     assert any('metric=active' in call for call in calls)
     page.screenshot(path=f'D:/Download/workbench-audit-20261027/admin-activity-{width}.png',full_page=True)
+    expect(page.locator('#registered-total')).to_have_text('196')
+    page.locator('#search').fill('nobody')
+    page.locator('#share-registration').click()
+    expect(page.locator('#registration-share')).to_be_visible()
+    expect(page.locator('main')).not_to_be_visible()
+    expect(page.locator('#share-card')).to_contain_text('196')
+    expect(page.locator('#share-card')).to_contain_text('还差 4 个')
+    expect(page.locator('#share-card')).to_contain_text('yuzoudiyigongzuotai.cn')
+    expect(page.locator('#share-card')).not_to_contain_text('demo@example.test')
+    page.screenshot(path=f'D:/Download/workbench-audit-20261027/registration-share-{width}.png')
+    page.keyboard.press('Escape')
+    expect(page.locator('main')).to_be_visible()
+    page.locator('#all-registered').click()
+    expect(page.locator('#role')).to_have_value('all')
+    expect(page.locator('#search')).to_have_value('')
+    expect(page.locator('[data-view=users]')).to_have_class('selected')
+    assert any('role=all' in call and 'metric=all' in call for call in calls)
     assert not errors
     page.close()
