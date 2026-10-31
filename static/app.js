@@ -1591,6 +1591,21 @@ function renderViralRemix(result, sessionId) {
   const context=document.createElement('section');context.className='viral-result-card';
   context.innerHTML=`<h3>顺序与逐页分析</h3><p>${esc((result.order||[]).join(' → '))} · ${esc(result.order_reason||'单图，无需排序')}</p><p>${esc(JSON.stringify(result.pages||[]))}</p><p>${esc(result.verification?.message||'待核实')}</p><h3>确认创作方向</h3><label>赛道<select name="remix-track">${['情感关系','育儿成长','赚钱职场','生活消费','娱乐搞笑'].map(t=>`<option>${t}</option>`).join('')}</select></label><label>想让读者感到<select name="remix-emotion">${['被理解','被点醒','被教会','被逗笑','有点急'].map(t=>`<option>${t}</option>`).join('')}</select></label><label>画面禁区<select name="remix-boundaries"><option>不出现真人正脸</option><option>不出现品牌和产品</option><option>不出现特定人物或同行</option><option>无额外禁区</option></select></label><p>确认后点选下方 A/B/C 方案。中文由程序排版，整组保持相同版式。</p>`;
   root.querySelector('.viral-ideas').before(context);
+  const rawPages=context.querySelectorAll(':scope > p')[1];
+  if(rawPages){const pages=document.createElement('div');pages.className='remix-page-list';(result.pages||[]).forEach((page,index)=>{const item=document.createElement('article');item.innerHTML=`<span class="tag">参考图 ${esc(page.page||index+1)}</span><h4>${esc(page.role||'内容页')}</h4><p>信息密度：${esc(page.density||'待判断')}</p><p>${esc(page.missing||'未发现明显缺口')}</p>`;pages.append(item);});rawPages.replaceWith(pages);}
+  const report=document.createElement('div');report.className='remix-panel';report.id='remix-report-panel';report.append(root.querySelector('.viral-result-card'),context);
+  const ideas=root.querySelector('.viral-ideas');ideas.classList.add('remix-panel');ideas.id='remix-ideas-panel';
+  const choices=document.createElement('div');choices.className='remix-choices';
+  let choiceNode=[...context.querySelectorAll('h3')].find(h=>h.textContent==='确认创作方向');
+  while(choiceNode){const next=choiceNode.nextSibling;choices.append(choiceNode);choiceNode=next;}ideas.prepend(choices);
+  const output=document.createElement('div');output.className='remix-panel';output.id='remix-output-panel';output.innerHTML='<div class="remix-output-placeholder"><h3>成图与配文会放在这里</h3><p>选择翻新方案后生成，完成后可下载图片、查看配文方向和标签。</p></div>';
+  const tabs=document.createElement('div');tabs.className='remix-result-tabs';tabs.setAttribute('role','tablist');tabs.setAttribute('aria-label','创作结果');
+  const panels=[report,ideas,output];
+  const selectPanel=index=>{panels.forEach((p,i)=>p.hidden=i!==index);[...tabs.children].forEach((b,i)=>{b.setAttribute('aria-selected',String(i===index));b.tabIndex=i===index?0:-1;});};
+  ['拆解报告','翻新方案','成图交付'].forEach((label,index)=>{const b=document.createElement('button');b.type='button';b.textContent=`0${index+1} ${label}`;b.setAttribute('role','tab');b.setAttribute('aria-controls',panels[index].id);b.onclick=()=>selectPanel(index);b.onkeydown=e=>{if(['ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();const next=(index+(e.key==='ArrowRight'?1:2))%3;selectPanel(next);tabs.children[next].focus();}};tabs.append(b);});
+  root.replaceChildren(tabs,...panels);selectPanel(0);
+  const next=document.createElement('button');next.type='button';next.className='remix-next';next.textContent='查看三种翻新方案 →';next.onclick=()=>{selectPanel(1);root.scrollIntoView({block:'start',behavior:'smooth'});};report.append(next);
+  new MutationObserver(()=>{const generated=[...root.querySelectorAll(':scope > .viral-generated, :scope > .viral-delivery')];if(generated.length){output.querySelector('.remix-output-placeholder')?.remove();generated.forEach(el=>output.append(el));selectPanel(2);}}).observe(root,{childList:true});
 }
 viralRemixForm?.addEventListener('submit', async event => {
   event.preventDefault();
