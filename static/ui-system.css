@@ -298,40 +298,12 @@ body.atelier #workbench[data-stage="0"] #workbench-action-card {
 #workbench .studio-heading { flex-wrap: wrap; gap: 12px; }
 #workbench .studio-heading .studio-modes { margin: 0 0 0 auto; align-self: center; }
 
-/* ---------- 10. 侧栏分组：工具 / 资源默认收起 ---------- */
-
+/* ---------- 10. 侧栏分组：全部展开 ----------
+   曾把「工具 / 资源 / 账户」默认收起，只留 7 个入口，下面挂一个「更多功能」。
+   用户要求取消折叠：所有分组直接展开，不再有开关。 */
 #workspace-navigation .nav-groups { display: block; }
 
-#workspace-navigation .nav-group[data-group="工具"],
-#workspace-navigation .nav-group[data-group="资源"],
-#workspace-navigation .nav-group[data-group="账户"] { display: none; }
-
-#workspace-navigation.nav-expanded .nav-group[data-group="工具"],
-#workspace-navigation.nav-expanded .nav-group[data-group="资源"],
-#workspace-navigation.nav-expanded .nav-group[data-group="账户"] { display: block; }
-
-#workspace-navigation .nav-more-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  width: 100%;
-  min-height: 40px;
-  margin: 8px 0 4px;
-  padding: 0 14px;
-  border: 1px dashed var(--uw-line);
-  border-radius: 10px;
-  background: transparent;
-  color: var(--uw-ink-2);
-  font: inherit;
-  font-size: 13px;
-  cursor: pointer;
-}
-
-#workspace-navigation .nav-more-toggle small { color: var(--uw-ink-3); font-size: 12px; }
-#workspace-navigation .nav-more-toggle { position: sticky; bottom: 0; z-index: 2; background: rgba(251, 251, 248, .96); backdrop-filter: blur(6px); }
-#workspace-navigation .nav-more-toggle:hover { background: rgba(47, 111, 79, .06); }
-#workspace-navigation .nav-more-toggle[aria-expanded="true"] { border-style: solid; }
+#workspace-navigation .nav-group[data-group] { display: block; }
 
 @media (max-width: 760px) {
   #workbench .studio-modes {
@@ -348,7 +320,6 @@ body.atelier #workbench[data-stage="0"] #workbench-action-card {
     order: 3;
     margin: 8px 0 0;
   }
-  #workspace-navigation .nav-more-toggle { display: none !important; }
 }
 
 /* ---------- 11. 低粉爆文：序号与筛选条尾部 ---------- */

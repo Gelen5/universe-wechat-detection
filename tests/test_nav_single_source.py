@@ -159,6 +159,28 @@ class SingleSourceTests(unittest.TestCase):
         self.assertIn('data-view="wechat-plus"', live)
 
 
+class SidebarCollapseTests(unittest.TestCase):
+    """侧栏不再折叠：工具 / 资源 / 账户 直接展开。
+
+    曾经把三个分组默认收起、在上面挂一个「更多功能」开关。用户要求取消折叠，
+    所以渲染器不该再生成那个按钮，样式里也不该再有默认 display:none。
+    """
+
+    def test_renderer_does_not_build_the_more_toggle(self):
+        js = (STATIC / 'notion-workspace.js').read_text(encoding='utf-8')
+        self.assertNotIn('nav-more-toggle', js)
+        self.assertNotIn('nav-expanded', js)
+
+    def test_stylesheet_does_not_hide_any_group_by_default(self):
+        css = (STATIC / 'ui-system.css').read_text(encoding='utf-8')
+        self.assertNotIn('nav-more-toggle', css)
+        self.assertNotIn('nav-expanded', css)
+        for group in ('工具', '资源', '账户'):
+            with self.subTest(group=group):
+                self.assertNotIn(f'.nav-group[data-group="{group}"]', css,
+                                 f'{group} 分组又被默认隐藏了')
+
+
 class IncludeTests(unittest.TestCase):
     PAGES = ['index.html', 'bookshelf.html', 'market.html', 'qihaoshou.html']
 

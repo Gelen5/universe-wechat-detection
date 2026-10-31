@@ -1,4 +1,4 @@
-﻿/* Presentation only: reuse all existing navigation and Skill request handlers. */
+/* Presentation only: reuse all existing navigation and Skill request handlers. */
 (() => {
   const header = document.querySelector('.v3-topbar');
   const nav = header.querySelector('.app-tabs');
@@ -64,19 +64,9 @@
     if (home) nav.appendChild(home);
     nav.appendChild(groups);
     if (moreBtn) nav.appendChild(moreBtn);
-    // 工具与资源默认收起：首屏只留 7 个入口，其余一按展开，路由一个都不少。
-    if (groups.querySelector('[data-group="工具"]') || groups.querySelector('[data-group="资源"]')) {
-      const toggle = document.createElement('button');
-      toggle.type = 'button';
-      toggle.className = 'nav-more-toggle';
-      toggle.setAttribute('aria-expanded', 'false');
-      toggle.innerHTML = '<span>更多功能</span><small>工具 · 资源 · 账户</small>';
-      toggle.addEventListener('click', () => {
-        const open = nav.classList.toggle('nav-expanded');
-        toggle.setAttribute('aria-expanded', String(open));
-      });
-      nav.appendChild(toggle);
-    }
+    // 用户要求取消折叠：工具 / 资源 / 账户 直接展开，不再生成「更多功能」开关。
+    // 需要重新收起时，把下面这段放回去，并在 ui-system.css 里恢复默认 display:none。
+    // if (groups.querySelector('[data-group="工具"]')) { ... }
   }
 
   // Nav anchors are optional now: a hidden module (e.g. /diagnose) has none,
