@@ -1,4 +1,4 @@
-/* 宇宙第一工作台 · 统一层 (ui-system.css)
+﻿/* 宇宙第一工作台 · 统一层 (ui-system.css)
  * 只做三件事：统一可读性下限、统一控件热区、抹平模块间皮肤差异。
  * 加载顺序放在所有历史样式之后；不触碰首页 hero（#home 与 .home-page 均不在选择器里）。
  */
@@ -46,7 +46,7 @@ body.atelier #workbench#workbench .composer-hint {
   color: var(--uw-ink-2) !important;
 }
 
-#lowfans :is(.lf-meta, .lf-sub, .lf-note, .lf-track, .lf-type, #lf-stamp span) {
+#lowfans :is(.lf-meta, .lf-sub, .lf-note, .lf-track, .lf-type, .lf-base, #lf-stamp span) {
   font-size: 12.5px !important;
   color: var(--uw-ink-3) !important;
 }
