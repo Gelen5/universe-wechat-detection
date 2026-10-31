@@ -29,6 +29,7 @@ const hitDetectorPage = document.querySelector('#hit-detector');
 const authModal = document.querySelector('#auth-modal');
 const walletModal = document.querySelector('#wallet-modal');
 const walletSettingsButton = document.querySelector('#wallet-settings-button');
+const billSettingsButton = document.querySelector('#bill-settings-button');
 const logoutButton = document.querySelector('#logout-button');
 let currentAccount = null;
 let emailVerificationRequired = false;
@@ -504,6 +505,7 @@ document.querySelector('#admin-recharge-form')?.addEventListener('submit', async
 });
 
 walletSettingsButton?.addEventListener('click', () => { window.location.href = '/wallet'; });
+billSettingsButton?.addEventListener('click', () => { window.location.href = '/bill'; });
 document.querySelector('#wallet-chip')?.addEventListener('click', openWallet);
 document.querySelector('#wallet-close')?.addEventListener('click', () => { walletModal.hidden = true; });
 document.querySelector('#wallet-refresh')?.addEventListener('click', () => refreshWallet());

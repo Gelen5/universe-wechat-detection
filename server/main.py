@@ -28,6 +28,7 @@ from .hotspots import router as hotspots_router
 from .xhs_extract import router as xhs_extract_router
 from .alipay_pay import router as alipay_pay_router
 from .wallet_page import router as wallet_page_router
+from .bill_page import router as bill_page_router
 from .workflow_events import redis_ready
 from .observability import event as log_event
 from .auth_rate_limit import check_auth_attempt, record_auth_result, client_ip
@@ -65,6 +66,7 @@ app.include_router(hotspots_router)
 app.include_router(xhs_extract_router)
 app.include_router(alipay_pay_router)
 app.include_router(wallet_page_router)
+app.include_router(bill_page_router)
 
 
 @app.on_event("startup")
