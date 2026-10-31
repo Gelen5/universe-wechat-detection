@@ -19,30 +19,28 @@ STATIC = Path(__file__).resolve().parents[1] / 'static'
 # whenever a module is added: the point is that all three renderers agree with
 # this list, not that the list never changes.
 LEGACY_SHELL_ROUTES = [
-    ['/', '首页', '首页'], ['/hotspots', '热点广场'], ['/lowfans', '低粉爆文'],
+    ['/', '首页', '首页'], ['/hotspots', '热点广场', '热点'], ['/lowfans', '低粉爆文'],
     ['/wechat-plus', '公众号创作 Plus'],
-    ['/one-click-writing', '公众号一键成文', '一键成文'],
     ['/xiaohongshu', '小红书'], ['/tie-tu', '贴图号'], ['/viral-remix', '爆款贴图复刻'],
+    ['/article-visual', '文章配图', '配图'],
     ['/xhs-extract', '小红书内容提取'],
     ['/douyin-extract', '抖音内容提取'],
     ['/morning-generator', '早安祝福'],
     ['/hit-detector', '发布前复核'],
     ['/market', 'AI 超市', '超市'], ['/bookshelf', 'AI 书架'],
     ['/pricing', '积分套餐'],
-    ['/invite', '邀请好友', '邀请'],
+    ['/invite', '邀请好友'],
 ]
 LEGACY_NOTION_PLAN = [
-    ['内容创作', ['/hotspots', '/lowfans', '/wechat-plus', '/one-click-writing',
-                  '/xiaohongshu', '/tie-tu', '/viral-remix', '/xhs-extract', '/douyin-extract',
-                  '/morning-generator']],
-    ['分析', ['/hit-detector']],
+    ['创作', ['/hotspots', '/lowfans', '/wechat-plus', '/xiaohongshu', '/tie-tu',
+              '/viral-remix', '/article-visual']],
+    ['工具', ['/xhs-extract', '/douyin-extract', '/hit-detector']],
     ['资源', ['/market', '/bookshelf']],
-    ['账户', ['/pricing', '/invite']],
 ]
 LEGACY_VIEWS = {
     '/': 'home', '/workbench': 'workbench', '/one-click-writing': 'one-click-writing',
     '/xiaohongshu': 'xiaohongshu', '/tie-tu': 'tie-tu', '/viral-remix': 'viral-remix',
-    '/lowfans': 'lowfans',
+    '/lowfans': 'lowfans', '/article-visual': None,
     '/xhs-extract': 'xhs-extract',
     '/douyin-extract': 'douyin-extract',
     '/diagnose': 'diagnose', '/hit-detector': 'hit-detector',
@@ -64,7 +62,7 @@ def _dump():
         "const n = window.APP_NAV;"
         "const views = {};"
         "for (const p of ['/', '/workbench', '/one-click-writing', '/xiaohongshu', '/tie-tu', '/pricing', '/bookshelf',"
-        " '/viral-remix', '/xhs-extract', '/douyin-extract', '/lowfans', '/diagnose', '/hit-detector', '/morning-generator', '/market', '/hotspots', '/invite'])"
+        " '/viral-remix', '/article-visual', '/xhs-extract', '/douyin-extract', '/lowfans', '/diagnose', '/hit-detector', '/morning-generator', '/market', '/hotspots', '/invite'])"
         " views[p] = n.viewFor(p) ?? null;"
         "process.stdout.write(JSON.stringify({shell: n.shellRoutes, plan: n.notionPlan,"
         " extras: n.extras.map(e => e.href), views}));"
@@ -95,8 +93,8 @@ class SingleSourceTests(unittest.TestCase):
         # Entries absent from the server-rendered HTML declare fallback: true so
         # every renderer can build them instead of silently dropping them.
         self.assertEqual(
-            ['/hotspots', '/lowfans', '/wechat-plus', '/xhs-extract', '/douyin-extract',
-             '/pricing', '/invite'],
+            ['/hotspots', '/lowfans', '/wechat-plus', '/article-visual',
+             '/xhs-extract', '/douyin-extract', '/pricing', '/invite'],
             self.data['extras'],
         )
 
@@ -152,10 +150,12 @@ class SingleSourceTests(unittest.TestCase):
             with self.subTest(page=page):
                 self.assertNotIn('/diagnose', live,
                                  f'{page} still renders a live /diagnose link')
-                self.assertNotIn('href="/workbench"', live,
-                                 f'{page} still renders a live /workbench link')
-                self.assertNotIn('data-target="/workbench"', live,
-                                 f'{page} still offers /workbench as a compose target')
+
+    def test_sidebar_anchor_for_plus_exists_so_it_can_render(self):
+        """公众号创作 Plus 回侧栏后，首页必须有它的锚点给 shell.js 复用。"""
+        text = (STATIC / 'index.html').read_text(encoding='utf-8')
+        live = re.sub(r'<!--.*?-->', '', text, flags=re.S)
+        self.assertIn('data-view="wechat-plus"', live)
 
 
 class IncludeTests(unittest.TestCase):

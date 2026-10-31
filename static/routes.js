@@ -1,4 +1,4 @@
-﻿/* Single source of truth for application navigation.
+/* Single source of truth for application navigation.
  *
  * Every renderer (notion-workspace.js, shell.js, app-navigation.js) derives its
  * list from here, so adding a module means editing this file only. Values are
@@ -39,10 +39,10 @@ window.APP_NAV = (() => {
      icon: svg('<path d="M4 13.5V4a2 2 0 0 1 2-2h8.5L20 7.5V20a2 2 0 0 1-2 2h-9.5"/>' +
                '<polyline points="14 2 14 8 20 8"/><line x1="10" y1="11" x2="10" y2="17"/>' +
                '<line x1="13" y1="14" x2="7" y2="14"/>')},
-    // 公众号创作的两种附加模式（Plus / 一键成文）不再占用侧栏，改为创作页顶部的模式切换，
-    // 路由与功能保持不变，只隐藏入口，避免三个近义名字并排。
+    // 一键成文继续走创作页顶部的模式切换（不占侧栏）；Plus 按用户要求回到侧栏，
+    // 因为侧栏现在只剩「公众号创作」一项且它是隐藏的，用户找不到 Plus。
     {group: '创作', href: '/wechat-plus', view: 'wechat-plus', label: '公众号创作 Plus',
-     hidden: true, fallback: true,
+     fallback: true,
      icon: svg('<path d="M4 4h16v12H9l-5 4z"/><path d="M9 10h6M12 7v6"/>')},
     {group: '创作', href: '/one-click-writing', view: 'one-click-writing',
      label: '公众号一键成文', short: '一键成文',
