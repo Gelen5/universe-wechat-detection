@@ -569,7 +569,7 @@ settingsButton?.addEventListener('click', async (event) => {
   openWallet();
 });
 apiSettingsButton?.addEventListener('click', openApiSettings);
-adminUsersButton?.addEventListener('click', openAdminUsers);
+adminUsersButton?.addEventListener('click', () => { window.location.href = '/admin/users'; });
 document.querySelector('#admin-users-close')?.addEventListener('click', () => { adminUsersModal.hidden = true; });
 document.querySelector('#admin-users-refresh')?.addEventListener('click', () => loadAdminUsers(document.querySelector('#admin-users-search').value.trim()));
 document.querySelector('#admin-users-search')?.addEventListener('input', event => { clearTimeout(window.adminUsersTimer); window.adminUsersTimer = setTimeout(() => loadAdminUsers(event.target.value.trim()), 250); });

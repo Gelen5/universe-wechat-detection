@@ -46,6 +46,9 @@ app = FastAPI(
 )
 
 accounts.init_db()
+from . import admin_activity
+admin_activity.init_db()
+app.include_router(admin_activity.router)
 database.ensure_local_workflow_schema()
 accounts.recover_interrupted_workbench_jobs()
 database.require_postgres_in_production()
@@ -663,6 +666,7 @@ def register_account(payload: RegisterRequest, response: Response, request: Requ
         better_auth_bridge.validate_origin(request)
         result = better_auth_bridge.call('register', payload.model_dump() | {'ip': ip})
         user = better_auth_bridge.business_user(result['user'], rollback_password=payload.password)
+        admin_activity.record(user, 'login')
         better_auth_bridge.copy_cookies(response, result)
         return {'status': 'success', 'user': user, 'wallet': accounts.wallet_summary(user['id'])}
     if email_verification.required():
@@ -674,6 +678,7 @@ def register_account(payload: RegisterRequest, response: Response, request: Requ
         raise
     record_auth_result('register', payload.email, ip, True)
     accounts.create_session(user["id"], response)
+    admin_activity.record(user, "login")
     return {"status": "success", "user": user, "wallet": accounts.wallet_summary(user["id"])}
 
 
@@ -725,6 +730,7 @@ def login_account(payload: AuthRequest, response: Response, request: Request):
             record_auth_result('login', payload.email, ip, False)
             raise
         record_auth_result('login', payload.email, ip, True)
+        admin_activity.record(user, 'login')
         better_auth_bridge.copy_cookies(response, result)
         return {'status':'success','user':user,'wallet':accounts.wallet_summary(user['id'])}
     try:
@@ -736,6 +742,7 @@ def login_account(payload: AuthRequest, response: Response, request: Request):
     if user["role"] == "admin":
         log_event("admin.login", user_id=user["id"], ip=ip, request_id=getattr(request.state, "request_id", None))
     accounts.create_session(user["id"], response)
+    admin_activity.record(user, "login")
     return {"status": "success", "user": user, "wallet": accounts.wallet_summary(user["id"])}
 
 
@@ -1347,3 +1354,8 @@ def tab_page(tab: str):
 
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+
+@app.get("/admin/users", include_in_schema=False)
+def admin_activity_page():
+    return FileResponse(STATIC_DIR / "admin-activity.html", media_type="text/html; charset=utf-8")
