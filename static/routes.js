@@ -17,6 +17,12 @@ window.APP_NAV = (() => {
   };
 
   // order matters: it is the order every renderer emits.
+  //
+  // ⚠️ 应用内视图（带 view、非 page）必须在 index.html 的 .app-tabs 里有一份
+  // 静态 <a data-view=...> 节点。app.js 的 tab 监听器是在初始化时对现有节点
+  // 直接绑定的，只靠 fallback 动态创建会拿不到监听器；而 app-navigation.js 在
+  // 捕获阶段已经 preventDefault，看到 data-view 又交还给应用 —— 结果是点击
+  // 完全无响应。低粉爆文第一次上线就踩了这个坑。
   const items = [
     {group: '内容创作', href: '/hotspots', view: 'hotspots', label: '热点广场',
      fallback: true,
