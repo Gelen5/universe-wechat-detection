@@ -16,6 +16,8 @@ import re
 import threading
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeoutError
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -30,6 +32,7 @@ from . import accounts, database, workbench
 
 ROOT = Path(__file__).resolve().parent.parent
 JOBS_DIR = ROOT / "output" / "article-visual"
+_PLAN_POOL = ThreadPoolExecutor(max_workers=3, thread_name_prefix="article-plan")
 JOB_LOCK = threading.RLock()
 
 TARGET_W, TARGET_H = 1086, 1448
@@ -42,6 +45,19 @@ HEADERS = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "zh-CN,zh;q=0.9",
 }
+
+MOBILE_HEADERS = {
+    **HEADERS,
+    "User-Agent": (
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) "
+        "AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148"
+    ),
+    "Referer": "https://mp.weixin.qq.com/",
+}
+
+# 同一链接 10 分钟内复用解析结果：用户失败重试、或部署重启后重试时
+# 不必再打一次微信，减少被「环境异常」拦的概率。
+_ARTICLE_CACHE: dict[str, tuple[float, dict[str, Any]]] = {}
 
 
 # --------------------------------------------------------------------------- 抓取
@@ -61,9 +77,29 @@ def extract_article(url: str) -> dict[str, Any]:
     if not match:
         raise ValueError("请粘贴 mp.weixin.qq.com 的公众号文章链接")
     link = match.group(0).rstrip("，。；、）)】\"'")
-    response = requests.get(link, headers=HEADERS, timeout=25)
-    response.raise_for_status()
-    return parse_article_html(response.text, link)
+
+    cached = _ARTICLE_CACHE.get(link)
+    if cached and time.time() - cached[0] < 600:
+        return cached[1]
+
+    last_error: Exception | None = None
+    for headers in (HEADERS, MOBILE_HEADERS):
+        try:
+            response = requests.get(link, headers=headers, timeout=(5, 12))
+            response.raise_for_status()
+            article = parse_article_html(response.text, link)
+            _ARTICLE_CACHE[link] = (time.time(), article)
+            return article
+        except ValueError as exc:
+            last_error = exc
+            # 链接本身参数错误，换 UA 也没用，直接报给用户
+            if "参数错误" in str(exc):
+                break
+        except requests.RequestException as exc:
+            last_error = exc
+    if isinstance(last_error, ValueError):
+        raise last_error
+    raise last_error or ValueError("抓取失败")
 
 
 def parse_article_html(html: str, url: str = "") -> dict[str, Any]:
@@ -300,20 +336,37 @@ def _fallback_slots(article: dict[str, Any]) -> list[dict[str, Any]]:
     return slots
 
 
+def _text_with_deadline(prompt: str, *, model: str, reasoning: str, timeout: float) -> str:
+    """在线程里调模型并卡死上限。
+
+    线上实测 haiku 这条链路会卡到 134 秒才报 transport 错，把用户晾在
+    「拆解中」；单靠 provider 自己的 300 秒超时救不了体验。
+    """
+    future = _PLAN_POOL.submit(workbench._text, prompt, model=model, reasoning=reasoning)
+    try:
+        return future.result(timeout=timeout)
+    except FutureTimeoutError as exc:
+        future.cancel()
+        raise TimeoutError(f"{model} 超过 {int(timeout)} 秒没有返回") from exc
+
+
 def build_plan(article: dict[str, Any]) -> dict[str, Any]:
     prompt = (
         PLAN_INSTRUCTION.replace("__TITLE__", article["title"])
         .replace("__ACCOUNT__", article["account"])
         .replace("__BODY__", article["markdown"][:4000])
     )
+    # 拆解只做结构化抽取：sonnet 快且稳；再兜底到 gpt-6.1-sol 的低思考档。
+    # 每个模型最多 40 秒，最坏 80 秒一定给用户一个结果，不再无限转圈。
     raw_text = ""
-    try:
-        # 拆解只需要结构化要素，不需要长思考：haiku + low 实测 13 秒，
-        # gpt-6.1-sol 默认档要 66–100 秒，这是用户等待的主要来源。
+    for model in ("claude-sonnet-5", "gpt-6.1-sol"):
         try:
-            raw_text = workbench._text(prompt, model="claude-haiku-5-5", reasoning="low")
+            raw_text = _text_with_deadline(prompt, model=model, reasoning="low", timeout=35)
+            if raw_text.strip():
+                break
         except Exception:
-            raw_text = workbench._text(prompt, reasoning="low")
+            raw_text = ""
+    try:
         plan = _normalize_plan(_extract_json(raw_text), article)
     except Exception:
         plan = _normalize_plan({}, article)

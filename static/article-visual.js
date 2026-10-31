@@ -300,7 +300,10 @@
       history.replaceState(null, "", `/article-visual?job=${job.id}`);
       render();
       const cost = job.elapsed_ms ? seconds(job.elapsed_ms) : "";
-      els.hint.textContent = `拆解完成${cost ? `，用时 ${cost}` : ""}。先点「生成封面」，满意后再继续。`;
+      const fallback = job.plan && job.plan.source === "fallback"
+        ? "（模型这次超时，先用简化拆解，建议稍后重试一次）"
+        : "";
+      els.hint.textContent = `拆解完成${cost ? `，用时 ${cost}` : ""}${fallback}。先点「生成封面」，满意后再继续。`;
     } catch (error) {
       els.hint.classList.add("is-error");
       els.hint.textContent = error.message;
