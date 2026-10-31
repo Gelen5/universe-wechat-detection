@@ -82,6 +82,8 @@ def execute_turn(self, turn_id):
         import logging
         logging.getLogger(__name__).exception('Plus turn failed: %s', turn_id)
         safe = str(exc) if isinstance(exc, (ValueError, repo.Conflict)) else '本次处理未完成，原有内容已保留。请稍后重试。'
+        if isinstance(exc, workbench.ProviderError):
+            safe = '模型服务暂时不可用，文章已保留。稍后可以继续上次未完成的处理。'
         repo.finish(turn_id, self.request.id, 'failed', safe)
         return {'status': 'failed'}
     finally:
