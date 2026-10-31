@@ -48,12 +48,46 @@
     toast._timer = setTimeout(() => { els.toast.hidden = true; }, ms);
   }
 
+  // 等待期间每秒刷新一次已用时间，避免「拆解中…」看起来像卡死。
+  let ticker = null;
+  function startTicker(element, prefix) {
+    const started = Date.now();
+    element.textContent = `${prefix} 0s`;
+    clearInterval(ticker);
+    ticker = setInterval(() => {
+      element.textContent = `${prefix} ${Math.floor((Date.now() - started) / 1000)}s`;
+    }, 500);
+    return () => {
+      clearInterval(ticker);
+      ticker = null;
+      return Date.now() - started;
+    };
+  }
+
+  function seconds(ms) {
+    if (!ms) return "";
+    return `${(ms / 1000).toFixed(1)}s`;
+  }
+
   async function api(path, options = {}) {
-    const response = await fetch(path, {
-      credentials: "same-origin",
-      headers: options.body ? { "Content-Type": "application/json" } : undefined,
-      ...options,
-    });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), options.timeoutMs || 180000);
+    let response;
+    try {
+      response = await fetch(path, {
+        credentials: "same-origin",
+        headers: options.body ? { "Content-Type": "application/json" } : undefined,
+        signal: controller.signal,
+        ...options,
+      });
+    } catch (error) {
+      if (error.name === "AbortError") {
+        throw new Error("请求超时了，服务端可能还在跑；稍后刷新页面看结果，或重试一次");
+      }
+      throw error;
+    } finally {
+      clearTimeout(timer);
+    }
     let data = null;
     try { data = await response.json(); } catch (_) { /* ignore */ }
     if (!response.ok) {
@@ -159,7 +193,7 @@
       els.previewImg.src = url;
       els.previewImg.hidden = false;
       els.previewEmpty.hidden = true;
-      setStatus("已生成", "ok");
+      setStatus(slot.elapsed_ms ? `已生成 · ${seconds(slot.elapsed_ms)}` : "已生成", "ok");
     } else {
       els.previewImg.hidden = true;
       els.previewImg.removeAttribute("src");
@@ -244,7 +278,7 @@
     els.analyze.disabled = true;
     els.analyze.textContent = "拆解中…";
     els.hint.classList.remove("is-error");
-    els.hint.textContent = "正在抓取正文并让模型拆解图位，约 10–20 秒。";
+    const stopTicker = startTicker(els.hint, "正在抓取正文并拆解图位，已用");
     try {
       const job = await api("/api/article-visual/plan", { method: "POST", body: JSON.stringify({ url }) });
       state.job = job;
@@ -254,11 +288,13 @@
       els.galleryPanel.hidden = true;
       history.replaceState(null, "", `/article-visual?job=${job.id}`);
       render();
-      els.hint.textContent = "拆解完成。先点「生成封面」，满意后再继续。";
+      const cost = job.elapsed_ms ? seconds(job.elapsed_ms) : "";
+      els.hint.textContent = `拆解完成${cost ? `，用时 ${cost}` : ""}。先点「生成封面」，满意后再继续。`;
     } catch (error) {
       els.hint.classList.add("is-error");
       els.hint.textContent = error.message;
     } finally {
+      stopTicker();
       state.busy = false;
       els.analyze.disabled = false;
       els.analyze.textContent = "拆解文章";
@@ -269,7 +305,7 @@
     if (state.busy || !state.job) return;
     state.busy = true;
     const slot = state.job.slots.find((s) => s.id === slotId);
-    setStatus(force ? "重做中…" : "生成中…", "busy");
+    const stopTicker = startTicker(els.stageStatus, force ? "重做中，已用" : "生成中，已用");
     els.actions.querySelectorAll("button").forEach((b) => { b.disabled = true; });
     try {
       const result = await api("/api/article-visual/generate", {
@@ -278,13 +314,18 @@
       });
       state.job.images[slotId] = { file: result.url.split("/").pop().split("?")[0] };
       const target = state.job.slots.find((s) => s.id === slotId);
-      if (target) target.status = "done";
+      if (target) {
+        target.status = "done";
+        target.elapsed_ms = result.elapsed_ms;
+      }
       state.stamp = Date.now();
       toast(force ? "这张已重做" : "生成完成");
+      stopTicker();
       state.busy = false;
       render();
       renderGallery();
     } catch (error) {
+      stopTicker();
       state.busy = false;
       setStatus("失败，可重试", "busy");
       els.note.textContent = error.message;
@@ -298,6 +339,7 @@
     const pending = state.job.slots.filter((s) => s.status !== "done" && s.form !== "cover");
     if (!pending.length) return;
     state.busy = true;
+    const batchStarted = Date.now();
     for (let index = 0; index < pending.length; index += 1) {
       const slot = pending[index];
       state.activeId = slot.id;
@@ -310,6 +352,7 @@
         });
         state.job.images[slot.id] = { file: result.url.split("/").pop().split("?")[0] };
         slot.status = "done";
+        slot.elapsed_ms = result.elapsed_ms;
         state.stamp = Date.now();
         render();
       } catch (error) {
@@ -321,10 +364,11 @@
       }
     }
     state.busy = false;
-    setStatus("全部生成完成", "ok");
+    const total = ((Date.now() - batchStarted) / 1000).toFixed(1);
+    setStatus(`全部生成完成 · 共 ${total}s`, "ok");
     render();
     renderGallery();
-    toast("一套图出完了");
+    toast(`一套图出完了，共用 ${total} 秒`);
   }
 
   function renderGallery() {

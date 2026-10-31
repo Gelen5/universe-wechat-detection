@@ -296,11 +296,16 @@ def build_plan(article: dict[str, Any]) -> dict[str, Any]:
     prompt = (
         PLAN_INSTRUCTION.replace("__TITLE__", article["title"])
         .replace("__ACCOUNT__", article["account"])
-        .replace("__BODY__", article["markdown"][:6000])
+        .replace("__BODY__", article["markdown"][:4000])
     )
     raw_text = ""
     try:
-        raw_text = workbench._text(prompt)
+        # 拆解只需要结构化要素，不需要长思考：haiku + low 实测 13 秒，
+        # gpt-6.1-sol 默认档要 66–100 秒，这是用户等待的主要来源。
+        try:
+            raw_text = workbench._text(prompt, model="claude-haiku-5-5", reasoning="low")
+        except Exception:
+            raw_text = workbench._text(prompt, reasoning="low")
         plan = _normalize_plan(_extract_json(raw_text), article)
     except Exception:
         plan = _normalize_plan({}, article)
@@ -597,6 +602,7 @@ class GenerateBody(BaseModel):
 
 @router.post("/plan", status_code=201)
 def create_plan(payload: PlanBody, request: Request):
+    started = time.perf_counter()
     user = accounts.require_user(request)
     try:
         article = extract_article(payload.url)
@@ -618,11 +624,14 @@ def create_plan(payload: PlanBody, request: Request):
     _job_dir(job_id).mkdir(parents=True, exist_ok=True)
     _job_dir(job_id).joinpath("article.md").write_text(article["markdown"], encoding="utf-8")
     _write_job(job)
-    return _public_job(job)
+    result = _public_job(job)
+    result["elapsed_ms"] = int((time.perf_counter() - started) * 1000)
+    return result
 
 
 @router.post("/generate")
 def generate_one(payload: GenerateBody, request: Request):
+    started = time.perf_counter()
     user = accounts.require_user(request)
     job_id = payload.job_id
     with JOB_LOCK:
@@ -656,6 +665,7 @@ def generate_one(payload: GenerateBody, request: Request):
         "slot_id": slot["id"],
         "url": f"/api/article-visual/{job_id}/images/{filename}",
         "prompt": prompt,
+        "elapsed_ms": int((time.perf_counter() - started) * 1000),
     }
 
 
