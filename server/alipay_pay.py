@@ -643,8 +643,7 @@ def _result_url(request: Request) -> str:
 _PACKAGES = (
     {"id": "starter", "name": "入门", "credits": 100, "price": "10.00", "blurb": "偶尔写作与配图"},
     {"id": "pro", "name": "进阶", "credits": 300, "price": "29.00", "blurb": "每周稳定产出，赠 10 积分"},
-    {"id": "master", "name": "专业", "credits": 1000, "price": "88.00", "blurb": "高频创作与批量改稿，赠 120 积分"},
-    {"id": "trial", "name": "体验包", "credits": 1, "price": "0.01", "blurb": "联调专用：¥0.01 得 1 积分"},
+    {"id": "master", "name": "专业", "credits": 1000, "price": "98.00", "blurb": "高频创作与批量改稿，赠 20 积分"},
 )
 
 
@@ -762,6 +761,20 @@ def pay_page(
             + '<div class="actions"><a href="/pricing">换一个套餐</a><a href="/">返回工作台</a></div>'
         )
         return HTMLResponse(_page("收银台 · 确认支付", body), headers={"Cache-Control": "no-cache"})
+
+    if (package or "").strip():
+        # 套餐参数存在但已下架/不存在：明确 404，不退回自定义金额收银台。
+        return HTMLResponse(
+            _page(
+                "套餐不存在",
+                '<div class="brand"><span class="dot"></span>宇宙第一工作台 · 收银台</div>'
+                "<h1>套餐已下架</h1>"
+                '<p class="lead">这个套餐已经不在售，请回到套餐页重新选择。</p>'
+                '<div class="actions"><a class="primary" href="/pricing">查看在售套餐</a></div>',
+            ),
+            status_code=404,
+            headers={"Cache-Control": "no-cache"},
+        )
 
     safe_subject = (subject or "").strip()[:128] or "积分充值"
     try:
