@@ -106,7 +106,9 @@ async def disable_frontend_cache(request, call_next):
         response.headers["Cache-Control"] = (
             "public, max-age=31536000, immutable" if request.query_params.get("v")
             else "public, max-age=0, must-revalidate")
-        if request.url.path in {'/static/shell.js', '/static/app-navigation.js', '/static/notion-workspace.js', '/static/sidebar.js'}:
+        if request.url.path in {'/static/routes.js', '/static/shell.js', '/static/app-navigation.js', '/static/notion-workspace.js', '/static/sidebar.js'}:
+            # routes.js is the shared navigation list; a stale copy hides new
+            # modules, so it revalidates even when it arrives with a version.
             response.headers['Cache-Control'] = 'no-cache, max-age=0, must-revalidate'
     return response
 

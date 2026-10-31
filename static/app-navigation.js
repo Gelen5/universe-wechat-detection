@@ -1,13 +1,11 @@
 /* Install navigation before the large application bundle and its handlers load. */
 (() => {
-  const views = new Map([
-    ['/', 'home'], ['/workbench', 'workbench'], ['/one-click-writing', 'one-click-writing'],
-    ['/xiaohongshu', 'xiaohongshu'], ['/tie-tu', 'tie-tu'], ['/viral-remix', 'viral-remix'], ['/diagnose', 'diagnose'],
-    ['/hit-detector', 'hit-detector'], ['/morning-generator', 'morning'],
-    ['/market', 'market'], ['/hotspots', 'hotspots'],
-  ]);
-  const normalize = path => path.replace(/\/+$/, '') || '/';
-  const initial = views.get(normalize(location.pathname));
+  // 路由 → 视图的映射来自 /static/routes.js，避免这里再维护一份清单。
+  const NAV = window.APP_NAV;
+  if (!NAV) return;
+  const normalize = path => (path || '/').replace(/\/+$/, '') || '/';
+  const views = { get: path => NAV.viewFor(normalize(path)) };
+  const initial = views.get(location.pathname);
   if (initial) document.documentElement.dataset.initialView = initial;
   let pending = null;
   document.addEventListener('click', event => {

@@ -2,14 +2,10 @@
 (() => {
   const nav = document.querySelector('.v3-topbar .app-tabs');
   if (!nav) return;
-  const routes = [
-    ['/', '首页', '首页'], ['/hotspots', '热点广场'], ['/workbench', '公众号创作', '创作'],
-    ['/one-click-writing', '公众号一键成文', '一键成文'],
-    ['/xiaohongshu', '小红书'], ['/tie-tu', '贴图号'], ['/viral-remix', '爆款贴图复刻'], ['/morning-generator', '早安祝福'],
-    ['/diagnose', '账号诊断'], ['/hit-detector', '发布前复核'],
-    ['/market', 'AI 超市', '超市'], ['/bookshelf', 'AI 书架'],
-    ['/pricing', '积分套餐'],
-  ];
+  // 清单来自 /static/routes.js：不再在本文件维护第二份路由表。
+  const NAV = window.APP_NAV;
+  if (!NAV) return;
+  const routes = NAV.shellRoutes;
   const menu = document.createElement('dialog');
   menu.className = 'shell-menu'; menu.id = 'shell-more-menu';
   menu.setAttribute('aria-labelledby', 'shell-more-title');
@@ -18,17 +14,19 @@
   const list = document.createElement('nav'); list.setAttribute('aria-label', '全部功能');
   menu.append(heading, close, list); document.body.append(menu);
   const ordered = document.createDocumentFragment();
-  const groups = {'/hotspots': '内容创作', '/diagnose': '分析', '/market': '资源', '/pricing': '账户'};
+  let lastGroup = null;
   for (const [href, label, short] of routes) {
     let link = nav.querySelector(`a[href="${href}"]`);
-    if (!link && href === '/hotspots') {
-      link=document.createElement('a');link.href=href;link.dataset.view='hotspots';
-      link.innerHTML='<svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m3 17 5-5 4 3 5-7 4 5M3 21h18"/></svg><span>热点广场</span>';
+    const spec = NAV.itemFor(href);
+    if (!link && spec && spec.fallback) {
+      link = document.createElement('a'); link.href = href; link.dataset.view = spec.view;
+      link.innerHTML = `${spec.icon}<span>${spec.label}</span>`;
     }
     if (!link) continue;
-    if (groups[href]) {
+    if (spec && spec.group && spec.group !== lastGroup) {
       const caption = document.createElement('div'); caption.className = 'nav-group-label';
-      caption.textContent = groups[href]; ordered.append(caption);
+      caption.textContent = spec.group; ordered.append(caption);
+      lastGroup = spec.group;
     }
     ordered.append(link);
     link.setAttribute('aria-label', label); link.title = label;
