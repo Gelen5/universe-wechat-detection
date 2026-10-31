@@ -68,7 +68,16 @@ GALLERY_DETAIL = {
                       "https://p9-sign.douyinpic.com/obj/1.jpeg?x-expires=1"]},
         {"width": 1080, "height": 1440, "url_list": ["https://p3-sign.douyinpic.com/obj/2.jpeg?x-expires=1"]},
     ],
-    "video": {},
+    # 真实图文作品（aweme 7360323126909095219，2026-10-31 抓取）里也带一个
+    # video：把图片烧成幻灯片的合成视频。字段形状和视频作品一样，所以这里必须
+    # 照抄，否则解析器的「图文」分支等于没被测到。
+    "video": {
+        "width": 1272,
+        "height": 1568,
+        "duration": 15000,
+        "cover": {"url_list": ["https://p3-sign.douyinpic.com/obj/slides-cover.jpeg?x-expires=1"]},
+        "play_addr": {"url_list": ["https://v26-web.douyinvod.com/slides.mp4?x-expires=1"]},
+    },
 }
 
 
@@ -127,7 +136,7 @@ class TestBuildNoteVideo:
 class TestBuildNoteGallery:
     def test_gallery_note_lists_every_image_with_its_size(self):
         note = douyin_extract.build_note(
-            GALLERY_DETAIL, "7500000000000000000", "https://www.douyin.com/note/7500000000000000000"
+            GALLERY_DETAIL, "7500000000000000000", "https://www.douyin.com/video/7500000000000000000"
         )
         assert note["kind"] == "image"
         assert note["imageCount"] == 2
@@ -136,9 +145,17 @@ class TestBuildNoteGallery:
             "https://p3-sign.douyinpic.com/obj/2.jpeg?x-expires=1",
         ]
         assert note["images"][0]["width"] == 1080
-        # 图文作品没有视频，卡片不该尝试渲染播放器。
+        # 图片下面不该再出现一台播放器：图文详情里那个 video 是幻灯片合成的，
+        # 不是用户要的素材（线上就因此多出一块黑框）。
         assert note["video"] is None
         assert note["cover"] is None
+        assert note["duration"] is None
+
+    def test_gallery_note_links_to_note_not_video(self):
+        note = douyin_extract.build_note(
+            GALLERY_DETAIL, "7500000000000000000", "https://v.douyin.com/7u0ARZrDY9k/"
+        )
+        assert note["link"] == "https://www.douyin.com/note/7500000000000000000"
 
     def test_missing_images_and_video_yields_neither(self):
         note = douyin_extract.build_note({"desc": "只有文案"}, "7500000000000000000", "x")
@@ -181,6 +198,14 @@ class TestMediaKeyAndHosts:
     ])
     def test_media_proxy_only_forwards_douyin_hosts(self, url, allowed):
         assert douyin_extract._host_allowed(url, douyin_extract.MEDIA_HOST_SUFFIXES) is allowed
+
+
+class TestFrontendGuards:
+    def test_players_are_gated_on_kind(self):
+        """结果页的两块媒体区必须只看 kind，不再看 payload 里有没有 video。"""
+        js = (ROOT / "static" / "douyin-extract.js").read_text(encoding="utf-8")
+        assert "if (note.kind !== 'video') return '';" in js, "图文作品会多出一台播放器"
+        assert "if (note.kind !== 'image') return '';" in js, "视频作品会多出一个图片墙"
 
 
 class TestCredentials:

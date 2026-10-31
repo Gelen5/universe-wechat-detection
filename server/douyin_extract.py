@@ -529,6 +529,14 @@ def build_note(detail: dict[str, Any], aweme_id: str, link: str) -> dict[str, An
     video = pick_video(detail)
     # 抖音的「图文」作品 aweme_type 是 68 这类非 0 值，图片数组非空即图文。
     kind = "image" if images else "video"
+    if kind == "image":
+        # 图文作品的详情里**也带一个 video**：那是把 7 张图烧成幻灯片的合成视频，
+        # 不是用户要的素材。留着它会让结果页在 7 张图下面多出一台黑框播放器
+        # （实测 2026-10-31，aweme 7360323126909095219）。所以图文一律丢掉 video，
+        # 让前端只需要判 kind，不用每天猜 payload 里多出来的字段。
+        video = None
+        # 图文的规范链接是 /note/，/video/ 也能打开但语义不对。
+        link = f"https://www.douyin.com/note/{aweme_id}"
 
     author = detail.get("author") or {}
     avatar = ""

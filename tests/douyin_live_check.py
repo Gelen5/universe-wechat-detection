@@ -21,6 +21,8 @@ COOKIE_FILES = [
 ]
 
 REAL_VIDEO = "https://www.douyin.com/video/7699784646996823306"
+# 图文作品（7 张图）。它同时带一个幻灯片 video，是「图文不该出现播放器」的样本。
+REAL_GALLERY = "https://v.douyin.com/7u0ARZrDY9k/"
 
 
 def load_cookie() -> str:
@@ -171,16 +173,18 @@ def find_gallery_post(module) -> str | None:
 
 
 def check_gallery(module) -> None:
-    aweme_id = find_gallery_post(module)
-    if not aweme_id:
-        return
+    # 先用一条真实的图文作品（用户 2026-10-31 提供），它带 7 张图，而且详情里
+    # 也带一个幻灯片 video —— 「图文不该出现播放器」这个回归就靠它守着。
     note = module.api_extract(
-        module.ExtractRequest(url=f"https://www.douyin.com/note/{aweme_id}")
+        module.ExtractRequest(url=REAL_GALLERY)
     )["note"]
     print("[gallery] kind=%s images=%s" % (note["kind"], note["imageCount"]))
     print("[gallery] title:", note["title"][:40])
     assert note["kind"] == "image", note["kind"]
     assert note["images"], "图文作品应当有配图"
+    # 这条作品详情里确实带 video，解析后必须是 None，否则结果页会多出播放器。
+    assert note["video"] is None, "图文作品不该带 video"
+    assert note["link"].endswith(f"/note/{note['id']}"), note["link"]
     first = note["images"][0]
     assert first["url"].startswith("https://"), first
     print("[gallery] first image:", first["url"].split("?")[0][:70])

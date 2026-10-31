@@ -378,10 +378,16 @@ body #douyin-extract {
   font-size: 10px;
 }
 
-/* 视频卡 */
+/* 视频卡：宽度跟随视频本身的比例，不再铺满整行。
+   铺满时竖屏作品左右会各留一大条黑边（实测 1272×1568 的作品占满 1400px 宽的
+   卡片，左右黑边比画面还宽）。width:auto + max-width/max-height 让播放器按
+   画面自身比例收缩并居中。 */
 #douyin-extract .dy-video {
-  width: 100%;
-  max-height: 420px;
+  display: block;
+  width: auto;
+  max-width: 100%;
+  max-height: 460px;
+  margin: 0 auto;
   border-radius: 14px;
   background: #0e1a14;
   border: 1px solid rgba(255, 255, 255, .8);

@@ -124,6 +124,9 @@
   }
 
   function renderVideo(note) {
+    // 图文作品也带 video 字段（把图片烧成幻灯片的那个）。服务端已经丢掉它，
+    // 这里再判一次 kind：payload 哪天变了，也不该在图片下面冒出一台播放器。
+    if (note.kind !== 'video') return '';
     const video = note.video;
     if (!video?.url) return '';
     const meta = [
@@ -151,6 +154,7 @@
   }
 
   function renderGallery(note) {
+    if (note.kind !== 'image') return '';
     const images = note.images || [];
     if (!images.length) return '';
     const shots = images.map((image, index) => `
