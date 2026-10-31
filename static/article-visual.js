@@ -95,6 +95,9 @@
         window.location.href = "/";
         throw new Error("请先登录");
       }
+      if ([502, 503, 504].includes(response.status)) {
+        throw new Error(`服务正在更新或重启（${response.status}），等 10 秒再点一次；不是你链接的问题`);
+      }
       const detail = (data && (data.detail || data.message)) || `请求失败（${response.status}）`;
       throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
     }
@@ -293,6 +296,10 @@
     } catch (error) {
       els.hint.classList.add("is-error");
       els.hint.textContent = error.message;
+      if (!state.job) {
+        els.articlePanel.hidden = true;
+        els.workspace.hidden = true;
+      }
     } finally {
       stopTicker();
       state.busy = false;

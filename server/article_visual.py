@@ -68,7 +68,12 @@ def parse_article_html(html: str, url: str = "") -> dict[str, Any]:
     if 'id="js_content"' not in html:
         for reason in ("环境异常", "参数错误", "该内容已被发布者删除", "此内容因违规无法查看"):
             if reason in html:
-                raise ValueError(f"文章打不开：{reason}")
+                hint = ""
+                if reason == "参数错误":
+                    hint = "（链接可能被截断，请在微信里重新复制完整链接）"
+                elif reason == "环境异常":
+                    hint = "（微信拦了这次访问，过几分钟再试）"
+                raise ValueError(f"文章打不开：{reason}{hint}")
         raise ValueError("没有解析到正文，可能被风控或文章已删除")
 
     from bs4 import BeautifulSoup

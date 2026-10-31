@@ -109,3 +109,11 @@ def test_cover_prompt_drops_people_scene():
     )
     assert "晚宴圆桌" not in prompt
     assert "只有物件与光影" in prompt
+
+
+def test_parse_invalid_link_gets_actionable_hint():
+    import pytest
+
+    with pytest.raises(ValueError) as exc:
+        article_visual.parse_article_html("<html><body>参数错误</body></html>")
+    assert "链接可能被截断" in str(exc.value)
