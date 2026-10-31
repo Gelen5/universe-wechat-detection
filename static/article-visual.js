@@ -25,6 +25,8 @@
     analyze: $("av-analyze"),
     hint: $("av-hint"),
     articlePanel: $("av-article-panel"),
+    slotsPanel: $("av-slots-panel"),
+    empty: $("av-empty"),
     title: $("av-article-title"),
     meta: $("av-article-meta"),
     thesis: $("av-thesis"),
@@ -313,6 +315,8 @@
     state.activeId = job.slots[0] ? job.slots[0].id : null;
     els.articlePanel.hidden = false;
     els.workspace.hidden = false;
+    els.slotsPanel.hidden = false;
+    els.empty.hidden = true;
     render();
     renderGallery();
   }
@@ -331,6 +335,8 @@
       state.activeId = job.slots[0] ? job.slots[0].id : null;
       els.articlePanel.hidden = false;
       els.workspace.hidden = false;
+      els.slotsPanel.hidden = false;
+      els.empty.hidden = true;
       els.galleryPanel.hidden = true;
       history.replaceState(null, "", `/article-visual?job=${job.id}`);
       render();
@@ -345,6 +351,8 @@
       if (!state.job) {
         els.articlePanel.hidden = true;
         els.workspace.hidden = true;
+        els.slotsPanel.hidden = true;
+        els.empty.hidden = false;
       }
     } finally {
       stopTicker();
@@ -475,6 +483,8 @@
     state.activeId = null;
     els.articlePanel.hidden = true;
     els.workspace.hidden = true;
+    els.slotsPanel.hidden = true;
+    els.empty.hidden = false;
     els.galleryPanel.hidden = true;
     els.url.value = "";
     els.hint.textContent = "只支持 mp.weixin.qq.com 的公开文章；解析约 10–20 秒。";

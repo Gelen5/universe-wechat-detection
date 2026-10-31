@@ -1,4 +1,4 @@
-const form = document.querySelector('#diagnose-form');
+﻿const form = document.querySelector('#diagnose-form');
 const input = document.querySelector('#account-name');
 const button = document.querySelector('#submit-button');
 const reportRoot = document.querySelector('#report');
@@ -1903,7 +1903,7 @@ const viewTitles = {
   'tie-tu': '微信贴图号',
   'viral-remix': '爆款贴图复刻',
   'xhs-extract': '小红书内容提取',
-  'article-visual': '文章配图',
+  'article-visual': '爆文转贴图',
   'douyin-extract': '抖音内容提取',
   'hit-detector': '爆文检测',
   morning: '早安祝福',

@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
@@ -133,7 +133,7 @@
           </a>
           <a data-view="article-visual" href="/article-visual">
             <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="1.6"/><path d="m4 17 5-5 4 4 3-3 4 4"/></svg>
-            <span>文章配图</span>
+            <span>爆文转贴图</span>
           </a>
           <a data-view="xhs-extract" href="/xhs-extract">
             <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="3.5" width="12" height="17" rx="2.5"/><path d="M19 8.5v9a2.5 2.5 0 0 1-2.5 2.5H8"/><path d="M7 8h4.5M7 12h3"/></svg>
@@ -462,46 +462,67 @@
       <!-- ============================================================
            TAB · /xhs-extract — 小红书内容提取
            ============================================================ -->
-      <!-- TAB · /article-visual — 文章配图 -->
-      <section id="article-visual" class="skill-page" aria-label="文章配图" hidden>
-        <header class="skill-page-head">
-          <div>
-            <p class="skill-kicker">内容创作 / 文章配图</p>
-            <h1>文章配图</h1>
-            <p>贴一条公众号链接，先拆解出图位，再一张张生成 3:4 配图。封面先出，你满意了再出剩下的。</p>
-          </div>
-        </header>
-        <div class="av-shell">
-          <section class="av-panel av-input-panel">
-            <label class="av-label" for="av-url">公众号文章链接</label>
-            <div class="av-input-row">
-              <input id="av-url" type="url" placeholder="https://mp.weixin.qq.com/s/..." autocomplete="off" />
-              <button id="av-analyze" class="av-btn av-btn-primary" type="button">拆解文章</button>
-            </div>
-            <p class="av-hint" id="av-hint">只支持 mp.weixin.qq.com 的公开文章；解析约 20–60 秒。</p>
-          </section>
+      <!-- TAB · /article-visual — 爆文转贴图 -->
+      <section id="article-visual" class="skill-page" aria-label="爆文转贴图" hidden>
+        <div class="v3-meta">
+          <span class="l"><span class="line"></span><span>CREATOR WORKSPACE / ARTICLE → VISUAL</span></span>
+          <span class="r"><i></i>爆文转贴图</span>
+        </div>
+        <div class="av-layout">
+          <div class="av-col">
+            <section class="av-panel av-input-panel">
+              <span class="av-micro"><span class="line"></span><span>ARTICLE → 3:4 VISUAL</span></span>
+              <h1 class="av-title">一条链接，<br><span class="av-serif">拆成一组配图。</span></h1>
+              <p class="av-lead">贴一条公众号文章，先拆出核心图位，再一张张生成 3:4 竖版配图。封面先出，你满意了再出剩下的。</p>
+              <form id="av-form" class="av-form">
+                <div class="av-form-head">
+                  <span class="av-num">01</span>
+                  <div><strong>放入文章链接</strong><small>支持带标题的分享文本，会自动取出链接。</small></div>
+                </div>
+                <label class="av-label" for="av-url">公众号文章链接</label>
+                <div class="av-input-row">
+                  <input id="av-url" type="url" placeholder="https://mp.weixin.qq.com/s/..." autocomplete="off" />
+                  <button id="av-analyze" class="av-btn av-btn-primary" type="button">拆解文章</button>
+                </div>
+                <p class="av-hint" id="av-hint">只支持 mp.weixin.qq.com 的公开文章 · 解析约 20–60 秒</p>
+              </form>
+            </section>
 
-          <section class="av-panel av-article-panel" id="av-article-panel" hidden>
-            <div class="av-article-head">
-              <div>
-                <h2 id="av-article-title"></h2>
-                <p class="av-meta" id="av-article-meta"></p>
+            <section class="av-panel av-article-panel" id="av-article-panel" hidden>
+              <div class="av-article-head">
+                <div>
+                  <h2 id="av-article-title"></h2>
+                  <p class="av-meta" id="av-article-meta"></p>
+                </div>
+                <button id="av-reset" class="av-btn av-btn-ghost" type="button">换一篇</button>
               </div>
-              <button id="av-reset" class="av-btn av-btn-ghost" type="button">换一篇</button>
-            </div>
-            <p class="av-thesis" id="av-thesis"></p>
-          </section>
+              <p class="av-thesis" id="av-thesis"></p>
+            </section>
 
-          <section class="av-workspace" id="av-workspace" hidden>
-            <div class="av-slots">
+            <section class="av-panel av-slots-panel" id="av-slots-panel" hidden>
               <div class="av-slots-head">
                 <h3>图位清单</h3>
                 <span class="av-count" id="av-count"></span>
               </div>
               <ol id="av-slot-list" class="av-slot-list"></ol>
+            </section>
+          </div>
+
+          <div class="av-col">
+            <div class="av-empty" id="av-empty">
+              <span class="av-tag">配图工作流 · 准备开始</span>
+              <h2>先拆核心，<br>再让每张图讲清一件事。</h2>
+              <p>产出 1 张封面 + 3–5 张正文图。每张都是一个核心要点，图内带标题、一句解释和原文事实。</p>
+              <ol class="av-steps" aria-label="爆文转贴图流程">
+                <li><b>01</b><span>贴文章链接</span></li>
+                <li><b>02</b><span>拆出核心图位</span></li>
+                <li><b>03</b><span>选封面样式</span></li>
+                <li><b>04</b><span>逐张生成</span></li>
+              </ol>
+              <div class="av-empty-tags"><span>3:4 竖图</span><span>图内中文</span><span>事实标签</span><span>封面先出</span></div>
             </div>
 
-            <div class="av-stage">
+            <section class="av-stage" id="av-workspace" hidden>
               <div class="av-stage-head">
                 <h3 id="av-stage-title">先出封面</h3>
                 <span class="av-stage-status" id="av-stage-status">等待生成</span>
@@ -517,17 +538,18 @@
               <div class="av-editor" id="av-editor"></div>
               <div class="av-actions" id="av-actions"></div>
               <p class="av-note" id="av-note"></p>
-            </div>
-          </section>
+            </section>
 
-          <section class="av-panel av-gallery-panel" id="av-gallery-panel" hidden>
-            <div class="av-gallery-head">
-              <h3>成图</h3>
-              <a id="av-download-all" class="av-btn av-btn-ghost" href="#" download>下载全部</a>
-            </div>
-            <div class="av-gallery" id="av-gallery"></div>
-          </section>
+            <section class="av-panel av-gallery-panel" id="av-gallery-panel" hidden>
+              <div class="av-gallery-head">
+                <h3>成图</h3>
+                <a id="av-download-all" class="av-btn av-btn-ghost" href="#" download>下载全部</a>
+              </div>
+              <div class="av-gallery" id="av-gallery"></div>
+            </section>
+          </div>
         </div>
+        <p id="av-toast" class="av-toast" hidden></p>
       </section>
 
       <section id="xhs-extract" class="skill-page xhs-extract" aria-label="小红书内容提取" hidden>

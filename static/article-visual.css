@@ -142,3 +142,35 @@
 }
 .av-style-chip:hover { border-color: var(--line-4); }
 .av-style-chip.is-active { border-color: var(--ikb); background: var(--ikb); color: #fff; }
+
+/* ---- 2026-11-01 首页式空状态与两栏布局（参考爆款贴图复刻） ---- */
+#article-visual .v3-meta { display:flex; margin-bottom:24px; color:#638675; }
+#article-visual .av-layout { display:grid; grid-template-columns:minmax(340px,430px) minmax(0,1fr); gap:24px; align-items:start; }
+#article-visual .av-col { display:flex; flex-direction:column; gap:16px; min-width:0; }
+#article-visual .av-input-panel { padding:30px; border-radius:24px; background:linear-gradient(135deg,#ffffffed,#eff9f2cc); border-color:#fff; box-shadow:0 14px 40px #29543d09; }
+#article-visual .av-micro { display:flex; align-items:center; gap:8px; color:#5f8a70; font-size:11px; letter-spacing:.14em; }
+#article-visual .av-micro .line { width:26px; height:1px; background:#9dc4ad; }
+#article-visual .av-title { margin:14px 0 12px; font-family:inherit; font-size:32px; line-height:1.3; color:#244b39; letter-spacing:.2px; }
+#article-visual .av-serif { font-family:"Songti SC","Noto Serif SC",serif; font-weight:600; }
+#article-visual .av-lead { margin:0 0 22px; color:#678373; font-size:14px; line-height:1.8; }
+#article-visual .av-form-head { display:flex; gap:12px; align-items:flex-start; margin-bottom:16px; }
+#article-visual .av-num { color:#2c8a5d; font-size:13px; font-weight:700; padding-top:2px; }
+#article-visual .av-form-head strong { display:block; color:#244b39; font-size:15px; }
+#article-visual .av-form-head small { display:block; color:#7b9687; font-size:12.5px; margin-top:4px; line-height:1.6; }
+#article-visual .av-input-row input { height:48px; border-radius:12px; }
+#article-visual .av-btn-primary { border-radius:12px; }
+#article-visual .av-empty { padding:34px 32px; border:1px solid #fff; border-radius:24px; background:linear-gradient(135deg,#ffffffed,#eff9f2cc); box-shadow:0 14px 40px #29543d09; min-height:520px; display:flex; flex-direction:column; justify-content:center; }
+#article-visual .av-tag { font-size:12px; color:#518268; letter-spacing:.04em; }
+#article-visual .av-empty h2 { margin:14px 0 12px; font-family:inherit; font-size:28px; line-height:1.4; color:#244b39; font-weight:650; }
+#article-visual .av-empty p { margin:0 0 20px; color:#678373; font-size:14px; line-height:1.8; max-width:520px; }
+#article-visual .av-steps { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; list-style:none; padding:0; margin:0 0 20px; }
+#article-visual .av-steps li { display:flex; align-items:center; gap:10px; padding:16px 18px; border:1px solid #d9e9de; border-radius:14px; background:#ffffff99; color:#527460; font-size:14px; }
+#article-visual .av-steps b { color:#2c8a5d; font-size:13px; }
+#article-visual .av-empty-tags { display:flex; flex-wrap:wrap; gap:8px; }
+#article-visual .av-empty-tags span { padding:5px 10px; border-radius:999px; background:#eaf4ed; color:#527460; font-size:12px; }
+#article-visual .av-workspace { display:block; }
+#article-visual .av-slots-panel { padding:20px; }
+#article-visual .av-toast { position:fixed; left:50%; bottom:32px; transform:translateX(-50%); background:#244b39; color:#fff; padding:10px 16px; border-radius:10px; font-size:13px; z-index:60; }
+@media (max-width:1100px) { #article-visual .av-layout { grid-template-columns:1fr; } #article-visual .av-empty { min-height:320px; } }
+@media (max-width:560px) { #article-visual .av-input-panel,#article-visual .av-empty { padding:22px; } #article-visual .av-title { font-size:26px; } #article-visual .av-steps { grid-template-columns:1fr; } }
+#article-visual .av-tag { display:inline-flex; width:fit-content; padding:0; background:transparent; }
