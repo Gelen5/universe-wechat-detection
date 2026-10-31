@@ -46,10 +46,15 @@ body.atelier #workbench#workbench .composer-hint {
   color: var(--uw-ink-2) !important;
 }
 
-#lowfans :is(.lf-meta, .lf-sub, .lf-note, .lf-track, .lf-act) {
+#lowfans :is(.lf-meta, .lf-sub, .lf-note, .lf-track, .lf-type, #lf-stamp span) {
   font-size: 12.5px !important;
   color: var(--uw-ink-3) !important;
 }
+
+/* 行内操作：文字按钮用深墨绿，主按钮保持白字（否则会变成绿底深绿字） */
+#lowfans .lf-act { color: var(--uw-ink-2) !important; }
+#lowfans .lf-act.is-primary,
+#lowfans .lf-act.is-primary :is(span, i) { color: #fff !important; }
 
 #lowfans .lf-track n { color: var(--uw-ink-2) !important; opacity: 1 !important; }
 
@@ -58,11 +63,13 @@ body.atelier #workbench#workbench .composer-hint {
   color: var(--uw-ink-3) !important;
 }
 
+#hotspots .hs-chip { color: #3a5144 !important; }
+
 #market :is(.pd-step-t, .market-kicker, .market-meta, .market-row small) {
   color: var(--uw-ink-3) !important;
 }
 
-#market-main :is(#meta-updated, .market-foot p, .market-wrap p, .market-row .n, a.on .n) {
+#market-main :is(#meta-updated, .market-foot p, .market-wrap p, .market-row .n, a.on .n, a span.n) {
   color: var(--uw-ink-3) !important;
 }
 
