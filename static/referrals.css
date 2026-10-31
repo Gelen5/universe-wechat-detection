@@ -106,6 +106,19 @@
 .invite-status.activated { background: #e8f1fd; color: #23558f; }
 .invite-status.rewarded { background: #e4f6ec; color: #22684a; }
 
+/* 注册成功后的一次性高亮：让人注意到自己也有邀请码，而不是永久装饰。 */
+.wallet-invite.invite-panel-flash {
+  animation: invite-panel-flash 1.8s ease-out;
+}
+@keyframes invite-panel-flash {
+  0% { box-shadow: 0 0 0 0 rgba(47, 122, 82, .55); border-color: #2f7a52; }
+  55% { box-shadow: 0 0 0 8px rgba(47, 122, 82, 0); border-color: #2f7a52; }
+  100% { box-shadow: 0 0 0 0 rgba(47, 122, 82, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wallet-invite.invite-panel-flash { animation: none; border-color: #2f7a52; }
+}
+
 @media (max-width: 560px) {
   .invite-code-row { gap: 8px; }
   .invite-code-row button { width: 100%; }

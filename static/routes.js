@@ -90,6 +90,13 @@ window.APP_NAV = (() => {
     {group: '账户', href: '/pricing', label: '积分套餐', page: true,
      fallback: true,
      icon: svg('<rect x="2" y="6" width="20" height="13" rx="2.5"/><path d="M2 10h20"/><path d="M6 15h4"/>')},
+    // 邀请好友是服务端渲染的独立页（/invite），不是应用内视图，
+    // 所以只给 page:true、不给 view —— 和 /pricing 一样，交给浏览器正常跳转。
+    {group: '账户', href: '/invite', label: '邀请好友', short: '邀请', page: true,
+     fallback: true,
+     icon: svg('<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>' +
+               '<circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/>' +
+               '<line x1="22" y1="11" x2="16" y2="11"/>')},
   ];
 
   const groups = ['内容创作', '分析', '资源', '账户'];

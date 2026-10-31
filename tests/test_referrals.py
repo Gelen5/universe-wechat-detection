@@ -249,5 +249,63 @@ class ReferralForeignKeyTests(unittest.TestCase):
         self.assertIn(("invitee_id", "users", "CASCADE"), targets)
 
 
+class ReferralEntryPointTests(unittest.TestCase):
+    """/invite 是导航里的那一项，/wallet 顶部那张卡片是第二入口。"""
+
+    def setUp(self):
+        self.client = TestClient(app)
+        self.user = _register(self.client, f"entry-{id(self)}@example.com")["user"]
+        self.code = referrals.ensure_code(self.user["id"])
+
+    def test_invite_page_requires_login(self):
+        response = TestClient(app).get("/invite")
+        self.assertEqual(401, response.status_code)
+        self.assertIn("请先登录", response.text)
+
+    def test_invite_page_shows_the_owners_code_and_rules(self):
+        response = self.client.get("/invite")
+        self.assertEqual(200, response.status_code)
+        # 全局中间件会补上 max-age=0，这里只关心它不许被缓存。
+        self.assertTrue(response.headers["cache-control"].startswith("no-store"))
+        self.assertIn(self.code, response.text)
+        # 邀请链接是发出去的东西，页面必须能直接复制到它。
+        self.assertIn("/?ref=", response.text)
+        self.assertIn("活动规则", response.text)
+
+    def test_wallet_page_links_to_the_invite_page(self):
+        response = self.client.get("/wallet")
+        self.assertEqual(200, response.status_code)
+        self.assertIn('href="/invite"', response.text)
+        self.assertIn(self.code, response.text)
+
+    def test_nav_registers_invite_as_a_page_not_a_spa_view(self):
+        import json
+        import shutil
+        import subprocess
+        from pathlib import Path
+
+        node = shutil.which("node")
+        if node is None:
+            self.skipTest("node is not installed")
+        routes = Path(__file__).resolve().parents[1] / "static" / "routes.js"
+        script = (
+            "global.window = global;"
+            f"require({json.dumps(str(routes))});"
+            "const n = window.APP_NAV;"
+            "process.stdout.write(JSON.stringify({"
+            "  hrefs: n.shellRoutes.map(r => r[0]),"
+            "  view: n.viewFor('/invite') ?? null,"
+            "  entry: n.itemFor('/invite')"
+            "}))"
+        )
+        out = subprocess.run([node, "-e", script], capture_output=True, text=True,
+                             encoding="utf-8", timeout=60)
+        self.assertEqual(0, out.returncode, out.stderr[-400:])
+        data = json.loads(out.stdout)
+        self.assertIn("/invite", data["hrefs"])
+        self.assertIsNone(data["view"])
+        self.assertEqual("邀请好友", data["entry"]["label"])
+
+
 if __name__ == "__main__":
     unittest.main()

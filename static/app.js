@@ -394,6 +394,8 @@ document.querySelector('#auth-form')?.addEventListener('submit', async event => 
     registrationToken = '';
     rememberInviteCode('');
     showToast(inviteToast(mode, data.referral));
+    // 新注册的人是活动最强的传播源：当场把邀请码摆到他面前，而不是等他去翻设置。
+    if (mode === 'register') guideToInvite();
   } catch (exception) {
     error.textContent = exception.message;
     error.hidden = false;
@@ -444,6 +446,19 @@ function inviteStatusLabel(status) {
 
 function inviteLink(code) {
   return `${location.origin}/?ref=${encodeURIComponent(code)}`;
+}
+
+/* 注册完成后把邀请面板亮一下：不弹新窗口、不打断，只是让人看见自己也有码。 */
+function guideToInvite() {
+  openWallet()
+    .then(() => {
+      const panel = document.querySelector('#invite-panel');
+      if (!panel || panel.hidden) return;
+      panel.scrollIntoView({ block: 'nearest' });
+      panel.classList.add('invite-panel-flash');
+      setTimeout(() => panel.classList.remove('invite-panel-flash'), 1800);
+    })
+    .catch(() => { /* 引导失败不该影响注册成功 */ });
 }
 
 async function loadInvitePanel(panel) {
@@ -552,9 +567,9 @@ async function openWallet() {
       await searchAdminUsers();
     }
     // 邀请面板失败不能把钱包一起弄挂：钱包先开，面板再补。
-    loadInvitePanel(document.querySelector('#invite-panel')).catch(() => {
-      document.querySelector('#invite-panel').hidden = true;
-    });
+    // 这里 await 是为了让 guideToInvite() 拿到渲染完成的面板。
+    const invitePanel = document.querySelector('#invite-panel');
+    await loadInvitePanel(invitePanel).catch(() => { invitePanel.hidden = true; });
   } catch (error) { showToast(error.message, 'error'); }
 }
 

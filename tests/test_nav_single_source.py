@@ -30,6 +30,7 @@ LEGACY_SHELL_ROUTES = [
     ['/hit-detector', '发布前复核'],
     ['/market', 'AI 超市', '超市'], ['/bookshelf', 'AI 书架'],
     ['/pricing', '积分套餐'],
+    ['/invite', '邀请好友', '邀请'],
 ]
 LEGACY_NOTION_PLAN = [
     ['内容创作', ['/hotspots', '/lowfans', '/workbench', '/wechat-plus', '/one-click-writing',
@@ -37,7 +38,7 @@ LEGACY_NOTION_PLAN = [
                   '/morning-generator']],
     ['分析', ['/hit-detector']],
     ['资源', ['/market', '/bookshelf']],
-    ['账户', ['/pricing']],
+    ['账户', ['/pricing', '/invite']],
 ]
 LEGACY_VIEWS = {
     '/': 'home', '/workbench': 'workbench', '/one-click-writing': 'one-click-writing',
@@ -49,6 +50,9 @@ LEGACY_VIEWS = {
     '/morning-generator': 'morning', '/market': 'market', '/hotspots': 'hotspots',
     # 书架现在内嵌在常驻外壳里（section + iframe），所以是应用内视图。
     '/bookshelf': 'bookshelf',
+    # 邀请好友和积分套餐都是服务端渲染的独立页，不能被当成应用内视图。
+    '/pricing': None,
+    '/invite': None,
 }
 
 NODE = shutil.which('node')
@@ -61,8 +65,8 @@ def _dump():
         "const n = window.APP_NAV;"
         "const views = {};"
         "for (const p of ['/', '/workbench', '/one-click-writing', '/xiaohongshu', '/tie-tu', '/pricing', '/bookshelf',"
-        " '/viral-remix', '/xhs-extract', '/douyin-extract', '/lowfans', '/diagnose', '/hit-detector', '/morning-generator', '/market', '/hotspots'])"
-        " views[p] = n.viewFor(p);"
+        " '/viral-remix', '/xhs-extract', '/douyin-extract', '/lowfans', '/diagnose', '/hit-detector', '/morning-generator', '/market', '/hotspots', '/invite'])"
+        " views[p] = n.viewFor(p) ?? null;"
         "process.stdout.write(JSON.stringify({shell: n.shellRoutes, plan: n.notionPlan,"
         " extras: n.extras.map(e => e.href), views}));"
     )
@@ -92,7 +96,8 @@ class SingleSourceTests(unittest.TestCase):
         # Entries absent from the server-rendered HTML declare fallback: true so
         # every renderer can build them instead of silently dropping them.
         self.assertEqual(
-            ['/hotspots', '/lowfans', '/wechat-plus', '/xhs-extract', '/douyin-extract', '/pricing'],
+            ['/hotspots', '/lowfans', '/wechat-plus', '/xhs-extract', '/douyin-extract',
+             '/pricing', '/invite'],
             self.data['extras'],
         )
 
@@ -106,6 +111,7 @@ class SingleSourceTests(unittest.TestCase):
         # a legitimate view; the invariant that matters is that any entry
         # claiming a view has a matching section in index.html.
         self.assertIsNone(self.data['views'].get('/pricing'))
+        self.assertIsNone(self.data['views'].get('/invite'))
         self.assertEqual('bookshelf', self.data['views'].get('/bookshelf'))
         self.assertEqual('market', self.data['views'].get('/market'))
 

@@ -31,6 +31,7 @@ from .xhs_extract import router as xhs_extract_router
 from .douyin_extract import router as douyin_extract_router
 from .alipay_pay import router as alipay_pay_router
 from .wallet_page import router as wallet_page_router
+from .invite_page import router as invite_page_router
 from .bill_page import router as bill_page_router
 from .wechat_plus_api import router as wechat_plus_router
 from . import wechat_plus_repository
@@ -76,6 +77,7 @@ app.include_router(xhs_extract_router)
 app.include_router(douyin_extract_router)
 app.include_router(alipay_pay_router)
 app.include_router(wallet_page_router)
+app.include_router(invite_page_router)
 app.include_router(bill_page_router)
 wechat_plus_repository.init_schema()
 app.include_router(wechat_plus_router)

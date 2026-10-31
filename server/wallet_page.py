@@ -86,10 +86,19 @@ font-size:11.5px;color:#6b7a72;cursor:pointer;text-decoration:underline dotted}
 .wx-admin .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .wx-admin button{margin-top:14px;padding:10px 16px;border:0;border-radius:10px;background:#0F5132;color:#fff;font-size:13px;font-weight:600;cursor:pointer}
 .wx-hint{margin-left:10px;font-size:12px;color:#6b7a72}
+.wx-invite-card{margin-top:14px;padding:18px 22px;border:1px dashed rgba(20,37,29,.16);border-radius:16px;
+background:linear-gradient(180deg,#f7fcf9,#fff);display:flex;align-items:center;justify-content:space-between;
+gap:18px;flex-wrap:wrap}
+.wx-invite-card h2{margin:0 0 4px;font-size:15px;font-weight:600}
+.wx-invite-card p{margin:0;font-size:12.5px;color:#6b7a72;line-height:1.7;max-width:52ch}
+.wx-invite-side{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.wx-invite-code{padding:9px 14px;border:1px dashed #9cc4ae;border-radius:11px;background:#fff;
+font-family:ui-monospace,Menlo,Consolas,monospace;font-size:15px;font-weight:600;letter-spacing:.2em;color:#0F5132}
 @media (max-width:520px){
   .wx-balance b{font-size:36px}
   .wx-row{grid-template-columns:32px 1fr auto;gap:10px}
   .wx-admin .row{grid-template-columns:1fr}
+  .wx-invite-card{flex-direction:column;align-items:flex-start}
 }
 """
 
@@ -120,6 +129,30 @@ def _month_totals(items: list[dict[str, Any]]) -> tuple[int, int]:
         else:
             gained += amount
     return used, gained
+
+
+def _invite_card(user_id: str) -> str:
+    """钱包页顶部的一行邀请入口。取不到邀请数据就整块不渲染。"""
+    try:
+        from . import referrals
+        info = referrals.summary(user_id)
+    except Exception:  # noqa: BLE001 - 邀请活动异常不能把钱包页弄挂
+        return ""
+    rewards = info["rewards"]
+    return (
+        '<section class="wx-invite-card">'
+        "<div>"
+        "<h2>邀请好友，双方都得积分</h2>"
+        f'<p>好友用你的邀请码注册即得 {rewards["signup"]} 积分；他跑完第一个任务后，'
+        f'你再得 {rewards["activate_inviter"]} 积分，他再得 {rewards["activate_invitee"]} 积分。'
+        f'已邀请 {info["counts"]["total"]} 人，累计获得 {info["earned_points"]} 积分。</p>'
+        "</div>"
+        '<div class="wx-invite-side">'
+        f'<code class="wx-invite-code">{info["code"]}</code>'
+        '<a class="wx-cta" href="/invite">查看邀请码</a>'
+        "</div>"
+        "</section>"
+    )
 
 
 def _login_required_page() -> HTMLResponse:
@@ -218,6 +251,8 @@ def wallet_page(request: Request) -> HTMLResponse:
         "</section>"
     ) if is_owner else ""
 
+    invite_card = _invite_card(user["id"])
+
     payload = {
         "items": items,
         "owner": is_owner,
@@ -231,6 +266,7 @@ def wallet_page(request: Request) -> HTMLResponse:
         "</header>"
         + hero
         + composition
+        + invite_card
         + f'<section class="wx-history">{toolbar}<div id="wx-list"></div></section>'
         + admin_block
         + f'<script type="application/json" id="wx-data">{data_json}</script>'
