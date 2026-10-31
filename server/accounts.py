@@ -49,7 +49,7 @@ DEFAULT_PRICING = [
     ("POST", "/api/qihaoshou/image", "起号兽文章配图", 2, 0),
     ("POST", "/api/diagnose", "公众号诊断", 10, 0),
     ("POST", "/api/xiaohongshu/package", "小红书图文生成", 10, 0),
-    ("POST", "/api/tie-tu/plan", "微信贴图策划", 1, 0),
+    ("POST", "/api/tie-tu/plan", "微信贴图策划", 2, 0),
     ("POST", "/api/viral-remix/analyze", "爆款贴图结构拆解", 2, 0),
     ("POST", "/api/viral-remix/image", "爆款贴图原创生成", 2, 0),
     ("POST", "/api/creator-tools/image", "AI 图片生成", 2, 0),
@@ -302,8 +302,29 @@ def init_db() -> None:
                 (method, path, feature, points, cost, now),
             )
         connection.execute("INSERT OR IGNORE INTO provider_settings(id,updated_at) VALUES (1,?)", (now,))
+        _warn_on_price_drift(connection)
     _bootstrap_owner_from_env()
     _sync_owner_role()
+
+
+def _warn_on_price_drift(connection) -> None:
+    """改 DEFAULT_PRICING 不会改到已有库：上面是 INSERT OR IGNORE。
+
+    价格行只在首次建库时写入，之后改常量对线上完全无效——改价必须同时更新
+    既有行。这里只报警不改值（人工 SQL 调过的价格不该在重启时被悄悄覆盖），
+    让漂移在日志里看得见，而不是等用户发现两处价格不一致。
+    """
+    rows = connection.execute("SELECT method,path,points FROM pricing_rules").fetchall()
+    current = {(row[0], row[1]): int(row[2]) for row in rows}
+    drift = [
+        f"{path} 库内 {current.get((method, path))} / 代码 {points}"
+        for method, path, _feature, points, _cost in DEFAULT_PRICING
+        if (method, path) in current and current[(method, path)] != int(points)
+    ]
+    if drift:
+        logging.getLogger(__name__).warning(
+            "pricing_rules drift (run an UPDATE to sync): %s", "; ".join(drift)
+        )
 
 
 def _hash_password(password: str, salt: bytes | None = None) -> str:
