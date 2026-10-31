@@ -12,5 +12,18 @@ html body #points-notice .points-notice-copy{min-height:40px;margin:12px 0 0;pad
 #points-notice .points-notice-feedback{display:block;font-size:12px;color:#5d7d65;margin-top:6px}
 #points-notice .points-notice-feedback:empty{display:none}
 html body #points-notice .points-notice-confirm{display:block;width:100%;min-height:46px;padding:12px;border:0;border-radius:14px;background:#337454;color:white;font:550 15px/1.5 var(--sans,system-ui,sans-serif);cursor:pointer}
+#points-notice .points-notice-packages{display:grid;gap:10px;margin:22px 0 14px}
+#points-notice .points-notice-loading,#points-notice .points-notice-empty{margin:0;font-size:13px;color:#6d8573;text-align:center;padding:14px 0}
+html body #points-notice a.points-notice-plan{display:flex;align-items:center;justify-content:space-between;gap:12px;
+padding:14px 16px;border:1px solid #d7e6d8;border-radius:16px;background:#ffffff;color:#244532;text-decoration:none;
+transition:border-color .15s ease,transform .15s ease}
+html body #points-notice a.points-notice-plan:hover{border-color:#7fb89c;transform:translateY(-1px)}
+.points-notice-plan-head{display:flex;flex-direction:column;gap:2px}
+.points-notice-plan-head b{font-size:14px;font-weight:600}
+.points-notice-plan-credits{font-size:12px;color:#6d8573}
+.points-notice-plan-price{font-family:Georgia,"Songti SC",serif;font-size:19px;color:#1B7A58;font-weight:600}
+html body #points-notice a.points-notice-more{display:block;text-align:center;font-size:12.5px;color:#3c6c4b;
+text-decoration:underline dotted;margin:0 0 16px}
+html body #points-notice a.points-notice-more:hover{color:#1B7A58}
 #points-notice button:focus-visible{outline:2px solid #5e9973;outline-offset:3px}
 @media(max-width:480px){html body #points-notice{padding:28px 24px;border-radius:24px}}

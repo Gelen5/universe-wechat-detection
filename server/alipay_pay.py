@@ -654,6 +654,19 @@ def _package(package_id: str) -> dict[str, Any] | None:
     return None
 
 
+@router.get("/api/pay/packages")
+def list_packages() -> JSONResponse:
+    """在售套餐（公开只读，供充值弹窗与套餐页复用同一份配置）。"""
+
+    return JSONResponse(
+        {
+            "packages": [dict(package) for package in _PACKAGES],
+            "currency": "points",
+            "face_value_cny": 0.1,
+        }
+    )
+
+
 def _recharge_for(out_trade_no: str) -> dict[str, Any] | None:
     with ENGINE.begin() as connection:
         row = connection.execute(

@@ -150,7 +150,7 @@ async def account_and_points_gate(request: Request, call_next):
     public_refresh = request.method == "POST" and path == "/api/hotspots/refresh"
     # 支付宝收银接口按协议对外：异步通知由支付宝服务器直连 POST，下单/查询/退款
     # 走订单号与服务端记录，不依赖登录态；管理动作仍应另行加保护。
-    public_pay = path.startswith("/api/pay/alipay/")
+    public_pay = path.startswith("/api/pay/alipay/") or (request.method == "GET" and path == "/api/pay/packages")
     # Logout also clears expired/revoked cookies. Requiring an active session
     # prevents a stale browser from ever completing that cleanup.
     public_api = path in {"/api/auth/register", "/api/auth/login", "/api/auth/logout", "/api/auth/config", "/api/auth/email-code", "/api/auth/registration-link"} or public_market or public_refresh or public_pay
