@@ -1265,7 +1265,7 @@ async function postCreator(path, payload, signal, onAccepted) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ...sharedApiPayload(), ...payload }),
-    signal,
+    signal: signal || (path === '/api/viral-remix/analyze' ? AbortSignal.timeout(285000) : undefined),
   });
   return readApiResponse(response);
 }
@@ -1292,9 +1292,14 @@ async function submitQueuedTask(type, payload, signal, onAccepted) {
 
 function beginButton(button, label) {
   const original = button.innerHTML;
+  const started = performance.now();
+  if(button.nextElementSibling?.classList.contains('wait-elapsed'))button.nextElementSibling.remove();
   button.disabled = true;
-  button.innerHTML = `<span class="button-spinner"></span>${esc(label)}`;
-  return () => { button.disabled = false; button.innerHTML = original; window.lucide?.createIcons(); };
+  const status = document.createElement('p');status.className='wait-elapsed';status.setAttribute('role','status');
+  button.after(status);
+  const paint=()=>{const seconds=Math.floor((performance.now()-started)/1000);const time=`${Math.floor(seconds/60)}分${String(seconds%60).padStart(2,'0')}秒`;button.innerHTML=`<span class="button-spinner"></span>${esc(label)} · ${time}`;status.textContent=label.includes('拆解') ? `已等待 ${time} · 参考范围1—4分钟，含视觉分析、方案组织及必要的数据核实。${seconds>180?'耗时偏长，请勿重复提交。':''}` : `已等待 ${time}${label.includes('原创图')?' · 图片一般每张约30—120秒，多张按顺序处理。':''}`;};
+  paint();const timer=setInterval(paint,1000);
+  return () => { clearInterval(timer);status.textContent=`本次用时 ${((performance.now()-started)/1000).toFixed(1)} 秒`;button.disabled = false; button.innerHTML = original; window.lucide?.createIcons(); };
 }
 
 function renderSkillProgress(root, total) {
@@ -1604,6 +1609,7 @@ function renderViralRemix(result, sessionId) {
   const selectPanel=index=>{panels.forEach((p,i)=>p.hidden=i!==index);[...tabs.children].forEach((b,i)=>{b.setAttribute('aria-selected',String(i===index));b.tabIndex=i===index?0:-1;});};
   ['拆解报告','翻新方案','成图交付'].forEach((label,index)=>{const b=document.createElement('button');b.type='button';b.textContent=`0${index+1} ${label}`;b.setAttribute('role','tab');b.setAttribute('aria-controls',panels[index].id);b.onclick=()=>selectPanel(index);b.onkeydown=e=>{if(['ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();const next=(index+(e.key==='ArrowRight'?1:2))%3;selectPanel(next);tabs.children[next].focus();}};tabs.append(b);});
   root.replaceChildren(tabs,...panels);selectPanel(0);
+  if(result.timings){const duration=document.createElement('p');duration.className='wait-elapsed';duration.textContent=`拆解总计 ${result.timings.total_seconds} 秒 · 视觉与方案 ${result.timings.vision_seconds} 秒 · 数字核实 ${result.timings.verification_seconds||0} 秒`;report.prepend(duration);}
   const next=document.createElement('button');next.type='button';next.className='remix-next';next.textContent='查看三种翻新方案 →';next.onclick=()=>{selectPanel(1);root.scrollIntoView({block:'start',behavior:'smooth'});};report.append(next);
   new MutationObserver(()=>{const generated=[...root.querySelectorAll(':scope > .viral-generated, :scope > .viral-delivery')];if(generated.length){output.querySelector('.remix-output-placeholder')?.remove();generated.forEach(el=>output.append(el));selectPanel(2);}}).observe(root,{childList:true});
 }
