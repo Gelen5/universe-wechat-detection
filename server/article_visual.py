@@ -56,11 +56,14 @@ def _meta(html: str, key: str) -> str:
 
 def extract_article(url: str) -> dict[str, Any]:
     """把公众号文章转成标题/作者/正文 Markdown/原图列表。"""
-    if not re.match(r"^https?://mp\.weixin\.qq\.com/", url.strip()):
+    # 微信分享出来常带一段标题文字，直接取其中的链接，别让用户自己裁。
+    match = re.search(r"https?://mp\.weixin\.qq\.com/[^\s\u3000]+", url or "")
+    if not match:
         raise ValueError("请粘贴 mp.weixin.qq.com 的公众号文章链接")
-    response = requests.get(url.strip(), headers=HEADERS, timeout=25)
+    link = match.group(0).rstrip("，。；、）)】\"'")
+    response = requests.get(link, headers=HEADERS, timeout=25)
     response.raise_for_status()
-    return parse_article_html(response.text, url.strip())
+    return parse_article_html(response.text, link)
 
 
 def parse_article_html(html: str, url: str = "") -> dict[str, Any]:
