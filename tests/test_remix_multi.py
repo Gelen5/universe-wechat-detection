@@ -32,5 +32,17 @@ class RemixMultiTests(unittest.TestCase):
             self.assertTrue((Path(folder)/'tie-tu/testsession123/remix-01.jpg').exists())
             generate.assert_not_called()
 
+    def test_poster_cannot_silently_become_a_text_card(self):
+        stream=io.BytesIO()
+        Image.new('RGB',(768,1024),'#051b40').save(stream,'PNG')
+        contract={'asset_type':'poster','palette':'navy and electric blue','purpose':'product promotion','title_color':'#FFFFFF','accent_color':'#FFE16A'}
+        with tempfile.TemporaryDirectory() as folder, patch.object(tools,'OUTPUT_DIR',Path(folder)), patch('server.image_provider.generate',return_value={'data':[{'b64_json':base64.b64encode(stream.getvalue()).decode()}]}) as generate:
+            tools.generate_viral_remix_image('poster-test123',{'visual_contract':contract,'cards':[{'headline':'原创海报','render_mode':'text-only','image_brief':'glowing panels'}]})
+            self.assertEqual(generate.call_count,1)
+            self.assertIn('navy and electric blue',generate.call_args.args[0]['prompt'])
+            spec=json.loads((Path(folder)/'tie-tu/poster-test123/case-01.json').read_text(encoding='utf-8'))
+            self.assertTrue(spec.get('base'))
+            self.assertTrue(spec.get('layers'))
+
 if __name__ == '__main__':
     unittest.main()
