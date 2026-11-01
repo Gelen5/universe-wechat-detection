@@ -95,8 +95,8 @@ window.APP_NAV = (() => {
      icon: svg('<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 ' +
                '1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>' +
                '<polyline points="9 12 11 14 15 10"/>')},
-    // 心愿广场是独立页面：发帖与图片上传不会和创作工作流的 SPA 状态互相污染。
-    {group: '社区', href: '/wish-square', label: '心愿广场', short: '心愿', page: true,
+    // 心愿广场复用工作台壳层，避免切换时换掉整套导航与主题。
+    {group: '社区', href: '/wish-square', view: 'wish-square', label: '心愿广场', short: '心愿',
      fallback: true,
      icon: svg('<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/>')},
     {group: '资源', href: '/market', view: 'market', label: 'AI 超市', short: '超市',

@@ -1422,8 +1422,10 @@ def index():
 
 
 @app.get("/wish-square", include_in_schema=False)
-def wish_square_page():
-    return FileResponse(STATIC_DIR / "wish-square.html", media_type="text/html; charset=utf-8")
+def wish_square_page(request: Request):
+    if request.query_params.get("embed") == "1":
+        return FileResponse(STATIC_DIR / "wish-square.html", media_type="text/html; charset=utf-8")
+    return FileResponse(STATIC_DIR / "index.html", media_type="text/html; charset=utf-8")
 
 
 @app.get("/admin/wishes", include_in_schema=False)
@@ -1431,7 +1433,7 @@ def wish_review_page():
     return FileResponse(STATIC_DIR / "wish-review.html", media_type="text/html; charset=utf-8")
 # 每个功能 tab 对应一个真实路径（/workbench、/xiaohongshu、/tie-tu、/hit-detector、/morning-generator），
 # 由前端 SPA 根据 pathname 渲染对应 section；其余路径交给 /static 与 /api。
-TAB_PAGES = {"wechat-plus", "one-click-writing", "diagnose", "workbench", "xiaohongshu", "tie-tu", "viral-remix", "xhs-extract", "douyin-extract", "article-visual", "hit-detector", "morning-generator"}
+TAB_PAGES = {"wechat-plus", "one-click-writing", "diagnose", "workbench", "xiaohongshu", "tie-tu", "viral-remix", "xhs-extract", "douyin-extract", "article-visual", "wish-square", "hit-detector", "morning-generator"}
 
 
 @app.get("/{tab}", include_in_schema=False)

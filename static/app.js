@@ -26,6 +26,7 @@ const tieTuPage = document.querySelector('#tie-tu');
 const viralRemixPage = document.querySelector('#viral-remix');
 const xhsExtractPage = document.querySelector('#xhs-extract');
 const articleVisualPage = document.querySelector('#article-visual');
+const wishSquarePage = document.querySelector('#wish-square');
 const douyinExtractPage = document.querySelector('#douyin-extract');
 const hitDetectorPage = document.querySelector('#hit-detector');
 const authModal = document.querySelector('#auth-modal');
@@ -1884,6 +1885,7 @@ const viewMap = {
   'viral-remix': viralRemixPage,
   'xhs-extract': xhsExtractPage,
   'article-visual': articleVisualPage,
+  'wish-square': wishSquarePage,
   'douyin-extract': douyinExtractPage,
   'hit-detector': hitDetectorPage,
   morning: morningGenerator,
@@ -1904,6 +1906,7 @@ const viewTitles = {
   'viral-remix': '爆款贴图复刻',
   'xhs-extract': '小红书内容提取',
   'article-visual': '爆文转贴图',
+  'wish-square': '心愿广场',
   'douyin-extract': '抖音内容提取',
   'hit-detector': '爆文检测',
   morning: '早安祝福',
