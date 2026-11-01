@@ -65,6 +65,7 @@ wish_supports = Table(
     Column("created_at", String(40), nullable=False),
 )
 wish_payment_codes = Table('wish_payment_codes', metadata, Column('wish_id', String(32), primary_key=True), Column('image', LargeBinary, nullable=False))
+wish_target_amounts = Table('wish_target_amounts', metadata, Column('wish_id', String(32), primary_key=True), Column('amount_fen', Integer, nullable=False))
 wish_transfers = Table('wish_transfers', metadata, Column('id', String(32), primary_key=True), Column('wish_id', String(32), nullable=False, index=True), Column('supporter_id', String(64), nullable=False), Column('amount', String(32), nullable=False), Column('message', String(500), nullable=False), Column('status', String(16), nullable=False), Column('created_at', String(40), nullable=False))
 wish_reports = Table('wish_reports', metadata, Column('id', String(32), primary_key=True), Column('wish_id', String(32), nullable=False, index=True), Column('reporter_id', String(64), nullable=False), Column('reason', String(500), nullable=False), Column('created_at', String(40), nullable=False))
 
@@ -96,6 +97,7 @@ class WishCreate(BaseModel):
     target_kind: str = Field(default="物品", pattern="^(物品|服务|小额资金|其他)$")
     target_text: str = Field(min_length=2, max_length=120)
     display_name: str = Field(min_length=1, max_length=40)
+    target_amount: str = Field(default='', max_length=12, pattern=r'^$|^(?:[1-9]\d{0,6}|0)(?:\.\d{1,2})?$')
 
 
 class ReviewBody(BaseModel):
@@ -117,9 +119,11 @@ def _record(row: dict, user: dict | None = None) -> dict:
         image_rows = connection.execute(select(wish_images).where(wish_images.c.wish_id == row["id"]).order_by(wish_images.c.position)).mappings().all()
         supports = connection.execute(select(func.count()).select_from(wish_supports).where(wish_supports.c.wish_id == row["id"])).scalar_one()
         has_code = connection.execute(select(wish_payment_codes.c.wish_id).where(wish_payment_codes.c.wish_id == row['id'])).first() is not None
+        amount = connection.execute(select(wish_target_amounts.c.amount_fen).where(wish_target_amounts.c.wish_id == row['id'])).scalar_one_or_none()
     item = _public(row, len(image_rows), int(supports or 0), _is_owner_or_admin(row, user))
     item["images"] = [f"/api/wishes/{row['id']}/images/{image['id']}" for image in image_rows]
     item['has_payment_code'] = has_code
+    item['target_amount'] = f'{amount / 100:.2f}' if amount is not None else None
     item['is_owner'] = bool(user and row['user_id'] == user.get('id'))
     return item
 
@@ -144,6 +148,12 @@ def create_wish(payload: WishCreate, request: Request):
     clean = {name: re.sub(r"\s+", " ", str(getattr(payload, name)).strip()) for name in ("title", "story", "category", "target_kind", "target_text", "display_name")}
     with database.ENGINE.begin() as connection:
         connection.execute(insert(wishes).values(id=wish_id, user_id=user["id"], status="draft", created_at=now, updated_at=now, **clean))
+        if payload.target_amount:
+            from decimal import Decimal
+            amount_fen = int(Decimal(payload.target_amount) * 100)
+            if amount_fen <= 0:
+                raise HTTPException(status_code=422, detail='所需金额必须大于 0')
+            connection.execute(insert(wish_target_amounts).values(wish_id=wish_id, amount_fen=amount_fen))
         row = connection.execute(select(wishes).where(wishes.c.id == wish_id)).mappings().one()
     return _record(dict(row), user)
 

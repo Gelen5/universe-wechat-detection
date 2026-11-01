@@ -4,6 +4,7 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>心愿广场 · 宇宙第一工作台</title>
   <link rel="stylesheet" href="/static/wish-square.css?v=20261101-1">
+  <link rel="stylesheet" href="/static/wish-publish.css?v=20261101-amount-1">
 </head>
 <body><script>if(new URLSearchParams(location.search).get('embed')==='1')document.body.classList.add('embed');</script><style>body.embed .wish-sidebar{display:none}body.embed .wish-main{max-width:none;margin-left:0;padding:18px 20px 36px}body.embed .wish-header{border-radius:22px}@media(max-width:760px){body.embed .wish-main{padding:10px 12px 26px}}</style>
   <aside class="wish-sidebar">
@@ -25,18 +26,19 @@
   <dialog id="publish-dialog" class="publish-dialog">
     <form id="wish-form" class="publish-sheet">
       <header><div><p class="eyebrow">发布前会进行人工审核</p><h2>说说你的心愿</h2></div><button class="icon-button" id="close-publish" type="button" aria-label="关闭">×</button></header>
-      <p class="form-note">请只发布真实、明确的需求。身份证件、病历、住址等敏感材料不要写在公开内容中；审核人员会单独联系你补充。</p>
-      <div class="form-grid"><label>心愿标题<input name="title" maxlength="80" required placeholder="例如：想给爷爷换一副助听器"></label><label>分类<select name="category"><option>生活改善</option><option>教育成长</option><option>医疗健康</option><option>家人陪伴</option><option>兴趣梦想</option><option>社区公益</option></select></label></div>
-      <label>心愿详情<textarea name="story" minlength="20" maxlength="2000" required placeholder="发生了什么？你希望得到怎样的帮助？"></textarea><small><span id="story-count">0</span>/2000</small></label>
-      <div class="form-grid"><label>希望实现的内容<input name="target_text" maxlength="120" required placeholder="例如：一副适合的助听器"></label><label>类型<select name="target_kind"><option>物品</option><option>服务</option><option>小额资金</option><option>其他</option></select></label></div>
-      <label>公开显示的称呼<input name="display_name" maxlength="40" required placeholder="例如：小周（可使用昵称）"></label>
-      <fieldset class="image-field"><legend>补充图片 <span>最多 8 张，每张不超过 8MB</span></legend><input id="wish-images" type="file" accept="image/jpeg,image/png,image/webp" multiple><div id="image-preview" class="image-preview"></div></fieldset>
-      <fieldset class="image-field"><legend>收款二维码（选填）</legend><p>仅上传微信或支付宝的收款码，不要上传付款码。审核通过后，登录用户点击“帮 TA 实现”即可查看。</p><input id="payment-code" type="file" accept="image/jpeg,image/png,image/webp"></fieldset>
-      <p id="form-message" class="form-message" role="status"></p><button class="publish-button submit" type="submit">提交审核</button>
+      <p class="publish-intro">把你的愿望说清楚，让愿意帮助你的人更容易了解。</p>
+      <div class="publish-columns"><div class="publish-fields">
+      <label>心愿标题 <em>必填</em><input name="title" maxlength="80" required placeholder="例如：想给爷爷换一副助听器"></label>
+      <fieldset class="category-field"><legend>选择分类 <em>必填</em></legend><div class="category-options"><label><input type="radio" name="category" value="生活改善" checked><span>生活改善</span></label><label><input type="radio" name="category" value="教育成长"><span>教育成长</span></label><label><input type="radio" name="category" value="医疗健康"><span>医疗健康</span></label><label><input type="radio" name="category" value="家人陪伴"><span>家人陪伴</span></label><label><input type="radio" name="category" value="兴趣梦想"><span>兴趣梦想</span></label><label><input type="radio" name="category" value="社区公益"><span>社区公益</span></label></div></fieldset>
+      <label>说说你的故事 <em>必填</em><textarea name="story" minlength="20" maxlength="2000" required placeholder="为什么有这个心愿？希望得到怎样的帮助？（至少 20 字）"></textarea><small><span id="story-count">0</span>/2000</small></label>
+      <div class="form-grid"><label>希望实现的内容 <em>必填</em><input name="target_text" maxlength="120" required placeholder="例如：一副合适的助听器"></label><label>所需金额（元） <em>选填</em><input name="target_amount" type="number" min="0.01" max="9999999.99" step="0.01" inputmode="decimal" placeholder="例如：2000"></label></div>
+      <div class="form-grid"><label>公开显示的称呼 <em>必填</em><input name="display_name" maxlength="40" required placeholder="例如：小周（可使用昵称）"></label><label>帮助类型<select name="target_kind"><option>物品</option><option>服务</option><option>小额资金</option><option>其他</option></select></label></div>
+      </div><div class="publish-uploads"><h3>添加图片</h3><p>一张真实的照片，让大家更了解你的心愿。</p><div class="upload-box"><label class="upload-trigger" for="wish-images"><b>＋</b><strong>上传心愿图片</strong><span>最多 8 张，每张不超过 8MB</span></label><input id="wish-images" class="file-input" type="file" accept="image/jpeg,image/png,image/webp" multiple><div id="image-preview" class="image-preview"></div></div><div class="upload-box"><label class="upload-trigger" for="payment-code"><b>⌁</b><strong>上传收款码 <em>选填</em></strong><span id="payment-code-label">微信或支付宝收款码，最多 1 张</span></label><input id="payment-code" class="file-input" type="file" accept="image/jpeg,image/png,image/webp"><p>请勿上传付款码。审核通过后，登录用户点击“帮 TA 实现”可查看。</p></div><p class="privacy-note">请不要在公开内容中填写身份证、病历和详细住址。</p></div></div>
+      <footer class="publish-footer"><p id="form-message" class="form-message" role="status">提交后会进行人工审核</p><button class="publish-button submit" type="submit">提交审核</button></footer>
     </form>
   </dialog>
   <dialog id="support-dialog" class="publish-dialog"><div class="publish-sheet"><header><h2>帮 TA 实现</h2><button type="button" class="icon-button" id="support-close">×</button></header><p class="form-note">你将直接向心愿发布者付款，平台无法核实付款结果。请在支付页面确认收款方后自行决定。</p><div id="support-content"></div><p id="support-status" role="status"></p></div></dialog>
   <dialog id="mine-dialog" class="publish-dialog"><div class="publish-sheet"><header><h2>我的到账登记</h2><button type="button" class="icon-button" id="mine-close">×</button></header><p>以下为支持者自行登记，平台无法核实。请在自己的收款账户核对后再确认。</p><div id="mine-content"></div></div></dialog>
   <template id="wish-card-template"><article class="wish-card glass"><div class="wish-image"><img alt=""><span class="verified"></span><span class="image-counter"></span></div><div class="wish-card-body"><p class="wish-category"></p><h2></h2><p class="wish-story"></p><div class="wish-meta"><strong></strong><span></span></div><button class="support-button" type="button">♡ 帮 TA 实现</button></div></article></template>
-  <script src="/static/routes.js?v=20261101-1"></script><script src="/static/shell.js?v=20261101-1"></script><script src="/static/wish-square.js?v=20261101-payment-1"></script>
+  <script src="/static/routes.js?v=20261101-1"></script><script src="/static/shell.js?v=20261101-1"></script><script src="/static/wish-square.js?v=20261101-amount-1"></script>
 </body></html>
