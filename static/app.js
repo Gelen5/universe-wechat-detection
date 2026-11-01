@@ -1697,6 +1697,22 @@ document.querySelector('#hit-form')?.addEventListener('submit', async event => {
   } catch (error) { showToast(error.message, 'error'); } finally { finish(); }
 });
 
+document.querySelector('#auth-copy-contact')?.addEventListener('click', async (event) => {
+  const button = event.currentTarget;
+  const status = document.querySelector('#auth-copy-status');
+  button.disabled = true;
+  try {
+    await navigator.clipboard.writeText('Gelen5');
+    button.textContent = '✓ 已复制';
+    status.textContent = '已复制 Gelen5';
+    setTimeout(() => { button.textContent = '复制'; button.disabled = false; status.textContent = ''; }, 2000);
+  } catch {
+    button.disabled = false;
+    status.textContent = '复制失败，请手动复制 Gelen5';
+    showToast('复制失败，请手动复制 Gelen5', 'error');
+  }
+});
+
 function bindCopyButtons(root = document) {
   root.querySelectorAll('.copy-result').forEach(button => button.addEventListener('click', async () => {
     const target = document.getElementById(button.dataset.copyTarget);

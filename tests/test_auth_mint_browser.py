@@ -33,10 +33,25 @@ def test_auth_layout_and_modes(ui, width, height):
     expect(page.locator('#auth-error')).to_be_hidden()
     page.locator('.auth-home').focus()
     page.keyboard.press('Shift+Tab')
-    expect(page.locator('#auth-submit')).to_be_focused()
+    expect(page.locator('#auth-copy-contact')).to_be_focused()
     if height > 650:
         page.locator('[data-auth-mode=login]').click()
         page.screenshot(path=f'D:/Download/auth-mint-{width}.png')
+
+def test_auth_contact_copy(ui):
+    page, _ = ui
+    page.add_init_script("Object.defineProperty(navigator, 'clipboard', {value:{writeText:async text=>{window.copiedContact=text}}})")
+    page.route('**/api/auth/me', lambda r:r.fulfill(status=401,json={'detail':'请登录'}))
+    page.goto('http://ui.test/workbench')
+    button=page.locator('#auth-copy-contact')
+    for mode in ('login','register'):
+        page.locator(f'[data-auth-mode={mode}]').click()
+        expect(button).to_be_visible()
+        button.click()
+        expect(button).to_have_text('✓ 已复制')
+        assert page.evaluate('window.copiedContact') == 'Gelen5'
+        expect(button).to_have_text('复制', timeout=4000)
+
 
 def test_auth_success_keeps_existing_api_contract(ui):
     page, _ = ui
