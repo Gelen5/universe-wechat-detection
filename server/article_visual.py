@@ -204,6 +204,8 @@ C. 读者只看这组图，能不能复述出文章的核心？
 8. brief 描述画面主体：具体物件、场景、结构；不写排版、不写文字；禁止真实人物、名人、合影。
 9. 封面 kicker 用主题标签（如「AI 工具」「开源项目」），禁止用公众号名称。
 10. 正文 form 只能取：compare（问题 vs 解法、前后差异）、layers（机制/结构/流程）、data（一组关键数字）、timeline（有先后顺序）、clients（并列清单）、quote（全篇最值得记住的一句）。
+11. 每个图位必须给 visual 字段，取值只能是 photo（实景摄影）、light（浅色杂志）、paper（纸张笔记）、iso（3D 等距）、dark（深色海报）。一套图至少用 3 种，dark 最多 2 张，禁止全部深色。
+12. 每张图必须有具体视觉主体（实物、场景、界面、产品），禁止"纯色底板 + 大字"这种只有文字的海报。
 
 输出结构：
 {
@@ -213,6 +215,7 @@ C. 读者只看这组图，能不能复述出文章的核心？
       "id": "cover",
       "form": "cover",
       "headline": "全文最大爆点，可含数字，不超过 14 字",
+      "visual": "photo",
       "kicker": "主题标签，如 AI 工具",
       "items": ["副标题：一句话说清它解决什么", "底部一行：最值得记住的结论"],
       "brief": "画面主体，具体物件或场景"
@@ -220,6 +223,7 @@ C. 读者只看这组图，能不能复述出文章的核心？
     {
       "id": "body-01",
       "form": "compare",
+      "visual": "light",
       "headline": "爆点结论",
       "detail": "一句话解释",
       "facts": ["事实1", "事实2"],
@@ -232,6 +236,7 @@ C. 读者只看这组图，能不能复述出文章的核心？
     {
       "id": "body-02",
       "form": "layers",
+      "visual": "iso",
       "headline": "爆点结论",
       "detail": "一句话解释",
       "facts": ["事实1", "事实2"],
@@ -292,6 +297,7 @@ def _normalize_plan(raw: dict[str, Any], article: dict[str, Any]) -> dict[str, A
                     if str(fact).strip()
                 ][:3],
                 "kicker": _clip(str(slot.get("kicker") or ""), 24),
+                "visual": str(slot.get("visual") or "").strip().lower(),
                 "items": items[:6],
                 "brief": _clip(str(slot.get("brief") or ""), 200),
             }
@@ -325,7 +331,11 @@ def _normalize_plan(raw: dict[str, Any], article: dict[str, Any]) -> dict[str, A
                 item for item in slot["items"]
                 if account not in json.dumps(item, ensure_ascii=False)
             ]
+    rotation = ("photo", "light", "paper", "iso", "dark")
     for index, slot in enumerate(slots):
+        # 模型没给或给了不认识的风格，就按顺序轮换，保证一套图不会全是深色。
+        if slot.get("visual") not in VISUAL_STYLES:
+            slot["visual"] = rotation[index % len(rotation)]
         slot["order"] = index
         slot["status"] = "pending"
     return {"thesis": _clip(str(raw.get("thesis") or article["title"]), 40), "slots": slots}
@@ -472,7 +482,7 @@ def _clean_label(text: str, limit: int = 22) -> str:
     return value[:limit].rstrip()
 
 
-def build_image_prompt(slot: dict[str, Any], cover_style: str = "compare") -> str:
+def _base_image_prompt(slot: dict[str, Any], cover_style: str = "compare") -> str:
     form = slot.get("form")
     headline = slot.get("headline") or ""
     detail = slot.get("detail") or ""
@@ -606,6 +616,67 @@ def build_image_prompt(slot: dict[str, Any], cover_style: str = "compare") -> st
 
 
 # --------------------------------------------------------------------------- 生图
+
+# 一套图不能全是黑底大字：每个图位由策划模型指定视觉风格，缺省按实景摄影轮换。
+VISUAL_STYLES = {
+    "photo": {
+        "desc": "真实摄影质感，浅色桌面或真实场景，自然光，浅景深",
+        "bg": "浅灰木质桌面与柔和自然光的实景背景",
+        "ink": "深墨色",
+        "accent": "暖黄色",
+    },
+    "light": {
+        "desc": "浅色杂志编辑设计，米白纸张，细线分隔，留白充分",
+        "bg": "米白色纸张背景",
+        "ink": "深墨绿色",
+        "accent": "金色",
+    },
+    "paper": {
+        "desc": "手工纸与铅笔线稿的说明图，轻微做旧，像工作笔记",
+        "bg": "暖米色手工纸背景",
+        "ink": "深棕色",
+        "accent": "砖红色",
+    },
+    "iso": {
+        "desc": "3D 等距插画，浅灰蓝背景，柔和投影，干净几何形体",
+        "bg": "浅灰蓝色背景",
+        "ink": "深蓝色",
+        "accent": "亮黄色",
+    },
+    "dark": {
+        "desc": "深色电影感海报，强对比，用一个光源塑形",
+        "bg": "深黑蓝色背景",
+        "ink": "白色",
+        "accent": "金色",
+    },
+}
+
+_BG_REPLACEMENTS = (
+    "纯黑背景",
+    "深墨蓝色背景",
+    "深灰蓝色背景",
+    "深黑蓝色背景",
+    "米白色纸张质感背景",
+    "米白色纸张背景",
+    "深色桌面上的静物特写",
+)
+
+
+def build_image_prompt(slot: dict[str, Any], cover_style: str = "compare") -> str:
+    """在基础版式上套视觉风格，并强制每张图必须有具体主体。"""
+    prompt = _base_image_prompt(slot, cover_style)
+    style = VISUAL_STYLES.get(str(slot.get("visual") or ""), VISUAL_STYLES["photo"])
+    for background in _BG_REPLACEMENTS:
+        prompt = prompt.replace(background, style["bg"])
+    prompt = prompt.replace("白色中文", f"{style['ink']}中文").replace("白色小字", f"{style['ink']}小字")
+    prompt = prompt.replace("金色与白色为主色", f"{style['accent']}与{style['ink']}为主色")
+    subject = _safe_scene(slot.get("brief") or "") or f"与「{slot.get('headline') or ''}」相关的实物"
+    lock = (
+        f"整体视觉：{style['desc']}。"
+        f"画面必须出现具体视觉主体（{subject}），主体占画面至少一半；"
+        "禁止纯色底板只放文字，禁止只有渐变和光效。"
+    )
+    return f"{lock}{prompt}"
 
 def _image_bytes(result: dict[str, Any]) -> bytes:
     data = result.get("data") or []
