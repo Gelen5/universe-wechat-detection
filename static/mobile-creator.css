@@ -157,3 +157,5 @@
  body.mobile-writing-keyboard .v3-topbar{display:none!important}
  body.mobile-writing-keyboard #workbench .mobile-site-brand,body.mobile-writing-keyboard #workbench .studio-heading,body.mobile-writing-keyboard #workbench #workbench-stage-nav,body.mobile-writing-keyboard #workbench .conversation-panel-head{display:none!important}
 }
+
+@media(max-width:800px){body.atelier #home.home-v2 .universe-brand h1{font-size:clamp(27px,7.8vw,58px)!important;letter-spacing:-.055em!important;white-space:nowrap}}
