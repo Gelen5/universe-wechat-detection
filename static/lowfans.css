@@ -1,4 +1,4 @@
-/* 低粉爆文榜 · 浅绿液态玻璃
+﻿/* 低粉爆文榜 · 浅绿液态玻璃
    ────────────────────────────────────────────────────────────────
    材质沿用项目 liquid-glass.css 的三件套，不自造一套：
      ① background-image 斜向高光（绝不挂 ::after —— 伪元素画在文字之上会洗灰正文）
@@ -103,8 +103,7 @@
 #lowfans .lf-stat {
   padding: 17px 19px 16px;
   border-radius: 16px;
-  background-color: rgba(255, 255, 255, .52);
-  border: 1px solid var(--lf-line);
+  background-color: rgba(255, 255, 255, .46);
 }
 #lowfans .lf-stat k {
   display: block;
@@ -149,8 +148,7 @@
   margin-bottom: 12px;
   padding: 11px 13px;
   border-radius: 16px;
-  background-color: rgba(255, 255, 255, .56);
-  border: 1px solid var(--lf-line);
+  background-color: rgba(255, 255, 255, .46);
 }
 #lowfans .lf-search {
   display: flex;
@@ -161,7 +159,7 @@
   min-width: 0;
   min-height: 42px;
   padding: 0 14px;
-  border: 1px solid var(--lf-line);
+  border: 1px solid rgba(72, 128, 99, .09);
   border-radius: 12px;
   background: rgba(255, 255, 255, .72);
   transition: border-color .18s ease, background .18s ease;
@@ -183,7 +181,7 @@
 #lowfans .lf-select {
   min-height: 42px;
   padding: 0 34px 0 14px;
-  border: 1px solid var(--lf-line);
+  border: 1px solid rgba(72, 128, 99, .09);
   border-radius: 12px;
   background-color: rgba(255, 255, 255, .72);
   color: var(--lf-text);
@@ -203,7 +201,7 @@
 #lowfans .lf-export {
   min-height: 42px;
   padding: 0 16px;
-  border: 1px solid var(--lf-line);
+  border: 1px solid rgba(72, 128, 99, .09);
   border-radius: 12px;
   background: rgba(255, 255, 255, .72);
   color: var(--lf-text);
@@ -240,17 +238,17 @@
   gap: 7px;
   padding: 8px 14px;
   border-radius: 999px;
-  border: 1px solid var(--lf-line);
-  background: rgba(255, 255, 255, .5);
+  border: 0;
+  background: rgba(255, 255, 255, .46);
   font: inherit;
   font-size: 13px;
   line-height: 1.5;
   color: var(--lf-text);
   white-space: nowrap;
   cursor: pointer;
-  transition: background .18s ease, border-color .18s ease, color .18s ease;
+  transition: background .18s ease, color .18s ease;
 }
-#lowfans .lf-track:hover { background: rgba(255, 255, 255, .85); border-color: var(--lf-line-2); }
+#lowfans .lf-track:hover { background: rgba(255, 255, 255, .85); }
 #lowfans .lf-track n {
   font-size: 11px;
   color: var(--lf-faint);
@@ -281,17 +279,16 @@
   display: grid;
   grid-template-columns: 46px minmax(0, 1fr) auto;
   gap: 0 16px;
-  padding: 18px 22px 17px;
+  padding: 16px 20px 15px;
   border-radius: 16px;
-  background-color: rgba(255, 255, 255, .52);
-  border: 1px solid var(--lf-line);
-  transition: background .2s ease, border-color .2s ease, transform .2s ease, box-shadow .2s ease;
+  /* 不描边：用背景色差分层。整页少一层线，视觉就干净一档 */
+  background-color: rgba(255, 255, 255, .46);
+  transition: background .2s ease, transform .2s ease, box-shadow .2s ease;
 }
 #lowfans .lf-row:hover {
-  background-color: rgba(255, 255, 255, .8);
-  border-color: var(--lf-line-2);
+  background-color: rgba(255, 255, 255, .78);
   transform: translateY(-1px);
-  box-shadow: 0 14px 30px -26px rgba(34, 82, 58, .55);
+  box-shadow: 0 16px 30px -26px rgba(34, 82, 58, .5);
 }
 
 #lowfans .lf-rank {
@@ -350,7 +347,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 6px 11px;
-  margin-top: 9px;
+  margin-top: 7px;
   font-size: 12.5px;
   line-height: 1.7;
   color: var(--lf-muted);
@@ -374,7 +371,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 5px 16px;
-  margin-top: 9px;
+  margin-top: 7px;
   font-size: 12px;
   line-height: 1.7;
   color: var(--lf-faint);
@@ -384,11 +381,19 @@
 
 #lowfans .lf-side {
   grid-column: 3;
+  /* 显式跨满三行并贴顶：auto 放置会把它排到第二行，比标题低 50px */
+  grid-row: 1 / span 3;
+  align-self: start;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 9px;
-  min-width: 132px;
+  gap: 8px;
+  min-width: 0;
+}
+#lowfans .lf-side-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 #lowfans .lf-boost {
   display: inline-flex;
@@ -422,7 +427,7 @@
   min-height: 32px;
   padding: 6px 11px;
   border-radius: 9px;
-  border: 1px solid var(--lf-line);
+  border: 1px solid rgba(72, 128, 99, .1);
   background: rgba(255, 255, 255, .6);
   color: var(--lf-text);
   font: inherit;
@@ -446,12 +451,11 @@
 /* ---------------------------------------------------------------- 状态 */
 #lowfans .lf-note {
   margin: 0 0 14px;
-  padding: 15px 19px;
+  padding: 14px 18px;
   border-radius: 14px;
-  border: 1px dashed rgba(72, 128, 99, .22);
-  background: rgba(255, 255, 255, .34);
+  background: rgba(255, 255, 255, .3);
   font-size: 12.5px;
-  line-height: 1.85;
+  line-height: 1.8;
   color: var(--lf-muted);
 }
 #lowfans .lf-note b { color: var(--lf-text); font-weight: 600; }
@@ -467,8 +471,7 @@
   text-align: center;
   color: var(--lf-muted);
   border-radius: 16px;
-  border: 1px solid var(--lf-line);
-  background: rgba(255, 255, 255, .42);
+  background: rgba(255, 255, 255, .38);
 }
 #lowfans .lf-empty strong {
   display: block;
@@ -486,16 +489,16 @@
   width: 100%;
   margin: 18px 0 0;
   padding: 14px;
-  border: 1px solid var(--lf-line);
+  border: 0;
   border-radius: 13px;
-  background: rgba(255, 255, 255, .56);
+  background: rgba(255, 255, 255, .46);
   color: var(--lf-text);
   font: inherit;
   font-size: 13px;
   cursor: pointer;
-  transition: border-color .18s ease, color .18s ease, background .18s ease;
+  transition: color .18s ease, background .18s ease;
 }
-#lowfans .lf-more:hover { border-color: var(--lf-green); color: var(--lf-deep); background: #fff; }
+#lowfans .lf-more:hover { color: var(--lf-deep); background: rgba(255, 255, 255, .8); }
 
 /* ---------------------------------------------------------------- 响应式 */
 @container (max-width: 980px) {
@@ -531,6 +534,7 @@
   #lowfans .lf-title { font-size: 15px; }
   #lowfans .lf-side {
     grid-column: 2;
+    grid-row: auto;
     flex-direction: row;
     flex-wrap: wrap;
     align-items: center;

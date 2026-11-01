@@ -131,8 +131,10 @@
           <span>留言 ${fmtNum(item.comment_num)}</span>
         </div>
         <div class="lf-side">
-          <span class="lf-boost${hot ? ' is-hot' : ''}">${fmtBoost(item.boost_ratio)}<small>×</small></span>
-          <span class="lf-score">爆文分 ${fmtBoost(item.burst_score)}</span>
+          <div class="lf-side-top">
+            <span class="lf-boost${hot ? ' is-hot' : ''}">${fmtBoost(item.boost_ratio)}<small>×</small></span>
+            <span class="lf-score">爆文分 ${fmtBoost(item.burst_score)}</span>
+          </div>
           <div class="lf-actions">
             <a class="lf-act" href="${esc(item.art_url)}" target="_blank" rel="noopener noreferrer">原文</a>
             <button class="lf-act is-primary" type="button"
