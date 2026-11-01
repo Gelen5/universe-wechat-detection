@@ -681,17 +681,8 @@ def reserve_points(user_id: str, rule: dict[str, Any], method: str, path: str) -
     with DB_LOCK, _connect() as connection:
         connection.execute("BEGIN IMMEDIATE")
         wallet = _locked_wallet(connection, user_id)
-        if path in {"/api/images/generations", "/api/creator-tools/image", "/api/qihaoshou/image"}:
-            daily_limit = max(1, int(os.getenv("IMAGE_DAILY_LIMIT", "20")))
-            used = connection.execute(
-                """SELECT COUNT(*) FROM usage_records WHERE user_id=? AND path IN
-                   ('/api/images/generations','/api/creator-tools/image','/api/qihaoshou/image')
-                   AND status IN ('reserved','completed') AND created_at>=?""",
-                (user_id, datetime.now(timezone.utc).date().isoformat()),
-            ).fetchone()[0]
-            if used >= daily_limit:
-                connection.execute("ROLLBACK")
-                raise HTTPException(status_code=429, detail="今日图片生成次数已达上限")
+        # 出图次数不再设每日上限：余额够就能出。原来这里的 IMAGE_DAILY_LIMIT
+        # 会按天拦人（默认 20 张），已按产品要求删除。
         if not wallet or wallet["balance"] < points:
             connection.execute("ROLLBACK")
             balance = wallet["balance"] if wallet else 0

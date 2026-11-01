@@ -34,14 +34,15 @@ class AccountAndBillingTests(unittest.TestCase):
         self.assertEqual(str(accounts.pricing_rule('POST', '/api/images/generations')['points']), accepted.headers['X-Points-Charged'])
         generate.assert_called_once()
 
-    def test_image_daily_limit_blocks_before_provider_call(self):
+    def test_image_generation_has_no_daily_cap(self):
+        """出图次数不再设每日上限：余额够就一直能出。"""
         self._recharge(100)
-        with patch.dict(os.environ, {'IMAGE_DAILY_LIMIT': '1'}), patch.object(image_provider, 'generate', return_value={'data': []}) as generate:
+        with patch.object(image_provider, 'generate', return_value={'data': []}) as generate:
             first = self.client.post('/api/images/generations', json={'prompt': 'first'})
             second = self.client.post('/api/images/generations', json={'prompt': 'second'})
         self.assertEqual(200, first.status_code)
-        self.assertEqual(429, second.status_code)
-        generate.assert_called_once()
+        self.assertEqual(200, second.status_code)
+        self.assertEqual(2, generate.call_count)
 
     def test_admin_session_is_shorter_and_old_sessions_are_rejected(self):
         admin = TestClient(app)
