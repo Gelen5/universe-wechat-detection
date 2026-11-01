@@ -140,3 +140,12 @@
   #article-visual .av-features, #article-visual .av-samples { grid-template-columns:1fr; }
   #article-visual .av-flow { flex-wrap:wrap; gap:8px; }
 }
+
+#article-visual .av-angle-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin:12px 0 20px}
+#article-visual .av-angle-option{display:flex;flex-direction:column;text-align:left;gap:8px;padding:17px;border:1px solid #d6e8dc;border-radius:14px;background:#f5faf6;color:#284c39;cursor:pointer}
+#article-visual .av-angle-option.is-active{border-color:#31845b;background:#e9f5ec}
+#article-visual .av-angle-option strong{font-size:16px;line-height:1.5}
+#article-visual .av-angle-option span,#article-visual .av-angle-option small{line-height:1.6;color:#668372}
+#article-visual .av-evidence{display:block;margin-top:8px;color:#668372;font-size:12px;line-height:1.6}
+#article-visual #av-angles summary{cursor:pointer;color:#23734c;font-weight:600}
+#article-visual [hidden]{display:none!important}

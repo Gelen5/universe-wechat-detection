@@ -35,6 +35,8 @@
     thesis: $("av-thesis"),
     reset: $("av-reset"),
     list: $("av-slot-list"),
+    angles: $("av-angles"),
+    planContent: $("av-plan-content"),
     count: $("av-count"),
     stageTitle: $("av-stage-title"),
     stageStatus: $("av-stage-status"),
@@ -184,6 +186,7 @@
     els.empty.hidden = true;
     els.plan.hidden = false;
 
+    renderAngles();
     els.list.innerHTML = "";
     slots.forEach((slot) => {
       const card = document.createElement("button");
@@ -206,6 +209,7 @@
       h3.textContent = slot.headline || "未命名图位";
       const p = document.createElement("p");
       p.textContent = slot.detail || slotSummary(slot) || slot.brief || "";
+      if (slot.source_quote) p.title = `原文依据：${slot.source_quote}`;
       const chips = document.createElement("div");
       chips.className = "av-chips";
       (slot.facts || []).slice(0, 3).forEach((fact) => {
@@ -213,7 +217,10 @@
         chip.textContent = fact;
         chips.appendChild(chip);
       });
-      info.append(cap, h3, p, chips);
+      const evidence = document.createElement("span");
+      evidence.className = "av-evidence";
+      evidence.textContent = slot.source_quote ? `原文依据：${slot.source_quote}` : "";
+      info.append(cap, h3, p, chips, evidence);
       card.append(thumb, info);
       card.addEventListener("click", () => {
         if (state.busy) return;
@@ -227,6 +234,59 @@
     const active = slots.find((s) => s.id === state.activeId) || slots[0];
     state.activeId = active.id;
     renderStage(active, slots);
+  }
+
+  function renderAngles() {
+    const plan = state.job.plan || {};
+    const choices = plan.alternatives || [];
+    const selected = plan.selected_angle;
+    els.angles.innerHTML = "";
+    els.planContent.hidden = choices.length > 0 && selected == null;
+    if (!choices.length) return;
+    const title = document.createElement("h2");
+    title.textContent = selected == null ? "选择传播角度" : "已选传播角度";
+    const help = document.createElement("p");
+    help.textContent = "先确定封面方向，图位会围绕这个方向展开。";
+    els.angles.append(title, help);
+    const list = document.createElement("div");
+    list.className = "av-angle-list";
+    choices.forEach((choice, index) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "av-angle-option" + (selected === index ? " is-active" : "");
+      button.disabled = state.busy || (selected != null && Object.keys(state.job.images || {}).length > 0);
+      const label = document.createElement("b");
+      label.textContent = `${index === 0 ? "推荐 · " : ""}${choice.angle_label || `方向 ${index + 1}`}`;
+      const headline = document.createElement("strong");
+      headline.textContent = choice.slots?.[0]?.headline || "封面方向";
+      const reason = document.createElement("span");
+      reason.textContent = choice.angle_reason || "基于文章内容提炼";
+      const quote = document.createElement("small");
+      quote.textContent = `原文依据：${choice.slots?.[0]?.source_quote || "暂无"}`;
+      button.append(label, headline, reason, quote);
+      button.addEventListener("click", async () => {
+        if (state.busy) return;
+        state.busy = true;
+        renderAngles();
+        try {
+          state.job = await api(`/api/article-visual/${state.job.id}/angle`, {method:"POST", body:JSON.stringify({index})});
+          state.activeId = state.job.slots[0]?.id;
+        } catch (error) { toast(error.message, 4000); }
+        finally { state.busy = false; render(); }
+      });
+      list.appendChild(button);
+    });
+    const details = document.createElement("details");
+    details.open = selected == null && ["story", "event"].includes(plan.article_type);
+    const summary = document.createElement("summary");
+    summary.textContent = selected == null ? "查看并选择传播方向" : "查看或切换其他方向";
+    details.append(summary, list);
+    els.angles.appendChild(details);
+    if (selected == null && !details.open) {
+      const recommended = document.createElement("p");
+      recommended.textContent = `推荐：${choices[0].slots?.[0]?.headline || "查看推荐方向"}`;
+      els.angles.appendChild(recommended);
+    }
   }
 
   function setStatus(text, kind) {
@@ -314,7 +374,15 @@
       go.className = "av-btn av-btn-primary";
       go.textContent = remaining ? `满意，继续生成剩余 ${remaining} 张` : "全部完成";
       go.disabled = state.busy || !remaining;
-      go.addEventListener("click", () => generateRemaining());
+      go.addEventListener("click", async () => {
+        if (state.busy) return;
+        go.disabled = true;
+        try {
+          await api(`/api/article-visual/${state.job.id}/confirm-cover`, {method:"POST"});
+          state.job.cover_confirmed = true;
+          await generateRemaining();
+        } catch (error) { toast(error.message, 4000); go.disabled = false; }
+      });
       els.actions.appendChild(go);
     }
 
@@ -351,7 +419,15 @@
   async function analyze() {
     const url = els.url.value.trim();
     if (!url) { els.url.focus(); return; }
+    if (state.busy) return;
+    state.job = null;
+    state.activeId = null;
+    els.articlePanel.hidden = true;
+    els.plan.hidden = true;
+    els.empty.hidden = false;
+    history.replaceState(null, "", "/article-visual");
     state.busy = true;
+    els.url.readOnly = true;
     els.analyze.disabled = true;
     els.analyze.textContent = "拆解中…";
     els.hint.classList.remove("is-error");
@@ -380,8 +456,10 @@
     } finally {
       stopTicker();
       state.busy = false;
+      els.url.readOnly = false;
       els.analyze.disabled = false;
       els.analyze.textContent = "拆解文章";
+      if (state.job) renderAngles();
     }
   }
 
