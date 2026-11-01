@@ -97,18 +97,14 @@ def test_cover_prompt_uses_headline_and_kicker():
     assert "3:4" in prompt
 
 
-def test_cover_prompt_drops_people_scene():
-    prompt = article_visual.build_image_prompt(
-        {
-            "form": "cover",
-            "headline": "1270亿女首富",
-            "kicker": "2026胡润百富榜",
-            "items": ["从流水线女工到女首富", "与马斯克、库克并肩而坐"],
-            "brief": "欢迎晚宴圆桌上周群飞与马斯克、库克并肩而坐的场景",
-        }
-    )
-    assert "晚宴圆桌" not in prompt
-    assert "一件与文章主题相关的核心物件" in prompt
+def test_cover_subject_follows_article():
+    person = article_visual.build_image_prompt({"form":"cover", "headline":"前AV女优转程序员", "brief":"电脑前的编程场景"}, cover_style="object")
+    assert "成年女性" in person
+    assert "不声称是当事人真实照片" in person
+    assert "桌面上的静物特写" not in person
+    product = article_visual.build_image_prompt({"form":"cover", "headline":"一块手机玻璃", "brief":"一块手机玻璃盖板"}, cover_style="object")
+    assert "手机玻璃盖板" in product
+    assert "成年女性" not in product
 
 
 def test_parse_invalid_link_gets_actionable_hint():
@@ -198,3 +194,24 @@ def test_direction_choices_keep_independent_slots_and_evidence():
         choices.append(article_visual._normalize_plan(raw, article))
     assert [c["slots"][0]["headline"] for c in choices] == ["身份反差", "技术探索", "职业转型"]
     assert choices[0]["slots"][0]["source_quote"] == article["markdown"]
+
+
+def test_switch_angle_preserves_existing_images(tmp_path, monkeypatch):
+    from copy import deepcopy
+    from types import SimpleNamespace
+    from server import article_visual as av
+    monkeypatch.setattr(av, "JOBS_DIR", tmp_path)
+    monkeypatch.setattr(av.accounts, "require_user", lambda request: {"id":"u1"})
+    choices = [{"slots":[{"id":"cover", "form":"cover", "headline":str(i)}], "thesis":str(i), "article_type":"story", "angle_label":str(i), "angle_reason":""} for i in range(3)]
+    original = {"id":"original", "user_id":"u1", "article":{"title":"a"}, "plan":{"slots":choices[0]["slots"], "alternatives":choices, "selected_angle":0}, "images":{"cover":{"file":"cover.png"}}}
+    (tmp_path / "original").mkdir()
+    (tmp_path / "original" / "article.md").write_text("original content", encoding="utf-8")
+    saved = []
+    monkeypatch.setattr(av, "_read_job", lambda ident:deepcopy(original))
+    monkeypatch.setattr(av, "_write_job", lambda job:saved.append(deepcopy(job)))
+    result = av.select_angle("original", av.AngleBody(index=1), SimpleNamespace())
+    assert result["id"] != "original"
+    assert result["images"] == {}
+    assert result["slots"][0]["headline"] == "1"
+    assert original["images"]["cover"]["file"] == "cover.png"
+    assert (tmp_path / result["id"] / "article.md").read_text(encoding="utf-8") == "original content"

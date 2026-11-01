@@ -149,3 +149,7 @@
 #article-visual .av-evidence{display:block;margin-top:8px;color:#668372;font-size:12px;line-height:1.6}
 #article-visual #av-angles summary{cursor:pointer;color:#23734c;font-weight:600}
 #article-visual [hidden]{display:none!important}
+
+#article-visual #av-angles>.av-btn{margin:0 0 20px}
+#article-visual .av-angle-option:disabled{cursor:not-allowed;opacity:.7}
+#article-visual .av-angle-option:focus-visible{outline:3px solid #68aa83;outline-offset:2px}

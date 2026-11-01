@@ -16,7 +16,7 @@
   const COVER_STYLES = [
     { id: "compare", label: "对比式", hint: "问题 vs 解决，冲突最强" },
     { id: "number", label: "数字式", hint: "大数字砸脸，缩略图最清楚" },
-    { id: "object", label: "实物式", hint: "实物特写，最有质感" },
+    { id: "object", label: "主题主体式", hint: "根据文章内容展示人物、产品或场景" },
   ];
 
   const $ = (id) => document.getElementById(id);
@@ -254,7 +254,7 @@
       const button = document.createElement("button");
       button.type = "button";
       button.className = "av-angle-option" + (selected === index ? " is-active" : "");
-      button.disabled = state.busy || (selected != null && Object.keys(state.job.images || {}).length > 0);
+      button.disabled = state.busy;
       const label = document.createElement("b");
       label.textContent = `${index === 0 ? "推荐 · " : ""}${choice.angle_label || `方向 ${index + 1}`}`;
       const headline = document.createElement("strong");
@@ -271,21 +271,25 @@
         try {
           state.job = await api(`/api/article-visual/${state.job.id}/angle`, {method:"POST", body:JSON.stringify({index})});
           state.activeId = state.job.slots[0]?.id;
+          history.replaceState(null, "", `/article-visual?job=${encodeURIComponent(state.job.id)}`);
         } catch (error) { toast(error.message, 4000); }
         finally { state.busy = false; render(); }
       });
       list.appendChild(button);
     });
-    const details = document.createElement("details");
-    details.open = selected == null && ["story", "event"].includes(plan.article_type);
-    const summary = document.createElement("summary");
-    summary.textContent = selected == null ? "查看并选择传播方向" : "查看或切换其他方向";
-    details.append(summary, list);
-    els.angles.appendChild(details);
-    if (selected == null && !details.open) {
-      const recommended = document.createElement("p");
-      recommended.textContent = `推荐：${choices[0].slots?.[0]?.headline || "查看推荐方向"}`;
-      els.angles.appendChild(recommended);
+    els.angles.appendChild(list);
+    if (Object.keys(state.job.images || {}).length > 0) {
+      const note = document.createElement("p");
+      note.textContent = "切换其他方向会创建新的图位方案，已生成的图片会保留在原方案中。";
+      els.angles.appendChild(note);
+    }
+    if (selected != null) {
+      const next = document.createElement("button");
+      next.type = "button";
+      next.className = "av-btn av-btn-primary";
+      next.textContent = "查看封面并生成 →";
+      next.addEventListener("click", () => { state.activeId = state.job.slots[0]?.id; render(); setTab("cover"); });
+      els.angles.appendChild(next);
     }
   }
 
@@ -313,10 +317,11 @@
       button.className = "av-style-chip" + (state.coverStyle === style.id ? " is-active" : "");
       button.title = style.hint;
       button.textContent = style.label;
+      button.setAttribute("aria-pressed", String(state.coverStyle === style.id));
       button.addEventListener("click", () => {
         state.coverStyle = style.id;
         renderCoverStyles(slot);
-        els.note.textContent = `已选「${style.label}」：${style.hint}。点「重做这张」按这个样式生成。`;
+        els.note.textContent = `已选择「${style.label}」：${style.hint}。${imageUrl(slot.id) ? "当前仍显示上次成图，点击“重做这张”应用新样式。" : "点击“生成封面”应用此样式。"}`;
       });
       els.coverStyles.appendChild(button);
     });

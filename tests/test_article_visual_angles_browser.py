@@ -19,8 +19,21 @@ def test_choose_angle_shows_its_plan(ui):
     page.locator('#av-analyze').click()
     expect(page.locator('#av-angles')).to_contain_text('选择传播角度')
     expect(page.locator('#av-plan-content')).to_be_hidden()
+    expect(page.locator('.av-angle-option').nth(1)).to_be_visible()
     page.locator('.av-angle-option').nth(1).click()
     expect(page.locator('#av-plan-content')).to_be_visible()
     expect(page.locator('#av-slot-list')).to_contain_text('技术探索')
     expect(page.locator('#av-slot-list')).to_contain_text('原文依据')
     assert not observed['errors']
+
+
+def test_knowledge_article_shows_all_angles_without_opening_details(ui):
+    page, _ = ui
+    choices = [{"angle_label":str(i), "slots":[{"id":"cover", "form":"cover", "headline":str(i), "status":"pending"}]} for i in range(3)]
+    job = {"id":"abc123", "article":{"title":"教程", "chars":50}, "plan":{"article_type":"knowledge", "alternatives":choices, "selected_angle":None}, "slots":choices[0]["slots"], "images":{}}
+    page.route('**/api/article-visual/**', lambda route:route.fulfill(json=job))
+    page.goto('http://ui.test/article-visual')
+    page.locator('#av-url').fill('https://mp.weixin.qq.com/s/test')
+    page.locator('#av-analyze').click()
+    expect(page.locator('.av-angle-option')).to_have_count(3)
+    expect(page.locator('.av-angle-option').nth(2)).to_be_visible()

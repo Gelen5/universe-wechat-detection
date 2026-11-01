@@ -207,7 +207,7 @@ C. 读者只看这组图，能不能复述出文章的核心？
 5. headline 必须是"爆点"：一句让人愿意停下来看的结论，不超过 14 字。封面优先使用原文独有的人物、事件或冲突。不要写"三个关键数字""核心要点"这类空话。
 6. detail 是一句解释，不超过 30 字，必须说清这张图在讲什么。
 7. facts 是 2-3 条原文事实（数字、对比、专有名词），每条不超过 16 字，用来支撑 headline。
-8. brief 描述画面主体：具体物件、场景、结构；不写排版、不写文字；禁止真实人物、名人、合影。
+8. brief 描述画面主体：人物文章可用与主题相关的成年人物和场景，产品文章用产品或实物；不写排版和文字。不把生成的人物冒充真实照片。
 9. 封面 kicker 用主题标签（如「AI 工具」「开源项目」），禁止用公众号名称。
 10. 正文 form 只能取：compare（问题 vs 解法、前后差异）、layers（机制/结构/流程）、data（一组关键数字）、timeline（有先后顺序）、clients（并列清单）、quote（全篇最值得记住的一句）。
 11. 每个图位必须给 visual 字段，取值只能是 photo（实景摄影）、light（浅色杂志）、paper（纸张笔记）、iso（3D 等距）、dark（深色海报）。一套图至少用 3 种，dark 最多 2 张，禁止全部深色。
@@ -538,10 +538,18 @@ PEOPLE_SCENE_WORDS = (
 
 
 def _safe_scene(brief: str) -> str:
-    text = (brief or "").strip()
-    if not text or any(word in text for word in PEOPLE_SCENE_WORDS):
-        return "一件与文章主题相关的核心物件，立在深色台面上，边缘被冷光照亮"
-    return text
+    return (brief or "").strip() or "与主题相关的具体人物、物件或场景"
+
+
+def _cover_scene(slot: dict[str, Any]) -> str:
+    headline = str(slot.get("headline") or "")
+    brief = str(slot.get("brief") or "")
+    context = headline + " " + brief
+    person_words = ("女优", "演员", "女星", "男星", "女首富", "创始人", "创业者", "程序员", "人物", "女性", "男性", "作家", "歌手", "博主", "女工")
+    if any(word in context for word in person_words):
+        gender = "女性" if any(word in context for word in ("女", "女性")) else "人物"
+        return f"一位与文章主题相符的成年{gender}作为主要视觉主体，结合{brief or '文章相关工作场景'}；以编辑插画或纪实感创意肖像呈现，不声称是当事人真实照片"
+    return _safe_scene(brief)
 
 
 def _join(values: list[Any], key: str) -> str:
@@ -582,7 +590,7 @@ def _base_image_prompt(slot: dict[str, Any], cover_style: str = "compare") -> st
         kicker = slot.get("kicker") or ""
         sub = _clean_label(str(items[0])) if items else ""
         bottom = _clean_label(str(items[1])) if len(items) > 1 else ""
-        scene = _safe_scene(brief)
+        scene = _cover_scene(slot)
         badge = (facts[0] if facts else "") or kicker
         if cover_style == "number":
             return (
@@ -597,7 +605,7 @@ def _base_image_prompt(slot: dict[str, Any], cover_style: str = "compare") -> st
             )
         if cover_style == "object":
             return (
-                "竖版实物海报，深色桌面上的静物特写，强侧光，印刷品质感。"
+                "竖版主题海报，依据内容选择人物、产品或场景作为视觉中心，光影自然，画面丰富且具有编辑设计感。"
                 f"画面主体：{scene}。"
                 f"画面上方压一行粗体白色中文「{headline}」，占画面宽度八成，字重很粗。"
                 f"其后一行浅灰中文小字「{sub}」。"
@@ -758,7 +766,7 @@ def build_image_prompt(slot: dict[str, Any], cover_style: str = "compare") -> st
         prompt = prompt.replace(background, style["bg"])
     prompt = prompt.replace("白色中文", f"{style['ink']}中文").replace("白色小字", f"{style['ink']}小字")
     prompt = prompt.replace("金色与白色为主色", f"{style['accent']}与{style['ink']}为主色")
-    subject = _safe_scene(slot.get("brief") or "") or f"与「{slot.get('headline') or ''}」相关的实物"
+    subject = _cover_scene(slot) if slot.get("form") == "cover" else _safe_scene(slot.get("brief") or "")
     lock = (
         f"整体视觉：{style['desc']}。"
         f"画面必须出现具体视觉主体（{subject}），主体占画面至少一半；"
@@ -1000,11 +1008,26 @@ def select_angle(job_id: str, payload: AngleBody, request: Request):
         job = _read_job(job_id)
         if job["user_id"] != user["id"]:
             raise HTTPException(status_code=404, detail="任务不存在")
-        if job.get("images"):
-            raise HTTPException(status_code=409, detail="已有生成图片，请重新拆解后选择方向")
         choices = job["plan"].get("alternatives") or []
         if payload.index >= len(choices):
             raise HTTPException(status_code=400, detail="传播方向不存在")
+        if job.get("images") and job["plan"].get("selected_angle") != payload.index:
+            original = _job_dir(job_id).joinpath("article.md")
+            try:
+                article_body = original.read_text(encoding="utf-8")
+            except OSError as exc:
+                raise HTTPException(status_code=409, detail="原文不可用，请重新拆解") from exc
+            new_id = uuid.uuid4().hex[:16]
+            job = json.loads(json.dumps(job, ensure_ascii=False))
+            job["id"] = new_id
+            job["images"] = {}
+            job["cover_confirmed"] = False
+            job["created_at"] = datetime.now(timezone.utc).isoformat()
+            _job_dir(new_id).mkdir(parents=True, exist_ok=True)
+            _job_dir(new_id).joinpath("article.md").write_text(article_body, encoding="utf-8")
+            choices = job["plan"]["alternatives"]
+        elif job.get("images"):
+            return _public_job(job)
         chosen = choices[payload.index]
         for key in ("slots", "thesis", "article_type", "angle_label", "angle_reason"):
             job["plan"][key] = chosen.get(key)
