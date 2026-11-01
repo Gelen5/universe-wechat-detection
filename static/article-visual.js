@@ -431,7 +431,7 @@
     els.analyze.disabled = true;
     els.analyze.textContent = "拆解中…";
     els.hint.classList.remove("is-error");
-    const stopTicker = startTicker(els.hint, "正在抓取正文并拆解图位，已用");
+    const stopTicker = startTicker(els.hint, "正在提炼传播角度并核对原文，已用");
     try {
       const job = await api("/api/article-visual/plan", { method: "POST", body: JSON.stringify({ url }) });
       state.job = job;
@@ -444,7 +444,7 @@
       const fallback = job.plan && job.plan.source === "fallback"
         ? "（模型这次超时，先用简化拆解，建议稍后重试一次）"
         : "";
-      els.hint.textContent = `拆解完成${cost ? `，用时 ${cost}` : ""}${fallback}。先确认图位，再生成封面。`;
+      els.hint.textContent = `拆解完成${cost ? `，用时 ${cost}` : ""}${fallback}。请先选择传播角度。`;
     } catch (error) {
       els.hint.classList.add("is-error");
       els.hint.textContent = error.message;
@@ -588,7 +588,7 @@
     els.empty.hidden = false;
     els.plan.hidden = true;
     els.url.value = "";
-    els.hint.textContent = "只支持 mp.weixin.qq.com 的公开文章 · 解析约 20–60 秒";
+    els.hint.textContent = "支持公开公众号文章 · 拆解包含策划与原文核对";
     els.hint.classList.remove("is-error");
     setTab("plan");
     els.url.focus();

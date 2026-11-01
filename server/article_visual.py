@@ -14,6 +14,7 @@ import contextvars
 import hashlib
 import io
 import json
+import logging
 import re
 import threading
 import time
@@ -31,6 +32,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy import text
 
 from . import accounts, database, workbench
+
+logger = logging.getLogger(__name__)
 
 ROOT = Path(__file__).resolve().parent.parent
 JOBS_DIR = ROOT / "output" / "article-visual"
@@ -471,7 +474,7 @@ def build_plan(article: dict[str, Any]) -> dict[str, Any]:
     if len(article.get("markdown", "")) > 100000:
         raise ValueError("文章过长，暂无法完整拆解，请选择较短的文章")
     prompt = (
-        ("请输出一个 JSON 对象，含 plans 数组，数组中依次提供三个不同传播角度的完整方案，第一项为推荐方案。每个方案都必须遵循以下结构与规则，正文图位围绕各自封面展开。\n" + PLAN_INSTRUCTION).replace("__TITLE__", article["title"])
+        ("请输出精简 JSON 对象，含 plans 数组，依次给三个不同传播角度，第一项为推荐：优先围绕原文标题中明确出现的人物身份、事件及其反差写封面，不得遗漏标题主角；若正文主要转向另一个主题，封面须兼顾这一转向，后续图位如实展开正文，不得虚构人物经历。其余两个方案可从正文另选角度。每个方案严格只含一个封面和三个正文图位，facts 最多2条，items 每项最多2条，brief 不超过30字，避免重复，正文图位围绕封面展开。\n" + PLAN_INSTRUCTION).replace("__TITLE__", article["title"])
         .replace("__ACCOUNT__", article["account"])
         .replace("__BODY__", article["markdown"])
     )
@@ -491,10 +494,13 @@ def build_plan(article: dict[str, Any]) -> dict[str, Any]:
             raw_text = _text_with_deadline(
                 prompt, model=plan_model(), reasoning="low", timeout=90
             )
-    except Exception:
-        raw_text = ""
+    except Exception as exc:
+        logger.warning("article_visual plan failed: model=%s error_type=%s", plan_model(), type(exc).__name__)
+        if isinstance(exc, TimeoutError):
+            raise ValueError("拆解超时，请稍后重试；本次失败会退还积分") from exc
+        raise ValueError("拆解服务暂时不可用，请稍后重试；本次失败会退还积分") from exc
     if not raw_text:
-        raise ValueError("拆解模型暂时没有返回，请稍后重新拆解")
+        raise ValueError("拆解模型未返回内容，请稍后重试；本次失败会退还积分")
     try:
         result = _extract_json(raw_text)
         candidates = result.get("plans")
@@ -510,7 +516,8 @@ def build_plan(article: dict[str, Any]) -> dict[str, Any]:
         ):
             verify_plan_semantics({"plans": candidates}, article)
     except (ValueError, TypeError, KeyError, json.JSONDecodeError) as exc:
-        raise ValueError("拆解方案未通过文章内容校验，请重新拆解") from exc
+        logger.warning("article_visual plan invalid: error_type=%s response_chars=%d", type(exc).__name__, len(raw_text))
+        raise ValueError("拆解方案不完整或未通过原文校验，请重试；本次失败会退还积分") from exc
     plan = _normalize_plan(parsed, article)
     plan["source"] = "model"
     plan["article_digest"] = article_digest(article)

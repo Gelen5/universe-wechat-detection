@@ -407,7 +407,7 @@
             <section class="av-card av-input-panel">
               <div class="av-micro"><span class="line"></span><span>ARTICLE → 3:4 VISUAL</span></div>
               <h1 class="av-title">一条链接，<br><span class="av-serif">拆成一组配图。</span></h1>
-              <p class="av-lead">贴一条公众号文章，先拆出核心图位，再一张张生成 3:4 竖版配图。封面先出，你满意了再出剩下的。</p>
+              <p class="av-lead">粘贴公众号文章，先选传播角度，再确认图位和封面，最后生成整组 3:4 贴图。</p>
 
               <div class="av-step-head"><span class="av-num">01</span><div><strong>放入文章链接</strong><small>支持带标题的分享文本，会自动取出链接。</small></div></div>
               <label class="av-field" for="av-url">公众号文章链接</label>
@@ -415,8 +415,8 @@
                 <input id="av-url" type="url" placeholder="https://mp.weixin.qq.com/s/..." autocomplete="off" />
                 <button id="av-analyze" class="av-btn av-btn-primary" type="button">拆解文章</button>
               </div>
-              <p class="av-hint" id="av-hint">只支持 mp.weixin.qq.com 的公开文章 · 解析约 20–60 秒</p>
-              <div class="av-note-line">拆解只读正文，不转载原文；图位清单确认后再开始生成。</div>
+              <p class="av-hint" id="av-hint">支持公开公众号文章 · 拆解包含策划与原文核对</p>
+              <div class="av-note-line">拆解后先选传播角度，确认图位，再生成封面。</div>
             </section>
 
             <section class="av-card av-article-panel" id="av-article-panel" hidden>
@@ -434,7 +434,7 @@
           <div class="av-col">
             <section class="av-card av-workcard">
               <div class="av-tabs" id="av-tabs">
-                <button type="button" class="av-tab is-active" data-tab="plan"><b>01</b> 图位方案</button>
+                <button type="button" class="av-tab is-active" data-tab="plan"><b>01</b> 传播角度与图位</button>
                 <button type="button" class="av-tab" data-tab="cover"><b>02</b> 封面样式</button>
                 <button type="button" class="av-tab" data-tab="gallery"><b>03</b> 成图交付</button>
               </div>
@@ -442,23 +442,18 @@
 
               <div class="av-tab-panel" id="av-tab-plan">
                 <div class="av-empty" id="av-empty">
-                  <h2>先拆核心，再让每张图讲清一件事。</h2>
-                  <p>文章会被拆成一个封面和若干核心要点。每个要点单独成图，图里带标题、一句解释和原文事实，读者只看图也能复述文章。</p>
+                  <h2>先找到值得传播的角度，再拆成一组图。</h2>
+                  <p>系统先提炼文章的推荐角度和其他方向。选定后查看图位与原文依据，生成并确认封面，再制作正文图。</p>
                   <div class="av-features">
-                    <div class="av-feature"><span>COVER</span><strong>封面：全文最大爆点</strong><p>数字或反常识结论当主角，三种样式可选，缩略图也抓眼。</p></div>
+                    <div class="av-feature"><span>COVER</span><strong>封面：全文最大爆点</strong><p>从人物、事件和冲突中提炼文章最有吸引力的角度。</p></div>
                     <div class="av-feature"><span>BODY</span><strong>正文：一图一个要点</strong><p>标题是结论，下面一句解释，底部三枚原文事实标签。</p></div>
                     <div class="av-feature"><span>TEXT</span><strong>图内中文，能读清</strong><p>字大、层级少、装饰克制，不靠抽象插画撑场面。</p></div>
                   </div>
-                  <div class="av-samples">
-                    <div class="av-sample a"><span>对比式</span><b>13.8万<br>Star</b><small>前后对比，冲突最强</small></div>
-                    <div class="av-sample b"><span>数字式</span><b>13.8万</b><small>大数字占满画面</small></div>
-                    <div class="av-sample c"><span>实物式</span><b>别再让 AI<br>瞎配色</b><small>设计手册特写</small></div>
-                  </div>
                   <ol class="av-flow">
                     <li><b>01</b><span>贴文章链接</span></li>
-                    <li><b>02</b><span>拆出核心图位</span></li>
-                    <li><b>03</b><span>选封面样式</span></li>
-                    <li><b>04</b><span>逐张生成</span></li>
+                    <li><b>02</b><span>选择传播角度</span></li>
+                    <li><b>03</b><span>确认图位与封面</span></li>
+                    <li><b>04</b><span>生成正文图</span></li>
                   </ol>
                 </div>
 
@@ -1144,7 +1139,7 @@
     <script src="/static/creator-chat.js?v=20261030-image-timer-1"></script>
     <script src="/static/notion-workspace.js?v=20261031-no-collapse-1"></script>
     <script src="/static/xhs-extract.js?v=20261031-workspace-4"></script>
-    <script src="/static/article-visual.js?v=20261101-angles1"></script>
+    <script src="/static/article-visual.js?v=20261101-angles2"></script>
     <script src="/static/douyin-extract.js?v=20261031-douyin-2"></script>
     <script>
       // CDN/embedded clients may retain an older sidebar builder. Keep these
