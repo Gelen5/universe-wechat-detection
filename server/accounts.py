@@ -50,8 +50,10 @@ DEFAULT_PRICING = [
     ("POST", "/api/diagnose", "公众号诊断", 10, 0),
     ("POST", "/api/xiaohongshu/package", "小红书图文生成", 10, 0),
     ("POST", "/api/tie-tu/plan", "微信贴图策划", 2, 0),
-    ("POST", "/api/viral-remix/analyze", "爆款贴图结构拆解", 2, 0),
-    ("POST", "/api/viral-remix/image", "爆款贴图原创生成", 2, 0),
+    ("POST", "/api/viral-remix/analyze", "爆款贴图结构拆解", 1, 0),
+    # 爆款贴图原创生成不在这张表里：它按张计费（2 积分/张，一次最多 8 张），
+    # 而且是 202 异步任务，中间件在响应时结算会算错。预扣与按张结算在
+    # server/viral_remix_jobs.py 里做，见 VIRAL_REMIX_POINTS_PER_IMAGE。
     ("POST", "/api/creator-tools/image", "AI 图片生成", 2, 0),
     # 文章配图：策划一次 2 积分，出一张图 2 积分。都由中间件按次计价，
     # 请求失败自动退款；口径与 /api/creator-tools/image 一致。
@@ -94,6 +96,17 @@ PLUS_ACTION_POINTS: dict[str, int] = {
 }
 PLUS_FEATURE = '公众号创作 Plus'
 PLUS_MAX_POINTS = max(PLUS_ACTION_POINTS.values())
+
+# 爆款贴图复刻：出图按张计价，一张 2 积分（与文章配图同价）。
+# 一次最多 8 张，提交时按张数预扣，失败/取消的按张退回。
+VIRAL_REMIX_POINTS_PER_IMAGE = 2
+VIRAL_REMIX_FEATURE = '爆款贴图原创生成'
+VIRAL_REMIX_MAX_CARDS = 8
+
+
+def viral_remix_rule(cards: int) -> dict[str, Any]:
+    return {'points': max(0, int(cards)) * VIRAL_REMIX_POINTS_PER_IMAGE,
+            'feature': VIRAL_REMIX_FEATURE}
 
 
 def plus_rule(points: int) -> dict[str, Any]:
@@ -342,6 +355,13 @@ def init_db() -> None:
                 (method, path, feature, points, cost, now),
             )
         connection.execute("INSERT OR IGNORE INTO provider_settings(id,updated_at) VALUES (1,?)", (now,))
+        # 爆款贴图复刻改价：拆解 2 → 1；生成改成按张计费（2 积分/张）。
+        # 老库里那张「一次 2 积分」的规则必须下线，否则中间件会在 202 响应时先扣
+        # 一次，worker 再按张结算一次，等于双倍扣费。
+        connection.execute(
+            "UPDATE pricing_rules SET points=1 WHERE method='POST' AND path='/api/viral-remix/analyze' AND points<>1")
+        connection.execute(
+            "UPDATE pricing_rules SET active=0 WHERE method='POST' AND path='/api/viral-remix/image'")
         _warn_on_price_drift(connection)
     _bootstrap_owner_from_env()
     _sync_owner_role()
@@ -867,6 +887,19 @@ def claim_job(lanes: list[str], job_id: str | None = None) -> dict[str, Any] | N
         updated = connection.execute("UPDATE jobs SET status='running',started_at=?,attempts=attempts+1 WHERE id=? AND status='queued'", (now, row["id"])).rowcount
         connection.execute("COMMIT")
     return job(row["id"]) if updated else None
+
+
+def progress_job(job_id: str, **progress: Any) -> None:
+    """把进度写进 result_json。
+
+    jobs 表没有单独的 progress 列，加列要写迁移；result_json 本来就只有任务
+    结束才写，运行期间正好拿来放 {"progress": {...}}，读接口按状态区分即可。
+    """
+    with DB_LOCK, _connect() as connection:
+        connection.execute(
+            "UPDATE jobs SET result_json=? WHERE id=? AND status='running'",
+            (json.dumps({'progress': progress}, ensure_ascii=False), job_id),
+        )
 
 
 def finish_job(job_id: str, result: dict[str, Any]) -> None:

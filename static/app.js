@@ -1,4 +1,4 @@
-﻿const form = document.querySelector('#diagnose-form');
+const form = document.querySelector('#diagnose-form');
 const input = document.querySelector('#account-name');
 const button = document.querySelector('#submit-button');
 const reportRoot = document.querySelector('#report');
@@ -1746,7 +1746,7 @@ function startRemixOutputWait(label) {
   if (!box) {
     box = document.createElement('div');
     box.className = 'remix-output-wait';
-    box.innerHTML = '<h3 class="remix-wait-title"></h3><p class="wait-elapsed" role="status"></p><p class="remix-wait-hint">生成完成后这里会显示成图、配文方向与标签，可直接下载。</p>';
+    box.innerHTML = '<h3 class="remix-wait-title"></h3><p class="wait-elapsed" role="status"></p><p class="remix-wait-hint">生成一张约 30 秒，多张按顺序画。可以先切到别的菜单，回来会自动接上进度；完成后这里是成图、配文方向与标签，可直接下载。</p>';
     output.prepend(box);
   }
   box.querySelector('.remix-wait-title').textContent = label;
@@ -1760,7 +1760,7 @@ function startRemixOutputWait(label) {
   const timer = setInterval(paint, 1000);
   root.scrollIntoView({ block: 'start', behavior: 'smooth' });
   let stopped = false;
-  return () => {
+  const stop = () => {
     if (stopped) return;
     stopped = true;
     clearInterval(timer);
@@ -1772,6 +1772,50 @@ function startRemixOutputWait(label) {
       output.append(placeholder);
     }
   };
+  // 轮询到进度就覆盖默认文案，让用户看到「第几张 / 共几张」。
+  stop.setStatus = text => { status.textContent = text; };
+  return stop;
+}
+
+async function pollRemixJob(jobId, onJob) {
+  const deadline = Date.now() + 20 * 60 * 1000;
+  while (true) {
+    const response = await fetch(`/api/viral-remix/image/${encodeURIComponent(jobId)}`, { headers: { Accept: 'application/json' } });
+    const data = await readApiResponse(response);
+    const job = data.job;
+    onJob?.(job);
+    if (job.status === 'succeeded') return job;
+    if (['failed', 'canceled'].includes(job.status)) {
+      throw new Error(job.error || '出图没有完成，积分已按实际张数退回');
+    }
+    if (Date.now() > deadline) throw new Error('生成时间过长，已转为后台继续；稍后回到本页可查看结果');
+    await new Promise(resolve => setTimeout(resolve, 2500));
+  }
+}
+
+function renderRemixJobResult(job, idea, output, result, storeDraft) {
+  const images = job.images?.length ? job.images : [];
+  if (!images.length) return;
+  output.querySelector('.remix-output-placeholder')?.remove();
+  output.querySelectorAll('.viral-generated, .viral-delivery').forEach(node => node.remove());
+  const all = images;
+  all.map((extra, position) => ({ extra, ordinal: Number(extra.index) || position + 1 }))
+    .sort((a, b) => b.ordinal - a.ordinal)
+    .forEach(({ extra, ordinal }) => {
+      const name = all.length > 1 ? `爆款贴图复刻-${idea.id}-${ordinal}.png` : `爆款贴图复刻-${idea.id}.png`;
+      const label = all.length > 1 ? `下载第 ${ordinal} 张` : '下载图片';
+      const card = document.createElement('article');
+      card.className = 'viral-generated';
+      card.innerHTML = `<span class="tag">第 4/5 步 · 原创成图${all.length > 1 ? ` · ${ordinal}/${all.length}` : ''}</span><img src="${safeUrl(extra.url)}" alt="${esc(idea.headline || '原创贴图')} ${ordinal}"/><div><strong>${esc(idea.headline || '')}</strong><a href="${safeUrl(extra.url)}" download="${esc(name)}">${label}</a></div>`;
+      output.append(card);
+    });
+  const delivery = document.createElement('pre');
+  delivery.className = 'viral-delivery';
+  delivery.textContent = JSON.stringify({ 提示词: all.map(i => i.prompt), 配文方向: job.copy_directions || result.copy_directions, 标签: job.tags || result.tags, 检查: all.map(i => ({ 通过: i.check_passed, 报告: i.check })) }, null, 2);
+  output.append(delivery);
+  output.hidden = false;
+  storeDraft?.({ generated: [job], pending: false, pendingJob: null });
+  remixSelectPanel?.(2);
 }
 function renderViralRemix(result, sessionId) {
   const remixOwner = currentAccount?.id;
@@ -1800,27 +1844,25 @@ function renderViralRemix(result, sessionId) {
     const finish = beginButton(button, '正在生成原创图…');
     storeDraft({pending:true,selectedIdea:idea.id});
     const stopWaiting = startRemixOutputWait(`正在生成第 4/5 步原创图${idea.name ? `（${idea.name}）` : ''}`);
+    storeDraft({pending:true,selectedIdea:idea.id});
     try {
       const choices={track:root.querySelector('[name=remix-track]')?.value,emotion:root.querySelector('[name=remix-emotion]')?.value,boundaries:root.querySelector('[name=remix-boundaries]')?.value};
+      // 出图改成了异步任务：这里只拿到 job_id，真正的进度靠轮询。
       const data = await postCreator('/api/viral-remix/image', { sessionId, idea: {...idea,choices,copy_directions:result.copy_directions,tags:result.tags} });
-      const image = data.image;
-      storeDraft({generated:[...(saved.generated||[]),image],pending:false});
-      const all=image.images?.length?image.images:[image];
-      all.map((extra,position)=>({extra,ordinal:Number(extra.index)||position+1}))
-        .sort((a,b)=>b.ordinal-a.ordinal)
-        .forEach(({extra,ordinal})=>{
-          const name=all.length>1?`爆款贴图复刻-${idea.id}-${ordinal}.png`:`爆款贴图复刻-${idea.id}.png`;
-          const label=all.length>1?`下载第 ${ordinal} 张`:'下载图片';
-          const card=document.createElement('article');card.className='viral-generated';
-          card.innerHTML=`<span class="tag">第 4/5 步 · 原创成图${all.length>1?` · ${ordinal}/${all.length}`:''}</span><img src="${safeUrl(extra.url)}" alt="${esc(idea.headline||'原创贴图')} ${ordinal}"/><div><strong>${esc(idea.headline||'')}</strong><a href="${safeUrl(extra.url)}" download="${esc(name)}">${label}</a></div>`;
-          output.append(card);
-        });
-      const delivery=document.createElement('pre');delivery.className='viral-delivery';delivery.textContent=JSON.stringify({提示词:(image.images||[image]).map(i=>i.prompt),配文方向:image.copy_directions||result.copy_directions,标签:image.tags||result.tags,检查:(image.images||[image]).map(i=>({通过:i.check_passed,报告:i.check}))},null,2);output.append(delivery);
-      stopWaiting();
+      const job = data.job;
+      if (!job?.id) throw new Error('任务没有返回编号，请重试');
+      storeDraft({ pendingJob: { id: job.id, total: job.total, startedAt: Date.now() }, pending: true });
+      stopWaiting.setStatus?.(`已提交，共 ${job.total} 张（${job.total * 2} 积分）· 正在排队…`);
+      const done = await pollRemixJob(job.id, state => {
+        const total = state.total || job.total;
+        const made = state.done || 0;
+        const remain = Math.max(0, total - made);
+        stopWaiting.setStatus?.(`正在生成 ${made}/${total} 张 · 预计还需约 ${remain * 35} 秒 · 可以先切走，回来会自动接上进度`);
+      });
+      renderRemixJobResult(done, idea, output, result, storeDraft);
       output.hidden = false;
-      remixSelectPanel?.(2);
       root.scrollIntoView({block:'start',behavior:'smooth'});
-      showToast('原创图已生成；参考图没有进入生图请求。');
+      showToast(`原创图已生成 ${done.images.length} 张，扣 ${done.images.length * 2} 积分；参考图没有进入生图请求。`);
     } catch (error) { showToast(error.message, 'error'); } finally { stopWaiting(); finish(); }
   }));
   const context=document.createElement('section');context.className='viral-result-card';
@@ -1846,6 +1888,25 @@ function renderViralRemix(result, sessionId) {
   root.querySelectorAll('.viral-generate').forEach(button=>button.addEventListener('click',()=>storeDraft({selectedIdea:button.dataset.idea})));
   for(const generated of saved.generated||[]){output.querySelector('.remix-output-placeholder')?.remove();for(const image of generated.images||[generated]){const card=document.createElement('article');card.className='viral-generated';card.innerHTML=`<img src="${safeUrl(image.url)}" alt="已保存原创图 ${Number(image.index)||1}"><a href="${safeUrl(image.url)}" download>下载图片</a>`;output.append(card);}}
   if(saved.generated?.length)selectPanel(2);
+  else if(saved.pendingJob?.id){
+    // 上次提交的异步任务还没取结果：回到本页（或刷新/切菜单回来）自动续上。
+    const stopWaiting = startRemixOutputWait('上一组原创图还在生成，已自动接上进度');
+    selectPanel(2);
+    pollRemixJob(saved.pendingJob.id, state => {
+      const total = state.total || saved.pendingJob.total || 0;
+      const made = state.done || 0;
+      stopWaiting.setStatus?.(`正在生成 ${made}/${total} 张 · 可以先切走，回来会自动接上进度`);
+    }).then(done => {
+      const idea = (result.ideas || []).find(item => item.id === saved.selectedIdea) || {id: 'resume', headline: ''};
+      renderRemixJobResult(done, idea, output, result, storeDraft);
+    }).catch(error => {
+      storeDraft({pendingJob: null, pending: false});
+      const note = document.createElement('p');
+      note.className = 'remix-output-pending';
+      note.textContent = `上一组图没有生成完成：${error.message}`;
+      output.prepend(note);
+    }).finally(() => stopWaiting());
+  }
   else if(saved.pending){const note=document.createElement('p');note.className='remix-output-pending';note.textContent='上次的原创图生成没有完成，重新点选下面的方案即可再次生成。';output.prepend(note);selectPanel(2);}
   if(result.timings){const duration=document.createElement('p');duration.className='wait-elapsed';duration.textContent=`拆解总计 ${result.timings.total_seconds} 秒 · 视觉与方案 ${result.timings.vision_seconds} 秒 · 数字核实 ${result.timings.verification_seconds||0} 秒`;report.prepend(duration);}
   const next=document.createElement('button');next.type='button';next.className='remix-next';next.textContent='查看三种翻新方案 →';next.onclick=()=>{selectPanel(1);root.scrollIntoView({block:'start',behavior:'smooth'});};report.append(next);

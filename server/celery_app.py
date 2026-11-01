@@ -11,7 +11,7 @@ REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 celery_app = Celery("universe_creator", broker=REDIS_URL, backend=REDIS_URL,
                     include=["server.workflow_tasks", "server.agent_tasks", "server.hotspots",
                              "server.provider_health", "server.wechat_plus_tasks",
-                             "server.lowfans_sync"])
+                             "server.viral_remix_tasks", "server.lowfans_sync"])
 celery_app.conf.update(
     task_serializer="json", result_serializer="json", accept_content=["json"],
     task_acks_late=True, task_reject_on_worker_lost=True,
@@ -26,6 +26,7 @@ celery_app.conf.update(
         "agent.recover_stale": {"queue": "chat"},
         "wechat_plus.run": {"queue": "chat"},
         "wechat_plus.recover": {"queue": "chat"},
+        "viral_remix.run": {"queue": "image"},
         "market.sync": {"queue": "text"},
         "hotspot.sync": {"queue": "text"},
         "lowfans.sync": {"queue": "text"},

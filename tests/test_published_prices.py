@@ -26,10 +26,16 @@ class PublishedPriceTests(unittest.TestCase):
         # 2026-10-31 由 1 调成 2：策划一次要跑一轮完整模型调用，和配图同价。
         self.assertEqual(2, _defaults()[('POST', '/api/tie-tu/plan')])
 
-    def test_viral_remix_steps_are_priced_apart_from_the_card_plan(self):
+    def test_viral_remix_charges_one_point_to_plan_and_two_per_image(self):
+        from server.accounts import VIRAL_REMIX_POINTS_PER_IMAGE
+
         defaults = _defaults()
-        self.assertEqual(2, defaults[('POST', '/api/viral-remix/analyze')])
-        self.assertEqual(2, defaults[('POST', '/api/viral-remix/image')])
+        # 拆解：一次 1 积分。
+        self.assertEqual(1, defaults[('POST', '/api/viral-remix/analyze')])
+        # 生成：按张计费（2 积分/张），不在中间件计价表里——
+        # 它是 202 异步任务，中间件在响应时结算会算错。
+        self.assertNotIn(('POST', '/api/viral-remix/image'), defaults)
+        self.assertEqual(2, VIRAL_REMIX_POINTS_PER_IMAGE)
 
     def test_article_writing_price_is_unchanged(self):
         defaults = _defaults()

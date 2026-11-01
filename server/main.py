@@ -206,7 +206,8 @@ async def account_and_points_gate(request: Request, call_next):
     # /api/wechat-plus/… 同理，而且更极端：一条路径承载多种动作，接口又是 202 异步，
     # 中间件在这里结算时模型还没跑。它的预扣与结算都在 wechat_plus_api / tasks 里。
     billable = user and path not in {"/api/workbench/sessions", "/api/qihaoshou/generate"} \
-        and not path.startswith("/api/wechat-plus/") and not public_pay
+        and not path.startswith("/api/wechat-plus/") \
+        and not path.startswith("/api/viral-remix/image") and not public_pay
     rule = accounts.pricing_rule(request.method, path) if billable else None
     usage_id = None
     started = time.perf_counter()
@@ -1147,13 +1148,34 @@ def analyze_viral_remix(payload: ViralRemixAnalyzeRequest):
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
-@app.post("/api/viral-remix/image")
-def generate_viral_remix_image(payload: ViralRemixImageRequest):
+@app.post("/api/viral-remix/image", status_code=202)
+def generate_viral_remix_image(payload: ViralRemixImageRequest, request: Request):
+    """提交异步出图任务：立即返回 job_id，图片由 worker 逐张生成。
+
+    计费在后面：提交时按张预扣（2 积分/张），worker 按实际成功张数结算。
+    """
+    from . import viral_remix_jobs, viral_remix_tasks
+    user = accounts.require_user(request)
     try:
-        with workbench.provider_overrides():
-            return {"status": "success", "image": creator_tools.generate_viral_remix_image(payload.sessionId, payload.idea)}
-    except (ValueError, workbench.ProviderError) as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+        job = viral_remix_jobs.submit(user['id'], payload.sessionId, payload.idea)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    try:
+        viral_remix_tasks.dispatch(job['id'])
+    except Exception:
+        # 队列不可用时任务仍是 queued，重试提交同一创意会命中原 job（幂等）。
+        pass
+    return {"status": "queued", "job": viral_remix_jobs.public(job)}
+
+
+@app.get("/api/viral-remix/image/{job_id}")
+def viral_remix_image_status(job_id: str, request: Request):
+    from . import viral_remix_jobs
+    user = accounts.require_user(request)
+    job = accounts.job(job_id, user['id'])
+    if not job:
+        raise HTTPException(status_code=404, detail='任务不存在')
+    return {"status": "ok", "job": viral_remix_jobs.public(job)}
 
 
 @app.post('/api/viral-remix/verify')
