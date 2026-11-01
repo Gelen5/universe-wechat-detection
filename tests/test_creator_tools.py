@@ -59,8 +59,26 @@ class CreatorToolsTests(unittest.TestCase):
         enriched = {'cards': [{'index': 1, 'overlay_text': '封面', 'caption': '文字',
                               'visual_subject': '成年女性在窗边', 'composition': '3:4'}]}
         with patch.object(creator_tools.workbench, '_json_text', return_value=enriched):
-            with self.assertRaisesRegex(creator_tools.workbench.ProviderError, '不使用人物'):
+            with self.assertRaisesRegex(creator_tools.workbench.ProviderError, '无人物画面方案'):
                 creator_tools.tie_tu_plan('生活方式', '下班休息', '', 'list', 1, '', '', 'off')
+
+    def test_tie_tu_auto_falls_back_when_visual_repair_fails(self):
+        original = {'copy': '原文案', 'cards': [{'index': 1, 'overlay_text': '保留标题', 'caption': '保留短句',
+                    'visual_subject': '成年女性在窗边', 'composition': '3:4'}]}
+        with patch.object(creator_tools.workbench, '_json_text', side_effect=[original, RuntimeError('provider error')]):
+            result = creator_tools.tie_tu_plan('生活方式', '下班休息', '', 'list', 1, '', '', 'auto')
+        self.assertFalse(result['portrait_enabled'])
+        self.assertEqual(result['cards'][0]['overlay_text'], '保留标题')
+        self.assertEqual(result['cards'][0]['visual_subject'], '与内容主题相关的静物主体')
+        self.assertIn('通用静物', result['visual_fallback_notice'])
+
+    def test_tie_tu_no_people_explicit_negative_is_not_conflict(self):
+        original = {'cards': [{'index': 1, 'overlay_text': '标题', 'caption': '短句',
+                    'visual_subject': '桌面静物，没有手部', 'composition': '3:4'}]}
+        with patch.object(creator_tools.workbench, '_json_text', return_value=original) as model:
+            result = creator_tools.tie_tu_plan('生活', '主题', '', 'list', 1, '', '', 'auto')
+        self.assertEqual(model.call_count, 1)
+        self.assertEqual(result['cards'][0]['visual_subject'], '桌面静物，没有手部')
 
     def test_tie_tu_repairs_only_visual_when_portrait_disabled(self):
         original = {'copy': '原文案', 'cards': [{'index': 1, 'overlay_text': '保留标题', 'caption': '保留短句',

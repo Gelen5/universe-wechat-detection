@@ -434,34 +434,43 @@ def tie_tu_plan(
         raise workbench.ProviderError('贴图计划的卡片序号不完整或重复，请重试')
     if any(not str(item.get(key) or '').strip() for item in rows for key in ('overlay_text', 'caption', 'visual_subject', 'composition')):
         raise workbench.ProviderError('贴图计划缺少卡片文字或画面说明，请重试')
+    visual_fallback = False
     if not plan.portrait_enabled:
         # Detect explicit person descriptions while allowing an instruction such
         # as “无人物”. This is a conservative clue, not image-content proof.
         def has_person(item):
             description = ' '.join(str(item.get(key) or '') for key in ('visual_subject', 'scene', 'action'))
-            description = re.sub(r'(?:无|不含|没有|不要|不出现|避免|排除)\s*(?:任何)?\s*(?:人物|人像|人体|人脸|人群|模特)', '', description)
+            description = re.sub(r'(?:无|不含|没有|不要|不出现|避免|排除)\s*(?:任何|真实|真人)?\s*(?:人物|人像|人体|人脸|人群|模特|手部|手掌|手指)', '', description)
             return bool(re.search(r'人物|人像|人体|人脸|人群|女性|男性|模特|女人|男人|女孩|男孩|女士|先生|夫妻|手部|一双手|手掌|手指|人物背影', description))
         conflicts = [item for item in rows if has_person(item)]
         if conflicts:
-            repair = workbench._json_text('用户明确要求画面不出现人物。仅修复下列卡片的 visual_subject、scene 和 action；'
-                '使用合适的物品及环境，不出现人物、人体、脸或人群，不修改标题和配套文案。'
-                '返回JSON {"cards":[{"index":1,"visual_subject":"无人物画面","scene":"环境","action":"物件状态"}]}。\n'
-                + json.dumps([{'index': item['index'], 'overlay_text': item['overlay_text'],
-                               'caption': item['caption']} for item in conflicts], ensure_ascii=False))
-            repaired = repair.get('cards') if isinstance(repair, dict) else None
-            if not isinstance(repaired, list) or len(repaired) != len(conflicts):
-                raise workbench.ProviderError('用户选择不使用人物，但计划仍含人物画面；请重试')
-            replacements = {item.get('index'): item for item in repaired if isinstance(item, dict) and type(item.get('index')) is int}
-            if set(replacements) != {item['index'] for item in conflicts}:
-                raise workbench.ProviderError('无人物画面修正的卡片序号不完整；请重试')
-            for item in conflicts:
-                replacement = replacements[item['index']]
-                if not str(replacement.get('visual_subject') or '').strip():
-                    raise workbench.ProviderError('无人物画面修正缺少画面主体；请重试')
-                for key in ('visual_subject', 'scene', 'action'):
-                    item[key] = str(replacement.get(key) or '').strip()
-            if any(has_person(item) for item in conflicts):
-                raise workbench.ProviderError('用户选择不使用人物，但计划仍含人物画面；请重试')
+            try:
+                repair = workbench._json_text('本次画面方案不使用人物。仅修复下列卡片的 visual_subject、scene 和 action；'
+                    '使用合适的物品及环境，不出现人物、人体、脸或人群，不修改标题和配套文案。'
+                    '返回JSON {"cards":[{"index":1,"visual_subject":"无人物画面","scene":"环境","action":"物件状态"}]}。\n'
+                    + json.dumps([{'index': item['index'], 'overlay_text': item['overlay_text'],
+                                   'caption': item['caption']} for item in conflicts], ensure_ascii=False))
+                repaired = repair.get('cards') if isinstance(repair, dict) else None
+                if not isinstance(repaired, list) or len(repaired) != len(conflicts):
+                    raise ValueError('修正结果数量不完整')
+                replacements = {item.get('index'): item for item in repaired if isinstance(item, dict) and type(item.get('index')) is int}
+                if set(replacements) != {item['index'] for item in conflicts}:
+                    raise ValueError('修正结果序号不完整')
+                for item in conflicts:
+                    replacement = replacements[item['index']]
+                    if not str(replacement.get('visual_subject') or '').strip():
+                        raise ValueError('修正结果缺少画面主体')
+                    for key in ('visual_subject', 'scene', 'action'):
+                        item[key] = str(replacement.get(key) or '').strip()
+                if any(has_person(item) for item in conflicts):
+                    raise ValueError('修正结果仍包含人物画面')
+            except Exception as exc:
+                if portrait_mode != 'auto':
+                    raise workbench.ProviderError('无人物画面方案未通过校验，请重试') from exc
+                logging.getLogger(__name__).warning('tie-tu automatic non-portrait visual repair failed: %s', type(exc).__name__)
+                for item in conflicts:
+                    item.update(visual_subject='与内容主题相关的静物主体', scene='适合主题的无人物环境', action='物品自然摆放')
+                visual_fallback = True
     for card in plan.cards:
         item = by_index.get(card.index, {})
         for key in ("overlay_text", "caption", "visual_subject", "composition"):
@@ -475,6 +484,8 @@ def tie_tu_plan(
     payload = plan.to_dict()
     payload["session_id"] = uuid.uuid4().hex
     payload["skill"] = "wechat-tie-tu-publisher"
+    if visual_fallback:
+        payload['visual_fallback_notice'] = '部分画面已调整为通用静物方案，请检查后再生成图片。'
     payload["approval_state"]["stages"]["card_plan"] = "pending_confirmation"
     return _clean_json_payload(payload)
 
