@@ -286,21 +286,18 @@
     try {
       await save();
       if (!session?.state.article_state?.formatted_output || shownVersion) throw new Error('正文已修改，请重新排版后复制。');
-      if (!navigator.clipboard?.write || typeof ClipboardItem === 'undefined') throw new Error('当前浏览器不支持复制排版，请使用新版 Chrome 或 Edge。');
       const response = await fetch(`/api/wechat-plus/sessions/${session.id}/preview`, {credentials:'same-origin', cache:'no-store', signal:AbortSignal.timeout(30000)});
       await window.AccountLifecycle?.checkResponse(response);
       if (!response.ok || !response.headers.get('content-type')?.includes('text/html')) throw new Error('读取排版未完成，请稍后重试。');
       const html = await response.text();
       const document = new DOMParser().parseFromString(html, 'text/html');
       document.querySelectorAll('script,iframe,object,embed').forEach(node => node.remove());
-      document.querySelectorAll('*').forEach(node => [...node.attributes].forEach(attribute => {
-        if (/^on/i.test(attribute.name) || /^(href|src)$/i.test(attribute.name) && /^\s*javascript:/i.test(attribute.value)) node.removeAttribute(attribute.name);
-      }));
-      await navigator.clipboard.write([new ClipboardItem({
-        'text/html':new Blob([document.body.innerHTML],{type:'text/html'}),
-        'text/plain':new Blob([document.body.textContent],{type:'text/plain'}),
-      })]);
-      $('save-state').textContent='排版已复制，可粘贴到公众号编辑器';
+      // 统一走 PublisherCopy.copyHtml：压平行内样式 → 写入 → 回读校验 → 失败降级。
+      // 公众号后台只认行内 style，<style> 块和 class 一点都不留。
+      const report = await window.PublisherCopy.copyHtml(document.body.innerHTML);
+      $('save-state').textContent = report?.inlined
+        ? '排版已复制（已转为行内样式），可粘贴到公众号编辑器'
+        : `排版已复制（${report?.styleCount || 0} 处样式），可粘贴到公众号编辑器`;
     } catch(error) {reportError(error);}
   };
   $('download').onclick = () => {
