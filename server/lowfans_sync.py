@@ -174,8 +174,12 @@ def _open_run(stat_date: str, range_type: str) -> int | None:
 
 
 def sync_daily(pages: int | None = None, stat_date: str | None = None,
-               range_type: str | None = None) -> dict:
-    """拉取 7d 榜单前 N 页并整日替换。失败只记状态，不抛。"""
+               range_type: str | None = None, force: bool = False) -> dict:
+    """拉取 7d 榜单前 N 页并整日替换。失败只记状态，不抛。
+
+    幂等靠两层：同一天已有数据就直接复用（force=True 可强制重拉），
+    所以定时任务可以跑得勤，只有「新的一天第一次」才会真的花钱。
+    """
     started = time.time()
     range_type = range_type or DEFAULT_RANGE
     stat_date = stat_date or yesterday_beijing()
@@ -188,6 +192,23 @@ def sync_daily(pages: int | None = None, stat_date: str | None = None,
     client = _redis()
     if client is not None and not client.set(KEY_LOCK, "1", nx=True, ex=900):
         return {"status": "busy", "stat_date": stat_date, "range_type": range_type}
+
+    if not force:
+        try:
+            with database.session_scope() as session:
+                existing = session.execute(
+                    select(func.count()).select_from(LowfansArticle).where(
+                        LowfansArticle.stat_date == stat_date,
+                        LowfansArticle.range_type == range_type,
+                    )).scalar() or 0
+        except Exception as exc:  # noqa: BLE001 - 查库失败就当没数据，正常拉
+            logger.warning("lowfans skip-check failed: %s", exc)
+            existing = 0
+        if existing:
+            if client is not None:
+                client.delete(KEY_LOCK)
+            return {"status": "cached", "stat_date": stat_date, "range_type": range_type,
+                    "inserted": int(existing), "calls": 0, "cost_points": 0}
 
     run_id = _open_run(stat_date, range_type)
     rows: list[dict] = []

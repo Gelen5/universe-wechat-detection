@@ -47,9 +47,13 @@ celery_app.conf.update(
         "hotspot-sync": {
             "task": "hotspot.sync", "schedule": 600.0,
         },
-        # 微小榜每日生成前一天的 7d 低粉爆文榜，09:30 之后拉比较稳。
+        # 微小榜每日生成前一天的 7d 低粉爆文榜。
+        # ⚠️ 本文件没设 timezone 且 enable_utc=True，crontab 按 UTC 解析：
+        # hour=1,5,9 分钟 30 = 北京时间 09:30 / 13:30 / 17:30。
+        # 跑三次是兜底：sync_daily 发现当天数据已存在会直接返回 cached，
+        # 只有第一次真花钱，后两次补偿「榜单还没生成」或「部署重启错过窗口」。
         "lowfans-sync-daily": {
-            "task": "lowfans.sync", "schedule": crontab(hour=9, minute=30),
+            "task": "lowfans.sync", "schedule": crontab(hour="1,5,9", minute=30),
         },
         # A relay can fail for hours; deploy-time probing only covers deploys.
         "provider-health": {

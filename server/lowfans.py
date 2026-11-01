@@ -329,7 +329,13 @@ def export_csv(payload: dict):
 
 @router.post("/api/admin/lowfans/sync")
 def admin_sync(request: Request, pages: int | None = Query(default=None, ge=1, le=135),
-               date: str = Query(default="", max_length=10)):
+               date: str = Query(default="", max_length=10),
+               force: bool = Query(default=True)):
+    """管理员手动补采。
+
+    force 默认 True：手动触发就是「现在重新拉」，即使当天已有数据也覆盖。
+    定时任务走 force=False，当天有数据直接跳过、不花积分。
+    """
     accounts.require_admin(request)
-    result = lowfans_sync.sync_daily(pages=pages, stat_date=date.strip() or None)
+    result = lowfans_sync.sync_daily(pages=pages, stat_date=date.strip() or None, force=force)
     return {"status": "success", "sync": result}
