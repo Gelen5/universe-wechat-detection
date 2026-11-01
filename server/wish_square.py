@@ -15,7 +15,8 @@ from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, RedirectResponse
 from PIL import Image
 from pydantic import BaseModel, Field
-from sqlalchemy import Column, Integer, MetaData, String, Table, Text, func, insert, select, update
+from sqlalchemy import Column, Integer, LargeBinary, MetaData, String, Table, Text, func, insert, select, update
+from fastapi.responses import Response
 
 from . import accounts, database
 from .storage.service import get_storage
@@ -63,6 +64,9 @@ wish_supports = Table(
     Column("user_id", String(64), nullable=False),
     Column("created_at", String(40), nullable=False),
 )
+wish_payment_codes = Table('wish_payment_codes', metadata, Column('wish_id', String(32), primary_key=True), Column('image', LargeBinary, nullable=False))
+wish_transfers = Table('wish_transfers', metadata, Column('id', String(32), primary_key=True), Column('wish_id', String(32), nullable=False, index=True), Column('supporter_id', String(64), nullable=False), Column('amount', String(32), nullable=False), Column('message', String(500), nullable=False), Column('status', String(16), nullable=False), Column('created_at', String(40), nullable=False))
+wish_reports = Table('wish_reports', metadata, Column('id', String(32), primary_key=True), Column('wish_id', String(32), nullable=False, index=True), Column('reporter_id', String(64), nullable=False), Column('reason', String(500), nullable=False), Column('created_at', String(40), nullable=False))
 
 
 def init_schema() -> None:
@@ -112,8 +116,11 @@ def _record(row: dict, user: dict | None = None) -> dict:
     with database.ENGINE.connect() as connection:
         image_rows = connection.execute(select(wish_images).where(wish_images.c.wish_id == row["id"]).order_by(wish_images.c.position)).mappings().all()
         supports = connection.execute(select(func.count()).select_from(wish_supports).where(wish_supports.c.wish_id == row["id"])).scalar_one()
+        has_code = connection.execute(select(wish_payment_codes.c.wish_id).where(wish_payment_codes.c.wish_id == row['id'])).first() is not None
     item = _public(row, len(image_rows), int(supports or 0), _is_owner_or_admin(row, user))
     item["images"] = [f"/api/wishes/{row['id']}/images/{image['id']}" for image in image_rows]
+    item['has_payment_code'] = has_code
+    item['is_owner'] = bool(user and row['user_id'] == user.get('id'))
     return item
 
 
@@ -136,7 +143,7 @@ def create_wish(payload: WishCreate, request: Request):
     wish_id = uuid.uuid4().hex
     clean = {name: re.sub(r"\s+", " ", str(getattr(payload, name)).strip()) for name in ("title", "story", "category", "target_kind", "target_text", "display_name")}
     with database.ENGINE.begin() as connection:
-        connection.execute(insert(wishes).values(id=wish_id, user_id=user["id"], status="pending", created_at=now, updated_at=now, **clean))
+        connection.execute(insert(wishes).values(id=wish_id, user_id=user["id"], status="draft", created_at=now, updated_at=now, **clean))
         row = connection.execute(select(wishes).where(wishes.c.id == wish_id)).mappings().one()
     return _record(dict(row), user)
 
@@ -149,7 +156,7 @@ async def upload_image(wish_id: str, request: Request, image: UploadFile = File(
         current = connection.execute(select(func.count()).select_from(wish_images).where(wish_images.c.wish_id == wish_id)).scalar_one()
     if not row or not _is_owner_or_admin(dict(row), user):
         raise HTTPException(status_code=404, detail="心愿不存在")
-    if row["status"] not in {"pending", "rejected"}:
+    if row["status"] not in {"draft", "rejected"}:
         raise HTTPException(status_code=409, detail="审核完成后不能修改图片")
     if int(current or 0) >= MAX_IMAGES:
         raise HTTPException(status_code=422, detail="每个心愿最多上传 8 张图片")
@@ -218,7 +225,101 @@ def support_intent(wish_id: str, request: Request):
         existing = connection.execute(select(wish_supports.c.id).where(wish_supports.c.wish_id == wish_id, wish_supports.c.user_id == user["id"])).first()
         if not existing:
             connection.execute(insert(wish_supports).values(id=uuid.uuid4().hex, wish_id=wish_id, user_id=user["id"], created_at=_now()))
-    return {"message": "已记录你的支持意愿，平台核验后会通知你下一步。"}
+    return {"message": "已记录你的支持意愿。是否转账由你自行决定。"}
+
+
+@router.post('/{wish_id}/payment-code')
+async def upload_payment_code(wish_id: str, request: Request, image: UploadFile = File(...)):
+    user = _require_user(request)
+    with database.ENGINE.connect() as connection:
+        row = connection.execute(select(wishes).where(wishes.c.id == wish_id)).mappings().first()
+    if not row or row['user_id'] != user['id'] or row['status'] != 'draft':
+        raise HTTPException(404, '心愿不存在或不可修改')
+    if image.content_type not in {'image/jpeg', 'image/png', 'image/webp'}:
+        raise HTTPException(415, '仅支持 JPG、PNG 或 WebP 图片')
+    raw = await image.read(MAX_IMAGE_BYTES + 1)
+    if not raw or len(raw) > MAX_IMAGE_BYTES:
+        raise HTTPException(413, '图片不能为空且不能超过 8MB')
+    try:
+        with Image.open(io.BytesIO(raw)) as source:
+            source.verify()
+        with Image.open(io.BytesIO(raw)) as source:
+            source = source.convert('RGB'); source.thumbnail((2000, 2000))
+            output = io.BytesIO(); source.save(output, format='PNG'); raw = output.getvalue()
+    except Exception as exc:
+        raise HTTPException(422, '图片无法解析') from exc
+    with database.ENGINE.begin() as connection:
+        existing = connection.execute(select(wish_payment_codes.c.wish_id).where(wish_payment_codes.c.wish_id == wish_id)).first()
+        if existing: connection.execute(update(wish_payment_codes).where(wish_payment_codes.c.wish_id == wish_id).values(image=raw))
+        else: connection.execute(insert(wish_payment_codes).values(wish_id=wish_id, image=raw))
+    return {'ok': True}
+
+
+@router.post('/{wish_id}/submit')
+def submit_wish(wish_id: str, request: Request):
+    user = _require_user(request)
+    with database.ENGINE.begin() as connection:
+        result = connection.execute(update(wishes).where(wishes.c.id == wish_id, wishes.c.user_id == user['id'], wishes.c.status == 'draft').values(status='pending', updated_at=_now()))
+        if result.rowcount != 1: raise HTTPException(404, '草稿不存在或已提交')
+    return {'ok': True}
+
+
+@router.get('/{wish_id}/payment-code')
+def payment_code(wish_id: str, request: Request):
+    user = _require_user(request)
+    with database.ENGINE.connect() as connection:
+        row = connection.execute(select(wishes).where(wishes.c.id == wish_id)).mappings().first()
+        code = connection.execute(select(wish_payment_codes.c.image).where(wish_payment_codes.c.wish_id == wish_id)).first()
+    if not row or not code or (row['status'] != 'published' and not _is_owner_or_admin(dict(row), user)):
+        raise HTTPException(404, '收款码不存在')
+    return Response(content=bytes(code[0]), media_type='image/png', headers={'Cache-Control': 'private, no-store', 'X-Content-Type-Options':'nosniff'})
+
+
+class TransferBody(BaseModel):
+    amount: str = Field(default='', max_length=32, pattern=r'^$|^\d{1,8}(\.\d{1,2})?$')
+    message: str = Field(default='', max_length=500)
+
+
+@router.post('/{wish_id}/transfers', status_code=201)
+def register_transfer(wish_id: str, payload: TransferBody, request: Request):
+    user = _require_user(request)
+    with database.ENGINE.begin() as connection:
+        wish = connection.execute(select(wishes).where(wishes.c.id == wish_id, wishes.c.status == 'published')).mappings().first()
+        if not wish or wish['user_id'] == user['id']: raise HTTPException(404, '心愿不存在或不可操作')
+        if not connection.execute(select(wish_payment_codes.c.wish_id).where(wish_payment_codes.c.wish_id == wish_id)).first(): raise HTTPException(409, '该心愿没有收款码')
+        connection.execute(insert(wish_transfers).values(id=uuid.uuid4().hex, wish_id=wish_id, supporter_id=user['id'], amount=payload.amount, message=payload.message.strip(), status='pending', created_at=_now()))
+    return {'message':'已登记，等待发布者确认；平台无法核实转账。'}
+
+
+@router.get('/mine/transfers')
+def my_transfers(request: Request):
+    user = _require_user(request)
+    with database.ENGINE.connect() as connection:
+        rows = connection.execute(select(wish_transfers.c.id, wish_transfers.c.amount, wish_transfers.c.message, wish_transfers.c.status, wish_transfers.c.created_at, wishes.c.title).join(wishes, wishes.c.id == wish_transfers.c.wish_id).where(wishes.c.user_id == user['id']).order_by(wish_transfers.c.created_at.desc()).limit(100)).mappings().all()
+    return {'items':[dict(row) for row in rows]}
+
+
+@router.post('/transfers/{transfer_id}/confirm')
+def confirm_transfer(transfer_id: str, request: Request):
+    user = _require_user(request)
+    with database.ENGINE.begin() as connection:
+        transfer = connection.execute(select(wish_transfers, wishes.c.user_id).join(wishes, wishes.c.id == wish_transfers.c.wish_id).where(wish_transfers.c.id == transfer_id)).mappings().first()
+        if not transfer or transfer['user_id'] != user['id']: raise HTTPException(404, '记录不存在')
+        connection.execute(update(wish_transfers).where(wish_transfers.c.id == transfer_id).values(status='confirmed'))
+    return {'message':'已记录发布者确认，平台未核实支付。'}
+
+
+class ReportBody(BaseModel):
+    reason: str = Field(min_length=2, max_length=500)
+
+
+@router.post('/{wish_id}/report')
+def report_wish(wish_id: str, payload: ReportBody, request: Request):
+    user = _require_user(request)
+    with database.ENGINE.begin() as connection:
+        if not connection.execute(select(wishes.c.id).where(wishes.c.id == wish_id, wishes.c.status == 'published')).first(): raise HTTPException(404, '心愿不存在')
+        connection.execute(insert(wish_reports).values(id=uuid.uuid4().hex, wish_id=wish_id, reporter_id=user['id'], reason=payload.reason.strip(), created_at=_now()))
+    return {'message':'举报已提交。'}
 
 
 @router.get("/admin/review")
@@ -231,7 +332,11 @@ def review_queue(request: Request, status: str = "pending"):
         if status != "all":
             query = query.where(wishes.c.status == status)
         rows = connection.execute(query.limit(100)).mappings().all()
-    return {"items": [_record(dict(row), {"role": "admin"}) for row in rows]}
+    items = [_record(dict(row), {"role": "admin"}) for row in rows]
+    with database.ENGINE.connect() as connection:
+        for item in items:
+            item['reports'] = [dict(r) for r in connection.execute(select(wish_reports.c.reason, wish_reports.c.created_at).where(wish_reports.c.wish_id == item['id']).order_by(wish_reports.c.created_at.desc())).mappings().all()]
+    return {"items": items}
 
 
 @router.post("/{wish_id}/review")
@@ -242,6 +347,8 @@ def review_wish(wish_id: str, payload: ReviewBody, request: Request):
         row = connection.execute(select(wishes).where(wishes.c.id == wish_id)).mappings().first()
         if not row:
             raise HTTPException(status_code=404, detail="心愿不存在")
+        if payload.decision in {'published', 'rejected'} and row['status'] != 'pending':
+            raise HTTPException(status_code=409, detail='只有待审核的心愿可以通过或驳回')
         connection.execute(update(wishes).where(wishes.c.id == wish_id).values(status=payload.decision, updated_at=now))
         connection.execute(insert(wish_reviews).values(id=uuid.uuid4().hex, wish_id=wish_id, reviewer_id=admin["id"], decision=payload.decision, note=payload.note.strip(), created_at=now))
         updated = connection.execute(select(wishes).where(wishes.c.id == wish_id)).mappings().one()

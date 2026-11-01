@@ -14,7 +14,7 @@
   <main class="wish-main">
     <header class="wish-header glass">
       <div><p class="eyebrow">温和、真实、可核验</p><h1>心愿广场</h1><p class="wish-lead">写下一个真实的小心愿，等待愿意伸手的人。</p></div>
-      <div class="header-actions"><button class="publish-button" id="open-publish" type="button">＋ 发布心愿</button><p>⌕ 敏感信息仅供审核，不公开展示</p></div>
+      <div class="header-actions"><button class="publish-button" id="open-mine" type="button">我的到账登记</button> <button class="publish-button" id="open-publish" type="button">＋ 发布心愿</button><p>收款码仅在审核通过后向登录用户展示</p></div>
     </header>
     <section class="wish-tools glass" aria-label="筛选心愿">
       <div class="filters" id="filters"><button class="selected" data-category="">全部</button><button data-category="教育成长">教育成长</button><button data-category="医疗健康">医疗健康</button><button data-category="生活改善">生活改善</button><button data-category="家人陪伴">家人陪伴</button><button data-category="兴趣梦想">兴趣梦想</button><button data-category="社区公益">社区公益</button></div>
@@ -31,9 +31,12 @@
       <div class="form-grid"><label>希望实现的内容<input name="target_text" maxlength="120" required placeholder="例如：一副适合的助听器"></label><label>类型<select name="target_kind"><option>物品</option><option>服务</option><option>小额资金</option><option>其他</option></select></label></div>
       <label>公开显示的称呼<input name="display_name" maxlength="40" required placeholder="例如：小周（可使用昵称）"></label>
       <fieldset class="image-field"><legend>补充图片 <span>最多 8 张，每张不超过 8MB</span></legend><input id="wish-images" type="file" accept="image/jpeg,image/png,image/webp" multiple><div id="image-preview" class="image-preview"></div></fieldset>
+      <fieldset class="image-field"><legend>收款二维码（选填）</legend><p>仅上传微信或支付宝的收款码，不要上传付款码。审核通过后，登录用户点击“帮 TA 实现”即可查看。</p><input id="payment-code" type="file" accept="image/jpeg,image/png,image/webp"></fieldset>
       <p id="form-message" class="form-message" role="status"></p><button class="publish-button submit" type="submit">提交审核</button>
     </form>
   </dialog>
+  <dialog id="support-dialog" class="publish-dialog"><div class="publish-sheet"><header><h2>帮 TA 实现</h2><button type="button" class="icon-button" id="support-close">×</button></header><p class="form-note">你将直接向心愿发布者付款，平台无法核实付款结果。请在支付页面确认收款方后自行决定。</p><div id="support-content"></div><p id="support-status" role="status"></p></div></dialog>
+  <dialog id="mine-dialog" class="publish-dialog"><div class="publish-sheet"><header><h2>我的到账登记</h2><button type="button" class="icon-button" id="mine-close">×</button></header><p>以下为支持者自行登记，平台无法核实。请在自己的收款账户核对后再确认。</p><div id="mine-content"></div></div></dialog>
   <template id="wish-card-template"><article class="wish-card glass"><div class="wish-image"><img alt=""><span class="verified"></span><span class="image-counter"></span></div><div class="wish-card-body"><p class="wish-category"></p><h2></h2><p class="wish-story"></p><div class="wish-meta"><strong></strong><span></span></div><button class="support-button" type="button">♡ 帮 TA 实现</button></div></article></template>
-  <script src="/static/routes.js?v=20261101-1"></script><script src="/static/shell.js?v=20261101-1"></script><script src="/static/wish-square.js?v=20261101-1"></script>
+  <script src="/static/routes.js?v=20261101-1"></script><script src="/static/shell.js?v=20261101-1"></script><script src="/static/wish-square.js?v=20261101-payment-1"></script>
 </body></html>
