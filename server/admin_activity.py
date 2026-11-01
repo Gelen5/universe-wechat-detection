@@ -155,7 +155,12 @@ def detail(user_id: str, request: Request):
     result=enrich_logins([accounts.admin_user_detail(user_id)])[0]
     with accounts._connect() as c:
         result['activity']=[dict(r) for r in c.execute('SELECT kind,created_at FROM user_activity_events WHERE user_id=? ORDER BY created_at DESC LIMIT 50',(user_id,)).fetchall()]
-        result['transactions']=[dict(r) for r in c.execute('SELECT amount,balance_before,balance_after,bucket,kind,feature,note,created_at FROM point_transactions WHERE user_id=? ORDER BY created_at DESC LIMIT 50',(user_id,)).fetchall()]
+        result['transactions']=[dict(r) for r in c.execute('''SELECT p.amount,p.balance_before,p.balance_after,p.bucket,p.kind,p.feature,p.note,p.created_at,
+            u.path AS usage_path,u.status AS usage_status,u.points AS settled_points,
+            (SELECT pc.action FROM wechat_plus_charges pc WHERE pc.usage_id=u.request_id AND pc.settled_at IS NOT NULL ORDER BY pc.settled_at DESC LIMIT 1) AS plus_action
+            FROM point_transactions p LEFT JOIN usage_records u ON u.user_id=p.user_id AND
+            (p.request_id=u.request_id OR p.request_id=u.request_id || ':settle' OR p.request_id=u.request_id || ':refund')
+            WHERE p.user_id=? ORDER BY p.created_at DESC LIMIT 50''',(user_id,)).fetchall()]
     from sqlalchemy import inspect
     inspector=inspect(database.ENGINE)
     result['email_verified']=None
