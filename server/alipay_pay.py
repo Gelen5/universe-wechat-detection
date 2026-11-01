@@ -642,8 +642,8 @@ def _result_url(request: Request) -> str:
 # ------------------------------------------------------------------ 接口
 _PACKAGES = (
     {"id": "starter", "name": "入门", "credits": 100, "price": "10.00", "blurb": "偶尔写作与配图"},
-    {"id": "pro", "name": "进阶", "credits": 300, "price": "29.00", "blurb": "每周稳定产出，赠 10 积分"},
-    {"id": "master", "name": "专业", "credits": 1000, "price": "98.00", "blurb": "高频创作与批量改稿，赠 20 积分"},
+    {"id": "pro", "name": "进阶", "credits": 300, "price": "29.00", "blurb": "每周稳定产出"},
+    {"id": "master", "name": "专业", "credits": 1000, "price": "98.00", "blurb": "高频创作与批量改稿"},
 )
 
 
