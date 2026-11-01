@@ -1,12 +1,36 @@
-/* 低粉爆文榜：小体量账号的高爆发文章。
-   颜色全部走 tokens.css 的变量，主色是品牌 IKB 蓝，和热点广场的绿区分开。
-   结构性属性用 #lowfans 前缀提高特异性，避免和全局页面样式打架。 */
+/* 低粉爆文榜 · 浅绿液态玻璃
+   ────────────────────────────────────────────────────────────────
+   材质沿用项目 liquid-glass.css 的三件套，不自造一套：
+     ① background-image 斜向高光（绝不挂 ::after —— 伪元素画在文字之上会洗灰正文）
+     ② background-color 白度 .73 打底（太低是毛玻璃糊，太高就不是玻璃）
+     ③ backdrop-filter: blur(24px) saturate(165%)（24px 是实测值，过重会吃掉背景色场）
+   分级用材：只让页头用真玻璃（A 级），其余是磨砂片（B 级，无模糊、只有白度和发丝边）。
+   全站玻璃 = 没有重点，所以列表行不配 backdrop-filter。
+
+   配色在 #lowfans 作用域内定义，不污染全局 tokens —— 与 hotspots.css 同一做法。
+   ──────────────────────────────────────────────────────────────── */
 
 #lowfans.lf-page {
+  --lf-ink: #1b3d30;
+  --lf-text: #527066;
+  --lf-muted: #6f8b7d;
+  --lf-faint: #8ea397;
+  --lf-green: #4a9e7c;
+  --lf-deep: #2f7f60;
+  --lf-soft: #e8f4ed;
+  --lf-line: rgba(72, 128, 99, .13);
+  --lf-line-2: rgba(72, 128, 99, .22);
+  --lf-amber: #a86b32;
+  --lf-amber-soft: #fdf1e6;
+
+  position: relative;
   container-type: inline-size;
-  padding: 28px 30px 40px;
-  color: var(--text);
-  background: transparent;
+  padding: 30px 34px 52px;
+  color: var(--lf-text);
+  background:
+    radial-gradient(760px 520px at 4% -12%, rgba(174, 229, 201, .38), transparent 62%),
+    radial-gradient(680px 480px at 100% 0%, rgba(212, 241, 222, .34), transparent 60%),
+    transparent;
   min-width: 0;
   font-family: var(--sans);
 }
@@ -15,76 +39,134 @@
 #lowfans *::after { box-sizing: border-box; }
 #lowfans [hidden] { display: none !important; }
 #lowfans :is(a, button, input, select):focus-visible {
-  outline: 3px solid var(--ikb);
+  outline: 3px solid var(--lf-green);
   outline-offset: 3px;
 }
 
-/* ---------------------------------------------------------------- 页头 */
+/* ---------------------------------------------------------------- 页头（A 级真玻璃） */
 #lowfans .lf-head {
   display: flex;
-  align-items: flex-start;
+  align-items: flex-end;
   justify-content: space-between;
-  gap: 20px;
+  gap: 28px;
   flex-wrap: wrap;
-  padding: 24px 26px;
-  margin-bottom: 18px;
-  border: 1px solid var(--line);
-  border-radius: 24px;
-  background: var(--bg-2);
-  box-shadow: var(--shadow-1);
+  padding: 30px 34px;
+  margin-bottom: 14px;
+  border-radius: 26px;
+  background-color: rgba(255, 255, 255, .73);
+  background-image: linear-gradient(135deg,
+    rgba(255, 255, 255, .62) 0%, rgba(255, 255, 255, .14) 36%,
+    rgba(255, 255, 255, 0) 58%, rgba(255, 255, 255, .26) 100%);
+  -webkit-backdrop-filter: blur(24px) saturate(165%);
+  backdrop-filter: blur(24px) saturate(165%);
+  border: 1px solid rgba(255, 255, 255, .68);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .92), 0 20px 44px -32px rgba(34, 82, 58, .42);
 }
 #lowfans .lf-head h1 {
   margin: 0;
   font-family: var(--serif);
-  font-size: 30px;
-  font-weight: 650;
-  line-height: 1.3;
-  letter-spacing: -.02em;
+  font-size: 40px;
+  line-height: 1.16;
+  font-weight: 600;
+  letter-spacing: -.018em;
+  color: var(--lf-ink);
 }
 #lowfans .lf-head p {
-  margin: 8px 0 0;
-  font-size: 14px;
-  line-height: 1.7;
-  color: var(--text-3);
-  max-width: 46em;
+  margin: 12px 0 0;
+  max-width: 44em;
+  font-size: 14.5px;
+  line-height: 1.72;
+  color: var(--lf-text);
 }
 #lowfans .lf-stamp {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  align-items: flex-end;
+  align-items: center;
+  gap: 8px;
   margin-left: auto;
-  font-size: 12px;
-  line-height: 1.7;
-  color: var(--text-4);
+  padding-bottom: 4px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--lf-muted);
   font-variant-numeric: tabular-nums;
-  text-align: right;
+  white-space: nowrap;
 }
-#lowfans .lf-stamp b { color: var(--text-2); font-weight: 600; }
-#lowfans .lf-stamp .is-warn { color: var(--warn); }
+#lowfans .lf-stamp b { color: var(--lf-deep); font-weight: 600; }
+#lowfans .lf-stamp .is-warn { color: var(--lf-amber); }
 
-/* ---------------------------------------------------------------- 工具条 */
+/* ---------------------------------------------------------------- 概览 */
+#lowfans .lf-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+#lowfans .lf-stat {
+  padding: 17px 19px 16px;
+  border-radius: 16px;
+  background-color: rgba(255, 255, 255, .52);
+  border: 1px solid var(--lf-line);
+}
+#lowfans .lf-stat k {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 11.5px;
+  letter-spacing: .03em;
+  color: var(--lf-faint);
+}
+#lowfans .lf-stat v {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  font-family: var(--serif);
+  font-size: 26px;
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  color: var(--lf-deep);
+  font-variant-numeric: tabular-nums;
+}
+#lowfans .lf-stat v small {
+  font-family: var(--sans);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--lf-muted);
+}
+#lowfans .lf-stat s {
+  display: block;
+  margin-top: 7px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--lf-faint);
+  text-decoration: none;
+}
+
+/* ---------------------------------------------------------------- 工具条（B 级磨砂片） */
 #lowfans .lf-bar {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
   align-items: center;
-  margin-bottom: 14px;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 11px 13px;
+  border-radius: 16px;
+  background-color: rgba(255, 255, 255, .56);
+  border: 1px solid var(--lf-line);
 }
 #lowfans .lf-search {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 9px;
   flex: 1 1 240px;
-  max-width: 340px;
+  max-width: 380px;
   min-width: 0;
-  min-height: 44px;
+  min-height: 42px;
   padding: 0 14px;
-  border: 1px solid var(--line-2);
+  border: 1px solid var(--lf-line);
   border-radius: 12px;
-  background: var(--bg-2);
+  background: rgba(255, 255, 255, .72);
+  transition: border-color .18s ease, background .18s ease;
 }
-#lowfans .lf-search svg { flex: none; color: var(--text-4); }
+#lowfans .lf-search svg { flex: none; color: var(--lf-faint); }
 #lowfans .lf-search input {
   width: 100%;
   min-width: 0;
@@ -92,312 +174,370 @@
   outline: 0;
   background: none;
   font: inherit;
-  font-size: 15px;
-  color: var(--text);
+  font-size: 14px;
+  color: var(--lf-ink);
 }
-#lowfans .lf-search input::placeholder { color: var(--text-4); }
-#lowfans .lf-search:focus-within { border-color: var(--ikb); }
+#lowfans .lf-search input::placeholder { color: var(--lf-faint); }
+#lowfans .lf-search:focus-within { border-color: var(--lf-green); background: #fff; }
 
 #lowfans .lf-select {
-  min-height: 44px;
+  min-height: 42px;
   padding: 0 34px 0 14px;
-  border: 1px solid var(--line-2);
+  border: 1px solid var(--lf-line);
   border-radius: 12px;
-  background: var(--bg-2);
-  color: var(--text-2);
+  background-color: rgba(255, 255, 255, .72);
+  color: var(--lf-text);
   font: inherit;
-  font-size: 14px;
+  font-size: 13.5px;
   cursor: pointer;
   appearance: none;
   background-image:
-    linear-gradient(45deg, transparent 50%, var(--text-4) 50%),
-    linear-gradient(135deg, var(--text-4) 50%, transparent 50%);
-  background-position: calc(100% - 18px) 20px, calc(100% - 13px) 20px;
+    linear-gradient(45deg, transparent 50%, var(--lf-faint) 50%),
+    linear-gradient(135deg, var(--lf-faint) 50%, transparent 50%);
+  background-position: calc(100% - 18px) 19px, calc(100% - 13px) 19px;
   background-size: 5px 5px, 5px 5px;
   background-repeat: no-repeat;
 }
+#lowfans .lf-select:hover { border-color: var(--lf-line-2); }
 
 #lowfans .lf-export {
-  min-height: 44px;
+  min-height: 42px;
   padding: 0 16px;
-  border: 1px solid var(--line-2);
+  border: 1px solid var(--lf-line);
   border-radius: 12px;
-  background: var(--bg-2);
-  color: var(--text-2);
+  background: rgba(255, 255, 255, .72);
+  color: var(--lf-text);
   font: inherit;
-  font-size: 14px;
+  font-size: 13.5px;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
+  transition: border-color .18s ease, color .18s ease, background .18s ease;
 }
-#lowfans .lf-export:hover { border-color: var(--ikb); color: var(--ikb); }
+#lowfans .lf-export:hover { border-color: var(--lf-green); color: var(--lf-deep); background: #fff; }
 #lowfans .lf-export:disabled { opacity: .5; cursor: not-allowed; }
 #lowfans .lf-bar-tail {
   margin-left: auto;
   font-size: 12px;
-  line-height: 1.7;
-  color: var(--text-4);
+  line-height: 1.6;
+  color: var(--lf-faint);
   font-variant-numeric: tabular-nums;
-  text-align: right;
 }
 
-/* ---------------------------------------------------------------- 赛道条 */
+/* ---------------------------------------------------------------- 赛道 */
 #lowfans .lf-tracks {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 10px 0 16px;
+  gap: 7px;
+  overflow-x: auto;
+  padding: 4px 2px 12px;
   margin-bottom: 6px;
-  border-bottom: 1px solid var(--line);
+  scrollbar-width: none;
 }
+#lowfans .lf-tracks::-webkit-scrollbar { display: none; }
 #lowfans .lf-track {
+  flex: none;
   display: inline-flex;
   align-items: baseline;
-  gap: 6px;
-  min-height: 36px;
-  padding: 8px 12px;
-  border: 0;
-  border-radius: 9px;
-  background: transparent;
-  color: var(--text-2);
+  gap: 7px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--lf-line);
+  background: rgba(255, 255, 255, .5);
   font: inherit;
   font-size: 13px;
   line-height: 1.5;
+  color: var(--lf-text);
   white-space: nowrap;
   cursor: pointer;
-  transition: background 160ms ease, color 160ms ease;
+  transition: background .18s ease, border-color .18s ease, color .18s ease;
 }
-#lowfans .lf-track:hover { background: var(--bg-3); }
-#lowfans .lf-track[aria-pressed="true"] {
-  background: var(--ikb-soft);
-  color: var(--ikb);
-  font-weight: 600;
-}
+#lowfans .lf-track:hover { background: rgba(255, 255, 255, .85); border-color: var(--lf-line-2); }
 #lowfans .lf-track n {
   font-size: 11px;
+  color: var(--lf-faint);
   font-variant-numeric: tabular-nums;
-  color: var(--text-4);
   text-decoration: none;
 }
-#lowfans .lf-track[aria-pressed="true"] n { color: var(--ikb); opacity: .75; }
-#lowfans .lf-track.is-empty { color: var(--text-5); }
+#lowfans .lf-track[aria-pressed="true"] {
+  background: linear-gradient(180deg, #b7ddc9, #a0cfb8);
+  border-color: transparent;
+  color: #164e39;
+  font-weight: 600;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .75), 0 8px 18px -16px rgba(34, 106, 80, .45);
+}
+#lowfans .lf-track[aria-pressed="true"] n { color: rgba(22, 78, 57, .55); }
+#lowfans .lf-track.is-empty { opacity: .45; }
 
 /* ---------------------------------------------------------------- 列表 */
-#lowfans .lf-list { list-style: none; margin: 0; padding: 0; }
+#lowfans .lf-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
 
 #lowfans .lf-row {
   display: grid;
-  grid-template-columns: 52px minmax(0, 1fr) auto;
-  gap: 4px 16px;
-  align-items: start;
-  padding: 18px 8px 16px;
-  border-bottom: 1px solid var(--line);
-  transition: background 160ms ease;
+  grid-template-columns: 46px minmax(0, 1fr) auto;
+  gap: 0 16px;
+  padding: 18px 22px 17px;
+  border-radius: 16px;
+  background-color: rgba(255, 255, 255, .52);
+  border: 1px solid var(--lf-line);
+  transition: background .2s ease, border-color .2s ease, transform .2s ease, box-shadow .2s ease;
 }
-#lowfans .lf-row:hover { background: var(--bg-3); }
+#lowfans .lf-row:hover {
+  background-color: rgba(255, 255, 255, .8);
+  border-color: var(--lf-line-2);
+  transform: translateY(-1px);
+  box-shadow: 0 14px 30px -26px rgba(34, 82, 58, .55);
+}
 
 #lowfans .lf-rank {
-  grid-row: 1 / span 3;
+  grid-column: 1;
   align-self: start;
-  padding-top: 2px;
-  font-family: var(--mono);
-  font-size: 15px;
+  padding-top: 3px;
+  font-family: var(--serif);
+  font-size: 19px;
   font-weight: 600;
-  line-height: 1.6;
-  color: var(--text-5);
+  line-height: 1.35;
+  color: var(--lf-faint);
   font-variant-numeric: tabular-nums;
-  text-align: right;
+  text-align: center;
 }
-#lowfans .lf-row:nth-child(-n+3) .lf-rank { color: var(--ikb); }
+/* 前三名共用一套尺寸规则：只写 is-top 会让 2、3 名撑满整列、数字贴左上角 */
+#lowfans .lf-rank.is-top,
+#lowfans .lf-rank.is-top2,
+#lowfans .lf-rank.is-top3 {
+  width: 30px;
+  height: 30px;
+  margin: 0 auto;
+  padding-top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  font-size: 15px;
+  line-height: 1;
+  letter-spacing: 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .7), 0 6px 14px -14px rgba(47, 127, 96, .5);
+}
+#lowfans .lf-rank.is-top  { background: linear-gradient(180deg, #b3dcc8, #9bcdb4); color: #164e39; }
+#lowfans .lf-rank.is-top2 { background: linear-gradient(180deg, #c6e5d6, #aed5c2); color: #1d5a42; }
+#lowfans .lf-rank.is-top3 { background: linear-gradient(180deg, #d8ece2, #c3e0cf); color: #266a4f; }
 
 #lowfans .lf-title {
   grid-column: 2;
-  font-size: 16px;
-  line-height: 1.6;
+  font-size: 16.5px;
+  line-height: 1.55;
   font-weight: 550;
-  color: var(--text);
+  letter-spacing: -.005em;
+  color: var(--lf-ink);
   text-decoration: none;
   overflow-wrap: anywhere;
 }
-#lowfans .lf-title:hover { color: var(--ikb); }
+#lowfans .lf-title:hover {
+  color: var(--lf-deep);
+  text-decoration: underline;
+  text-decoration-color: rgba(74, 158, 124, .4);
+  text-underline-offset: 3px;
+}
 
 #lowfans .lf-meta {
   grid-column: 2;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px 10px;
+  gap: 6px 11px;
+  margin-top: 9px;
   font-size: 12.5px;
   line-height: 1.7;
-  color: var(--text-4);
+  color: var(--lf-muted);
   font-variant-numeric: tabular-nums;
 }
-#lowfans .lf-meta .lf-name { color: var(--text-2); font-weight: 550; }
-#lowfans .lf-meta .lf-base { color: var(--text-4); }
+#lowfans .lf-meta .lf-name { color: var(--lf-text); font-weight: 550; }
+#lowfans .lf-meta .lf-base { color: var(--lf-faint); }
 #lowfans .lf-type {
   padding: 2px 8px;
   border-radius: 6px;
-  background: var(--bg-3);
-  color: var(--text-3);
+  background: var(--lf-soft);
+  color: var(--lf-deep);
   font-size: 11.5px;
+  font-weight: 500;
   line-height: 1.6;
 }
+#lowfans .lf-type.is-other { background: rgba(120, 140, 130, .13); color: var(--lf-muted); }
+
 #lowfans .lf-metrics {
   grid-column: 2;
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 14px;
+  gap: 5px 16px;
+  margin-top: 9px;
   font-size: 12px;
   line-height: 1.7;
-  color: var(--text-4);
+  color: var(--lf-faint);
   font-variant-numeric: tabular-nums;
 }
-#lowfans .lf-metrics b { font-weight: 600; color: var(--text-2); }
+#lowfans .lf-metrics b { font-weight: 600; color: var(--lf-text); }
 
 #lowfans .lf-side {
   grid-column: 3;
-  grid-row: 1 / span 3;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 8px;
-  padding-top: 1px;
+  gap: 9px;
+  min-width: 132px;
 }
 #lowfans .lf-boost {
   display: inline-flex;
   align-items: baseline;
-  gap: 2px;
-  padding: 4px 10px;
-  border-radius: 8px;
-  background: var(--ikb-soft);
-  color: var(--ikb);
-  font-size: 13px;
+  gap: 1px;
+  padding: 5px 12px;
+  border-radius: 10px;
+  background: var(--lf-soft);
+  color: var(--lf-deep);
+  font-size: 15px;
   font-weight: 700;
-  line-height: 1.5;
+  line-height: 1.4;
+  letter-spacing: -.01em;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-#lowfans .lf-boost small { font-size: 11px; font-weight: 600; opacity: .8; }
-#lowfans .lf-boost.is-hot { background: var(--red-soft); color: var(--red); }
+#lowfans .lf-boost small { font-size: 11px; font-weight: 600; opacity: .75; }
+#lowfans .lf-boost.is-hot { background: var(--lf-amber-soft); color: var(--lf-amber); }
 #lowfans .lf-score {
   font-size: 11px;
   line-height: 1.6;
-  color: var(--text-4);
+  color: var(--lf-faint);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 #lowfans .lf-actions { display: flex; gap: 6px; }
 #lowfans .lf-act {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 32px;
-  padding: 6px 10px;
-  border: 1px solid var(--line-2);
-  border-radius: 8px;
-  background: transparent;
-  color: var(--text-3);
+  padding: 6px 11px;
+  border-radius: 9px;
+  border: 1px solid var(--lf-line);
+  background: rgba(255, 255, 255, .6);
+  color: var(--lf-text);
   font: inherit;
   font-size: 12px;
   line-height: 1.5;
   white-space: nowrap;
-  cursor: pointer;
   text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
+  cursor: pointer;
+  transition: border-color .18s ease, color .18s ease, background .18s ease;
 }
-#lowfans .lf-act:hover { border-color: var(--ikb); color: var(--ikb); }
+#lowfans .lf-act:hover { border-color: var(--lf-green); color: var(--lf-deep); background: #fff; }
 #lowfans .lf-act.is-primary {
   border-color: transparent;
-  background: var(--ikb);
-  color: var(--bg-2);
+  background: linear-gradient(180deg, #3f9176, #2f7a60);
+  color: #fff;
   font-weight: 600;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .22), 0 8px 18px -16px rgba(34, 106, 80, .9);
 }
-#lowfans .lf-act.is-primary:hover {
-  color: var(--bg-2);
-  filter: brightness(1.12);
-}
+#lowfans .lf-act.is-primary:hover { color: #fff; filter: brightness(1.06); }
 
 /* ---------------------------------------------------------------- 状态 */
 #lowfans .lf-note {
-  margin: 0 0 18px;
-  padding: 13px 16px;
-  border-radius: 12px;
-  border: 1px solid var(--line);
-  background: var(--bg-3);
+  margin: 0 0 14px;
+  padding: 15px 19px;
+  border-radius: 14px;
+  border: 1px dashed rgba(72, 128, 99, .22);
+  background: rgba(255, 255, 255, .34);
   font-size: 12.5px;
-  line-height: 1.8;
-  color: var(--text-3);
+  line-height: 1.85;
+  color: var(--lf-muted);
 }
+#lowfans .lf-note b { color: var(--lf-text); font-weight: 600; }
 #lowfans .lf-note.is-warn {
-  background: var(--orange-soft);
-  border-color: transparent;
-  color: var(--orange);
+  border-style: solid;
+  border-color: rgba(168, 107, 50, .22);
+  background: var(--lf-amber-soft);
+  color: var(--lf-amber);
 }
-#lowfans .lf-note b { font-weight: 600; }
 
 #lowfans .lf-empty {
   padding: 56px 24px;
   text-align: center;
-  color: var(--text-4);
+  color: var(--lf-muted);
+  border-radius: 16px;
+  border: 1px solid var(--lf-line);
+  background: rgba(255, 255, 255, .42);
 }
 #lowfans .lf-empty strong {
   display: block;
   margin-bottom: 8px;
   font-size: 15px;
   font-weight: 600;
-  color: var(--text-2);
+  color: var(--lf-text);
 }
 #lowfans .lf-empty p { margin: 0; font-size: 13px; line-height: 1.8; }
 
-#lowfans .lf-loading { padding: 48px 0; text-align: center; color: var(--text-4); font-size: 13px; }
+#lowfans .lf-loading { padding: 48px 0; text-align: center; color: var(--lf-muted); font-size: 13px; }
 
 #lowfans .lf-more {
   display: block;
   width: 100%;
-  margin: 20px 0 0;
+  margin: 18px 0 0;
   padding: 14px;
-  border: 1px solid var(--line-2);
-  border-radius: 12px;
-  background: var(--bg-2);
-  color: var(--text-2);
+  border: 1px solid var(--lf-line);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, .56);
+  color: var(--lf-text);
   font: inherit;
   font-size: 13px;
   cursor: pointer;
+  transition: border-color .18s ease, color .18s ease, background .18s ease;
 }
-#lowfans .lf-more:hover { border-color: var(--ikb); color: var(--ikb); }
+#lowfans .lf-more:hover { border-color: var(--lf-green); color: var(--lf-deep); background: #fff; }
 
-/* ---------------------------------------------------------------- 移动端 */
+/* ---------------------------------------------------------------- 响应式 */
+@container (max-width: 980px) {
+  #lowfans .lf-head { padding: 24px 24px; border-radius: 20px; }
+  #lowfans .lf-head h1 { font-size: 33px; }
+}
 @container (max-width: 720px) {
-  #lowfans.lf-page { padding: 18px 16px 32px; }
-  #lowfans .lf-head { padding: 18px 18px; border-radius: 18px; }
-  #lowfans .lf-head h1 { font-size: 24px; }
-  #lowfans .lf-stamp { align-items: flex-start; text-align: left; margin-left: 0; }
-  #lowfans .lf-bar { gap: 8px; }
+  #lowfans.lf-page { padding: 18px 15px 42px; }
+  #lowfans .lf-head { padding: 21px 20px; border-radius: 18px; gap: 14px; }
+  #lowfans .lf-head h1 { font-size: 27px; }
+  #lowfans .lf-head p { font-size: 13.5px; margin-top: 9px; }
+  #lowfans .lf-stamp { margin-left: 0; white-space: normal; padding-bottom: 0; }
+  #lowfans .lf-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  #lowfans .lf-stat { padding: 13px 13px 12px; border-radius: 13px; }
+  #lowfans .lf-stat v { font-size: 20px; }
+  #lowfans .lf-stat s { display: none; }
+  #lowfans .lf-bar { padding: 10px; gap: 8px; }
   #lowfans .lf-search { flex: 1 1 100%; max-width: none; }
   #lowfans .lf-select,
   #lowfans .lf-export { flex: 1 1 auto; min-width: 0; }
   #lowfans .lf-bar-tail { flex: 1 1 100%; margin-left: 0; text-align: left; }
-  #lowfans .lf-tracks {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    scrollbar-width: none;
-    padding-bottom: 12px;
-  }
-  #lowfans .lf-tracks::-webkit-scrollbar { display: none; }
+  #lowfans .lf-tracks { padding-bottom: 10px; }
   #lowfans .lf-row {
     grid-template-columns: 34px minmax(0, 1fr);
-    gap: 6px 10px;
-    padding: 16px 4px 14px;
+    gap: 0 11px;
+    padding: 15px 15px 14px;
+    border-radius: 14px;
   }
-  #lowfans .lf-rank { grid-row: 1; font-size: 13px; }
+  #lowfans .lf-rank { font-size: 16px; }
+  #lowfans .lf-rank.is-top,
+  #lowfans .lf-rank.is-top2,
+  #lowfans .lf-rank.is-top3 { width: 26px; height: 26px; font-size: 13px; }
+  #lowfans .lf-title { font-size: 15px; }
   #lowfans .lf-side {
     grid-column: 2;
-    grid-row: auto;
     flex-direction: row;
     flex-wrap: wrap;
     align-items: center;
     justify-content: flex-start;
-    gap: 8px;
-    margin-top: 4px;
+    min-width: 0;
+    margin-top: 11px;
+    gap: 9px;
   }
-  #lowfans .lf-title { font-size: 15px; }
+  #lowfans .lf-side .lf-actions { margin-left: auto; }
 }

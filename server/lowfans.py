@@ -150,6 +150,13 @@ def list_lowfans(
         ).scalars().all()
         counts = _category_counts(session, stat_date)
         dates = _dates(session)
+        # 概览条只需要当天全量（不受筛选影响），一次聚合拿齐。
+        agg = session.execute(
+            select(func.max(LowfansArticle.boost_ratio),
+                   func.max(LowfansArticle.burst_score),
+                   func.count())
+            .where(*base)
+        ).one()
         last = session.execute(
             select(LowfansSyncRun).order_by(LowfansSyncRun.started_at.desc()).limit(1)
         ).scalars().first()
@@ -165,6 +172,12 @@ def list_lowfans(
         "range": DEFAULT_RANGE,
         "categories": _categories_payload(counts),
         "dates": dates,
+        "stats": {
+            "tracks": len([name for name in counts if name]),
+            "max_boost": round(float(agg[0] or 0), 2),
+            "max_burst": round(float(agg[1] or 0), 2),
+            "rows": int(agg[2] or 0),
+        },
         "degraded": not latest_ok,
         "last_sync": {"status": getattr(last, "status", "") or "",
                       "started_at": last.started_at.isoformat() if last and last.started_at else None,

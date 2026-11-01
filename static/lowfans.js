@@ -16,6 +16,7 @@
     pages: 1,
     categories: [],
     dates: [],
+    stats: {},
     statDate: '',
     degraded: false,
     loading: false,
@@ -24,6 +25,7 @@
 
   const el = {
     stamp: root.querySelector('#lf-stamp'),
+    stats: root.querySelector('#lf-stats'),
     tracks: root.querySelector('#lf-tracks'),
     list: root.querySelector('#lf-list'),
     search: root.querySelector('#lf-search'),
@@ -65,6 +67,21 @@
     el.stamp.innerHTML = `<span class="${warn ? 'is-warn' : ''}">${esc(text)}</span>`;
   }
 
+  /* 概览条：只反映当天全量，不受赛道/搜索筛选影响 */
+  function renderStats() {
+    if (!el.stats) return;
+    const stats = state.stats || {};
+    const rows = Number(stats.rows) || Number(state.total) || 0;
+    const tracks = Number(stats.tracks) || (state.categories || []).length;
+    if (!rows) { el.stats.hidden = true; return; }
+    el.stats.hidden = false;
+    el.stats.innerHTML = [
+      `<article class="lf-stat"><k>入榜文章</k><v>${rows.toLocaleString('en-US')}<small>篇</small></v><s>7 天窗口 · 全赛道</s></article>`,
+      `<article class="lf-stat"><k>覆盖赛道</k><v>${tracks}<small>个</small></v><s>含「其他」未分类</s></article>`,
+      `<article class="lf-stat"><k>最高爆发</k><v>${fmtBoost(stats.max_boost)}<small>×</small></v><s>本篇阅读 ÷ 账号基线</s></article>`,
+    ].join('');
+  }
+
   function renderTracks() {
     if (!el.tracks) return;
     const total = state.categories.reduce((sum, item) => sum + item.count, 0);
@@ -93,12 +110,16 @@
     el.list.innerHTML = '<ul class="lf-list">' + state.items.map((item) => {
       const hot = Number(item.boost_ratio) >= 100;
       const type = item.wx_type || '其他';
+      // 前三名用实体徽章；class 必须三个都覆盖，否则 top2/top3 拿不到尺寸规则
+      const rankCls = item.rank_no <= 3
+        ? ` is-top${item.rank_no > 1 ? item.rank_no : ''}` : '';
+      const typeCls = type === '其他' ? ' is-other' : '';
       return `<li class="lf-row">
-        <span class="lf-rank">${item.rank_no}</span>
+        <span class="lf-rank${rankCls}">${item.rank_no}</span>
         <a class="lf-title" href="${esc(item.art_url)}" target="_blank" rel="noopener noreferrer">${esc(item.title)}</a>
         <div class="lf-meta">
           <span class="lf-name">${esc(item.wx_name)}</span>
-          <span class="lf-type">${esc(type)}</span>
+          <span class="lf-type${typeCls}">${esc(type)}</span>
           <span class="lf-base">阅读基线 ${fmtNum(item.account_read_base)}</span>
           <span>${esc(fmtTime(item.pub_time))}</span>
         </div>
@@ -199,8 +220,10 @@
       state.pages = data.pages || 1;
       state.categories = data.categories || [];
       state.dates = data.dates || [];
+      state.stats = data.stats || {};
       state.statDate = data.stat_date || '';
       state.degraded = !!data.degraded;
+      renderStats();
       renderTracks();
       renderDates();
       renderList();
