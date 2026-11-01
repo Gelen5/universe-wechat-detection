@@ -12,7 +12,7 @@
     quote: "金句",
   };
 
-  const state = { job: null, activeId: null, busy: false, stamp: 0, coverStyle: "compare" };
+  const state = { job: null, activeId: null, busy: false, stamp: 0, coverStyle: "compare", tab: "plan" };
   const COVER_STYLES = [
     { id: "compare", label: "对比式", hint: "问题 vs 解决，冲突最强" },
     { id: "number", label: "数字式", hint: "大数字砸脸，缩略图最清楚" },
@@ -25,13 +25,15 @@
     analyze: $("av-analyze"),
     hint: $("av-hint"),
     articlePanel: $("av-article-panel"),
-    slotsPanel: $("av-slots-panel"),
     empty: $("av-empty"),
+    plan: $("av-plan"),
+    planTitle: $("av-plan-title"),
+    tabs: $("av-tabs"),
+    summary: $("av-summary"),
     title: $("av-article-title"),
     meta: $("av-article-meta"),
     thesis: $("av-thesis"),
     reset: $("av-reset"),
-    workspace: $("av-workspace"),
     list: $("av-slot-list"),
     count: $("av-count"),
     stageTitle: $("av-stage-title"),
@@ -149,6 +151,20 @@
     return `/api/article-visual/${state.job.id}/images/${entry.file}?v=${state.stamp}`;
   }
 
+  function setTab(tab) {
+    state.tab = tab;
+    if (els.tabs) {
+      els.tabs.querySelectorAll("[data-tab]").forEach((button) => {
+        button.classList.toggle("is-active", button.dataset.tab === tab);
+      });
+    }
+    ["plan", "cover", "gallery"].forEach((name) => {
+      const panel = $("av-tab-" + name);
+      if (panel) panel.hidden = name !== tab;
+    });
+    if (tab === "gallery") renderGallery();
+  }
+
   function render() {
     if (!state.job) return;
     const slots = state.job.slots;
@@ -158,41 +174,54 @@
     els.meta.textContent = [state.job.article.account, state.job.article.publish_time, `${state.job.article.chars} 字`]
       .filter(Boolean).join(" · ");
     els.thesis.textContent = state.job.plan.thesis ? `核心：${state.job.plan.thesis}` : "";
-    els.count.textContent = `${done}/${slots.length} 张`;
+    els.planTitle.textContent = `这篇文章可以拆成 ${slots.length} 张图`;
+    els.summary.innerHTML = [
+      `<span>拆解总计 <b>${state.job.elapsed_ms ? seconds(state.job.elapsed_ms) : "—"}</b></span>`,
+      `<span>图位 <b>${slots.length} 张</b></span>`,
+      `<span>已生成 <b>${done} 张</b></span>`,
+      `<span>积分 <b>2 / 张</b></span>`,
+    ].join("");
+    els.empty.hidden = true;
+    els.plan.hidden = false;
 
     els.list.innerHTML = "";
-    slots.forEach((slot, index) => {
-      const li = document.createElement("li");
-      li.className = "av-slot" + (slot.id === state.activeId ? " is-active" : "") + (slot.status === "done" ? " is-done" : "");
-      li.dataset.id = slot.id;
+    slots.forEach((slot) => {
+      const card = document.createElement("button");
+      card.type = "button";
+      card.className = "av-slot-card" + (slot.form === "cover" ? " is-cover" : "")
+        + (slot.id === state.activeId ? " is-active" : "")
+        + (slot.status === "done" ? " is-done" : "");
+      card.dataset.id = slot.id;
 
-      const badge = document.createElement("span");
-      badge.className = "av-slot-index";
-      badge.textContent = slot.status === "done" ? "✓" : String(index + 1);
+      const thumb = document.createElement("div");
+      thumb.className = "av-slot-thumb";
+      thumb.textContent = (slot.headline || "").slice(0, 12);
 
-      const body = document.createElement("div");
-      body.className = "av-slot-body";
-      const title = document.createElement("p");
-      title.className = "av-slot-title";
-      const tag = document.createElement("span");
-      tag.className = "av-tag" + (slot.form === "cover" ? " av-tag-cover" : "");
-      tag.textContent = FORM_LABEL[slot.form] || slot.form;
-      title.appendChild(tag);
-      title.appendChild(document.createTextNode(slot.headline || "未命名图位"));
-      const sub = document.createElement("p");
-      sub.className = "av-slot-sub";
-      sub.textContent = slotSummary(slot) || slot.brief || "";
-      body.appendChild(title);
-      body.appendChild(sub);
-
-      li.appendChild(badge);
-      li.appendChild(body);
-      li.addEventListener("click", () => {
+      const info = document.createElement("div");
+      info.className = "av-slot-info";
+      const cap = document.createElement("div");
+      cap.className = "av-slot-cap";
+      cap.innerHTML = `<span>${FORM_LABEL[slot.form] || slot.form}</span><em>${slot.status === "done" ? "已生成" : "待生成"}</em>`;
+      const h3 = document.createElement("h3");
+      h3.textContent = slot.headline || "未命名图位";
+      const p = document.createElement("p");
+      p.textContent = slot.detail || slotSummary(slot) || slot.brief || "";
+      const chips = document.createElement("div");
+      chips.className = "av-chips";
+      (slot.facts || []).slice(0, 3).forEach((fact) => {
+        const chip = document.createElement("span");
+        chip.textContent = fact;
+        chips.appendChild(chip);
+      });
+      info.append(cap, h3, p, chips);
+      card.append(thumb, info);
+      card.addEventListener("click", () => {
         if (state.busy) return;
         state.activeId = slot.id;
         render();
+        setTab("cover");
       });
-      els.list.appendChild(li);
+      els.list.appendChild(card);
     });
 
     const active = slots.find((s) => s.id === state.activeId) || slots[0];
@@ -314,11 +343,9 @@
     state.job = job;
     state.activeId = job.slots[0] ? job.slots[0].id : null;
     els.articlePanel.hidden = false;
-    els.workspace.hidden = false;
-    els.slotsPanel.hidden = false;
-    els.empty.hidden = true;
     render();
     renderGallery();
+    setTab("plan");
   }
 
   async function analyze() {
@@ -334,25 +361,21 @@
       state.job = job;
       state.activeId = job.slots[0] ? job.slots[0].id : null;
       els.articlePanel.hidden = false;
-      els.workspace.hidden = false;
-      els.slotsPanel.hidden = false;
-      els.empty.hidden = true;
-      els.galleryPanel.hidden = true;
       history.replaceState(null, "", `/article-visual?job=${job.id}`);
       render();
+      setTab("plan");
       const cost = job.elapsed_ms ? seconds(job.elapsed_ms) : "";
       const fallback = job.plan && job.plan.source === "fallback"
         ? "（模型这次超时，先用简化拆解，建议稍后重试一次）"
         : "";
-      els.hint.textContent = `拆解完成${cost ? `，用时 ${cost}` : ""}${fallback}。先点「生成封面」，满意后再继续。`;
+      els.hint.textContent = `拆解完成${cost ? `，用时 ${cost}` : ""}${fallback}。先确认图位，再生成封面。`;
     } catch (error) {
       els.hint.classList.add("is-error");
       els.hint.textContent = error.message;
       if (!state.job) {
         els.articlePanel.hidden = true;
-        els.workspace.hidden = true;
-        els.slotsPanel.hidden = true;
         els.empty.hidden = false;
+        els.plan.hidden = true;
       }
     } finally {
       stopTicker();
@@ -440,9 +463,11 @@
   function renderGallery() {
     if (!state.job) return;
     const done = state.job.slots.filter((s) => state.job.images[s.id]);
-    if (done.length < 2) { els.galleryPanel.hidden = true; return; }
-    els.galleryPanel.hidden = false;
     els.gallery.innerHTML = "";
+    if (!done.length) {
+      els.gallery.innerHTML = '<p class="av-gallery-empty">还没有成图。先在「图位方案」里选一张，生成封面后再回来。</p>';
+      return;
+    }
     done.forEach((slot) => {
       const card = document.createElement("div");
       card.className = "av-card";
@@ -482,15 +507,20 @@
     state.job = null;
     state.activeId = null;
     els.articlePanel.hidden = true;
-    els.workspace.hidden = true;
-    els.slotsPanel.hidden = true;
     els.empty.hidden = false;
-    els.galleryPanel.hidden = true;
+    els.plan.hidden = true;
     els.url.value = "";
-    els.hint.textContent = "只支持 mp.weixin.qq.com 的公开文章；解析约 10–20 秒。";
+    els.hint.textContent = "只支持 mp.weixin.qq.com 的公开文章 · 解析约 20–60 秒";
     els.hint.classList.remove("is-error");
+    setTab("plan");
     els.url.focus();
   });
+
+  if (els.tabs) {
+    els.tabs.querySelectorAll("[data-tab]").forEach((button) => {
+      button.addEventListener("click", () => setTab(button.dataset.tab));
+    });
+  }
 
   els.analyze.addEventListener("click", analyze);
   els.url.addEventListener("keydown", (event) => {
