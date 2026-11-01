@@ -25,6 +25,18 @@ router = APIRouter(prefix="/api/wishes", tags=["wish-square"])
 metadata = MetaData()
 MAX_IMAGES = 8
 MAX_IMAGE_BYTES = 8 * 1024 * 1024
+# 单条心愿的金额上限（元）。金额越大越像募集资金，压在这个量级可降低被认定为
+# 「向不特定对象吸收资金」的外观；同时也不至于挡住正常的个人愿望。
+MAX_TARGET_YUAN = 5000
+# 承诺回报、投资、募捐类表述一律不许出现在心愿里：这类措辞会把「个人心愿」
+# 变成「集资/募捐」，属于法律红线，不做人工判断，直接拦。
+RISKY_TERMS = ('投资', '分红', '返利', '保本', '利息', '众筹', '募捐', '慈善')
+
+
+def risky_terms(*texts: str) -> list[str]:
+    blob = ' '.join(text or '' for text in texts)
+    return [term for term in RISKY_TERMS if term in blob]
+
 
 wishes = Table(
     "wishes", metadata,
@@ -125,6 +137,7 @@ def _record(row: dict, user: dict | None = None) -> dict:
     item['has_payment_code'] = has_code
     item['target_amount'] = f'{amount / 100:.2f}' if amount is not None else None
     item['is_owner'] = bool(user and row['user_id'] == user.get('id'))
+    item['risk_terms'] = risky_terms(row.get('title', ''), row.get('story', ''), row.get('target_text', ''))
     return item
 
 
@@ -156,13 +169,22 @@ def create_wish(payload: WishCreate, request: Request):
     now = _now()
     wish_id = uuid.uuid4().hex
     clean = {name: re.sub(r"\s+", " ", str(getattr(payload, name)).strip()) for name in ("title", "story", "category", "target_kind", "target_text", "display_name")}
+    hits = risky_terms(clean['title'], clean['story'], clean['target_text'])
+    if hits:
+        raise HTTPException(
+            status_code=422,
+            detail=f"内容里出现了「{'、'.join(hits)}」这类说法。心愿广场只接受个人心愿，"
+                   "不接受投资、分红、返利、保本、利息或众筹募捐类内容，请改掉后再提交。")
+    if payload.target_amount:
+        from decimal import Decimal
+        amount_fen = int(Decimal(payload.target_amount) * 100)
+        if amount_fen <= 0:
+            raise HTTPException(status_code=422, detail='所需金额必须大于 0')
+        if amount_fen > MAX_TARGET_YUAN * 100:
+            raise HTTPException(status_code=422, detail=f'单条心愿的所需金额上限为 {MAX_TARGET_YUAN} 元')
     with database.ENGINE.begin() as connection:
         connection.execute(insert(wishes).values(id=wish_id, user_id=user["id"], status="draft", created_at=now, updated_at=now, **clean))
         if payload.target_amount:
-            from decimal import Decimal
-            amount_fen = int(Decimal(payload.target_amount) * 100)
-            if amount_fen <= 0:
-                raise HTTPException(status_code=422, detail='所需金额必须大于 0')
             connection.execute(insert(wish_target_amounts).values(wish_id=wish_id, amount_fen=amount_fen))
         row = connection.execute(select(wishes).where(wishes.c.id == wish_id)).mappings().one()
     return _record(dict(row), user)
@@ -397,6 +419,13 @@ def review_wish(wish_id: str, payload: ReviewBody, request: Request):
             raise HTTPException(status_code=404, detail="心愿不存在")
         if payload.decision in {'published', 'rejected'} and row['status'] != 'pending':
             raise HTTPException(status_code=409, detail='只有待审核的心愿可以通过或驳回')
+        if payload.decision == 'published':
+            hits = risky_terms(row['title'], row['story'], row['target_text'])
+            if hits:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"这条心愿包含「{'、'.join(hits)}」，不能通过。"
+                           "请驳回并让发布者改成纯个人心愿的表述。")
         connection.execute(update(wishes).where(wishes.c.id == wish_id).values(status=payload.decision, updated_at=now))
         connection.execute(insert(wish_reviews).values(id=uuid.uuid4().hex, wish_id=wish_id, reviewer_id=admin["id"], decision=payload.decision, note=payload.note.strip(), created_at=now))
         updated = connection.execute(select(wishes).where(wishes.c.id == wish_id)).mappings().one()
