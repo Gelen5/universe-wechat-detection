@@ -110,9 +110,9 @@
 #article-visual .av-stage-status { font-size:11px; color:#8aa796; }
 #article-visual .av-stage-status.is-ok { color:#2f7a55; }
 #article-visual .av-stage-status.is-busy { color:#b07a2a; }
-#article-visual .av-preview { background:#f3f9f5; border:1px dashed #cfe3d6; border-radius:16px; min-height:360px; display:flex; align-items:center; justify-content:center; padding:14px; }
-#article-visual .av-preview img { max-width:100%; max-height:520px; border-radius:10px; }
-#article-visual .av-preview-empty { text-align:center; color:#8aa796; font-size:12px; }
+#article-visual .av-preview { background:#f3f9f5; border:1px dashed #cfe3d6; border-radius:16px; min-height:360px; padding:14px; }
+#article-visual .av-preview img { display:block; margin:0 auto; width:auto !important; height:auto !important; max-width:100%; max-height:520px; object-fit:contain; border-radius:10px; }
+#article-visual .av-preview-empty { min-height:330px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; color:#8aa796; font-size:12px; }
 #article-visual .av-preview-icon { display:inline-grid; place-items:center; width:56px; height:56px; border-radius:14px; background:#e8f2eb; color:#6f917d; font-size:12px; margin-bottom:8px; }
 #article-visual .av-cover-styles { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:12px; }
 #article-visual .av-cover-styles-label { font-size:11px; color:#8aa796; }
