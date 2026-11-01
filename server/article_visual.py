@@ -665,7 +665,9 @@ _BG_REPLACEMENTS = (
 def build_image_prompt(slot: dict[str, Any], cover_style: str = "compare") -> str:
     """在基础版式上套视觉风格，并强制每张图必须有具体主体。"""
     prompt = _base_image_prompt(slot, cover_style)
-    style = VISUAL_STYLES.get(str(slot.get("visual") or ""), VISUAL_STYLES["photo"])
+    # 老任务没有 visual 字段，按图位顺序轮换，避免重做时整组又变成同一种风格。
+    fallback_visual = ("photo", "light", "paper", "iso", "dark")[int(slot.get("order") or 0) % 5]
+    style = VISUAL_STYLES.get(str(slot.get("visual") or ""), VISUAL_STYLES[fallback_visual])
     for background in _BG_REPLACEMENTS:
         prompt = prompt.replace(background, style["bg"])
     prompt = prompt.replace("白色中文", f"{style['ink']}中文").replace("白色小字", f"{style['ink']}小字")
