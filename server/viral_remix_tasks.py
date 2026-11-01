@@ -8,6 +8,7 @@ import time
 from .celery_app import celery_app
 from . import accounts, creator_tools
 from . import viral_remix_jobs as jobs
+from . import workbench
 
 
 def dispatch(job_id: str) -> str:
@@ -29,14 +30,20 @@ def run(self, job_id: str):
     total = int(payload.get('count') or 0)
 
     try:
-        cards, idea, directory = creator_tools.prepare_remix_cards(session_id, idea)
+        # 必须先进入 provider_overrides：workbench._setting 只认「请求级覆盖 + 环境变量」，
+        # 后台「统一 API 设置」写在 provider_settings 表里。少了这一层，文字模型会退回
+        # 默认的 https://api.openai.com/v1（国内直连不通），于是每次都在 135 秒后
+        # 报 transport 失败——生图当时根本没被调用到。
+        with workbench.provider_overrides():
+            cards, idea, directory = creator_tools.prepare_remix_cards(session_id, idea)
         total = len(cards)
         # 创意展开降级时把原因带到结果里，前端会当成 warning 展示。
         error = idea.get('fallback_note') or ''
         accounts.progress_job(job_id, done=0, total=total, stage='preparing')
         for index, page in enumerate(cards, 1):
             try:
-                image = creator_tools.generate_remix_card(idea, page, index, total, directory)
+                with workbench.provider_overrides():
+                    image = creator_tools.generate_remix_card(idea, page, index, total, directory)
             except Exception as exc:  # noqa: BLE001 - 单张失败不该拖垮整单
                 logging.getLogger(__name__).exception('remix card failed: %s', job_id)
                 error = str(exc)[:300] or '出图失败'

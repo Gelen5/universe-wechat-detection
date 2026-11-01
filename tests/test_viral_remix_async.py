@@ -164,3 +164,46 @@ class TestExpandFallback:
                'visual_contract': {'asset_type': 'poster'}}
         with pytest.raises(creator_tools.workbench.ProviderError):
             creator_tools.prepare_remix_cards('session-y', raw)
+
+class TestProviderOverride:
+    """后台「统一 API 设置」写在 provider_settings 表里，workbench._setting 只认
+    请求级覆盖和环境变量。任务不进 provider_overrides 就会退回 api.openai.com，
+    国内直连不通——这正是出图任务一直失败、生图模型从未被调用到的原因。
+    """
+
+    def test_task_resolves_the_configured_relay(self, user_id, monkeypatch, tmp_path):
+        from server import creator_tools, viral_remix_tasks, workbench
+
+        sentinel = 'https://relay.example.test/v1'
+        with accounts.DB_LOCK, accounts._connect() as conn:
+            previous = tuple(conn.execute(
+                "SELECT text_base_url, text_model FROM provider_settings WHERE id=1").fetchone())
+            conn.execute(
+                "UPDATE provider_settings SET text_base_url=?, text_model=? WHERE id=1",
+                (sentinel, 'sentinel-model'))
+        try:
+            seed(user_id)
+            job = jobs.submit(user_id, 'session-relay', idea(1))
+            seen = {}
+
+            def fake_prepare(session_id, raw):
+                seen['base'] = workbench._setting('WECHAT_TEXT_API_BASE_URL')
+                seen['model'] = workbench._setting('WECHAT_TEXT_MODEL')
+                return [{'headline': 'x'}], raw, tmp_path
+
+            def fake_card(idea, page, index, total, directory):
+                return {'index': index, 'url': '/x.jpg', 'width': 1, 'height': 1,
+                        'check_passed': True}
+
+            monkeypatch.setattr(creator_tools, 'prepare_remix_cards', fake_prepare)
+            monkeypatch.setattr(creator_tools, 'generate_remix_card', fake_card)
+            viral_remix_tasks.run.run(job['id'])
+
+            assert seen['base'] == sentinel
+            assert seen['model'] == 'sentinel-model'
+            assert jobs.public(accounts.job(job['id'], user_id))['status'] == 'succeeded'
+        finally:
+            with accounts.DB_LOCK, accounts._connect() as conn:
+                conn.execute(
+                    "UPDATE provider_settings SET text_base_url=?, text_model=? WHERE id=1",
+                    previous)
