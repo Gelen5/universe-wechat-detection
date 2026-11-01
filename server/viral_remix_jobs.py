@@ -90,6 +90,7 @@ def public(job: dict[str, Any]) -> dict[str, Any]:
         'done': done,
         'stage': progress.get('stage') or ('完成' if status == 'succeeded' else '排队中'),
         'images': images,
+        'publication': result.get('publication'),
         'copy_directions': result.get('copy_directions') or [],
         'tags': result.get('tags') or {},
         'warning': result.get('warning') or '',

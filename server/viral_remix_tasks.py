@@ -64,6 +64,7 @@ def run(self, job_id: str):
     elapsed = int((time.monotonic() - started) * 1000)
     if images:
         result = {**images[0], 'images': images,
+                  'publication': None,
                   'copy_directions': idea.get('copy_directions', []),
                   'tags': idea.get('tags', {}),
                   'warning': error, 'expected': total}

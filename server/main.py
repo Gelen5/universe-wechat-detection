@@ -1198,6 +1198,76 @@ def viral_remix_history(request: Request, limit: int = 50, before: str = ''):
     return {'jobs': [viral_remix_jobs.public(dict(row)) for row in selected], 'next_before': selected[-1]['id'] if len(rows) > limit else None}
 
 
+class RemixPublicationRequest(BaseModel):
+    titles: list[str]
+    body: str
+    tags: list[str]
+
+
+def _remix_publication_job(job_id: str, request: Request):
+    from . import viral_remix_jobs
+    user = accounts.require_user(request)
+    job = accounts.job(job_id, user['id'])
+    if not job or job['type'] != viral_remix_jobs.TASK_TYPE:
+        raise HTTPException(status_code=404, detail='任务不存在')
+    if job['status'] != 'succeeded':
+        raise HTTPException(status_code=409, detail='请等待图片生成完成')
+    return user, job
+
+
+def _save_remix_publication(job_id: str, user_id: str, publication: dict):
+    with accounts.DB_LOCK, accounts._connect() as connection:
+        connection.execute('BEGIN IMMEDIATE')
+        lock = ' FOR UPDATE' if database.ENGINE.dialect.name == 'postgresql' else ''
+        row = connection.execute('SELECT result_json FROM jobs WHERE id=? AND user_id=? AND status=?' + lock, (job_id, user_id, 'succeeded')).fetchone()
+        if not row:
+            connection.execute('COMMIT')
+            raise HTTPException(status_code=404, detail='任务不存在')
+        result = json.loads(row['result_json'] or '{}')
+        result['publication'] = publication
+        connection.execute('UPDATE jobs SET result_json=? WHERE id=? AND user_id=?', (json.dumps(result, ensure_ascii=False), job_id, user_id))
+        connection.execute('COMMIT')
+    return publication
+
+
+@app.post('/api/viral-remix/image/{job_id}/publication')
+def regenerate_remix_publication(job_id: str, request: Request):
+    user, job = _remix_publication_job(job_id, request)
+    try:
+        with accounts.conversation_lock('remix-publication:' + job_id, user['id']):
+            return _generate_remix_publication(job_id, user, job)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+def _generate_remix_publication(job_id: str, user: dict, job: dict):
+    images = json.loads(job.get('result_json') or '{}').get('images') or []
+    usage_id = accounts.reserve_points(user['id'], {'points': 1, 'feature': '爆款贴图标题与文案生成'}, 'POST', '/api/viral-remix/publication')
+    started = time.perf_counter()
+    try:
+        with workbench.provider_overrides():
+            publication = creator_tools.remix_publication_copy(images)
+        publication = _save_remix_publication(job_id, user['id'], publication)
+        accounts.settle_usage(usage_id, 200, int((time.perf_counter() - started) * 1000))
+    except ValueError as exc:
+        accounts.refund_usage(usage_id, 422, int((time.perf_counter() - started) * 1000))
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:
+        accounts.refund_usage(usage_id, 502, int((time.perf_counter() - started) * 1000))
+        raise HTTPException(status_code=502, detail='文案生成失败，请稍后重试') from exc
+    return {'publication': publication, 'points_charged': 1}
+
+
+@app.put('/api/viral-remix/image/{job_id}/publication')
+def save_remix_publication(job_id: str, payload: RemixPublicationRequest, request: Request):
+    user, _ = _remix_publication_job(job_id, request)
+    try:
+        publication = creator_tools.validate_remix_publication_copy(payload.model_dump())
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return {'publication': _save_remix_publication(job_id, user['id'], publication)}
+
+
 @app.post('/api/viral-remix/verify')
 def verify_viral_remix(payload: ViralRemixVerifyRequest):
     if any(len(c)>500 for c in payload.claims):

@@ -48,6 +48,9 @@
       if(!append)content.replaceChildren();
       if(!data.jobs.length && !append){content.textContent='还没有生成记录。';return;}
       for(const job of data.jobs){const group=document.createElement('section');group.className='remix-history-job';const heading=document.createElement('h3');const date=new Date(job.created_at);heading.textContent=(Number.isNaN(date.valueOf())?'':date.toLocaleString('zh-CN',{timeZone:'Asia/Shanghai'}))+' · '+({succeeded:'已完成',running:'生成中',queued:'排队中',failed:'未完成',canceled:'已取消'}[job.status]||job.status);group.append(heading);const grid=document.createElement('div');grid.className='remix-history-grid';for(const image of job.images||[]){const url=validUrl(image.url);if(!url)continue;const card=document.createElement('div');card.className='remix-history-card';const img=document.createElement('img');img.src=url;img.alt='生成的图片';img.loading='lazy';card.append(img,saveButton(url,'保存图片'));grid.append(card)}if(!grid.childElementCount){const note=document.createElement('p');note.textContent=job.status==='running'||job.status==='queued'?'图片生成后会显示在这里。':'这次任务没有可展示的图片。';group.append(note)}else group.append(grid);content.append(group)}
+      for (const [index, group] of [...content.querySelectorAll('.remix-history-job')].slice(-data.jobs.length).entries()) {
+        const job = data.jobs[index]; if (job?.status === 'succeeded' && job.images?.length) group.append(window.RemixPublication.render(job));
+      }
       historyCursor=data.next_before||null;more.hidden=!historyCursor;
     }catch(error){if(!append)content.textContent=error.message;else alert(error.message)}
   }
