@@ -71,7 +71,7 @@
 <link rel="stylesheet" href="/static/points-notice.css?v=20261031-points-packages-1" />
 <link rel="stylesheet" href="/static/auth-mint.css?v=20261031-glass-2" />
 <script src="/static/points-notice.js?v=20261031-points-packages-1" defer></script>
-<link rel="stylesheet" href="/static/viral-remix.css?v=20261101-remix-wait-ui-1">
+<link rel="stylesheet" href="/static/viral-remix.css?v=20261101-remix-save-1">
 <link rel="stylesheet" href="/static/xhs-extract.css?v=20261031-workspace-5">
 <link rel="stylesheet" href="/static/article-visual.css?v=20261101-subject1">
 <link rel="stylesheet" href="/static/douyin-extract.css?v=20261031-workspace-3">
@@ -379,6 +379,7 @@
               <button id="viral-remix-start" class="skill-primary" type="submit">开始拆解 →</button>
               <p class="viral-notice">对标图只被拆解，不会被裁切、贴入或作为图生图输入。</p>
             </form>
+            <button type="button" id="remix-history-open" class="remix-history-open">查看我生成的图片</button>
           </div>
           <div class="skill-output-col" aria-live="polite">
             <div id="viral-remix-empty" class="skill-empty viral-empty">
@@ -392,6 +393,8 @@
         </div>
       </section>
 
+      <dialog id="remix-history-dialog" class="remix-history-dialog"><div class="remix-history-header"><div><h2>我生成的图片</h2><p>按账号保存的历史结果；可在这里继续查看和下载。</p></div><button type="button" id="remix-history-close" aria-label="关闭">×</button></div><div id="remix-history-content" aria-live="polite"></div><button type="button" id="remix-history-more" hidden>加载更多</button></dialog>
+      <dialog id="remix-save-dialog" class="remix-save-dialog"><div class="remix-save-header"><h2>保存图片</h2><button type="button" id="remix-save-close" aria-label="关闭">×</button></div><img id="remix-save-preview" alt="生成图片预览，手机可长按保存"><p id="remix-save-status" role="status">正在准备图片…</p><button type="button" id="remix-save-action" disabled>正在准备图片…</button></dialog>
       <!-- ============================================================
            TAB · /xhs-extract — 小红书内容提取
            ============================================================ -->
@@ -1132,7 +1135,8 @@
     <script src="/static/market.js?v=20261026-loading-1" defer></script>
     <script src="/static/auth-challenge.js?v=20261031-glass-2"></script>
     <script src="/static/wechat-plus.js?v=20261101-copy-1"></script>
-    <script src="/static/app.js?v=20261101-revenue-20261101-remix-wait-ui-1"></script>
+    <script src="/static/remix-save.js?v=20261101-1"></script>
+    <script src="/static/app.js?v=20261101-remix-save-1"></script>
     <script src="/static/flow.js?v=20261031-hide-diagnose-1"></script>
     <script src="/static/studio-tools.js?v=20261028-tietu-1"></script>
     <link rel="stylesheet" href="/static/creator-chat.css?v=20260906-conversation-1">

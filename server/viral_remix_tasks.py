@@ -36,6 +36,10 @@ def run(self, job_id: str):
         # 报 transport 失败——生图当时根本没被调用到。
         with workbench.provider_overrides():
             cards, idea, directory = creator_tools.prepare_remix_cards(session_id, idea)
+        # Keep each completed job in its own persistent directory.  Older jobs
+        # retain their original paths and are never moved or overwritten.
+        directory = directory.parent / f'remix-{job_id}'
+        directory.mkdir(parents=True, exist_ok=True)
         total = len(cards)
         # 创意展开降级时把原因带到结果里，前端会当成 warning 展示。
         error = idea.get('fallback_note') or ''
@@ -49,7 +53,7 @@ def run(self, job_id: str):
                 error = str(exc)[:300] or '出图失败'
                 break
             images.append(image)
-            accounts.progress_job(job_id, done=index, total=total, stage='generating')
+            accounts.progress_job(job_id, done=index, total=total, stage='generating', images=images)
     except Exception as exc:  # noqa: BLE001 - 展开创意阶段就失败
         logging.getLogger(__name__).exception('remix job failed: %s', job_id)
         error = str(exc)[:300] or '任务失败'

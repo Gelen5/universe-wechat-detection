@@ -1832,11 +1832,11 @@ function renderRemixJobResult(job, idea, output, result, storeDraft) {
   all.map((extra, position) => ({ extra, ordinal: Number(extra.index) || position + 1 }))
     .sort((a, b) => b.ordinal - a.ordinal)
     .forEach(({ extra, ordinal }) => {
-      const name = all.length > 1 ? `爆款贴图复刻-${idea.id}-${ordinal}.png` : `爆款贴图复刻-${idea.id}.png`;
-      const label = all.length > 1 ? `下载第 ${ordinal} 张` : '下载图片';
+      const label = all.length > 1 ? `保存第 ${ordinal} 张` : '保存 / 下载图片';
       const card = document.createElement('article');
       card.className = 'viral-generated';
-      card.innerHTML = `<span class="tag">步骤 4 · 原创成图${all.length > 1 ? ` · ${ordinal}/${all.length}` : ''}</span><img src="${safeUrl(extra.url)}" alt="${esc(idea.headline || '原创贴图')} ${ordinal}"/><div><strong>${esc(idea.headline || '')}</strong><a href="${safeUrl(extra.url)}" download="${esc(name)}">${label}</a></div>`;
+      card.innerHTML = `<span class="tag">步骤 4 · 原创成图${all.length > 1 ? ` · ${ordinal}/${all.length}` : ''}</span><img src="${safeUrl(extra.url)}" alt="${esc(idea.headline || '原创贴图')} ${ordinal}"/><div class="remix-generated-actions"><strong>${esc(idea.headline || '')}</strong></div>`;
+      card.querySelector('.remix-generated-actions').append(window.RemixSave.saveButton(extra.url, label));
       output.append(card);
     });
   const delivery = document.createElement('pre');
@@ -1925,7 +1925,7 @@ function renderViralRemix(result, sessionId) {
   if(saved.choices) for(const [key,value] of Object.entries(saved.choices)){const field=root.querySelector(`[name="remix-${key}"]`);if(field)field.value=value;}
   root.querySelectorAll('.remix-choices select').forEach(field=>field.addEventListener('change',()=>storeDraft({choices:{track:root.querySelector('[name=remix-track]')?.value,emotion:root.querySelector('[name=remix-emotion]')?.value,boundaries:root.querySelector('[name=remix-boundaries]')?.value}})));
   root.querySelectorAll('.viral-generate').forEach(button=>button.addEventListener('click',()=>storeDraft({selectedIdea:button.dataset.idea})));
-  for(const generated of saved.generated||[]){output.querySelector('.remix-output-placeholder')?.remove();for(const image of generated.images||[generated]){const card=document.createElement('article');card.className='viral-generated';card.innerHTML=`<img src="${safeUrl(image.url)}" alt="已保存原创图 ${Number(image.index)||1}"><a href="${safeUrl(image.url)}" download>下载图片</a>`;output.append(card);}}
+  for(const generated of saved.generated||[]){output.querySelector('.remix-output-placeholder')?.remove();for(const image of generated.images||[generated]){const card=document.createElement('article');card.className='viral-generated';card.innerHTML=`<img src="${safeUrl(image.url)}" alt="已保存原创图 ${Number(image.index)||1}"><div class="remix-generated-actions"></div>`;card.querySelector('.remix-generated-actions').append(window.RemixSave.saveButton(image.url,'保存 / 下载图片'));output.append(card);}}
   if(saved.generated?.length)selectPanel(2);
   else if(saved.pendingJob?.id){
     // 上次提交的异步任务还没取结果：回到本页（或刷新/切菜单回来）自动续上。
@@ -1956,6 +1956,7 @@ function renderViralRemix(result, sessionId) {
 window.addEventListener('account-changed',()=>{
   const root=document.querySelector('#viral-remix-result');
   if(!root)return;
+  window.RemixSave?.setOwner(currentAccount?.id);
   // 同一账号重复触发的 account-changed（切窗口、钱包刷新等）不要重绘，
   // 否则会把正在看的面板重置回「拆解报告」。
   if(currentAccount?.id && currentAccount.id===remixRenderedOwner && remixRenderedSession) return;

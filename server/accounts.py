@@ -886,10 +886,14 @@ def progress_job(job_id: str, **progress: Any) -> None:
     jobs 表没有单独的 progress 列，加列要写迁移；result_json 本来就只有任务
     结束才写，运行期间正好拿来放 {"progress": {...}}，读接口按状态区分即可。
     """
+    images = progress.pop('images', None)
+    result = {'progress': progress}
+    if images is not None:
+        result['images'] = images
     with DB_LOCK, _connect() as connection:
         connection.execute(
             "UPDATE jobs SET result_json=? WHERE id=? AND status='running'",
-            (json.dumps({'progress': progress}, ensure_ascii=False), job_id),
+            (json.dumps(result, ensure_ascii=False), job_id),
         )
 
 

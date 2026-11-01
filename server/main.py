@@ -1180,6 +1180,24 @@ def viral_remix_image_status(job_id: str, request: Request):
     return {"status": "ok", "job": viral_remix_jobs.public(job)}
 
 
+@app.get('/api/viral-remix/history')
+def viral_remix_history(request: Request, limit: int = 50, before: str = ''):
+    """List the current account's durable jobs; never expose other accounts."""
+    from . import viral_remix_jobs
+    user = accounts.require_user(request)
+    limit = max(1, min(limit, 50))
+    with accounts.DB_LOCK, accounts._connect() as connection:
+        if before:
+            anchor = connection.execute("SELECT created_at,id FROM jobs WHERE id=? AND user_id=? AND type=?", (before, user['id'], viral_remix_jobs.TASK_TYPE)).fetchone()
+            if not anchor:
+                raise HTTPException(status_code=400, detail='历史记录游标无效')
+            rows = connection.execute("SELECT * FROM jobs WHERE user_id=? AND type=? AND (created_at<? OR (created_at=? AND id<?)) ORDER BY created_at DESC,id DESC LIMIT ?", (user['id'], viral_remix_jobs.TASK_TYPE, anchor['created_at'], anchor['created_at'], anchor['id'], limit + 1)).fetchall()
+        else:
+            rows = connection.execute("SELECT * FROM jobs WHERE user_id=? AND type=? ORDER BY created_at DESC,id DESC LIMIT ?", (user['id'], viral_remix_jobs.TASK_TYPE, limit + 1)).fetchall()
+    selected = rows[:limit]
+    return {'jobs': [viral_remix_jobs.public(dict(row)) for row in selected], 'next_before': selected[-1]['id'] if len(rows) > limit else None}
+
+
 @app.post('/api/viral-remix/verify')
 def verify_viral_remix(payload: ViralRemixVerifyRequest):
     if any(len(c)>500 for c in payload.claims):
