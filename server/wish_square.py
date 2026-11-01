@@ -82,7 +82,7 @@ def _require_user(request: Request) -> dict:
 
 
 def _is_owner_or_admin(row: dict, user: dict | None) -> bool:
-    return bool(user and (row["user_id"] == user["id"] or user.get("role") == "admin"))
+    return bool(user and (user.get("role") == "admin" or row["user_id"] == user.get("id")))
 
 
 class WishCreate(BaseModel):
@@ -222,10 +222,15 @@ def support_intent(wish_id: str, request: Request):
 
 
 @router.get("/admin/review")
-def review_queue(request: Request):
+def review_queue(request: Request, status: str = "pending"):
     accounts.require_admin(request)
+    if status not in {"pending", "published", "rejected", "closed", "all"}:
+        raise HTTPException(status_code=422, detail="无效的审核状态")
     with database.ENGINE.connect() as connection:
-        rows = connection.execute(select(wishes).where(wishes.c.status == "pending").order_by(wishes.c.created_at.asc()).limit(100)).mappings().all()
+        query = select(wishes).order_by(wishes.c.created_at.asc())
+        if status != "all":
+            query = query.where(wishes.c.status == status)
+        rows = connection.execute(query.limit(100)).mappings().all()
     return {"items": [_record(dict(row), {"role": "admin"}) for row in rows]}
 
 
