@@ -592,16 +592,23 @@
   });
 
   els.reset.addEventListener("click", () => {
+    if (state.busy) { toast('当前任务进行中，请等待完成后再新建'); return; }
     state.job = null;
     state.activeId = null;
     els.articlePanel.hidden = true;
     els.empty.hidden = false;
     els.plan.hidden = true;
     els.url.value = "";
+    history.replaceState(null, "", "/article-visual");
     els.hint.textContent = "支持公开公众号文章 · 拆解包含策划与原文核对";
     els.hint.classList.remove("is-error");
     setTab("plan");
     els.url.focus();
+  });
+  $('av-new').addEventListener('click', () => els.reset.click());
+  window.CreationHistory?.register('article-visual', async item => {
+    if (state.busy) { toast('当前任务进行中，请等待完成后再切换'); return false; }
+    await loadJob(item.id); history.replaceState(null, '', `/article-visual?job=${encodeURIComponent(item.id)}`); return true;
   });
 
   if (els.tabs) {

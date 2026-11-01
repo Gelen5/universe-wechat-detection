@@ -951,6 +951,30 @@ class PlanBody(BaseModel):
     url: str = Field(min_length=10, max_length=2000)
 
 
+@router.get('/history/list')
+def list_article_visual_history(request: Request, limit: int = 50, before: str = ''):
+    user = accounts.require_user(request)
+    _ensure_schema()
+    limit = max(1, min(limit, 50))
+    with database.session_scope() as session:
+        params = {'uid': user['id'], 'limit': limit + 1}
+        condition = ''
+        if before:
+            anchor = session.execute(text('SELECT updated_at,id FROM article_visual_jobs WHERE id=:id AND user_id=:uid'), {'id': before, 'uid': user['id']}).fetchone()
+            if not anchor:
+                raise HTTPException(status_code=400, detail='历史记录游标无效')
+            condition = ' AND (updated_at < :updated OR (updated_at = :updated AND id < :id))'
+            params.update(updated=anchor[0], id=anchor[1])
+        rows = session.execute(text('SELECT id,payload,updated_at FROM article_visual_jobs WHERE user_id=:uid' + condition + ' ORDER BY updated_at DESC,id DESC LIMIT :limit'), params).fetchall()
+    entries = []
+    for row in rows[:limit]:
+        try:
+            job = json.loads(row[1]); entries.append({'id': row[0], 'title': (job.get('article') or {}).get('title') or '未命名文章', 'updated_at': row[2], 'image_count': len(job.get('images') or {})})
+        except (ValueError, TypeError):
+            continue
+    return {'items': entries, 'next_before': rows[limit-1][0] if len(rows) > limit else None}
+
+
 class GenerateBody(BaseModel):
     job_id: str = Field(min_length=4, max_length=32)
     slot_id: str = Field(min_length=1, max_length=40)

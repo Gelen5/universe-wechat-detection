@@ -1970,16 +1970,54 @@ window.addEventListener('account-changed',()=>{
 });
 viralRemixForm?.addEventListener('submit', async event => {
   event.preventDefault();
+  if (remixHistoryBusy()) { showToast('当前任务进行中，请等待完成后再开始新的创作', 'error'); return; }
   if (!viralFiles.length) {showToast('请先选择1—8张参考图','error');return;}
   const button = document.querySelector('#viral-remix-start');
   const finish = beginButton(button, '正在拆解图片结构…');
   try {
+    await preserveRemixDraft();
     const imageData = await Promise.all(viralFiles.map(file=>new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = () => reject(new Error('图片读取失败')); reader.readAsDataURL(file); })));
     const sessionId = crypto.randomUUID().replaceAll('-', '');
-    const data = await postCreator('/api/viral-remix/analyze', { imageData, goal: document.querySelector('#viral-remix-goal').value.trim() });
+    const data = await postCreator('/api/viral-remix/analyze', { imageData, sessionId, goal: document.querySelector('#viral-remix-goal').value.trim() });
     renderViralRemix(data.result, sessionId);
   } catch (error) { showToast(error.message, 'error'); } finally { finish(); }
 });
+
+function tieHistoryBusy() { return !!imageGenerationController || !!window.TieChatHistory?.busy() || !!document.querySelector('#tie-plan')?.disabled || !!document.querySelector('#tie-images')?.disabled; }
+document.querySelector('#tie-new')?.addEventListener('click', () => {
+  if (tieHistoryBusy()) { showToast('当前任务进行中，请等待完成后再新建', 'error'); return; }
+  window.TieChatHistory?.reset(); document.querySelector('#tie-form')?.reset();
+  const root = document.querySelector('#tie-result'); root.replaceChildren(); root.hidden = true; document.querySelector('#tie-empty').hidden = false;
+});
+window.CreationHistory?.register('tie-tu', async item => {
+  if (tieHistoryBusy()) { showToast('当前任务进行中，请等待完成后再切换', 'error'); return false; }
+  if (item.kind === 'chat') { await window.TieChatHistory.open(item.id); return true; }
+  const response = await fetch(`/api/creator/history/plan/${encodeURIComponent(item.id)}`); const data = await response.json(); if (!response.ok) throw new Error(data.detail || '加载失败');
+  renderTiePlan(data.item); return true;
+});
+function remixHistoryBusy() { const key = currentAccount?.id && `viral-remix-draft:${currentAccount.id}`; try { return !!document.querySelector('#viral-remix-start')?.disabled || !!(key && JSON.parse(localStorage.getItem(key) || '{}').pending); } catch { return false; } }
+async function preserveRemixDraft() {
+  const owner = currentAccount?.id; if (!owner) return;
+  const draft = JSON.parse(localStorage.getItem(`viral-remix-draft:${owner}`) || '{}');
+  if (!draft.sessionId || !draft.result) return;
+  const response = await fetch(`/api/creator/history/analysis/${encodeURIComponent(draft.sessionId)}`, {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({result:draft.result,generated:draft.generated || [],choices:draft.choices || {},selectedIdea:draft.selectedIdea || null})});
+  if (!response.ok || currentAccount?.id !== owner) throw new Error('当前创作尚未保存，请稍后重试');
+}
+document.querySelector('#remix-new')?.addEventListener('click', async () => {
+  if (remixHistoryBusy()) { showToast('当前任务进行中，请等待完成后再新建', 'error'); return; }
+  try { await preserveRemixDraft(); } catch (error) { showToast(error.message, 'error'); return; }
+  if (currentAccount?.id) localStorage.removeItem(`viral-remix-draft:${currentAccount.id}`);
+  resetViralRemixImage(); document.querySelector('#viral-remix-goal').value = ''; const root = document.querySelector('#viral-remix-result'); root.replaceChildren(); root.hidden = true; document.querySelector('#viral-remix-empty').hidden = false; remixRenderedSession = null;
+});
+window.CreationHistory?.register('viral-remix', async item => {
+  if (remixHistoryBusy()) { showToast('当前任务进行中，请等待完成后再切换', 'error'); return false; }
+  await preserveRemixDraft();
+  const response = await fetch(`/api/creator/history/analysis/${encodeURIComponent(item.id)}`); const data = await response.json(); if (!response.ok) throw new Error(data.detail || '加载失败');
+  const analysis = data.item; const generated = (analysis.generated || []).filter(job => (!job.status || job.status === 'succeeded') && (job.images?.length || job.url)).slice(0, 1).map(job => ({...job, images:job.images?.length ? job.images : [job]}));
+  const running = (analysis.generated || []).find(job => ['queued', 'running'].includes(job.status));
+  if (currentAccount?.id) localStorage.setItem(`viral-remix-draft:${currentAccount.id}`, JSON.stringify({sessionId:item.id,result:analysis.result,choices:analysis.choices || {},selectedIdea:analysis.selectedIdea || null,generated:running ? [] : generated,pending:!!running,pendingJob:running ? {id:running.id,total:running.total} : null}));
+  renderViralRemix(analysis.result, item.id); return true;
+}, preserveRemixDraft);
 
 const viewMap = {
   home: homePage,

@@ -168,6 +168,17 @@
       finally { restoring = false; button.disabled = !!controller; reset.disabled = !!controller; }
     }
     reset.onclick = () => { if (controller) return; session = null; artifact = null; history.replaceChildren(); output.replaceChildren(); if (owner) localStorage.removeItem(storageKey()); status.textContent = ''; };
+    if (skill === 'tie-tu') {
+      window.TieChatHistory = {
+        busy: () => !!controller || restoring,
+        reset: () => { reset.click(); input.value = ''; },
+        open: async id => {
+          const response = await fetch(`/api/creator/history/chat/${encodeURIComponent(id)}`);
+          const data = await response.json(); if (!response.ok) throw new Error(data.detail || '加载失败');
+          selectTieMode?.('chat'); show(data.item);
+        },
+      };
+    }
     window.addEventListener('creator-account-changed', restore); restore();
     window.addEventListener('creator-chat-send', event => {
       if (event.detail.skill !== skill || controller) return;

@@ -71,7 +71,7 @@
 <link rel="stylesheet" href="/static/points-notice.css?v=20261031-points-packages-1" />
 <link rel="stylesheet" href="/static/auth-mint.css?v=20261031-glass-2" />
 <script src="/static/points-notice.js?v=20261031-points-packages-1" defer></script>
-<link rel="stylesheet" href="/static/viral-remix.css?v=20261101-publication-1">
+<link rel="stylesheet" href="/static/viral-remix.css?v=20261101-history-1">
 <link rel="stylesheet" href="/static/xhs-extract.css?v=20261031-workspace-5">
 <link rel="stylesheet" href="/static/article-visual.css?v=20261101-publication1">
 <link rel="stylesheet" href="/static/douyin-extract.css?v=20261031-workspace-3">
@@ -365,6 +365,7 @@
             <span class="micro-label"><span class="line"></span><span>REFERENCE → ORIGINAL</span></span>
             <h1>拆结构，<br><span class="serif">不复制</span>画面。</h1>
             <p>上传一张对标贴图。我们只分析构图、信息层级和钩子，不会把原图或原文案放进你的成品。</p>
+            <div class="creation-actions"><button type="button" id="remix-new">新建创作</button><button type="button" data-creation-history="viral-remix">历史创作</button></div>
             <form id="viral-remix-form" class="skill-form">
               <div class="form-section">
                 <div class="head"><span class="num">01</span><div class="copy"><strong>放入对标图</strong><small>支持截图；原图只用于本次结构拆解。</small></div></div>
@@ -412,6 +413,7 @@
               <h1 class="av-title">一条链接，<br><span class="av-serif">拆成一组配图。</span></h1>
               <p class="av-lead">粘贴公众号文章，先选传播角度，再确认图位和封面，最后生成整组 3:4 贴图。</p>
 
+              <div class="creation-actions"><button type="button" id="av-new">新建创作</button><button type="button" data-creation-history="article-visual">历史创作</button></div>
               <div class="av-step-head"><span class="av-num">01</span><div><strong>放入文章链接</strong><small>支持带标题的分享文本，会自动取出链接。</small></div></div>
               <label class="av-field" for="av-url">公众号文章链接</label>
               <div class="av-input-row">
@@ -818,6 +820,7 @@
                 生成卡片计划 →
               </button>
             </form>
+            <div class="creation-actions"><button type="button" id="tie-new">新建创作</button><button type="button" data-creation-history="tie-tu">历史创作</button></div>
           </div>
 
           <div class="skill-output-col" aria-live="polite">
@@ -1135,18 +1138,20 @@
     <script src="/static/market.js?v=20261026-loading-1" defer></script>
     <script src="/static/auth-challenge.js?v=20261031-glass-2"></script>
     <script src="/static/wechat-plus.js?v=20261101-copy-1"></script>
+    <dialog id="creation-history-dialog" class="remix-history-dialog"><div class="remix-history-header"><div><h2>历史创作</h2><p>选择一条记录继续查看。</p></div><button type="button" id="creation-history-close" aria-label="关闭">×</button></div><div data-history-content aria-live="polite"></div></dialog>
+    <script src="/static/creation-history.js?v=20261101-1"></script>
     <script src="/static/remix-publication.js?v=20261101-article1"></script>
     <script src="/static/remix-save.js?v=20261101-publication-1"></script>
-    <script src="/static/app.js?v=20261101-tietu-repair-1"></script>
+    <script src="/static/app.js?v=20261101-history-1"></script>
     <script src="/static/flow.js?v=20261031-hide-diagnose-1"></script>
     <script src="/static/studio-tools.js?v=20261028-tietu-1"></script>
     <link rel="stylesheet" href="/static/creator-chat.css?v=20260906-conversation-1">
   <link rel="stylesheet" href="/static/tie-tu-studio.css?v=20261030-image-preview-1">
     <link rel="stylesheet" href="/static/ui-system.css?v=20261031-no-collapse-4">
-    <script src="/static/creator-chat.js?v=20261030-image-timer-1"></script>
+    <script src="/static/creator-chat.js?v=20261101-history-1"></script>
     <script src="/static/notion-workspace.js?v=20261031-no-collapse-1"></script>
     <script src="/static/xhs-extract.js?v=20261031-workspace-4"></script>
-    <script src="/static/article-visual.js?v=20261101-publication1"></script>
+    <script src="/static/article-visual.js?v=20261101-history-1"></script>
     <script src="/static/douyin-extract.js?v=20261031-douyin-2"></script>
     <script>
       // CDN/embedded clients may retain an older sidebar builder. Keep these

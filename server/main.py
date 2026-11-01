@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import threading
 import time
 import uuid
@@ -407,6 +408,7 @@ class TieTuPlanRequest(BaseModel):
 class ViralRemixAnalyzeRequest(BaseModel):
     imageData: str | list[str]
     goal: str = Field(default="", max_length=300)
+    sessionId: str | None = Field(default=None, min_length=8, max_length=80, pattern=r'^[a-zA-Z0-9_-]+$')
 
 
 class ViralRemixImageRequest(BaseModel):
@@ -1140,10 +1142,13 @@ def create_tie_tu_plan(payload: TieTuPlanRequest):
 
 
 @app.post("/api/viral-remix/analyze")
-def analyze_viral_remix(payload: ViralRemixAnalyzeRequest):
+def analyze_viral_remix(payload: ViralRemixAnalyzeRequest, request: Request):
     try:
         with workbench.provider_overrides():
-            return {"status": "success", "result": creator_tools.viral_remix_analysis(payload.imageData, payload.goal)}
+            result = creator_tools.viral_remix_analysis(payload.imageData, payload.goal)
+        if payload.sessionId:
+            accounts.save_workbench_session(accounts.require_user(request)['id'], {'id': payload.sessionId, 'conversation_skill': 'viral-remix', 'result': result, 'goal': payload.goal})
+        return {"status": "success", "result": result}
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except workbench.ProviderError as exc:
@@ -1449,6 +1454,113 @@ def get_creator_chat(session_id: str, request: Request):
     if not session or session.get('conversation_skill') not in creator_conversation.SKILLS:
         raise HTTPException(status_code=404, detail='会话不存在')
     return {'status': 'success', 'session': session}
+
+
+@app.get('/api/creator/history')
+def creator_history(request: Request, skill: str, limit: int = 50, before: str = ''):
+    user = accounts.require_user(request)
+    if skill not in ('tie-tu', 'viral-remix'):
+        raise HTTPException(status_code=400, detail='不支持的创作类型')
+    with accounts.DB_LOCK, accounts._connect() as connection:
+        sessions = connection.execute('SELECT id,payload_json,updated_at FROM workbench_sessions WHERE user_id=? ORDER BY updated_at DESC', (user['id'],)).fetchall()
+        jobs = connection.execute("SELECT id,type,result_json,created_at FROM jobs WHERE user_id=? AND type='tie_tu' AND status='succeeded' ORDER BY created_at DESC", (user['id'],)).fetchall() if skill == 'tie-tu' else []
+    entries = []
+    for row in sessions:
+        try:
+            payload = json.loads(row['payload_json'])
+        except (TypeError, ValueError):
+            continue
+        if payload.get('conversation_skill') != skill:
+            continue
+        title = (payload.get('result') or {}).get('content_guess') if skill == 'viral-remix' else ((payload.get('artifacts') or {}).get('draft') or {}).get('title')
+        entries.append({'id': row['id'], 'kind': 'analysis' if skill == 'viral-remix' else 'chat', 'title': title or '未命名创作', 'updated_at': row['updated_at']})
+    if skill == 'tie-tu':
+        for row in jobs:
+            if row['type'] != 'tie_tu':
+                continue
+            try:
+                plan = (json.loads(row['result_json'] or '{}') or {}).get('plan') or {}
+            except (TypeError, ValueError):
+                continue
+            if plan.get('session_id'):
+                entries.append({'id': row['id'], 'kind': 'plan', 'title': plan.get('title') or '未命名计划', 'updated_at': row['created_at']})
+    entries.sort(key=lambda item: (item['updated_at'] or '', item['kind'], item['id']), reverse=True)
+    if before:
+        position = next((i for i, item in enumerate(entries) if item['kind'] + ':' + item['id'] == before), None)
+        if position is None:
+            raise HTTPException(status_code=400, detail='历史记录游标无效')
+        entries = entries[position + 1:]
+    limit = max(1, min(limit, 50))
+    selected = entries[:limit]
+    return {'items': selected, 'next_before': selected[-1]['kind'] + ':' + selected[-1]['id'] if len(entries) > limit else None}
+
+
+class RemixHistoryImport(BaseModel):
+    result: dict[str, Any]
+    generated: list[dict[str, Any]] = Field(default_factory=list, max_length=20)
+    choices: dict[str, Any] = Field(default_factory=dict)
+    selectedIdea: str | None = Field(default=None, max_length=80)
+
+
+@app.put('/api/creator/history/analysis/{item_id}')
+def import_remix_history(item_id: str, payload: RemixHistoryImport, request: Request):
+    if not re.fullmatch(r'[a-zA-Z0-9_-]{8,80}', item_id):
+        raise HTTPException(status_code=400, detail='创作编号无效')
+    user = accounts.require_user(request)
+    if len(json.dumps(payload.model_dump(), ensure_ascii=False)) > 250000:
+        raise HTTPException(status_code=413, detail='创作记录过大')
+    existing = accounts.load_workbench_session(item_id, user['id'])
+    if existing and existing.get('conversation_skill') != 'viral-remix':
+        raise HTTPException(status_code=409, detail='创作编号冲突')
+    session = existing or {'id': item_id, 'conversation_skill': 'viral-remix', 'result': payload.result, 'imported_generated': payload.generated}
+    session['choices'] = payload.choices
+    session['selectedIdea'] = payload.selectedIdea
+    accounts.save_workbench_session(user['id'], session)
+    if not accounts.load_workbench_session(item_id, user['id']):
+        raise HTTPException(status_code=409, detail='创作记录保存失败')
+    return {'status': 'saved'}
+
+
+@app.get('/api/creator/history/{kind}/{item_id}')
+def creator_history_item(kind: str, item_id: str, request: Request):
+    user = accounts.require_user(request)
+    if kind in ('chat', 'analysis'):
+        session = accounts.load_workbench_session(item_id, user['id'])
+        expected = 'tie-tu' if kind == 'chat' else 'viral-remix'
+        if not session or session.get('conversation_skill') != expected:
+            raise HTTPException(status_code=404, detail='创作记录不存在')
+        if kind == 'analysis':
+            from . import viral_remix_jobs
+            with accounts.DB_LOCK, accounts._connect() as connection:
+                rows = connection.execute('SELECT * FROM jobs WHERE user_id=? AND type=? ORDER BY created_at DESC', (user['id'], viral_remix_jobs.TASK_TYPE)).fetchall()
+            session['generated'] = []
+            for row in rows:
+                try:
+                    if json.loads(row['payload_json'] or '{}').get('session_id') == item_id:
+                        session['generated'].append(viral_remix_jobs.public(dict(row)))
+                except (TypeError, ValueError):
+                    continue
+            if not session['generated']:
+                session['generated'] = session.get('imported_generated') or []
+        return {'item': session}
+    if kind != 'plan':
+        raise HTTPException(status_code=404, detail='创作记录不存在')
+    job = accounts.job(item_id, user['id'])
+    if not job or job['type'] != 'tie_tu' or job['status'] != 'succeeded':
+        raise HTTPException(status_code=404, detail='创作记录不存在')
+    plan = (json.loads(job.get('result_json') or '{}') or {}).get('plan') or {}
+    with accounts.DB_LOCK, accounts._connect() as connection:
+        rows = connection.execute("SELECT payload_json,result_json FROM jobs WHERE user_id=? AND type='creator_image' AND status='succeeded' ORDER BY created_at ASC", (user['id'],)).fetchall()
+    images = {}
+    for row in rows:
+        try:
+            payload = json.loads(row['payload_json'] or '{}'); image = json.loads(row['result_json'] or '{}').get('image') or {}
+            if payload.get('tool') == 'tie-tu' and payload.get('session_id') == plan.get('session_id') and image.get('url'):
+                images[str(image.get('index'))] = image
+        except (TypeError, ValueError):
+            continue
+    plan['images'] = list(images.values())
+    return {'item': plan}
 
 
 @app.post("/api/workbench/chat")

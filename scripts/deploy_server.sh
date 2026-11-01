@@ -198,6 +198,37 @@ fi
 log "构建镜像（约 3 分钟）"
 ( cd "$REL" && docker compose "${COMPOSE_ARGS[@]}" -p "$PROJECT" --env-file "$ENV_FILE" build "${SERVICES[@]}" migrate "${EXTRA_BUILD[@]}" )
 
+# A backup process is only useful if it is actually ready before auth or web
+# is restarted. Fail before touching running services when it is unavailable.
+if ! curl -fsS -m 5 http://127.0.0.1:8001/health/ready >/dev/null; then
+  die "备用 Web 未就绪，已停止部署，线上服务保持运行"
+fi
+
+# Recreating a worker interrupts active image jobs. Do not guess from stale DB
+# statuses: inspect the worker that is actually running and fail closed.
+ACTIVE_JSON=$(docker exec "${PROJECT}-worker-1" celery -A server.celery_app inspect active --json --timeout=5 2>/dev/null) \
+  || die "无法确认工作进程状态，已停止部署"
+if ! printf '%s' "$ACTIVE_JSON" | python3 -c 'import json,sys
+try:
+    nodes = json.load(sys.stdin)
+    assert isinstance(nodes,dict) and nodes and all(isinstance(v,list) and not v for v in nodes.values())
+except Exception:
+    sys.exit(1)'; then
+  die "后台有执行中的任务或状态无法确认，请等任务结束后再部署"
+fi
+
+# Capture public readiness through the auth and application switch.
+PROBE_LOG="/var/log/universe-deploy-probe-$(date '+%Y%m%d-%H%M%S')-$$.log"
+PUBLIC_PROBE_URL="${PUBLIC_PROBE_URL:-https://yuzoudiyigongzuotai.cn/health/ready}"
+(
+  for _ in $(seq 1 180); do
+    code=$(curl -sS -o /dev/null -m 3 -w '%{http_code}' "$PUBLIC_PROBE_URL" 2>/dev/null || true)
+    printf '%s %s\n' "$(date -u '+%FT%TZ')" "${code:-000}" >> "$PROBE_LOG"
+    sleep 1
+  done
+) &
+PROBE_PID=$!
+
 if [ "${#EXTRA_BUILD[@]}" -gt 0 ]; then
   log "迁移 Better Auth 独立表并导入原用户 ID / 密码哈希"
   ( cd "$REL" && docker compose "${COMPOSE_ARGS[@]}" -p "$PROJECT" --env-file "$ENV_FILE" run --rm --no-deps auth-migrate )
@@ -214,12 +245,22 @@ fi
 log "切换服务"
 # 一次性 migrate 容器可能残留，名字冲突会让 up 直接失败；web 的 depends_on 已经不再需要它
 docker rm -f "${PROJECT}-migrate-1" >/dev/null 2>&1 || true
-( cd "$REL" && docker compose "${COMPOSE_ARGS[@]}" -p "$PROJECT" --env-file "$ENV_FILE" up -d --no-deps "${SERVICES[@]}" )
+if ! ( cd "$REL" && docker compose "${COMPOSE_ARGS[@]}" -p "$PROJECT" --env-file "$ENV_FILE" up -d --no-deps "${SERVICES[@]}" ); then
+  kill "$PROBE_PID" 2>/dev/null || true
+  die "服务切换失败，检查部署日志和容器状态"
+fi
 
 if ! wait_ready; then
+  kill "$PROBE_PID" 2>/dev/null || true
   docker ps --format '{{.Names}} | {{.Status}}' | grep "$PROJECT" || true
   [ -n "$PREV_SHORT" ] && warn "回滚: sudo bash $0 --rollback $PREV_SHORT"
   die "服务未就绪；查看 docker logs ${PROJECT}-web-1"
+fi
+kill "$PROBE_PID" 2>/dev/null || true
+wait "$PROBE_PID" 2>/dev/null || true
+if [ -f "$PROBE_LOG" ]; then
+  echo "公开服务切换监测: $PROBE_LOG"
+  awk '$2 != "200" { bad++ } END { printf "  探测 %d 次，非 200 共 %d 次\n", NR, bad+0 }' "$PROBE_LOG"
 fi
 
 # ---------------------------------------------------------------- verify
@@ -240,6 +281,11 @@ echo "  版本 $(docker exec ${PROJECT}-web-1 grep -o 'conversation-workbench.js
 curl -fsS -m 5 -o /dev/null -w "  /health/ready -> %{http_code}\n" "$HEALTH_URL" || true
 curl -fsS -m 8 -o /dev/null -w "  /bookshelf    -> %{http_code}\n" http://127.0.0.1:8000/bookshelf || true
 docker ps --format '{{.Names}} | {{.Status}}' | grep "$PROJECT" || true
+
+if [ -x /opt/universe-deploy/start-standby.sh ]; then
+  log "刷新备用容器"
+  /opt/universe-deploy/start-standby.sh "${PROJECT}-web:latest" || warn "备用容器刷新失败（不影响线上）"
+fi
 
 log "完成"
 echo "  线上: $SHORT  ($REL)"
