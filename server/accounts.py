@@ -35,7 +35,7 @@ ADMIN_SESSION_DAYS = 7
 PBKDF2_ROUNDS = 260_000
 DB_LOCK = threading.RLock()
 OWNER_EMAIL = (os.getenv("CREATOR_OWNER_EMAIL") or "gelen5@163.com").strip().lower()
-NEW_USER_TRIAL_POINTS = max(0, int(os.getenv("CREATOR_NEW_USER_TRIAL_POINTS", "6") or 6))
+NEW_USER_TRIAL_POINTS = max(0, int(os.getenv("CREATOR_NEW_USER_TRIAL_POINTS", "5") or 5))
 
 # Points are sold at ¥0.10 each (10 元 / 100 积分), so a price in points is ten
 # times the yuan target: 一张图 2 毛 = 2 积分, 生成策略 1 毛 = 1 积分. Image
