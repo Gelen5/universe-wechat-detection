@@ -153,7 +153,7 @@ def serve(poll_seconds: float = 0.5) -> None:
         for lane, executor in executors.items():
             active[lane] = {future for future in active[lane] if not future.done()}
             while len(active[lane]) < LANES[lane]:
-                job = accounts.claim_job([lane])
+                job = accounts.claim_job([lane], exclude_types=('article_visual.plan', 'viral_remix.image'))
                 if not job:
                     break
                 active[lane].add(executor.submit(_run, job))

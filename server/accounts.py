@@ -868,14 +868,17 @@ def job(job_id: str, user_id: str | None = None) -> dict[str, Any] | None:
     return dict(row) if row else None
 
 
-def claim_job(lanes: list[str], job_id: str | None = None) -> dict[str, Any] | None:
+def claim_job(lanes: list[str], job_id: str | None = None, exclude_types: tuple[str, ...] = ()) -> dict[str, Any] | None:
     if not lanes:
         return None
     marks = ",".join("?" for _ in lanes)
     with DB_LOCK, _connect() as connection:
         connection.execute("BEGIN IMMEDIATE")
         clause = ' AND id=?' if job_id else ''
-        params = [*lanes, job_id] if job_id else lanes
+        params = [*lanes, job_id] if job_id else list(lanes)
+        if exclude_types:
+            clause += ' AND type NOT IN (' + ','.join('?' for _ in exclude_types) + ')'
+            params.extend(exclude_types)
         row = connection.execute(f"SELECT * FROM jobs WHERE status='queued' AND lane IN ({marks}){clause} ORDER BY created_at LIMIT 1", params).fetchone()
         if not row:
             connection.execute("COMMIT")
@@ -957,7 +960,7 @@ def recover_interrupted_jobs() -> int:
     Queued jobs remain durable and will be picked up after the worker restarts.
     """
     with DB_LOCK, _connect() as connection:
-        rows = connection.execute("SELECT id,usage_id FROM jobs WHERE status='running'").fetchall()
+        rows = connection.execute("SELECT id,usage_id FROM jobs WHERE status='running' AND type<>'article_visual.plan'").fetchall()
     for row in rows:
         if row["usage_id"]:
             refund_usage(row["usage_id"], 503, 0)

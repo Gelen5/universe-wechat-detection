@@ -120,7 +120,7 @@
         throw new Error(`服务正在更新或重启（${response.status}），等 10 秒再点一次；不是你链接的问题`);
       }
       const detail = (data && (data.detail || data.message)) || `请求失败（${response.status}）`;
-      throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
+      const error = new Error(typeof detail === "string" ? detail : JSON.stringify(detail)); error.status = response.status; throw error;
     }
     return data;
   }
@@ -437,9 +437,16 @@
     els.analyze.disabled = true;
     els.analyze.textContent = "拆解中…";
     els.hint.classList.remove("is-error");
-    const stopTicker = startTicker(els.hint, "正在提炼传播角度并核对原文，已用");
+    els.hint.textContent = '正在提交拆解任务…';
     try {
-      const job = await api("/api/article-visual/plan", { method: "POST", body: JSON.stringify({ url }) });
+      await initialAccountReady;
+      const owner = currentAccount?.id;
+      if (!owner) throw new Error('请先登录');
+      let record = null; try { record = JSON.parse(localStorage.getItem(`article-visual-pending:${owner}`) || 'null'); } catch {}
+      if (record && record.url !== url) throw new Error('上一项拆解仍待确认，请先等待或刷新页面恢复');
+      record = record || {url, key:newIdempotencyKey(), owner};
+      localStorage.setItem(`article-visual-pending:${owner}`, JSON.stringify(record));
+      const job = await waitForPlan(record);
       state.job = job;
       state.activeId = job.slots[0] ? job.slots[0].id : null;
       els.articlePanel.hidden = false;
@@ -447,10 +454,7 @@
       render();
       setTab("plan");
       const cost = job.elapsed_ms ? seconds(job.elapsed_ms) : "";
-      const fallback = job.plan && job.plan.source === "fallback"
-        ? "（模型这次超时，先用简化拆解，建议稍后重试一次）"
-        : "";
-      els.hint.textContent = `拆解完成${cost ? `，用时 ${cost}` : ""}${fallback}。请先选择传播角度。`;
+      els.hint.textContent = `拆解完成${cost ? `，用时 ${cost}` : ""}。已通过校验的方向：${job.plan?.alternatives?.length || 0} 个，请选择传播角度。`;
     } catch (error) {
       els.hint.classList.add("is-error");
       els.hint.textContent = error.message;
@@ -460,7 +464,6 @@
         els.plan.hidden = true;
       }
     } finally {
-      stopTicker();
       state.busy = false;
       els.url.readOnly = false;
       els.analyze.disabled = false;
@@ -468,6 +471,67 @@
       if (state.job) renderAngles();
     }
   }
+
+  async function waitForPlan(record) {
+    const storageKey = `article-visual-pending:${record.owner}`;
+    if (!record.id) {
+      let created;
+      try { created = await api('/api/article-visual/tasks/start', {method:'POST',body:JSON.stringify({url:record.url,idempotency_key:record.key,resume_task_id:record.resumeFrom || null})}); }
+      catch (error) { if (error.status >= 400 && error.status < 500 && error.status !== 429) localStorage.removeItem(storageKey); throw error; }
+      if (currentAccount?.id !== record.owner) throw new Error('账号已切换，任务仍在后台执行');
+      record.id = created.job.id; localStorage.setItem(storageKey, JSON.stringify(record));
+    }
+    const labels = {extracting:'正在读取文章',planning:'正在生成传播方向',retrying:'服务响应异常，正在自动重试',checking:'正在核对原文',repairing:'正在修复方案',reviewing:'正在进行事实复核'};
+    while (currentAccount?.id === record.owner) {
+      const data = await api(`/api/article-visual/tasks/${encodeURIComponent(record.id)}`);
+      const job = data.job, stage = job.progress?.stage;
+      els.hint.textContent = (labels[stage] || '任务排队中') + (job.progress?.total ? ` · ${job.progress.current}/${job.progress.total}` : '');
+      if (job.status === 'succeeded') { localStorage.removeItem(storageKey); localStorage.removeItem(`article-visual-review:${record.owner}`); $('av-resume-review').hidden = true; return job.result; }
+      if (['failed','canceled'].includes(job.status)) {
+        localStorage.removeItem(storageKey);
+        if (job.resume_available) { localStorage.setItem(`article-visual-review:${record.owner}`, JSON.stringify({id:job.id,url:record.url,owner:record.owner})); $('av-resume-review').hidden = false; }
+        throw new Error(job.error || '拆解未完成，积分已退回');
+      }
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+    throw new Error('账号已切换，任务仍在后台执行');
+  }
+
+  async function resumePending() {
+    await initialAccountReady;
+    const owner = currentAccount?.id; if (!owner || state.busy) return;
+    try { $('av-resume-review').hidden = !JSON.parse(localStorage.getItem(`article-visual-review:${owner}`) || 'null'); } catch { $('av-resume-review').hidden = true; }
+    let record; try { record = JSON.parse(localStorage.getItem(`article-visual-pending:${owner}`) || 'null'); } catch { return; }
+    if (!record) {
+      try {
+        const recent = await api('/api/article-visual/tasks/recent');
+        if (currentAccount?.id !== owner || state.busy) return;
+        const active = (recent.jobs || []).find(job => ['queued', 'running'].includes(job.status) && job.url);
+        const review = (recent.jobs || []).find(job => job.resume_available && job.url);
+        if (review && !active) { localStorage.setItem(`article-visual-review:${owner}`, JSON.stringify({id:review.id,url:review.url,owner})); $('av-resume-review').hidden = false; }
+        if (active) { record = {id:active.id,url:active.url,owner}; localStorage.setItem(`article-visual-pending:${owner}`, JSON.stringify(record)); }
+      } catch { /* 网络不可用时保留现有页面，稍后可重试 */ }
+    }
+    if (!record || record.owner !== owner) return;
+    state.busy = true; els.analyze.disabled = true; els.url.readOnly = true; els.url.value = record.url || '';
+    els.hint.textContent = '正在恢复上次拆解任务…';
+    try {
+      const job = await waitForPlan(record);
+      state.job = job; state.activeId = job.slots[0]?.id || null; els.articlePanel.hidden = false;
+      history.replaceState(null, '', `/article-visual?job=${encodeURIComponent(job.id)}`);
+      render(); setTab('plan'); els.hint.textContent = `已恢复拆解结果，${job.plan?.alternatives?.length || 0} 个方向通过校验。`;
+    } catch (error) { els.hint.textContent = error.message; els.hint.classList.add('is-error'); }
+    finally { state.busy = false; els.analyze.disabled = false; els.url.readOnly = false; if (state.job) renderAngles(); }
+  }
+
+  $('av-resume-review').addEventListener('click', () => {
+    const owner = currentAccount?.id; if (!owner || state.busy) return;
+    let saved; try { saved = JSON.parse(localStorage.getItem(`article-visual-review:${owner}`) || 'null'); } catch { return; }
+    if (!saved || saved.owner !== owner) return;
+    els.url.value = saved.url;
+    localStorage.setItem(`article-visual-pending:${owner}`, JSON.stringify({url:saved.url,key:newIdempotencyKey(),owner,resumeFrom:saved.id}));
+    analyze();
+  });
 
   async function generate(slotId, force) {
     if (state.busy || !state.job) return;
@@ -629,10 +693,17 @@
       if (booted) return;
       booted = true;
       const jobId = new URLSearchParams(window.location.search).get("job");
-      if (jobId) loadJob(jobId).catch(() => {});
+      (async () => {
+        await initialAccountReady;
+        const owner = currentAccount?.id;
+        let pending = false; try { pending = !!(owner && JSON.parse(localStorage.getItem(`article-visual-pending:${owner}`) || 'null')); } catch {}
+        if (pending) await resumePending();
+        else { if (jobId) await loadJob(jobId); await resumePending(); }
+      })().catch(error => { els.hint.textContent = error.message; });
       els.url.focus();
     },
   };
+  window.addEventListener('account-changed', () => { if (booted) resumePending(); });
 
   // 直接打开 /article-visual 时 app.js 可能早于本脚本初始化，补一次首屏初始化。
   if (location.pathname.replace(/\/+$/, "") === "/article-visual") {

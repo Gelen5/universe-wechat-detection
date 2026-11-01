@@ -11,7 +11,7 @@ REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 celery_app = Celery("universe_creator", broker=REDIS_URL, backend=REDIS_URL,
                     include=["server.workflow_tasks", "server.agent_tasks", "server.hotspots",
                              "server.provider_health", "server.wechat_plus_tasks",
-                             "server.viral_remix_tasks", "server.lowfans_sync"])
+                             "server.viral_remix_tasks", "server.lowfans_sync", "server.article_visual_tasks"])
 celery_app.conf.update(
     task_serializer="json", result_serializer="json", accept_content=["json"],
     task_acks_late=True, task_reject_on_worker_lost=True,
@@ -27,6 +27,8 @@ celery_app.conf.update(
         "wechat_plus.run": {"queue": "chat"},
         "wechat_plus.recover": {"queue": "chat"},
         "viral_remix.run": {"queue": "image"},
+        "article_visual.plan": {"queue": "text"},
+        "article_visual.recover": {"queue": "text"},
         "market.sync": {"queue": "text"},
         "hotspot.sync": {"queue": "text"},
         "lowfans.sync": {"queue": "text"},
@@ -35,6 +37,7 @@ celery_app.conf.update(
     worker_concurrency=max(1, int(os.getenv("CELERY_WORKER_CONCURRENCY", "4"))),
     beat_schedule={
         "recover-wechat-plus": {"task": "wechat_plus.recover", "schedule": 60.0},
+        "recover-article-visual": {"task": "article_visual.recover", "schedule": 60.0},
         "recover-stale-workflow-nodes": {
             "task": "workflow.recover_stale", "schedule": 60.0,
         },

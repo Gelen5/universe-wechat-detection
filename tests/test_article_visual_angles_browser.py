@@ -9,6 +9,10 @@ def test_choose_angle_shows_its_plan(ui):
         choices.append({"angle_label":title, "angle_reason":"故事角度", "slots":[{"id":"cover", "form":"cover", "headline":title, "source_quote":"真实文章中的原文依据", "status":"pending"}]})
     job = {"id":"abc123", "article":{"title":"测试文章", "account":"", "chars":100}, "plan":{"thesis":"真实故事", "article_type":"story", "alternatives":choices, "selected_angle":None}, "slots":choices[0]["slots"], "images":{}}
     def handle(route):
+        if '/tasks/start' in route.request.url:
+            return route.fulfill(json={'job': {'id': 'task1', 'status': 'queued'}})
+        if '/tasks/task1' in route.request.url:
+            return route.fulfill(json={'job': {'id': 'task1', 'status': 'succeeded', 'result': job}})
         if route.request.url.endswith('/angle'):
             job['plan']['selected_angle'] = 1
             job['slots'] = choices[1]['slots']
@@ -31,7 +35,13 @@ def test_knowledge_article_shows_all_angles_without_opening_details(ui):
     page, _ = ui
     choices = [{"angle_label":str(i), "slots":[{"id":"cover", "form":"cover", "headline":str(i), "status":"pending"}]} for i in range(3)]
     job = {"id":"abc123", "article":{"title":"教程", "chars":50}, "plan":{"article_type":"knowledge", "alternatives":choices, "selected_angle":None}, "slots":choices[0]["slots"], "images":{}}
-    page.route('**/api/article-visual/**', lambda route:route.fulfill(json=job))
+    def handle(route):
+        if '/tasks/start' in route.request.url:
+            return route.fulfill(json={'job': {'id': 'task1', 'status': 'queued'}})
+        if '/tasks/task1' in route.request.url:
+            return route.fulfill(json={'job': {'id': 'task1', 'status': 'succeeded', 'result': job}})
+        return route.fulfill(json=job)
+    page.route('**/api/article-visual/**', handle)
     page.goto('http://ui.test/article-visual')
     page.locator('#av-url').fill('https://mp.weixin.qq.com/s/test')
     page.locator('#av-analyze').click()
