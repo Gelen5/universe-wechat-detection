@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>心愿广场 · 宇宙第一工作台</title>
+  <link rel="stylesheet" href="/static/wish-square.css?v=20261101-1">
+</head>
+<body>
+  <aside class="wish-sidebar">
+    <a class="wish-brand" href="/"><span class="planet">◒</span>宇宙第一工作台</a>
+    <nav class="v3-topbar" aria-label="工作台导航"><div class="app-tabs"></div></nav>
+    <p class="wish-sidebar-note">让真实的心愿，<br>被认真地看见。</p>
+  </aside>
+  <main class="wish-main">
+    <header class="wish-header glass">
+      <div><p class="eyebrow">温和、真实、可核验</p><h1>心愿广场</h1><p class="wish-lead">写下一个真实的小心愿，等待愿意伸手的人。</p></div>
+      <div class="header-actions"><button class="publish-button" id="open-publish" type="button">＋ 发布心愿</button><p>⌕ 敏感信息仅供审核，不公开展示</p></div>
+    </header>
+    <section class="wish-tools glass" aria-label="筛选心愿">
+      <div class="filters" id="filters"><button class="selected" data-category="">全部</button><button data-category="教育成长">教育成长</button><button data-category="医疗健康">医疗健康</button><button data-category="生活改善">生活改善</button><button data-category="家人陪伴">家人陪伴</button><button data-category="兴趣梦想">兴趣梦想</button><button data-category="社区公益">社区公益</button></div>
+      <label class="search"><span>⌕</span><input id="search" type="search" placeholder="搜索心愿关键词"></label>
+    </section>
+    <section id="wish-grid" class="wish-grid" aria-live="polite"></section>
+  </main>
+  <dialog id="publish-dialog" class="publish-dialog">
+    <form id="wish-form" class="publish-sheet">
+      <header><div><p class="eyebrow">发布前会进行人工审核</p><h2>说说你的心愿</h2></div><button class="icon-button" id="close-publish" type="button" aria-label="关闭">×</button></header>
+      <p class="form-note">请只发布真实、明确的需求。身份证件、病历、住址等敏感材料不要写在公开内容中；审核人员会单独联系你补充。</p>
+      <div class="form-grid"><label>心愿标题<input name="title" maxlength="80" required placeholder="例如：想给爷爷换一副助听器"></label><label>分类<select name="category"><option>生活改善</option><option>教育成长</option><option>医疗健康</option><option>家人陪伴</option><option>兴趣梦想</option><option>社区公益</option></select></label></div>
+      <label>心愿详情<textarea name="story" minlength="20" maxlength="2000" required placeholder="发生了什么？你希望得到怎样的帮助？"></textarea><small><span id="story-count">0</span>/2000</small></label>
+      <div class="form-grid"><label>希望实现的内容<input name="target_text" maxlength="120" required placeholder="例如：一副适合的助听器"></label><label>类型<select name="target_kind"><option>物品</option><option>服务</option><option>小额资金</option><option>其他</option></select></label></div>
+      <label>公开显示的称呼<input name="display_name" maxlength="40" required placeholder="例如：小周（可使用昵称）"></label>
+      <fieldset class="image-field"><legend>补充图片 <span>最多 8 张，每张不超过 8MB</span></legend><input id="wish-images" type="file" accept="image/jpeg,image/png,image/webp" multiple><div id="image-preview" class="image-preview"></div></fieldset>
+      <p id="form-message" class="form-message" role="status"></p><button class="publish-button submit" type="submit">提交审核</button>
+    </form>
+  </dialog>
+  <template id="wish-card-template"><article class="wish-card glass"><div class="wish-image"><img alt=""><span class="verified"></span><span class="image-counter"></span></div><div class="wish-card-body"><p class="wish-category"></p><h2></h2><p class="wish-story"></p><div class="wish-meta"><strong></strong><span></span></div><button class="support-button" type="button">♡ 帮 TA 实现</button></div></article></template>
+  <script src="/static/routes.js?v=20261101-1"></script><script src="/static/shell.js?v=20261101-1"></script><script src="/static/wish-square.js?v=20261101-1"></script>
+</body></html>

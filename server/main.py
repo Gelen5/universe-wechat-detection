@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 
 from . import accounts, diagnosis_service, image_provider, email_verification
 from . import creator_tools, creator_conversation, community
+from . import wish_square
 from . import workbench
 from . import legacy_routes
 from . import conversation_repository, database
@@ -62,6 +63,8 @@ referrals.init_schema()
 lowfans_sync.init_schema()
 community.init_schema()
 app.include_router(community.router)
+wish_square.init_schema()
+app.include_router(wish_square.router)
 from . import admin_activity
 admin_activity.init_db()
 app.include_router(admin_activity.router)
@@ -1418,6 +1421,9 @@ def index():
     return FileResponse(STATIC_DIR / "index.html", media_type="text/html; charset=utf-8")
 
 
+@app.get("/wish-square", include_in_schema=False)
+def wish_square_page():
+    return FileResponse(STATIC_DIR / "wish-square.html", media_type="text/html; charset=utf-8")
 # 每个功能 tab 对应一个真实路径（/workbench、/xiaohongshu、/tie-tu、/hit-detector、/morning-generator），
 # 由前端 SPA 根据 pathname 渲染对应 section；其余路径交给 /static 与 /api。
 TAB_PAGES = {"wechat-plus", "one-click-writing", "diagnose", "workbench", "xiaohongshu", "tie-tu", "viral-remix", "xhs-extract", "douyin-extract", "article-visual", "hit-detector", "morning-generator"}
