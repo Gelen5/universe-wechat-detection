@@ -4,8 +4,8 @@
      ① background-image 斜向高光（绝不挂 ::after —— 伪元素画在文字之上会洗灰正文）
      ② background-color 白度 .73 打底（太低是毛玻璃糊，太高就不是玻璃）
      ③ backdrop-filter: blur(24px) saturate(165%)（24px 是实测值，过重会吃掉背景色场）
-   分级用材：只让页头用真玻璃（A 级），其余是磨砂片（B 级，无模糊、只有白度和发丝边）。
-   全站玻璃 = 没有重点，所以列表行不配 backdrop-filter。
+   边界分层：页头保持轻玻璃；概览、说明条和榜单行用低对比细线界定区域，
+   控件保留清晰的功能边界。避免卡片套卡片，也避免把内容压成一整张白纸。
 
    配色在 #lowfans 作用域内定义，不污染全局 tokens —— 与 hotspots.css 同一做法。
    ──────────────────────────────────────────────────────────────── */
@@ -97,14 +97,19 @@
 #lowfans .lf-stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  gap: 0;
   margin-bottom: 14px;
-}
-#lowfans .lf-stat {
-  padding: 17px 19px 16px;
+  overflow: hidden;
+  border: 1px solid rgba(72, 128, 99, .13);
   border-radius: 16px;
   background-color: rgba(255, 255, 255, .46);
 }
+#lowfans .lf-stat {
+  padding: 17px 19px 16px;
+  border-right: 1px solid rgba(72, 128, 99, .1);
+  background-color: rgba(255, 255, 255, .2);
+}
+#lowfans .lf-stat:last-child { border-right: 0; }
 #lowfans .lf-stat k {
   display: block;
   margin-bottom: 8px;
@@ -147,8 +152,10 @@
   gap: 10px;
   margin-bottom: 12px;
   padding: 11px 13px;
+  border: 1px solid rgba(72, 128, 99, .12);
   border-radius: 16px;
-  background-color: rgba(255, 255, 255, .46);
+  background-color: rgba(255, 255, 255, .6);
+  box-shadow: 0 2px 8px -7px rgba(34, 82, 58, .38);
 }
 #lowfans .lf-search {
   display: flex;
@@ -228,6 +235,7 @@
   overflow-x: auto;
   padding: 4px 2px 12px;
   margin-bottom: 6px;
+  border-bottom: 1px solid rgba(72, 128, 99, .1);
   scrollbar-width: none;
 }
 #lowfans .lf-tracks::-webkit-scrollbar { display: none; }
@@ -238,7 +246,7 @@
   gap: 7px;
   padding: 8px 14px;
   border-radius: 999px;
-  border: 0;
+  border: 1px solid transparent;
   background: rgba(255, 255, 255, .46);
   font: inherit;
   font-size: 13px;
@@ -248,7 +256,10 @@
   cursor: pointer;
   transition: background .18s ease, color .18s ease;
 }
-#lowfans .lf-track:hover { background: rgba(255, 255, 255, .85); }
+#lowfans .lf-track:hover {
+  border-color: rgba(72, 128, 99, .12);
+  background: rgba(255, 255, 255, .85);
+}
 #lowfans .lf-track n {
   font-size: 11px;
   color: var(--lf-faint);
@@ -272,7 +283,8 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 0;
+  border-top: 1px solid rgba(72, 128, 99, .12);
 }
 
 #lowfans .lf-row {
@@ -280,15 +292,15 @@
   grid-template-columns: 46px minmax(0, 1fr) auto;
   gap: 0 16px;
   padding: 16px 20px 15px;
-  border-radius: 16px;
-  /* 不描边：用背景色差分层。整页少一层线，视觉就干净一档 */
-  background-color: rgba(255, 255, 255, .46);
-  transition: background .2s ease, transform .2s ease, box-shadow .2s ease;
+  border-bottom: 1px solid rgba(72, 128, 99, .12);
+  background-color: rgba(255, 255, 255, .12);
+  transition: border-color .2s ease, background .2s ease, transform .2s ease, box-shadow .2s ease;
 }
 #lowfans .lf-row:hover {
-  background-color: rgba(255, 255, 255, .78);
+  border-bottom-color: rgba(72, 128, 99, .2);
+  background-color: rgba(255, 255, 255, .48);
   transform: translateY(-1px);
-  box-shadow: 0 16px 30px -26px rgba(34, 82, 58, .5);
+  box-shadow: 0 12px 24px -24px rgba(34, 82, 58, .35);
 }
 
 #lowfans .lf-rank {
@@ -452,8 +464,9 @@
 #lowfans .lf-note {
   margin: 0 0 14px;
   padding: 14px 18px;
+  border: 1px solid rgba(72, 128, 99, .12);
   border-radius: 14px;
-  background: rgba(255, 255, 255, .3);
+  background: rgba(255, 255, 255, .38);
   font-size: 12.5px;
   line-height: 1.8;
   color: var(--lf-muted);
@@ -525,7 +538,7 @@
     grid-template-columns: 34px minmax(0, 1fr);
     gap: 0 11px;
     padding: 15px 15px 14px;
-    border-radius: 14px;
+    border-radius: 12px;
   }
   #lowfans .lf-rank { font-size: 16px; }
   #lowfans .lf-rank.is-top,
