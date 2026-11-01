@@ -49,8 +49,13 @@ class Edit(BaseModel):
 
 @router.get('/sessions')
 def sessions(request: Request):
+    # 文案直接从计分表生成：改价时不会再出现「说明写 12、实际扣 9」的漂移。
+    points = accounts.PLUS_ACTION_POINTS
+    pricing = (f"按动作计费：推荐选题 {points['topics']} · 生成初稿 {points['write']} · "
+               f"改稿 {points['revise']} · 复核 {points['review']} · 排版 {points['format']}；"
+               "澄清与追问免费，完整一篇约 20 积分")
     return {'sessions': repo.list_sessions(owner(request)), 'model': service.configured_model(),
-            'pricing': '按动作计费：推荐选题 2 · 生成初稿 12 · 改稿 6 · 复核 5 · 排版 2；澄清与追问免费',
+            'pricing': pricing,
             'pricing_points': dict(accounts.PLUS_ACTION_POINTS)}
 
 

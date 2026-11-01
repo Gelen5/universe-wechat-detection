@@ -2,7 +2,7 @@
 
 三条不变量，任何一条破了都会让用户多付钱或者白嫖：
 
-1. 预扣按最高档（12）走，结算按实际动作（闲聊 0 / 选题 2 / 成稿 12）。
+1. 预扣按最高档（9）走，结算按实际动作（闲聊 0 / 选题 2 / 成稿 9）。
 2. 差额必须原路退回，三个钱包桶（trial / bonus / paid）的合计要跟 balance 对得上。
 3. 失败、取消都必须全额退回；重试不能重复扣。
 
@@ -63,14 +63,22 @@ class TestPricingTable:
     def test_chat_is_free_and_writing_is_the_dear_side(self):
         assert accounts.PLUS_ACTION_POINTS["clarify"] == 0
         assert accounts.PLUS_ACTION_POINTS["answer"] == 0
-        assert accounts.PLUS_ACTION_POINTS["write"] == 12
-        assert accounts.PLUS_MAX_POINTS == 12
+        assert accounts.PLUS_ACTION_POINTS["write"] == 9
+        assert accounts.PLUS_MAX_POINTS == 9
+
+    def test_full_article_flow_stays_near_twenty_points(self):
+        # 完整链路：选题 → 成稿 → 改稿 → 复核 → 排版 = 20 分（¥2.00）。
+        # 实测一次链路模型成本约 ¥0.67，这个价仍然覆盖成本约 3 倍。
+        flow = ("topics", "write", "revise", "review", "format")
+        assert sum(accounts.plus_points_for(action) for action in flow) == 20
+        assert accounts.plus_points_for("clarify") == 0
+        assert accounts.plus_points_for("answer") == 0
 
     def test_unknown_action_falls_back_to_the_ceiling(self):
         # 宁可多收后退，不能少收：新动作上线时默认按最高档，写完再补规则。
         assert accounts.plus_points_for("brand_new_action") == accounts.PLUS_MAX_POINTS
         assert accounts.plus_points_for(None) == accounts.PLUS_MAX_POINTS
-        assert accounts.plus_points_for("revise") == 6
+        assert accounts.plus_points_for("revise") == 4
 
     def test_plus_paths_are_not_in_the_middleware_pricing_table(self):
         # 中间件按「方法+路径」计价，Plus 一条路径多种动作，必须由它自己管。
@@ -151,8 +159,8 @@ class TestApiReservation:
                   "idempotency_key": "billing-test-key-1"},
         )
         assert sent.status_code == 202, sent.text[:300]
-        assert sent.json()["points"]["reserved"] == 12
-        assert wallet(user_id)["balance"] == 88
+        assert sent.json()["points"]["reserved"] == 9
+        assert wallet(user_id)["balance"] == 91
 
     def test_poor_wallet_is_rejected_before_the_turn_is_queued(self, client, user_id):
         seed(user_id, points=0)
@@ -170,7 +178,7 @@ class TestApiReservation:
         listed = client.get("/api/wechat-plus/sessions")
         assert listed.status_code == 200
         body = listed.json()
-        assert body["pricing_points"]["write"] == 12
+        assert body["pricing_points"]["write"] == 9
         assert "内测期间暂不扣" not in body["pricing"]
 
     def test_cancel_refunds_the_reservation(self, client, user_id):
@@ -184,7 +192,7 @@ class TestApiReservation:
         )
         assert sent.status_code == 202
         turn_id = sent.json()["turn"]["id"]
-        assert wallet(user_id)["balance"] == 88
+        assert wallet(user_id)["balance"] == 91
 
         cancelled = client.post(f"/api/wechat-plus/sessions/{session['id']}/cancel/{turn_id}")
         assert cancelled.status_code == 200

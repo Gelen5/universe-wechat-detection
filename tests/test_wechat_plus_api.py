@@ -24,7 +24,7 @@ class PlusAPITests(unittest.TestCase):
             item.start()
         repo.init_schema()
         billing.init_schema()
-        # Plus 现在按动作计费：发消息要预扣 12 积分，所以测试用户得先有钱。
+        # Plus 现在按动作计费：发消息要预扣 9 积分，所以测试用户得先有钱。
         accounts.init_db()
         try:
             accounts.create_user('plus-owner@example.com', 'testing-pass-123', 'Owner', user_id='owner')
