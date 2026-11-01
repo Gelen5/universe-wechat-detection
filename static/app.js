@@ -1884,10 +1884,16 @@ function renderViralRemix(result, sessionId) {
         const total = state.total || job.total;
         const made = state.done || 0;
         const remain = Math.max(0, total - made);
-        stopWaiting.setProgress?.(made, total);
-        stopWaiting.setStatus?.(total > 1
-          ? `正在生成第 ${Math.min(made + 1, total)} 张，共 ${total} 张 · 预计还需约 ${remain * 35} 秒`
-          : '正在生成，通常 30–120 秒');
+        // 出图之前还有一步文字模型（把创意展开成卡片计划），可能要一两分钟。
+        // 这一段没有进度，说成「正在生成第 1 张」会让人以为卡在出图。
+        if (state.stage === 'preparing') {
+          stopWaiting.setStatus?.('正在展开创意与画面方案（这一步由文字模型完成，通常 1 分钟左右）');
+        } else {
+          stopWaiting.setProgress?.(made, total);
+          stopWaiting.setStatus?.(total > 1
+            ? `正在生成第 ${Math.min(made + 1, total)} 张，共 ${total} 张 · 预计还需约 ${remain * 35} 秒`
+            : '正在生成，通常 30–120 秒');
+        }
       });
       renderRemixJobResult(done, idea, output, result, storeDraft);
       output.hidden = false;

@@ -31,6 +31,8 @@ def run(self, job_id: str):
     try:
         cards, idea, directory = creator_tools.prepare_remix_cards(session_id, idea)
         total = len(cards)
+        # 创意展开降级时把原因带到结果里，前端会当成 warning 展示。
+        error = idea.get('fallback_note') or ''
         accounts.progress_job(job_id, done=0, total=total, stage='preparing')
         for index, page in enumerate(cards, 1):
             try:

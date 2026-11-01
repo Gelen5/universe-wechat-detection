@@ -1,4 +1,4 @@
-"""爆款贴图复刻：异步出图任务的计费。
+﻿"""爆款贴图复刻：异步出图任务的计费。
 
 一张 2 积分，提交时按张数预扣，结束时按实际成功张数结算，余量退回。
 """
@@ -129,3 +129,38 @@ class TestPublicShape:
         assert public['status'] == 'succeeded'
         assert len(public['images']) == 1
         assert public['points']['charged'] == 2
+
+class TestExpandFallback:
+    """创意展开那一步是文字模型；它超时不该让整单报废。"""
+
+    def test_text_failure_falls_back_to_the_raw_idea(self, monkeypatch, tmp_path):
+        from server import creator_tools
+
+        monkeypatch.setattr(creator_tools, 'OUTPUT_DIR', tmp_path)
+
+        def boom(*args, **kwargs):
+            raise RuntimeError('provider transport')
+
+        monkeypatch.setattr(creator_tools.workbench, '_json_text', boom)
+        raw = {
+            'id': 'C', 'name': '换角度', 'headline': '一起做顿家常饭',
+            'image_brief': '暖光厨房餐桌，两双手分别择菜和盛汤',
+            'visual_contract': {'asset_type': 'poster'}, 'page_count': 1,
+            'choices': {'track': '情感关系'},
+        }
+        cards, idea, directory = creator_tools.prepare_remix_cards('session-x', raw)
+        assert len(cards) == 1
+        assert cards[0]['image_brief'] == raw['image_brief']
+        assert '创意展开未完成' in idea['fallback_note']
+        assert directory.is_dir()
+
+    def test_incomplete_plan_from_the_model_still_raises(self, monkeypatch, tmp_path):
+        from server import creator_tools
+
+        monkeypatch.setattr(creator_tools, 'OUTPUT_DIR', tmp_path)
+        monkeypatch.setattr(creator_tools.workbench, '_json_text',
+                            lambda *a, **k: {'cards': []})
+        raw = {'id': 'C', 'name': '换角度', 'choices': {'track': 'x'},
+               'visual_contract': {'asset_type': 'poster'}}
+        with pytest.raises(creator_tools.workbench.ProviderError):
+            creator_tools.prepare_remix_cards('session-y', raw)
