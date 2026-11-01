@@ -153,3 +153,4 @@
 #article-visual #av-angles>.av-btn{margin:0 0 20px}
 #article-visual .av-angle-option:disabled{cursor:not-allowed;opacity:.7}
 #article-visual .av-angle-option:focus-visible{outline:3px solid #68aa83;outline-offset:2px}
+#article-visual .av-delivery-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;align-items:start}#article-visual .av-delivery-layout .av-gallery{min-width:0}#article-visual .remix-publication{padding:22px;border:1px solid #d8ebe0;border-radius:20px;background:#fbfffc;box-shadow:0 12px 36px #1f6a4110;color:#244b39}#article-visual #av-publication:empty{display:none}@media(max-width:900px){#article-visual .av-delivery-layout{grid-template-columns:1fr}#article-visual .remix-publication{padding:16px}}

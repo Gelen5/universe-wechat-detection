@@ -49,6 +49,7 @@
     note: $("av-note"),
     galleryPanel: $("av-gallery-panel"),
     gallery: $("av-gallery"),
+    publication: $("av-publication"),
     downloadAll: $("av-download-all"),
     toast: $("av-toast"),
   };
@@ -485,6 +486,7 @@
         }),
       });
       state.job.images[slotId] = { file: result.url.split("/").pop().split("?")[0] };
+      state.job.publication = null;
       const target = state.job.slots.find((s) => s.id === slotId);
       if (target) {
         target.status = "done";
@@ -523,6 +525,7 @@
           body: JSON.stringify({ job_id: state.job.id, slot_id: slot.id, headline: slot.headline }),
         });
         state.job.images[slot.id] = { file: result.url.split("/").pop().split("?")[0] };
+        state.job.publication = null;
         slot.status = "done";
         slot.elapsed_ms = result.elapsed_ms;
         state.stamp = Date.now();
@@ -547,6 +550,7 @@
     if (!state.job) return;
     const done = state.job.slots.filter((s) => state.job.images[s.id]);
     els.gallery.innerHTML = "";
+    els.publication.replaceChildren();
     if (!done.length) {
       els.gallery.innerHTML = '<p class="av-gallery-empty">还没有成图。先在「图位方案」里选一张，生成封面后再回来。</p>';
       return;
@@ -568,6 +572,7 @@
       card.appendChild(foot);
       els.gallery.appendChild(card);
     });
+    els.publication.append(window.RemixPublication.render(state.job, {endpoint: `/api/article-visual/${encodeURIComponent(state.job.id)}/publication`}));
   }
 
   els.downloadAll.addEventListener("click", (event) => {

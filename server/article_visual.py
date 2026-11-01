@@ -31,7 +31,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 
-from . import accounts, database, workbench
+from . import accounts, database, workbench, creator_tools
 
 logger = logging.getLogger(__name__)
 
@@ -1021,6 +1021,7 @@ def select_angle(job_id: str, payload: AngleBody, request: Request):
             job = json.loads(json.dumps(job, ensure_ascii=False))
             job["id"] = new_id
             job["images"] = {}
+            job.pop("publication", None)
             job["cover_confirmed"] = False
             job["created_at"] = datetime.now(timezone.utc).isoformat()
             _job_dir(new_id).mkdir(parents=True, exist_ok=True)
@@ -1085,13 +1086,13 @@ def generate_one(payload: GenerateBody, request: Request):
         raise HTTPException(status_code=502, detail=f"生成失败：{exc}") from exc
     filename = f"{slot['id']}.png"
     path = _job_dir(job_id) / filename
-    path.write_bytes(raw)
-
     with JOB_LOCK:
+        path.write_bytes(raw)
         job = _read_job(job_id)
         if slot["form"] == "cover":
             job["cover_confirmed"] = False
         job["images"][slot["id"]] = {"file": filename, "prompt": prompt}
+        job.pop("publication", None)
         for item in job["plan"]["slots"]:
             if item["id"] == slot["id"]:
                 item["status"] = "done"
@@ -1102,6 +1103,92 @@ def generate_one(payload: GenerateBody, request: Request):
         "prompt": prompt,
         "elapsed_ms": int((time.perf_counter() - started) * 1000),
     }
+
+
+class PublicationBody(BaseModel):
+    titles: list[str]
+    body: str
+    tags: list[str]
+
+
+def _publication_files(job: dict[str, Any]) -> list[Path]:
+    files = []
+    for slot in job['plan']['slots']:
+        entry = job.get('images', {}).get(slot['id'])
+        if not entry:
+            continue
+        filename = entry.get('file', '')
+        if not re.fullmatch(r'[a-z0-9\-]{1,40}\.png', filename):
+            raise HTTPException(status_code=409, detail='图片记录无效')
+        path = _job_dir(job['id']) / filename
+        if not path.is_file():
+            raise HTTPException(status_code=409, detail='原图暂时不可用')
+        files.append(path)
+    if not files:
+        raise HTTPException(status_code=409, detail='请先生成图片')
+    return files
+
+
+def _publication_fingerprint(files: list[Path]) -> str:
+    digest = hashlib.sha256()
+    for file in files:
+        digest.update(file.name.encode('utf-8'))
+        digest.update(file.read_bytes())
+    return digest.hexdigest()
+
+
+@router.post('/{job_id}/publication')
+def generate_publication(job_id: str, request: Request):
+    user = accounts.require_user(request)
+    try:
+        with accounts.conversation_lock('article-visual-publication:' + job_id, user['id']):
+            return _generate_publication(job_id, user)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+def _generate_publication(job_id: str, user: dict[str, Any]):
+    with JOB_LOCK:
+        job = _read_job(job_id)
+        if job['user_id'] != user['id']:
+            raise HTTPException(status_code=404, detail='任务不存在')
+        files = _publication_files(job)
+        fingerprint = _publication_fingerprint(files)
+    started = time.perf_counter()
+    usage_id = accounts.reserve_points(user['id'], {'points': 1, 'feature': '爆文转贴图标题与文案生成'}, 'POST', '/api/article-visual/publication')
+    try:
+        with workbench.provider_overrides():
+            publication = creator_tools.publication_copy_from_files(files)
+        with JOB_LOCK:
+            job = _read_job(job_id)
+            if job['user_id'] != user['id'] or _publication_fingerprint(_publication_files(job)) != fingerprint:
+                raise HTTPException(status_code=409, detail='图片已更新，请重新生成文案')
+            job['publication'] = publication
+            _write_job(job)
+        accounts.settle_usage(usage_id, 200, int((time.perf_counter() - started) * 1000))
+    except Exception as exc:
+        accounts.refund_usage(usage_id, 500, int((time.perf_counter() - started) * 1000))
+        if isinstance(exc, HTTPException):
+            raise
+        raise HTTPException(status_code=502, detail='文案生成失败，请稍后重试') from exc
+    return {'publication': publication, 'points_charged': 1}
+
+
+@router.put('/{job_id}/publication')
+def save_publication(job_id: str, payload: PublicationBody, request: Request):
+    user = accounts.require_user(request)
+    try:
+        publication = creator_tools.validate_remix_publication_copy(payload.model_dump())
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    with JOB_LOCK:
+        job = _read_job(job_id)
+        if job['user_id'] != user['id']:
+            raise HTTPException(status_code=404, detail='任务不存在')
+        _publication_files(job)
+        job['publication'] = publication
+        _write_job(job)
+    return {'publication': publication}
 
 
 @router.get("/{job_id}")

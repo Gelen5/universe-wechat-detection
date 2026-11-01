@@ -242,15 +242,22 @@ def generate_remix_card(idea: dict[str, Any], page: dict[str, Any], index: int,
 
 def remix_publication_copy(images: list[dict[str, Any]]) -> dict[str, Any]:
     """Inspect the actual successful output images, not only their prompts."""
-    from PIL import Image
     from urllib.parse import urlsplit
-    content = []
+    files = []
     for image in images:
         path = urlsplit(str(image.get('url') or '')).path
         match = re.fullmatch(r'/api/creator-tools/assets/tie-tu/([a-zA-Z0-9_-]+)/([a-zA-Z0-9_.-]+)', path)
         if not match:
             raise ValueError('图片地址无效，无法生成配文')
         file = creator_asset('tie-tu', match.group(1), match.group(2))
+        files.append(file)
+    return publication_copy_from_files(files)
+
+
+def publication_copy_from_files(files: list[Path]) -> dict[str, Any]:
+    from PIL import Image
+    content = []
+    for file in files:
         if not file.is_file():
             raise ValueError('原图暂时不可用，无法生成配文')
         with Image.open(file) as original:
