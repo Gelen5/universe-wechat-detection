@@ -140,6 +140,16 @@ def list_wishes(request: Request, mine: bool = False):
     return {"items": [_record(dict(row), user) for row in rows]}
 
 
+@router.get('/share/{wish_id}')
+def shared_wish(wish_id: str, request: Request):
+    user = _require_user(request)
+    with database.ENGINE.connect() as connection:
+        row = connection.execute(select(wishes).where(wishes.c.id == wish_id, wishes.c.status == 'published')).mappings().first()
+    if not row:
+        raise HTTPException(status_code=404, detail='心愿不存在、尚未审核通过或已关闭')
+    return _record(dict(row), user)
+
+
 @router.post("", status_code=201)
 def create_wish(payload: WishCreate, request: Request):
     user = _require_user(request)
@@ -219,7 +229,12 @@ def get_image(wish_id: str, image_id: str, request: Request):
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="图片不存在")
     if path is None:
-        return RedirectResponse(get_storage().get_url(image["storage_name"]), status_code=307)
+        storage = get_storage()
+        # Stream through the authorized same-origin endpoint so canvas export
+        # works with private object stores without exposing a public object URL.
+        from fastapi.responses import StreamingResponse
+        obj = storage.client.get_object(Bucket=storage.bucket, Key=storage._object_key(image["storage_name"]))
+        return StreamingResponse(obj['Body'].iter_chunks(chunk_size=65536), media_type=image['content_type'], headers={'Cache-Control': 'private, no-store'})
     return FileResponse(path, media_type=image["content_type"], headers={"Cache-Control": "private, max-age=86400"})
 
 
