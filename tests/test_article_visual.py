@@ -117,3 +117,12 @@ def test_parse_invalid_link_gets_actionable_hint():
     with pytest.raises(ValueError) as exc:
         article_visual.parse_article_html("<html><body>参数错误</body></html>")
     assert "链接可能被截断" in str(exc.value)
+
+
+
+def test_plan_model_defaults_to_sonnet_and_can_be_overridden(monkeypatch):
+    """配图策划默认走 claude-sonnet-5-5；中转站抽风时可用环境变量切回 Sol。"""
+    monkeypatch.delenv("WECHAT_ARTICLE_VISUAL_MODEL", raising=False)
+    assert article_visual.plan_model() == "claude-sonnet-5-5"
+    monkeypatch.setenv("WECHAT_ARTICLE_VISUAL_MODEL", "gpt-6.1-sol")
+    assert article_visual.plan_model() == "gpt-6.1-sol"

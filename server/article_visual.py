@@ -1,4 +1,4 @@
-﻿"""文章配图：贴一条公众号链接，拆解成图位，逐张生成 3:4 配图。
+"""文章配图：贴一条公众号链接，拆解成图位，逐张生成 3:4 配图。
 
 产品约束（来自需求确认）：
   * 所有图片固定 3:4（1086x1448），封面也不例外；
@@ -385,15 +385,26 @@ def _text_with_deadline(prompt: str, *, model: str, reasoning: str, timeout: flo
         raise TimeoutError(f"{model} 超过 {int(timeout)} 秒没有返回") from exc
 
 
+def plan_model() -> str:
+    """配图策划用的模型。
+
+    2026-11-01 实测：claude-sonnet-5-5 走同一个中转站 11.4 秒返回合法 JSON
+    （5 个图位），比 gpt-6.1-sol 的 55 秒快一个量级；此前注释里「Anthropic 系
+    transport 失败卡 133 秒」的结论已经不成立。留一个环境变量，万一中转站抽风
+    可以立刻切回 Sol。
+    """
+    return (workbench._setting("WECHAT_ARTICLE_VISUAL_MODEL")
+            or "claude-sonnet-5-5")
+
+
 def build_plan(article: dict[str, Any]) -> dict[str, Any]:
     prompt = (
         PLAN_INSTRUCTION.replace("__TITLE__", article["title"])
         .replace("__ACCOUNT__", article["account"])
         .replace("__BODY__", article["markdown"][:4000])
     )
-    # 线上实测：Anthropic 系（haiku / sonnet）在这个出口是 transport 失败，
-    # 每次要卡 133 秒；只有 gpt-6.1-sol 稳定。低思考档实测 33 秒，
-    # 再给 55 秒硬上限，超时就退回规则拆解，绝不让用户无限等。
+    # 90 秒硬上限（上游为抗抖动调高过）：超时就退回规则拆解，绝不让用户无限等。
+    # Sonnet-5.5 实测 11 秒，余量足够。
     raw_text = ""
     try:
         stored = accounts.provider_settings(include_secrets=True)
@@ -406,7 +417,7 @@ def build_plan(article: dict[str, Any]) -> dict[str, Any]:
             image_model=stored.get("image_model", ""),
         ):
             raw_text = _text_with_deadline(
-                prompt, model="gpt-6.1-sol", reasoning="low", timeout=90
+                prompt, model=plan_model(), reasoning="low", timeout=90
             )
     except Exception:
         raw_text = ""
