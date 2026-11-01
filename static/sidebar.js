@@ -14,7 +14,7 @@
      const wrapper = document.createElement('span'); wrapper.id='nav-menu-wrap';
      const trigger=oldAvatar || document.createElement('span'); trigger.id='nav-avatar'; trigger.className='avatar';
      const menu=document.createElement('div'); menu.id='settings-menu'; menu.className='settings-popover'; menu.setAttribute('role','menu'); menu.hidden=true;
-     menu.innerHTML='<a role="menuitem" href="/workbench?sidebar=settings">设置</a><a role="menuitem" href="/wallet">我的积分</a><a role="menuitem" href="/bill" hidden>账单</a>';
+     menu.innerHTML='<a role="menuitem" href="/workbench?sidebar=settings">设置</a><a role="menuitem" href="/wallet">我的积分</a><a role="menuitem" href="/bill" hidden>账单</a><a role="menuitem" href="/owner-revenue" hidden>站长收益</a>';
      trigger.addEventListener('click',()=>{menu.hidden=!menu.hidden;});
      wrapper.append(trigger,menu);right.append(wrapper);
      document.addEventListener('click',event=>{if(!wrapper.contains(event.target))menu.hidden=true;});
@@ -24,6 +24,7 @@
        const owner=user?.role==='admin' && (user?.email||'').toLowerCase()==='gelen5@163.com';
        const link=menu.querySelector('a[href="/bill"]');
        if(link)link.hidden=!owner;
+       const revenue=menu.querySelector('a[href="/owner-revenue"]'); if(revenue)revenue.hidden=!owner;
      }).catch(()=>{});
    }
  }

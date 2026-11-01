@@ -35,6 +35,7 @@ from .alipay_pay import router as alipay_pay_router
 from .wallet_page import router as wallet_page_router
 from .invite_page import router as invite_page_router
 from .bill_page import router as bill_page_router
+from .owner_revenue import router as owner_revenue_router
 from .wechat_plus_api import router as wechat_plus_router
 from . import wechat_plus_repository
 from . import wechat_plus_billing
@@ -85,6 +86,7 @@ app.include_router(alipay_pay_router)
 app.include_router(wallet_page_router)
 app.include_router(invite_page_router)
 app.include_router(bill_page_router)
+app.include_router(owner_revenue_router)
 wechat_plus_repository.init_schema()
 wechat_plus_billing.init_schema()
 app.include_router(wechat_plus_router)
