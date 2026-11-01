@@ -1,4 +1,4 @@
-body #viral-remix { padding:36px 40px!important; background:transparent!important; border:0!important; }
+﻿body #viral-remix { padding:36px 40px!important; background:transparent!important; border:0!important; }
 #viral-remix .v3-meta { display:flex!important; margin-bottom:24px; color:#638675; }
 #viral-remix .skill-shell { display:grid!important; grid-template-columns:minmax(340px,420px) minmax(0,1fr)!important; gap:24px!important; align-items:start; }
 #viral-remix .skill-form-col,#viral-remix .skill-output-col { padding:30px!important; border:1px solid #ffffff!important; border-radius:24px!important; background:linear-gradient(135deg,#ffffffed,#eff9f2cc)!important; box-shadow:0 14px 40px #29543d09!important; min-width:0; }
@@ -50,10 +50,19 @@ body #viral-remix { padding:36px 40px!important; background:transparent!importan
 #viral-remix .viral-generate:disabled{background:#e0eee5!important;color:#38664c!important;cursor:wait}
 #viral-remix .button-spinner{display:inline-block!important;position:static!important;width:15px!important;height:15px!important;flex:0 0 15px;border:2px solid #91b39f;border-top-color:#38664c;border-radius:50%;animation:remix-spin .9s linear infinite}
 #viral-remix .remix-output-placeholder{padding:60px 24px;text-align:center;color:#678373}
-#viral-remix .remix-output-wait{padding:44px 24px;text-align:center;border:1px solid #d6e7dc;border-radius:16px;background:#f7fcf8}
-#viral-remix .remix-output-wait h3{font-size:17px;color:#244b39;margin:0 0 12px}
-#viral-remix .remix-output-wait .wait-elapsed{margin:0;color:#2c8a5d;font-size:14px;font-weight:600}
-#viral-remix .remix-output-wait .remix-wait-hint{margin:10px 0 0;font-size:13px;color:#789284}
+#viral-remix .remix-output-wait{padding:26px 28px 24px;border:1px solid #d6e7dc;border-radius:16px;background:#f7fcf8;text-align:left}
+#viral-remix .remix-wait-head{display:flex;align-items:flex-start;gap:11px}
+#viral-remix .remix-wait-pulse{flex:none;width:9px;height:9px;margin-top:8px;border-radius:50%;background:#2c8a5d;box-shadow:0 0 0 0 rgba(44,138,93,.5);animation:remix-wait-pulse 1.8s ease-out infinite}
+#viral-remix .remix-wait-copy{min-width:0;flex:1}
+#viral-remix .remix-output-wait h3{font-size:16.5px;font-weight:600;color:#1f4433;margin:0;line-height:1.55}
+#viral-remix .remix-wait-plan{margin:3px 0 0;font-size:12.5px;color:#6d8a7b}
+#viral-remix .remix-wait-track{margin:16px 0 0 20px;height:6px;border-radius:999px;background:#e2efe7;overflow:hidden}
+#viral-remix .remix-wait-track i{display:block;height:100%;width:10%;border-radius:999px;background:linear-gradient(90deg,#2c8a5d,#54b184);transition:width .5s ease}
+#viral-remix .remix-wait-progress{margin:14px 0 0 20px;font-size:13.5px;font-weight:600;color:#1f5c40}
+#viral-remix .remix-output-wait .wait-elapsed{margin:4px 0 0 20px;font-size:12.5px;color:#5d8271;font-variant-numeric:tabular-nums}
+#viral-remix .remix-output-wait .remix-wait-hint{margin:10px 0 0 20px;font-size:12.5px;line-height:1.7;color:#789284}
+@keyframes remix-wait-pulse{0%{box-shadow:0 0 0 0 rgba(44,138,93,.5)}70%{box-shadow:0 0 0 9px rgba(44,138,93,0)}100%{box-shadow:0 0 0 0 rgba(44,138,93,0)}}
+@media(prefers-reduced-motion:reduce){#viral-remix .remix-wait-pulse{animation:none}}
 #viral-remix .remix-output-pending{margin:0 0 16px;padding:14px 16px;border:1px solid #f2ddb5;border-radius:12px;background:#fdf7ea;color:#8a6420;font-size:13px}
 #viral-remix .viral-delivery{max-width:100%;font-size:14px;line-height:1.8}
 @keyframes remix-spin{to{transform:rotate(360deg)}}

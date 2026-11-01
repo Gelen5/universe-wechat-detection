@@ -1736,7 +1736,9 @@ let remixSelectPanel = null;
 let remixRenderedSession = null;
 let remixRenderedOwner = null;
 // 生成原创图时立刻切到「成图交付」并在该面板里跑计时器，避免停在拆解报告看不到进度。
-function startRemixOutputWait(label) {
+// 文案分三层：标题（在做什么）→ 进度行（做到第几张）→ 计时与提示（还要多久）。
+// 进度行和计时分开两个节点，轮询覆盖进度时不会把「已等待」刷掉。
+function startRemixOutputWait(label, plan) {
   const root = document.querySelector('#viral-remix-result');
   const output = document.querySelector('#remix-output-panel');
   if (!root || !output) return () => {};
@@ -1746,15 +1748,35 @@ function startRemixOutputWait(label) {
   if (!box) {
     box = document.createElement('div');
     box.className = 'remix-output-wait';
-    box.innerHTML = '<h3 class="remix-wait-title"></h3><p class="wait-elapsed" role="status"></p><p class="remix-wait-hint">生成一张约 30 秒，多张按顺序画。可以先切到别的菜单，回来会自动接上进度；完成后这里是成图、配文方向与标签，可直接下载。</p>';
+    box.innerHTML = [
+      '<div class="remix-wait-head">',
+      '<span class="remix-wait-pulse" aria-hidden="true"></span>',
+      '<div class="remix-wait-copy">',
+      '<h3 class="remix-wait-title"></h3>',
+      '<p class="remix-wait-plan" hidden></p>',
+      '</div></div>',
+      '<div class="remix-wait-track" hidden><i></i></div>',
+      '<p class="remix-wait-progress" role="status"></p>',
+      '<p class="wait-elapsed"></p>',
+      '<p class="remix-wait-hint">单张约 30–120 秒，多张按顺序生成。可以先切到别的菜单，回来会自动接上。</p>',
+    ].join('');
     output.prepend(box);
   }
   box.querySelector('.remix-wait-title').textContent = label;
-  const status = box.querySelector('.wait-elapsed');
+  const planNode = box.querySelector('.remix-wait-plan');
+  if (plan && planNode) {
+    planNode.textContent = `方案 · ${plan}`;
+    planNode.hidden = false;
+  }
+  const progress = box.querySelector('.remix-wait-progress');
+  const elapsed = box.querySelector('.wait-elapsed');
+  const track = box.querySelector('.remix-wait-track');
+  const bar = track.querySelector('i');
+  progress.textContent = '正在提交任务…';
   const started = performance.now();
   const paint = () => {
     const seconds = Math.floor((performance.now() - started) / 1000);
-    status.textContent = `已等待 ${Math.floor(seconds / 60)}分${String(seconds % 60).padStart(2, '0')}秒 · 图片一般每张约30—120秒，多张按顺序处理。`;
+    elapsed.textContent = `已等待 ${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
   };
   paint();
   const timer = setInterval(paint, 1000);
@@ -1772,8 +1794,13 @@ function startRemixOutputWait(label) {
       output.append(placeholder);
     }
   };
-  // 轮询到进度就覆盖默认文案，让用户看到「第几张 / 共几张」。
-  stop.setStatus = text => { status.textContent = text; };
+  stop.setStatus = text => { progress.textContent = text; };
+  stop.setProgress = (made, total) => {
+    if (!total) return;
+    track.hidden = false;
+    const ratio = Math.max(0.06, Math.min(1, made / total));
+    bar.style.width = `${Math.round(ratio * 100)}%`;
+  };
   return stop;
 }
 
@@ -1806,7 +1833,7 @@ function renderRemixJobResult(job, idea, output, result, storeDraft) {
       const label = all.length > 1 ? `下载第 ${ordinal} 张` : '下载图片';
       const card = document.createElement('article');
       card.className = 'viral-generated';
-      card.innerHTML = `<span class="tag">第 4/5 步 · 原创成图${all.length > 1 ? ` · ${ordinal}/${all.length}` : ''}</span><img src="${safeUrl(extra.url)}" alt="${esc(idea.headline || '原创贴图')} ${ordinal}"/><div><strong>${esc(idea.headline || '')}</strong><a href="${safeUrl(extra.url)}" download="${esc(name)}">${label}</a></div>`;
+      card.innerHTML = `<span class="tag">步骤 4 · 原创成图${all.length > 1 ? ` · ${ordinal}/${all.length}` : ''}</span><img src="${safeUrl(extra.url)}" alt="${esc(idea.headline || '原创贴图')} ${ordinal}"/><div><strong>${esc(idea.headline || '')}</strong><a href="${safeUrl(extra.url)}" download="${esc(name)}">${label}</a></div>`;
       output.append(card);
     });
   const delivery = document.createElement('pre');
@@ -1837,13 +1864,13 @@ function renderViralRemix(result, sessionId) {
   const analysis = result.analysis || {};
   const rows = [['视觉锚点', analysis.visual_anchor], ['信息层级', analysis.hierarchy], ['构图', analysis.composition], ['色彩', analysis.palette], ['情绪', analysis.emotion], ['钩子', analysis.hook]];
   rows.push(['质感',analysis.texture],['平台表达',analysis.platform_language]);
-  root.innerHTML = `<article class="viral-result-card"><span class="tag">第 2/5 步 · 结构拆解</span><h2>${esc(result.content_guess || '对标图结构')}</h2><div class="viral-analysis">${rows.map(([label, text]) => `<div><b>${esc(label)}</b><span>${esc(text || '未识别')}</span></div>`).join('')}</div><p><b>可补的信息：</b>${esc(result.missing || '未提供')}</p></article><section class="viral-ideas"><div class="result-section-title"><strong>第 3/5 步 · 选择翻新方向</strong><span>保留结构，不复用画面</span></div>${(result.ideas || []).map(idea => `<article class="viral-idea"><span class="idea-id">${esc(idea.id)}</span><h3>${esc(idea.name)}</h3><p>${esc(idea.summary)}</p><dl><div><dt>保留</dt><dd>${esc(idea.keep)}</dd></div><div><dt>改变</dt><dd>${esc(idea.change)}</dd></div><div><dt>为什么不撞</dt><dd>${esc(idea.why_original)}</dd></div></dl><button type="button" class="primary-action viral-generate" data-idea="${esc(idea.id)}">选这版，生成原创图 →</button></article>`).join('')}</section>`;
+  root.innerHTML = `<article class="viral-result-card"><span class="tag">步骤 2 · 结构拆解</span><h2>${esc(result.content_guess || '对标图结构')}</h2><div class="viral-analysis">${rows.map(([label, text]) => `<div><b>${esc(label)}</b><span>${esc(text || '未识别')}</span></div>`).join('')}</div><p><b>可补的信息：</b>${esc(result.missing || '未提供')}</p></article><section class="viral-ideas"><div class="result-section-title"><strong>步骤 3 · 选择翻新方向</strong><span>保留结构，不复用画面</span></div>${(result.ideas || []).map(idea => `<article class="viral-idea"><span class="idea-id">${esc(idea.id)}</span><h3>${esc(idea.name)}</h3><p>${esc(idea.summary)}</p><dl><div><dt>保留</dt><dd>${esc(idea.keep)}</dd></div><div><dt>改变</dt><dd>${esc(idea.change)}</dd></div><div><dt>为什么不撞</dt><dd>${esc(idea.why_original)}</dd></div></dl><button type="button" class="primary-action viral-generate" data-idea="${esc(idea.id)}">选这版，生成原创图 →</button></article>`).join('')}</section>`;
   root.querySelectorAll('.viral-generate').forEach(button => button.addEventListener('click', async () => {
     const idea = (result.ideas || []).find(item => item.id === button.dataset.idea);
     if (!idea) return;
     const finish = beginButton(button, '正在生成原创图…');
     storeDraft({pending:true,selectedIdea:idea.id});
-    const stopWaiting = startRemixOutputWait(`正在生成第 4/5 步原创图${idea.name ? `（${idea.name}）` : ''}`);
+    const stopWaiting = startRemixOutputWait('正在生成原创图', idea.name || '');
     storeDraft({pending:true,selectedIdea:idea.id});
     try {
       const choices={track:root.querySelector('[name=remix-track]')?.value,emotion:root.querySelector('[name=remix-emotion]')?.value,boundaries:root.querySelector('[name=remix-boundaries]')?.value};
@@ -1857,7 +1884,10 @@ function renderViralRemix(result, sessionId) {
         const total = state.total || job.total;
         const made = state.done || 0;
         const remain = Math.max(0, total - made);
-        stopWaiting.setStatus?.(`正在生成 ${made}/${total} 张 · 预计还需约 ${remain * 35} 秒 · 可以先切走，回来会自动接上进度`);
+        stopWaiting.setProgress?.(made, total);
+        stopWaiting.setStatus?.(total > 1
+          ? `正在生成第 ${Math.min(made + 1, total)} 张，共 ${total} 张 · 预计还需约 ${remain * 35} 秒`
+          : '正在生成，通常 30–120 秒');
       });
       renderRemixJobResult(done, idea, output, result, storeDraft);
       output.hidden = false;
@@ -1895,7 +1925,10 @@ function renderViralRemix(result, sessionId) {
     pollRemixJob(saved.pendingJob.id, state => {
       const total = state.total || saved.pendingJob.total || 0;
       const made = state.done || 0;
-      stopWaiting.setStatus?.(`正在生成 ${made}/${total} 张 · 可以先切走，回来会自动接上进度`);
+      stopWaiting.setProgress?.(made, total);
+      stopWaiting.setStatus?.(total > 1
+        ? `正在生成第 ${Math.min(made + 1, total)} 张，共 ${total} 张`
+        : '正在生成，通常 30–120 秒');
     }).then(done => {
       const idea = (result.ideas || []).find(item => item.id === saved.selectedIdea) || {id: 'resume', headline: ''};
       renderRemixJobResult(done, idea, output, result, storeDraft);
