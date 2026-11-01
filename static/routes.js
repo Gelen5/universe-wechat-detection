@@ -1,4 +1,4 @@
-﻿/* Single source of truth for application navigation.
+/* Single source of truth for application navigation.
  *
  * Every renderer (notion-workspace.js, shell.js, app-navigation.js) derives its
  * list from here, so adding a module means editing this file only. Values are
@@ -96,8 +96,9 @@ window.APP_NAV = (() => {
                '1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>' +
                '<polyline points="9 12 11 14 15 10"/>')},
     // 心愿广场复用工作台壳层，避免切换时换掉整套导航与主题。
+    // 2026-11-01 起入口全站隐藏（合规观察期）：路由保留，直接访问 /wish-square 仍可打开。
     {group: '社区', href: '/wish-square', view: 'wish-square', label: '心愿广场', short: '心愿',
-     fallback: true,
+     fallback: true, hidden: true,
      icon: svg('<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/>')},
     {group: '资源', href: '/market', view: 'market', label: 'AI 超市', short: '超市',
      icon: svg('<path d="M3 7h18l-1.4 12.1a2 2 0 0 1-2 1.9H6.4a2 2 0 0 1-2-1.9z"/>' +
@@ -136,8 +137,11 @@ window.APP_NAV = (() => {
       .filter(inMenu)
       .map((item) => (item.short ? [item.href, item.label, item.short] : [item.href, item.label])),
     /* notion-workspace.js: [[groupLabel, [href...]], ...] */
-    notionPlan: groups.map((group) => [group, items
-      .filter((i) => i.group === group && inMenu(i)).map((i) => i.href)]),
+    notionPlan: groups
+      .map((group) => [group, items
+        .filter((i) => i.group === group && inMenu(i)).map((i) => i.href)])
+      // 整组都被隐藏时（例如观察期的心愿广场），不要留下一个空分组标题。
+      .filter(([, hrefs]) => hrefs.length > 0),
     /* notion-workspace.js: nodes to create when the page lacks them. */
     extras: items.filter((item) => item.fallback && inMenu(item)),
     /* 只有应用内视图才返回；独立页面返回 undefined，交给浏览器正常跳转。 */

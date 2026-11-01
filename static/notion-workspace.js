@@ -58,6 +58,8 @@
         if (!el && extras[href]) el = buildNavItem(href, extras[href]);
         if (el) section.appendChild(el);
       }
+      // 一个可见条目都没有的组整组不渲染，避免只剩一个空标题。
+      if (section.children.length <= 1) continue;
       groups.appendChild(section);
     }
     nav.innerHTML = '';

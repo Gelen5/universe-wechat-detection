@@ -22,7 +22,7 @@ LEGACY_SHELL_ROUTES = [
     ['/', '首页', '首页'], ['/hotspots', '热点广场', '热点'], ['/lowfans', '低粉爆文'],
     ['/wechat-plus', '公众号创作 Plus'],
     ['/xiaohongshu', '小红书'], ['/tie-tu', '贴图号'], ['/viral-remix', '爆款贴图复刻'],
-    ['/article-visual', '文章配图', '配图'],
+    ['/article-visual', '爆文转贴图', '转贴图'],
     ['/xhs-extract', '小红书内容提取'],
     ['/douyin-extract', '抖音内容提取'],
     ['/morning-generator', '早安祝福'],
@@ -40,7 +40,7 @@ LEGACY_NOTION_PLAN = [
 LEGACY_VIEWS = {
     '/': 'home', '/workbench': 'workbench', '/one-click-writing': 'one-click-writing',
     '/xiaohongshu': 'xiaohongshu', '/tie-tu': 'tie-tu', '/viral-remix': 'viral-remix',
-    '/lowfans': 'lowfans', '/article-visual': None,
+    '/lowfans': 'lowfans', '/article-visual': 'article-visual',
     '/xhs-extract': 'xhs-extract',
     '/douyin-extract': 'douyin-extract',
     '/diagnose': 'diagnose', '/hit-detector': 'hit-detector',
