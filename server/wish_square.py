@@ -286,6 +286,14 @@ def submit_wish(wish_id: str, request: Request):
     with database.ENGINE.begin() as connection:
         result = connection.execute(update(wishes).where(wishes.c.id == wish_id, wishes.c.user_id == user['id'], wishes.c.status == 'draft').values(status='pending', updated_at=_now()))
         if result.rowcount != 1: raise HTTPException(404, '草稿不存在或已提交')
+        row = connection.execute(select(wishes).where(wishes.c.id == wish_id)).mappings().first()
+    # 提交成功后再提醒管理员；发信是后台线程，失败不影响本次提交。
+    try:
+        from . import admin_notify
+        if row:
+            admin_notify.wish_submitted(dict(row), user.get('display_name') or user.get('email') or '')
+    except Exception:  # noqa: BLE001
+        pass
     return {'ok': True}
 
 
@@ -342,9 +350,24 @@ class ReportBody(BaseModel):
 def report_wish(wish_id: str, payload: ReportBody, request: Request):
     user = _require_user(request)
     with database.ENGINE.begin() as connection:
-        if not connection.execute(select(wishes.c.id).where(wishes.c.id == wish_id, wishes.c.status == 'published')).first(): raise HTTPException(404, '心愿不存在')
+        wish = connection.execute(select(wishes).where(wishes.c.id == wish_id, wishes.c.status == 'published')).mappings().first()
+        if not wish: raise HTTPException(404, '心愿不存在')
         connection.execute(insert(wish_reports).values(id=uuid.uuid4().hex, wish_id=wish_id, reporter_id=user['id'], reason=payload.reason.strip(), created_at=_now()))
+    try:
+        from . import admin_notify
+        admin_notify.wish_reported(dict(wish), payload.reason.strip(),
+                                   user.get('display_name') or user.get('email') or '')
+    except Exception:  # noqa: BLE001
+        pass
     return {'message':'举报已提交。'}
+
+
+@router.get('/admin/pending-count')
+def admin_pending_count(request: Request):
+    """给站内红点用：待审核心愿 + 已发布心愿上的举报。"""
+    accounts.require_admin(request)
+    from . import admin_notify
+    return admin_notify.pending_counts()
 
 
 @router.get("/admin/review")
