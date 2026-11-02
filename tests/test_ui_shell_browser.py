@@ -144,9 +144,14 @@ def test_mobile_bottom_bar_keeps_every_control_on_screen(ui, path, width):
     assert len(boxes["tabs"]) == 4, boxes
     assert boxes["more"], "the 更多 button must exist on phones"
     assert boxes["trigger"], "the 快点我 trigger must exist on phones"
-    for name in ("more", "trigger"):
+    for name in ("more",):
         b = boxes[name]
         assert b["w"] > 0 and b["h"] > 0, (name, b)
+    assert boxes["trigger"]["w"] == 0, "community moves into 更多 on mobile"
+    page.get_by_role('button', name='更多', exact=True).click()
+    page.get_by_role('button', name='社区 · 反馈与群聊').click()
+    expect(page.get_by_role('dialog', name='快点我')).to_be_visible()
+    page.get_by_role('button', name='关闭', exact=True).last.click()
     for i, b in enumerate(boxes["tabs"]):
         assert 0 <= b["left"] and b["right"] <= boxes["vw"] + 1, (i, b, boxes["vw"])
         assert b["w"] >= 44, (i, b)
@@ -155,7 +160,6 @@ def test_mobile_bottom_bar_keeps_every_control_on_screen(ui, path, width):
     assert 0 <= trigger["left"] and trigger["right"] <= boxes["vw"] + 1, (trigger, boxes["vw"])
     # Same row as the tabs: a wrapped bar is what hid them before.
     assert abs(more["top"] - boxes["tabs"][0]["top"]) < 8, boxes
-    assert abs(trigger["top"] - boxes["tabs"][0]["top"]) < 8, boxes
     assert not boxes["overflowX"], boxes
 
 
@@ -165,8 +169,8 @@ def test_phone_trigger_opens_the_community_drawer(ui):
     page.goto("http://ui.test/")
     page.wait_for_timeout(500)
     trigger = page.locator('.community-trigger')
-    assert trigger.bounding_box()["width"] >= 44
-    trigger.click()
+    page.get_by_role("button", name="更多", exact=True).click()
+    page.get_by_role("button", name="社区 · 反馈与群聊").click()
     expect(page.locator('.community-drawer')).to_be_visible()
     expect(page.locator('.community-tabs button')).to_have_count(4)
     page.locator('.community-close').click()

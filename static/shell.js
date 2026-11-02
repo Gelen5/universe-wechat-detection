@@ -51,8 +51,13 @@
     });
     list.append(choice);
   }
+  const community = document.createElement('button');
+  community.type = 'button'; community.className = 'shell-community-entry';
+  community.textContent = '社区 · 反馈与群聊';
+  community.addEventListener('click', () => { menu.close(); document.querySelector('.community-trigger')?.click(); });
+  list.append(community);
   const more = document.createElement('button'); more.type = 'button'; more.className = 'shell-mobile-more';
-  more.textContent = '更多'; more.setAttribute('aria-controls', menu.id); more.setAttribute('aria-expanded', 'false');
+  more.innerHTML = '<svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="8" cy="12" r=".8" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r=".8" fill="currentColor" stroke="none"/><circle cx="16" cy="12" r=".8" fill="currentColor" stroke="none"/></svg><span>更多</span>'; more.setAttribute('aria-controls', menu.id); more.setAttribute('aria-expanded', 'false');
   more.addEventListener('click', () => { menu.showModal(); more.setAttribute('aria-expanded', 'true'); });
   close.addEventListener('click', () => menu.close());
   menu.addEventListener('close', () => more.setAttribute('aria-expanded', 'false'));
