@@ -680,7 +680,7 @@ def _stream_video(url: str) -> Iterator[bytes]:
 
 
 @router.get("/api/douyin/video")
-def api_video(id: str = Query(min_length=15, max_length=25, pattern=r"^\d+$")):
+def api_video(id: str = Query(min_length=15, max_length=25, pattern=r"^\d+$"), download: bool = False):
     """按 aweme_id 现取现转视频。
 
     为什么不直接给上游地址：抖音的播放地址带 ``x-expires``，通常几十分钟就
@@ -693,8 +693,7 @@ def api_video(id: str = Query(min_length=15, max_length=25, pattern=r"^\d+$")):
         raise HTTPException(404, "这条作品没有视频")
     if not _host_allowed(video["url"], MEDIA_HOST_SUFFIXES):
         raise HTTPException(502, "上游返回的播放地址不在允许的域名内")
-    return StreamingResponse(
-        _stream_video(video["url"]),
-        media_type="video/mp4",
-        headers={"Cache-Control": "private, no-store"},
-    )
+    headers = {"Cache-Control": "private, no-store"}
+    if download:
+        headers["Content-Disposition"] = f'attachment; filename="douyin-{id}.mp4"'
+    return StreamingResponse(_stream_video(video["url"]), media_type="video/mp4", headers=headers)

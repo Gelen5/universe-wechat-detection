@@ -62,8 +62,8 @@
     return `<div class="xe-section-head"><h3>视频素材</h3><span>${esc(details)}</span></div>
       <video class="xe-video" controls playsinline preload="metadata" ${poster ? `poster="${esc(mediaSrc(poster))}"` : ''}><source src="${esc(mediaSrc(video.url))}" type="video/mp4">当前浏览器无法播放，请使用“打开视频”。</video>
       <div class="xe-media-note xe-video-error" hidden>视频暂时无法播放，可以重新加载或打开视频。 <button type="button" class="xe-button" data-xe-reload-video>重新加载视频</button></div>
-      <div class="xe-video-actions"><a class="xe-button" href="${esc(mediaSrc(video.url))}" target="_blank" rel="noopener noreferrer">打开视频 ↗</a><button type="button" class="xe-button" data-copy="video">复制视频地址</button></div>
-      ${images.length ? `<div class="xe-cover"><img src="${esc(mediaSrc(images[0].url))}" alt="视频封面"><div>视频封面</div><button type="button" class="xe-button" data-xe-zoom>查看大图</button><button type="button" class="xe-button" data-xe-download>下载封面 PNG</button></div>` : ''}`;
+      <div class="xe-video-actions"><a class="xe-button xe-primary xe-video-download" href="${esc(mediaSrc(video.url))}&amp;download=1" download>↓ 下载视频</a><a class="xe-button" href="${esc(mediaSrc(video.url))}" target="_blank" rel="noopener noreferrer">打开视频 ↗</a><button type="button" class="xe-button" data-copy="video">复制视频地址</button><span class="xe-video-help">微信内如无法下载，请在浏览器中打开</span></div>
+      ${images.length ? `<div class="xe-cover"><img src="${esc(mediaSrc(images[0].url))}" alt="视频封面，点击查看大图" role="button" tabindex="0" data-xe-zoom><div>视频封面</div><button type="button" class="xe-button" data-xe-zoom>查看大图</button><button type="button" class="xe-button" data-xe-download>下载封面 PNG</button></div>` : ''}`;
   }
   function render(value) {
     note = value; index = 0;
@@ -134,7 +134,7 @@
     }
   });
   root.addEventListener('keydown', event => {
-    if (event.target.matches('.xe-main-image') && ['Enter',' '].includes(event.key)) {event.preventDefault(); zoom(event.target);}
+    if (event.target.matches('[data-xe-zoom]') && ['Enter',' '].includes(event.key)) {event.preventDefault(); zoom(event.target);}
     if (lightbox.open && ['ArrowLeft','ArrowRight'].includes(event.key)) {event.preventDefault(); selectImage(index+(event.key === 'ArrowLeft' ? -1 : 1));}
   });
   lightbox.addEventListener('close', () => {if (opener?.isConnected) opener.focus({preventScroll:true});});

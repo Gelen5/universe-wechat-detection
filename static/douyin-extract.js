@@ -146,9 +146,10 @@
         当前浏览器不支持视频播放，请使用下方「在新标签打开视频」。
       </video>
       <div class="dy-actions">
+        <a class="dy-btn primary dy-video-download" href="${esc(src)}&amp;download=1" download>↓ 下载视频</a>
         <a class="dy-btn" href="${esc(src)}" target="_blank" rel="noopener">在新标签打开视频</a>
         <button type="button" class="dy-btn" data-copy-video>复制视频地址</button>
-        <span class="dy-hint-inline">视频由本站转存，链接长期有效</span>
+        <span class="dy-hint-inline">微信内如无法下载，请在浏览器中打开</span>
       </div>
     </section>`;
   }
@@ -158,15 +159,14 @@
     const images = note.images || [];
     if (!images.length) return '';
     const shots = images.map((image, index) => `
-      <a class="dy-shot" href="${esc(mediaSrc(image.url))}" target="_blank" rel="noopener"
-         title="打开原图 ${index + 1}">
+      <button type="button" class="dy-shot" data-dy-zoom="${index}" aria-label="查看第 ${index + 1} 张大图">
         <img src="${esc(mediaSrc(image.url))}" alt="第 ${index + 1} 张配图" loading="lazy" decoding="async">
         <span class="dy-shot-index">${index + 1}</span>
-      </a>`).join('');
+      </button>`).join('');
     return `<section class="dy-card">
       <div class="dy-media-head">
         <h3>配图 · ${images.length} 张</h3>
-        <span>点开是大图，右键可直接另存</span>
+        <span>点击图片查看大图</span>
       </div>
       <div class="dy-gallery">${shots}</div>
     </section>`;
@@ -204,11 +204,28 @@
         </div>
       </section>
       ${renderVideo(note)}
-      ${renderGallery(note)}`;
+      ${renderGallery(note)}
+      <dialog class="dy-lightbox" aria-label="图片预览"><div class="dy-lightbox-toolbar"><strong>图片预览</strong><button type="button" data-dy-close aria-label="关闭图片预览">×</button></div><img alt=""><div class="dy-lightbox-controls"><button type="button" data-dy-prev>上一张</button><span data-dy-count></span><button type="button" data-dy-next>下一张</button></div><p>在微信内使用时，可长按图片保存</p></dialog>`;
 
     result.hidden = false;
     empty.hidden = true;
     bindActions(note);
+    const lightbox = result.querySelector('.dy-lightbox');
+    const gallery = note.kind === 'image' ? (note.images || []) : [];
+    let selected = 0, opener = null;
+    const showImage = value => {
+      selected = (value + gallery.length) % gallery.length;
+      const image = lightbox.querySelector('img'); image.src = mediaSrc(gallery[selected].url); image.alt = `第 ${selected + 1} 张图片`;
+      lightbox.querySelector('[data-dy-count]').textContent = `${selected + 1} / ${gallery.length}`;
+      lightbox.querySelectorAll('[data-dy-prev],[data-dy-next]').forEach(button => {button.disabled = gallery.length < 2;});
+    };
+    result.querySelectorAll('[data-dy-zoom]').forEach(button => button.addEventListener('click', () => {opener = button; showImage(Number(button.dataset.dyZoom)); lightbox.showModal();}));
+    lightbox.querySelector('[data-dy-close]').addEventListener('click', () => lightbox.close());
+    lightbox.querySelector('[data-dy-prev]').addEventListener('click', () => showImage(selected - 1));
+    lightbox.querySelector('[data-dy-next]').addEventListener('click', () => showImage(selected + 1));
+    lightbox.addEventListener('close', () => opener?.focus({preventScroll:true}));
+    lightbox.addEventListener('click', event => {if (event.target === lightbox) lightbox.close();});
+    lightbox.addEventListener('keydown', event => {if (['ArrowLeft','ArrowRight'].includes(event.key) && gallery.length) {event.preventDefault(); showImage(selected + (event.key === 'ArrowLeft' ? -1 : 1));}});
 
     result.querySelector('[data-copy-video]')?.addEventListener(
       'click', () => copy(videoSrc(note.id), '视频地址')

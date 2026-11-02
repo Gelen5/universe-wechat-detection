@@ -461,7 +461,7 @@ def png_download(payload: bytes, key: str):
 
 
 @router.get("/api/xhs/media")
-def api_media(url: str = Query(min_length=8, max_length=2048), image_format: str | None = Query(None, alias="format", pattern="^png$")):
+def api_media(url: str = Query(min_length=8, max_length=2048), image_format: str | None = Query(None, alias="format", pattern="^png$"), download: bool = False):
     """同源提供媒体：有缓存读本地文件，没有才去上游取。
 
     只允许小红书自己的图床与视频域名，防止这个端点被当成任意 URL 的代理。
@@ -484,21 +484,25 @@ def api_media(url: str = Query(min_length=8, max_length=2048), image_format: str
             pass
         if image_format == "png":
             return png_download(blob.read_bytes(), key)
-        return FileResponse(
-            blob,
-            media_type=meta.get("content_type", "application/octet-stream"),
-            headers={"Cache-Control": "private, max-age=86400"},
-        )
+        content_type = meta.get("content_type", "application/octet-stream")
+        if download and not content_type.lower().startswith("video/"):
+            raise HTTPException(415, "该素材不是视频")
+        headers = {"Cache-Control": "private, max-age=86400"}
+        if download:
+            headers["Content-Disposition"] = f'attachment; filename="xiaohongshu-{key}.mp4"'
+        return FileResponse(blob, media_type=content_type, headers=headers)
 
     # 未命中（视频、或预热还没跑完）：这次直连上游，同时把它存下来。
     try:
         payload, content_type = download_media(url)
     except requests.RequestException as error:
         raise HTTPException(502, "媒体下载失败") from error
+    if download and not content_type.lower().startswith("video/"):
+        raise HTTPException(415, "该素材不是视频")
     store_media(key, payload, content_type, url)
     if image_format == "png":
         return png_download(payload, key)
-    return StreamingResponse(
-        iter([payload]), media_type=content_type,
-        headers={"Cache-Control": "private, max-age=86400"},
-    )
+    headers = {"Cache-Control": "private, max-age=86400"}
+    if download:
+        headers["Content-Disposition"] = f'attachment; filename="xiaohongshu-{key}.mp4"'
+    return StreamingResponse(iter([payload]), media_type=content_type, headers=headers)
