@@ -115,6 +115,53 @@ def resume(payload: dict[str, Any], node: str, result: dict[str, Any],
     return state.to_dict()
 
 
+def normalize_intent_result(result: dict, previous: dict) -> dict:
+    """Repair structural aliases without replacing already supplied preferences."""
+    cleaned = dict(result)
+    raw_intent = cleaned.get('intent')
+    intent = dict(raw_intent) if isinstance(raw_intent, dict) else {}
+    prior_intent = previous.get('intent') if isinstance(previous.get('intent'), dict) else {}
+    prior_goal = prior_intent.get('goal')
+    if isinstance(prior_goal, str) and prior_goal.strip():
+        intent['goal'] = prior_goal
+    elif not isinstance(intent.get('goal'), str) or not intent['goal'].strip():
+        intent.pop('goal', None)
+        for key in ('goal', 'purpose', 'writing_goal'):
+            if isinstance(result.get(key), str) and result[key].strip():
+                intent['goal'] = result[key].strip()
+                break
+    if 'search_intent' in intent and not isinstance(intent['search_intent'], dict):
+        intent.pop('search_intent')
+    cleaned['intent'] = intent
+    prior_audience = previous.get('audience')
+    audience = cleaned.get('audience')
+    if isinstance(prior_audience, dict) and prior_audience.get('description'):
+        cleaned['audience'] = prior_audience
+    elif isinstance(audience, str) and audience.strip():
+        cleaned['audience'] = {'description': audience.strip(), 'status': 'inferred'}
+    elif not isinstance(audience, dict) or not str(audience.get('description') or '').strip():
+        cleaned.pop('audience', None)
+    return cleaned
+
+
+def intent_fallback(state: dict, output_dir: Path | None) -> dict:
+    """Represent unspecified fields explicitly; retain the user's original request."""
+    repaired = deepcopy(state)
+    intent = repaired.setdefault('intent', {})
+    missing = []
+    if not isinstance(intent.get('goal'), str) or not intent['goal'].strip():
+        intent['goal'] = '依据用户原始需求提供选题或写作协助'
+        missing.append('写作目的')
+    audience = repaired.get('audience')
+    if not isinstance(audience, dict) or not str(audience.get('description') or '').strip():
+        repaired['audience'] = {'description': '尚未结构化识别读者，以用户原始需求为准', 'status': 'unspecified'}
+        missing.append('读者')
+    if missing:
+        repaired.setdefault('degradations', []).append({'node': 'intent',
+            'reason': '、'.join(missing) + '未完整识别，以用户原始需求为准', 'user_visible': True})
+    return pending_request(repaired, 'intent', output_dir)['state']
+
+
 def fulfill(payload: dict[str, Any], node: str, generate: Callable,
             *, evidence: dict[str, Any] | None = None,
             output_dir: Path | None = None) -> dict[str, Any]:
@@ -168,4 +215,27 @@ def fulfill(payload: dict[str, Any], node: str, generate: Callable,
         if supplied.get('status') in {'unavailable', 'failed'}:
             pack['research_status'] = 'failed'
             pack.setdefault('limitations', []).append('本次公开检索未取得可用资料，不能以模型记忆代替核验。')
-    return resume(pending['state'], node, result, output_dir)
+    if node != 'intent':
+        return resume(pending['state'], node, result, output_dir)
+
+    # A host response can be valid JSON yet omit the fields required by the Skill.
+    # Ask once for only the missing fields; do not expose the internal request.
+    current = resume(pending['state'], node, normalize_intent_result(result, pending['state']), output_dir)
+    if current['nodes'][node]['status'] != 'awaiting_host':
+        return current
+    missing = []
+    if not isinstance(current.get('intent', {}).get('goal'), str) or not current['intent']['goal'].strip():
+        missing.append('intent.goal（写作目的）')
+    audience = current.get('audience')
+    if not isinstance(audience, dict) or not str(audience.get('description') or '').strip():
+        missing.append('audience.description（目标读者）')
+    repaired = generate(instructions + '\n上次需求整理缺少必要字段：' + '、'.join(missing)
+        + '。请根据原始用户请求补全明确的信息；无法确定时保留未指定，不得虚构作者身份或事实。'
+        + '仅返回 JSON：{"intent":{"goal":"写作目的"},"audience":{"description":"读者"}}。\n'
+        + json.dumps({'user_request': current.get('user_request', ''), 'known_intent': current.get('intent', {}),
+                      'known_audience': current.get('audience', {})}, ensure_ascii=False))
+    if isinstance(repaired, dict):
+        current = resume(current, node, normalize_intent_result(repaired, current), output_dir)
+    if current['nodes'][node]['status'] == 'awaiting_host':
+        current = intent_fallback(current, output_dir)
+    return current

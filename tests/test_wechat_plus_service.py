@@ -43,6 +43,63 @@ class NativeConversationTests(unittest.TestCase):
         self.assertEqual(state['preferences']['style'], '口语')
         self.assertEqual(state['choices'], [])
 
+    def test_missing_intent_fields_are_repaired_before_recommending_topics(self):
+        message = '我想写一篇关于普通人使用 AI 提高工作效率的公众号文章，先帮我推荐几个选题。'
+        state = self.run_turn({}, message, [
+            {'action':'topics'},
+            {'intent':{'goal':'介绍 AI 工作效率'}, 'audience':{}},
+            {'intent':{}, 'audience':'普通人'},
+            {'topic':'AI 工作效率', 'angle':'日常工作方法', 'title_candidates':[
+                {'title':'先从整理信息开始','angle':'任务梳理'},
+                {'title':'让会议记录更有用','angle':'会后行动'}]},
+        ])
+        self.assertEqual(state['last_action'], 'topics')
+        self.assertEqual(len(state['choices']), 2)
+        self.assertEqual(state['article_state']['intent']['goal'], '介绍 AI 工作效率')
+        self.assertEqual(state['article_state']['audience']['description'], '普通人')
+        self.assertNotIn('intent.search_intent', state['messages'][-1]['content'])
+        self.assertNotIn('_blocked', state)
+
+    def test_repeated_missing_intent_uses_explicit_unspecified_fields(self):
+        message = '我想写一篇关于普通人使用 AI 提高工作效率的公众号文章，先帮我推荐几个选题。'
+        state = self.run_turn({}, message, [
+            {'action':'topics'}, {'intent':None, 'audience':None}, {'intent':{}, 'audience':{}},
+            {'topic':'AI 工作效率', 'angle':'工作方法', 'title_candidates':[
+                {'title':'让任务更清晰','angle':'梳理任务'}, {'title':'整理会议记录','angle':'提炼待办'}]},
+        ])
+        article = state['article_state']
+        self.assertEqual(article['nodes']['intent']['status'], 'passed')
+        self.assertEqual(article['audience']['status'], 'unspecified')
+        self.assertIn(message, article['user_request'])
+        self.assertTrue(any(item['node']=='intent' for item in article['degradations']))
+        self.assertEqual(len(state['choices']), 2)
+        self.assertNotIn('intent.search_intent', state['messages'][-1]['content'])
+
+    def test_intent_repair_does_not_overwrite_user_preferences(self):
+        state = self.run_turn({}, '给普通人推荐 AI 选题', [
+            {'action':'topics','audience':'普通人','goal':'提供实用建议'},
+            {'topic':'AI 办公','angle':'整理资料','title_candidates':[
+                {'title':'整理材料','angle':'归类'}, {'title':'整理记录','angle':'核对'}]},
+        ])
+        self.assertEqual(state['article_state']['audience']['description'], '普通人')
+        self.assertEqual(state['article_state']['intent']['goal'], '提供实用建议')
+
+    def test_intent_normalizer_keeps_existing_goal_and_reader(self):
+        previous = {'intent': {'goal':'原有目标'}, 'audience': {'description':'普通人','status':'user_provided'}}
+        result = runtime.normalize_intent_result({'intent': {'goal':'不同目标', 'search_intent':'invalid'},
+                                                  'audience':'企业老板'}, previous)
+        self.assertEqual(result['intent']['goal'], '原有目标')
+        self.assertNotIn('search_intent', result['intent'])
+        self.assertEqual(result['audience'], previous['audience'])
+
+    def test_incomplete_topic_result_does_not_expose_internal_prompt(self):
+        with self.assertRaisesRegex(ValueError, '生成结果未完整返回') as error:
+            self.run_turn({}, '给普通人推荐 AI 选题', [
+                {'action':'topics','audience':'普通人','goal':'实用建议'},
+                {'topic':'AI 办公','title_candidates':[]},
+            ])
+        self.assertNotIn('intent.search_intent', str(error.exception))
+
     def test_clarification_does_not_run_article_generation(self):
         state = self.run_turn({}, '想写AI', [
             {'action':'clarify','reply':'想写给谁看？','options':['上班族','开发者']}])
@@ -182,3 +239,64 @@ class NativeConversationTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+def test_plus_api_worker_recovers_missing_intent_and_settles_topics(tmp_path):
+    from tests import test_wechat_plus_api as api_tests
+    from server import wechat_plus_tasks as tasks, accounts
+    case = api_tests.PlusAPITests(methodName='runTest')
+    case.setUp()
+    try:
+        row = case.client.post('/api/wechat-plus/sessions', json={'title':'AI 工作效率'}, headers=case.headers).json()['session']
+        message = '我想写一篇关于普通人使用 AI 提高工作效率的公众号文章，先帮我推荐几个选题。'
+        sent = case.client.post('/api/wechat-plus/sessions/'+row['id']+'/messages', headers=case.headers,
+            json={'message':message,'version':1,'idempotency_key':'intent-repair-test-1'})
+        assert sent.status_code == 202
+        turn_id = sent.json()['turn']['id']
+        responses = iter([
+            {'action':'topics'},
+            {'intent':{'goal':'介绍 AI 工作效率'}, 'audience':{}},
+            {'intent':{}, 'audience':'普通人'},
+            {'topic':'AI 工作效率','angle':'工作方法','title_candidates':[
+                {'title':'先整理任务','angle':'工作优先级'}, {'title':'核对会议记录','angle':'会后行动'}]},
+        ])
+        with patch.object(workbench, 'SKILL_DIR', ROOT/'vendor/skills/weChat-autoCreate'), \
+             patch.object(workbench, 'OUTPUT_DIR', tmp_path), \
+             patch.object(tasks.service, 'generate_json', side_effect=lambda prompt: next(responses)):
+            result = tasks.execute_turn.apply(args=[turn_id], task_id='test-worker', throw=True).get()
+        assert result['status'] == 'completed'
+        loaded = case.client.get('/api/wechat-plus/sessions/'+row['id'],headers=case.headers).json()['session']
+        assert len(loaded['state']['choices']) == 2
+        assert loaded['state']['article_state']['audience']['description'] == '普通人'
+        assert loaded['state']['last_action'] == 'topics'
+        assert accounts.wallet_summary('owner')['balance'] == 98
+        assert loaded['turns'][0]['status'] == 'completed'
+    finally:
+        case.tearDown()
+
+
+def test_plus_api_worker_refunds_incomplete_topic_without_internal_prompt(tmp_path):
+    from tests import test_wechat_plus_api as api_tests
+    from server import wechat_plus_tasks as tasks, accounts
+    case = api_tests.PlusAPITests(methodName='runTest')
+    case.setUp()
+    try:
+        row = case.client.post('/api/wechat-plus/sessions', json={'title':'AI 选题'}, headers=case.headers).json()['session']
+        sent = case.client.post('/api/wechat-plus/sessions/'+row['id']+'/messages', headers=case.headers,
+            json={'message':'给普通人推荐 AI 选题','version':1,'idempotency_key':'intent-failure-test-1'})
+        assert sent.status_code == 202
+        turn_id = sent.json()['turn']['id']
+        responses = iter([{'action':'topics','audience':'普通人','goal':'实用建议'},
+                          {'topic':'AI 办公','title_candidates':[]}])
+        with patch.object(workbench, 'SKILL_DIR', ROOT/'vendor/skills/weChat-autoCreate'), \
+             patch.object(workbench, 'OUTPUT_DIR', tmp_path), \
+             patch.object(tasks.service, 'generate_json', side_effect=lambda prompt: next(responses)):
+            result = tasks.execute_turn.apply(args=[turn_id], task_id='test-worker', throw=True).get()
+        assert result['status'] == 'failed'
+        loaded = case.client.get('/api/wechat-plus/sessions/'+row['id'],headers=case.headers).json()['session']
+        assert loaded['turns'][0]['status'] == 'failed'
+        assert 'intent.search_intent' not in loaded['turns'][0]['error']
+        assert '未完整返回' in loaded['turns'][0]['error']
+        assert accounts.wallet_summary('owner')['balance'] == 100
+    finally:
+        case.tearDown()

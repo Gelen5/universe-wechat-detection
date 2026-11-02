@@ -49,9 +49,10 @@ class Cancelled(RuntimeError):
 
 
 class Blocked(ValueError):
-    def __init__(self, state, message):
+    def __init__(self, state, message, node=''):
         super().__init__(message)
         self.state = state
+        self.node = node
 
 
 def reset_from(article, node):
@@ -105,9 +106,14 @@ def execute(state, message, generate, *, output_dir: Path, progress=lambda _: No
         current_article = state.get('article_state') or {}
         if old_article.get('formatted_output') and old_article.get('draft') == current_article.get('draft'):
             current_article['formatted_output'] = old_article['formatted_output']
-        state['messages'].append({'role': 'assistant', 'content':
-            '这一步需要先处理材料或正文中的问题：' + str(exc) + '。当前内容已保留，详情见“复核与来源”。'})
-        state['last_action'] = 'review'
+        if exc.node in {'review', 'delivery'}:
+            notice = '这一步需要先处理正文复核中的问题。当前内容已保留，详情见“复核与来源”。'
+            state['last_action'] = 'review'
+        else:
+            notice = '这次没能完成需求整理或选题，请再试一次；本次不会扣除积分。'
+            state['last_action'] = 'answer'
+            state['reply_options'] = ['重新推荐选题'] if exc.node in {'intent', 'topic'} else []
+        state['messages'].append({'role': 'assistant', 'content': notice})
         state['_blocked'] = True
         return state
 
@@ -213,8 +219,10 @@ def _execute(state, message, generate, *, output_dir, progress,
             evidence=state.get('research'), output_dir=output_dir)
         state['article_state'] = article
         status = article['nodes'][name]['status']
+        if status == 'awaiting_host':
+            raise ValueError('本次生成结果未完整返回，请重试；已保存的内容不会丢失。')
         if status != 'passed':
-            raise Blocked(state, article['nodes'][name].get('message') or 'Skill节点尚未通过')
+            raise Blocked(state, article['nodes'][name].get('message') or 'Skill节点尚未通过', name)
         check_cancelled()
 
     if action in {'clarify', 'answer'}:
