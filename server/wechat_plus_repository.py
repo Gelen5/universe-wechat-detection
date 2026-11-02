@@ -47,6 +47,18 @@ def list_sessions(user_id):
     with database.ENGINE.connect() as db:
         return [dict(r) for r in db.execute(select(sessions.c.id,sessions.c.title,sessions.c.version,sessions.c.updated_at).where(sessions.c.user_id==user_id).order_by(sessions.c.updated_at.desc()).limit(50)).mappings()]
 
+def recent_layout_theme(user_id, exclude_session_id):
+    """Look at this user's recent sessions only, to avoid repeating auto themes."""
+    with database.ENGINE.connect() as db:
+        rows = db.execute(select(sessions.c.state).where(
+            sessions.c.user_id == user_id, sessions.c.id != exclude_session_id
+        ).order_by(sessions.c.updated_at.desc()).limit(20)).scalars()
+        for state in rows:
+            theme = (state or {}).get('layout_theme')
+            if isinstance(theme, dict) and theme.get('id'):
+                return {'id': theme['id']}
+    return None
+
 def save(session_id,user_id,version,state):
     with database.ENGINE.begin() as db:
         changed=db.execute(update(sessions).where(sessions.c.id==session_id,sessions.c.user_id==user_id,sessions.c.version==version).values(state=state,version=version+1,updated_at=now())).rowcount

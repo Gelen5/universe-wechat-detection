@@ -104,6 +104,9 @@
       messageRoot.append(button);
     });
     $('options').replaceChildren();
+    const layoutOptions = ['write', 'format'].includes(state.last_action) && (state.reply_options || []).length;
+    $('options').classList.toggle('wp-layout-options', Boolean(layoutOptions));
+    if (layoutOptions) $('options').append(text('span', state.last_action === 'write' ? '选择排版风格，或在下方描述你的想法' : '继续调整排版', 'wp-layout-options-label'));
     (state.reply_options || []).forEach(option => {
       const button = text('button', option); button.type = 'button'; button.onclick = () => send(option); $('options').append(button);
     });
@@ -139,6 +142,12 @@
     $('preview').hidden = !nextPreview;
     $('preview-empty').hidden = Boolean(nextPreview);
     $('copy-html').disabled = !nextPreview || Boolean(shownVersion);
+    const themeLabel = $('layout-theme');
+    if (themeLabel) {
+      themeLabel.hidden = !nextPreview || !state.layout_theme?.name;
+      themeLabel.textContent = state.layout_theme?.name ? `排版 · ${state.layout_theme.name}` : '';
+    }
+    $('input').placeholder = article.draft ? '告诉我排版风格，例如：蓝色科技感、标题醒目…' : '想写的方向、已有素材，或者直接粘贴文章…';
     updateBusy();
     if (nearBottom) messageRoot.scrollTop = messageRoot.scrollHeight;
   }

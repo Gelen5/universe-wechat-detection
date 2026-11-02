@@ -104,13 +104,19 @@ def execute_turn(self, turn_id):
         # Every claim gets a private directory. A late cancelled worker cannot
         # overwrite a preview produced by a later task.
         directory = workbench.OUTPUT_DIR / 'wechat-plus' / session['id'] / turn_id / self.request.id
-        state = service.execute(session['state'], turn['message'], generate,
+        prior_state = session['state']
+        if not prior_state.get('layout_theme') and 'layout_previous_theme' not in prior_state:
+            prior_state['layout_previous_theme'] = repo.recent_layout_theme(turn['user_id'], session['id'])
+        state = service.execute(prior_state, turn['message'], generate,
             output_dir=directory, check_cancelled=check,
             progress=lambda text: repo.heartbeat(turn_id, self.request.id, text), search=search)
         committed = repo.commit_turn(turn_id, self.request.id, session['version'], state)
         if committed:
             action = str(state.get('last_action') or '')
-            settle_completed(action, accounts.plus_points_for(action))
+            if state.get('_blocked'):
+                refund('blocked')
+            else:
+                settle_completed(action, accounts.plus_points_for(action))
         else:
             refund('cancelled')
         return {'status': 'completed' if committed else 'cancelled'}

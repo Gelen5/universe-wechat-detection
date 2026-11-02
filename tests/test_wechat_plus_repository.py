@@ -24,6 +24,15 @@ class PlusPublicationTests(unittest.TestCase):
         repository.claim(turn['id'], 'worker')
         return turn
 
+    def test_recent_layout_is_scoped_to_the_owner(self):
+        first = repository.create('owner')
+        other = repository.create('other')
+        repository.save(first['id'], 'owner', 1, {'layout_theme': {'id': 'warm', 'name': '温暖故事'}})
+        repository.save(other['id'], 'other', 1, {'layout_theme': {'id': 'tech', 'name': '专业科技'}})
+        self.assertEqual(repository.recent_layout_theme('owner', self.session['id']), {'id': 'warm'})
+        self.assertIsNone(repository.recent_layout_theme('another-user', self.session['id']))
+        self.assertIsNone(repository.recent_layout_theme('owner', first['id']))
+
     def test_cancelled_generation_cannot_publish_late_result(self):
         turn = self.claim()
         self.assertTrue(repository.cancel(turn['id'], 'owner'))
