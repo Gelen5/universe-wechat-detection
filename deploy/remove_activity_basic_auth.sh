@@ -2,8 +2,8 @@
 # Keep admin APIs role-protected by the application while avoiding a second
 # browser Basic Auth prompt when opening the activity dashboard and details.
 set -euo pipefail
-site=/etc/nginx/sites-available/universe-wechat-detection
-backup="${site}.pre-activity-auth-$(date +%Y%m%d%H%M%S)"
+site=/etc/nginx/sites-enabled/universe-wechat-detection
+backup="/etc/nginx/sites-available/universe-wechat-detection.enabled-pre-activity-auth-$(date +%Y%m%d%H%M%S)"
 cp -p "$site" "$backup"
 python3 - "$site" <<'PY'
 from pathlib import Path
@@ -12,7 +12,8 @@ path = Path(sys.argv[1]); data = path.read_text()
 marker = '    location ^~ /api/admin/ {'
 location = '''    # Activity dashboard uses the application administrator session.
     location ^~ /api/admin/activity {
-        proxy_pass http://127.0.0.1:8000;
+        proxy_pass http://universe_app;
+        proxy_next_upstream error timeout http_502 http_503 http_504;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
