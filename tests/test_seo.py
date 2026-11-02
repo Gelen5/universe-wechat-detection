@@ -11,6 +11,9 @@ def test_public_seo_files_are_crawlable():
     sitemap = client.get("/sitemap.xml")
     assert sitemap.status_code == 200
     assert sitemap.headers["content-type"].startswith("application/xml")
+    verification = client.get("/baidu_verify_codeva-g1x7XWVb4z.html")
+    assert verification.status_code == 200
+    assert verification.text == "d86ba9182344b4887ee9d491775ab709"
     for path in ("/ai-writing", "/wechat-official-account", "/sticker-account", "/ai-skills"):
         page = client.get(path)
         assert page.status_code == 200

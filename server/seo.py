@@ -5,6 +5,7 @@ need a small set of stable HTML pages as well, rather than a list of keywords
 in the application shell.
 """
 from html import escape
+from pathlib import Path
 
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse, Response
@@ -12,6 +13,8 @@ from fastapi.responses import HTMLResponse, Response
 
 router = APIRouter()
 SITE = "https://yuzoudiyigongzuotai.cn"
+STATIC = Path(__file__).resolve().parents[1] / "static"
+VERIFY_FILE = "baidu_verify_codeva-g1x7XWVb4z.html"
 
 PAGES = {
     "ai-writing": {
@@ -90,6 +93,12 @@ def _page(slug: str) -> str:
 @router.get("/robots.txt", include_in_schema=False)
 def robots() -> Response:
     return Response("User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /admin/\nSitemap: https://yuzoudiyigongzuotai.cn/sitemap.xml\n", media_type="text/plain", headers={"Cache-Control": "public, max-age=3600"})
+
+
+@router.get(f"/{VERIFY_FILE}", include_in_schema=False)
+def baidu_verification() -> Response:
+    """Serve Baidu's ownership token at the exact root URL it verifies."""
+    return Response((STATIC / VERIFY_FILE).read_text(encoding="utf-8").strip(), media_type="text/html", headers={"Cache-Control": "public, max-age=3600"})
 
 
 @router.get("/sitemap.xml", include_in_schema=False)
