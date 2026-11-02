@@ -82,3 +82,22 @@ def test_result_layout_on_mobile_keeps_media_and_actions_usable(ui):
     page.locator('[data-dy-zoom="0"]').click()
     expect(page.locator('.dy-lightbox')).to_be_visible()
     assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+
+def test_link_composers_are_accessible_and_fit_desktop_and_mobile(ui):
+    page, _ = ui
+    for width in (390, 1440):
+        page.set_viewport_size({'width': width, 'height': 900})
+        for path, field, button in [('xhs-extract', '#xhs-extract-url', '#xhs-extract-start'), ('douyin-extract', '#douyin-extract-url', '#douyin-extract-start')]:
+            page.goto('http://ui.test/' + path)
+            page.locator(field).fill('https://example.com/shared-content')
+            expect(page.locator(field)).to_have_value('https://example.com/shared-content')
+            box = page.locator(button).bounding_box()
+            input_box = page.locator(field).bounding_box()
+            assert box['x'] >= 0 and box['x'] + box['width'] <= width
+            assert box['width'] >= 100 and box['height'] >= 44
+            if width > 560:
+                assert box['x'] >= input_box['x'] + input_box['width'] - 1
+                assert box['width'] <= 160
+            else:
+                assert box['y'] >= input_box['y'] + input_box['height'] - 1
+            assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
