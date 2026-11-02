@@ -135,7 +135,7 @@
       clockText(video.duration),
     ].filter(Boolean).join(' · ');
     const src = videoSrc(note.id);
-    return `<section class="dy-card">
+    return `<section class="dy-card dy-media-card">
       <div class="dy-media-head">
         <h3>视频</h3>
         <span>${esc(meta)}</span>
@@ -163,7 +163,7 @@
         <img src="${esc(mediaSrc(image.url))}" alt="第 ${index + 1} 张配图" loading="lazy" decoding="async">
         <span class="dy-shot-index">${index + 1}</span>
       </button>`).join('');
-    return `<section class="dy-card">
+    return `<section class="dy-card dy-media-card">
       <div class="dy-media-head">
         <h3>配图 · ${images.length} 张</h3>
         <span>点击图片查看大图</span>
@@ -184,7 +184,8 @@
       ? `<span class="dy-chip muted">${clockText(note.duration)}</span>` : '';
 
     result.innerHTML = `
-      <section class="dy-card">
+      <div class="extract-result-heading"><span class="extract-heading-icon" aria-hidden="true">✓</span><div><strong>提取结果</strong><small>内容与素材已整理</small></div><span class="extract-result-kind">${kindLabel}</span></div>
+      <section class="dy-card dy-details">
         <div class="dy-card-head">
           <span class="dy-chip">${kindLabel}</span>
           ${note.published ? `<span class="dy-chip muted">${esc(note.published)}</span>` : ''}

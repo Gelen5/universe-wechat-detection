@@ -59,3 +59,26 @@ def test_video_download_responses_have_attachment_headers():
         r=client.get('/api/douyin/video',params={'id':DY['id'],'download':'1'})
         assert r.status_code == 200 and r.content == b'video'
         assert r.headers['content-disposition'] == 'attachment; filename="douyin-7699784646996823306.mp4"'
+
+def test_result_layout_on_mobile_keeps_media_and_actions_usable(ui):
+    page, _ = ui
+    page.set_viewport_size({'width': 375, 'height': 812})
+    extraction(page)
+    page.goto('http://ui.test/xhs-extract')
+    submit(page)
+    expect(page.locator('.extract-result-heading')).to_be_visible()
+    assert page.locator('.xe-document').bounding_box()['y'] > page.locator('.xe-media').bounding_box()['y']
+    page.locator('.xe-main-image').click()
+    expect(page.locator('#xhs-extract-lightbox')).to_be_visible()
+    page.keyboard.press('Escape')
+    assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+    page.route('**/api/douyin/extract', lambda r:r.fulfill(json={'note':DY}))
+    page.route('**/api/douyin/media?*', lambda r:r.fulfill(content_type='image/png',body=PNG))
+    page.goto('http://ui.test/douyin-extract')
+    page.locator('#douyin-extract-url').fill('https://v.douyin.com/example/')
+    page.locator('#douyin-extract-start').click()
+    expect(page.locator('.extract-result-heading')).to_be_visible()
+    assert page.locator('.dy-details').bounding_box()['y'] > page.locator('.dy-media-card').bounding_box()['y']
+    page.locator('[data-dy-zoom="0"]').click()
+    expect(page.locator('.dy-lightbox')).to_be_visible()
+    assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
