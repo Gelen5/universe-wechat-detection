@@ -30,6 +30,8 @@ def test_admin_navigation_filter_drawer(browser,width):
     page.get_by_role('button',name='查看详情',exact=True).click()
     expect(page.locator('#drawer')).to_be_visible()
     expect(page.locator('#detail')).to_contain_text('11 → 6')
+    section_titles=page.locator('#detail .detail-section h2').all_text_contents()
+    assert section_titles[:2]==['积分流水（最近 50 条）','最近活动（最多 50 条）']
     page.keyboard.press('Escape')
     expect(page.locator('#drawer')).not_to_be_visible()
     page.locator('[data-metric=failed]').click()
