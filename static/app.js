@@ -6,6 +6,7 @@ const downloadButton = document.querySelector('#download-report');
 const appShell = document.querySelector('.app-shell');
 const morningGenerator = document.querySelector('#morning-generator');
 const ownerRevenueButton = document.querySelector('#owner-revenue-button');
+const ownerBehaviorButton = document.querySelector('#owner-behavior-button');
 const settingsButton = document.querySelector('#settings-button');
 const settingsMenu = document.querySelector('#settings-menu');
 const apiSettingsButton = document.querySelector('#api-settings-button');
@@ -123,6 +124,7 @@ function syncAdminVisibility() {
   // 后端 /bill 另有独立拦截，这里只负责不给其他人看到这个按钮。
   if (billSettingsButton) billSettingsButton.hidden = !isAdmin;
   if (ownerRevenueButton) ownerRevenueButton.hidden = !isAdmin;
+  if (ownerBehaviorButton) ownerBehaviorButton.hidden = !isAdmin || Boolean(currentAccount?.impersonation?.active);
   if (!isAdmin && apiSettingsModal) apiSettingsModal.hidden = true;
   if (!isAdmin && adminUsersModal) adminUsersModal.hidden = true;
   const impersonating = Boolean(currentAccount?.impersonation?.active);
@@ -620,6 +622,7 @@ document.querySelector('#admin-recharge-form')?.addEventListener('submit', async
 
 walletSettingsButton?.addEventListener('click', () => { window.location.href = '/wallet'; });
 ownerRevenueButton?.addEventListener('click', () => { window.location.href = '/owner-revenue'; });
+ownerBehaviorButton?.addEventListener('click', () => { window.location.href = '/owner-behavior'; });
 billSettingsButton?.addEventListener('click', () => { window.location.href = '/bill'; });
 document.querySelector('#wallet-chip')?.addEventListener('click', openWallet);
 document.querySelector('#wallet-close')?.addEventListener('click', () => { walletModal.hidden = true; });

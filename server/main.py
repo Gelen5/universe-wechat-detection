@@ -71,6 +71,9 @@ app.include_router(wish_square.router)
 from . import admin_activity
 admin_activity.init_db()
 app.include_router(admin_activity.router)
+from . import behavior_analytics
+behavior_analytics.meta.create_all(database.ENGINE)
+app.include_router(behavior_analytics.router)
 database.ensure_local_workflow_schema()
 accounts.recover_interrupted_workbench_jobs()
 database.require_postgres_in_production()
