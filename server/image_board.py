@@ -166,8 +166,29 @@ def stale_after_hours() -> int:
         return 48
 
 
+def min_complete_items() -> int:
+    """低于这个条数视为“上游当天还没生成完”，允许后续调度重试。"""
+    try:
+        return max(1, int(os.getenv("IMAGE_BOARD_MIN_ITEMS", "20")))
+    except ValueError:
+        return 20
+
+
+def max_attempts() -> int:
+    """同一天最多尝试几次，给真正冷清的日期一个成本上限。"""
+    try:
+        return max(1, min(6, int(os.getenv("IMAGE_BOARD_MAX_ATTEMPTS", "3"))))
+    except ValueError:
+        return 3
+
+
 def scheduled_sync() -> dict:
-    """定时任务入口：同步昨日（北京时间）贴图；当天已有成功快照则跳过不花钱。"""
+    """定时任务入口：同步昨日（北京时间）贴图。
+
+    上游按发布日生成数据，当天越早抓越可能只拿到几条。所以“已同步过”不足以
+    判定完成：条数低于阈值时允许后续调度重试（store 会整日替换，不会重复），
+    同时用尝试次数上限兜住成本。
+    """
     if not sync_enabled():
         return {"status": "disabled"}
     from datetime import timedelta
@@ -176,8 +197,13 @@ def scheduled_sync() -> dict:
     with database.session_scope() as session:
         existing = session.execute(select(func.count()).select_from(ImageBoardItem)
                                    .where(ImageBoardItem.stat_date == stat_date)).scalar() or 0
-    if existing:
+        attempts = session.execute(select(func.count()).select_from(ImageBoardSyncRun)
+                                   .where(ImageBoardSyncRun.stat_date == stat_date)).scalar() or 0
+    if existing >= min_complete_items():
         return {"status": "cached", "stat_date": stat_date, "inserted": int(existing)}
+    if attempts >= max_attempts():
+        return {"status": "cached", "stat_date": stat_date, "inserted": int(existing),
+                "reason": "已达到本日尝试次数上限"}
     # 失败只写 sync_runs，不清空旧快照（store 仅在拿到数据时整日替换）。
     return sync(stat_date, sync_pages())
 
