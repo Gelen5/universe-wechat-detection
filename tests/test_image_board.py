@@ -2,7 +2,14 @@ import os
 import unittest
 from unittest.mock import patch
 
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+
 from server import image_board
+from server import database
 
 
 class ImageBoardTests(unittest.TestCase):
@@ -33,6 +40,27 @@ class ImageBoardTests(unittest.TestCase):
     def test_sync_does_not_call_upstream_without_key(self):
         result = image_board.sync('2026-11-02', pages=10)
         self.assertEqual('unconfigured', result['status'])
+
+    def test_default_api_returns_all_200_items(self):
+        engine = create_engine('sqlite://', connect_args={'check_same_thread': False},
+                               poolclass=StaticPool)
+        session_local = sessionmaker(bind=engine, expire_on_commit=False)
+        with patch.object(database, 'ENGINE', engine), patch.object(database, 'SessionLocal', session_local):
+            image_board.init_schema()
+            image_board.store('2026-11-02', [
+                {'sn': str(i), 'content_type': 'book', 'title': f'item {i}',
+                 'word_num': 200 if i % 2 else 10, 'image_num': 1, 'read_num': i}
+                for i in range(200)
+            ], source='test')
+            app = FastAPI()
+            app.include_router(image_board.router)
+            with TestClient(app) as client:
+                data = client.get('/api/image-board').json()
+                self.assertEqual(200, data['total'])
+                self.assertEqual(200, len(data['items']))
+                self.assertEqual(100, data['counts']['image'])
+                self.assertEqual(100, client.get('/api/image-board?scope=image').json()['total'])
+        engine.dispose()
 
 
 if __name__ == '__main__':

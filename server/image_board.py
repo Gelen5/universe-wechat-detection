@@ -236,7 +236,7 @@ def list_items(
     wx_type: str = Query(default="", max_length=32),
     q: str = Query(default="", max_length=80),
     sort: str = Query(default="read", pattern="^(read|time|share)$"),
-    scope: str = Query(default="image", pattern="^(image|all|lowfans)$"),
+    scope: str = Query(default="all", pattern="^(image|all|lowfans)$"),
     date: str = Query(default="", max_length=10),
 ):
     with database.session_scope() as session:

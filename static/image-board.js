@@ -5,7 +5,7 @@
   const root = document.querySelector('#image-board');
   if (!root) return;
 
-  const state = { scope: 'image', type: '', q: '', sort: 'read', date: '', loaded: false, loading: false };
+  const state = { scope: 'all', type: '', q: '', sort: 'read', date: '', loaded: false, loading: false };
   const $ = (sel) => root.querySelector(sel);
 
   const esc = (value) => String(value ?? '').replace(/[&<>"']/g,
