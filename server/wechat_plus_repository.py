@@ -19,6 +19,17 @@ turns = Table('wechat_plus_turns', metadata,
     Column('cache', JSON), Column('input_version', Integer, nullable=False),
     UniqueConstraint('session_id', 'idempotency_key', name='uq_wechat_plus_turn_key'))
 
+failures = Table('wechat_plus_failures', metadata,
+    Column('id', String(32), primary_key=True),
+    Column('turn_id', String(32), nullable=False, index=True),
+    Column('created_at', String(40), nullable=False),
+    Column('details', JSON, nullable=False))
+
+def record_failure(turn_id, details):
+    with database.ENGINE.begin() as db:
+        db.execute(insert(failures).values(id=uuid.uuid4().hex, turn_id=turn_id,
+                                          created_at=now(), details=details))
+
 class Conflict(ValueError):
     pass
 

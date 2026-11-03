@@ -4,6 +4,7 @@ from threading import Event, Thread
 import hashlib
 import json
 import time
+import re
 
 from .celery_app import celery_app
 from . import accounts
@@ -31,6 +32,7 @@ def execute_turn(self, turn_id):
     if not turn:
         return {'status': 'ignored'}
     stop = Event()
+    execution_started = time.monotonic()
 
     def renew():
         while not stop.wait(20):
@@ -128,6 +130,26 @@ def execute_turn(self, turn_id):
         # in server logs and expose a bounded actionable failure to the client.
         import logging
         logging.getLogger(__name__).exception('Plus turn failed: %s', turn_id)
+        # Store bounded diagnostics in the database, never in public artifacts.
+        # Follow causes because ProviderError deliberately hides upstream errors.
+        try:
+            chain, current, seen = [], exc, set()
+            while current is not None and id(current) not in seen and len(chain) < 6:
+                seen.add(id(current))
+                message = str(current)
+                message = re.sub(r'(?:sk-|re_)[A-Za-z0-9_-]+', '[REDACTED]', message)
+                message = re.sub(r'(?i)(authorization|api[_-]?key|token)\s*[:=]\s*[^\s,;]+', r'\1=[REDACTED]', message)
+                chain.append({'type': type(current).__name__, 'message': message[:3000],
+                              'status_code': getattr(current, 'status_code', None),
+                              'code': getattr(current, 'code', None)})
+                current = current.__cause__ or current.__context__
+            repo.record_failure(turn_id, {'task_id': self.request.id,
+                'user_id': turn['user_id'], 'session_id': turn['session_id'],
+                'model': service.configured_model(),
+                'elapsed_ms': round((time.monotonic() - execution_started) * 1000),
+                'exceptions': chain})
+        except Exception:
+            logging.getLogger(__name__).warning('Could not persist Plus diagnostics for %s', turn_id)
         safe = str(exc) if isinstance(exc, (ValueError, repo.Conflict)) else '本次处理未完成，原有内容已保留。请稍后重试。'
         if isinstance(exc, workbench.ProviderError):
             safe = '模型服务暂时不可用，文章已保留。稍后可以继续上次未完成的处理。'
