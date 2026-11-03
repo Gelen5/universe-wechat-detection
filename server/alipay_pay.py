@@ -1083,7 +1083,8 @@ def close_order(out_trade_no: str) -> JSONResponse:
 
 
 @router.post("/api/pay/alipay/orders/{out_trade_no}/refund")
-def refund_order(out_trade_no: str, payload: RefundPayload) -> JSONResponse:
+def refund_order(out_trade_no: str, payload: RefundPayload, request: Request) -> JSONResponse:
+    accounts.require_admin(request)
     order = _find_order(out_trade_no)
     if order is None:
         raise HTTPException(status_code=404, detail="订单不存在")

@@ -81,18 +81,14 @@ def _ensure_foreign_keys() -> None:
     if all(name in existing for name, _ in _FOREIGN_KEYS):
         return
     with database.ENGINE.begin() as connection:
-        # 加约束前先清孤儿，否则 ALTER 会被历史脏数据挡住。
-        connection.execute(text(
-            """DELETE FROM referrals
-               WHERE inviter_id NOT IN (SELECT id FROM users)
-                  OR invitee_id NOT IN (SELECT id FROM users)"""
-        ))
+        # Preserve all historical relationships. Existing orphans require review;
+        # NOT VALID still enforces the FK on new writes without deleting history.
         for name, column in _FOREIGN_KEYS:
             if name in existing:
                 continue
             connection.execute(text(
                 f"ALTER TABLE referrals ADD CONSTRAINT {name} "
-                f"FOREIGN KEY ({column}) REFERENCES users(id) ON DELETE CASCADE"
+                f"FOREIGN KEY ({column}) REFERENCES users(id) ON DELETE CASCADE NOT VALID"
             ))
 
 # 数值即活动规则，改这里就等于改活动。对外文案在 static 侧同步说明。
