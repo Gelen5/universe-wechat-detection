@@ -35,7 +35,7 @@
       : d.status === 'logged_out'
       ? '<p>登录后可选择开启一次 5 小时免费试用；不点击不会开始计时，也不会自动扣费。</p><button class="vi-primary" data-vi-login>登录 / 注册</button>'
       : `${d.pending_order ? `<p class="vi-pending">订单 ${esc(d.pending_order.out_trade_no)} 待支付。${d.status === 'trial_active' ? '当前可查看完整内容是因为试用仍在有效期内，订单未付款不会开通付费会员。' : d.status === 'member_active' ? '当前可查看完整内容是因为已有会员权益仍然有效。' : '未付款不会开通会员。'}付款完成后稍候刷新。</p>` : ''}
-         <p>低粉爆文和低粉爆图共用一份权益，可查看完整榜单、筛选和原文。数据以页面标注的榜单日期为准。</p><p>${d.status === 'trial_available' ? '主动开启后开始计时，共 5 小时；不自动扣费。' : '会员到期后立即失效；有效期内续费自动顺延。'}</p>
+         <p>${d.status === 'trial_available' ? '<strong>免费试用 5 小时</strong>，主动开启后计时，不自动扣费。' : '会员到期后立即失效；有效期内续费自动顺延。'}</p>
          ${d.status === 'trial_available' ? '<button class="vi-primary" data-vi-trial>免费试用 5 小时</button>' : ''}
          <div class="vi-packages">${state.packages.map(p => `<button data-vi-package="${esc(p.id)}"><b>${esc(p.name)}</b><span>¥${esc(p.price)} / ${p.days}天</span></button>`).join('')}</div>`;
     node.querySelector('[data-vi-login]')?.addEventListener('click', () => {
