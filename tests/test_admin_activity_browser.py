@@ -25,6 +25,7 @@ def test_admin_navigation_filter_drawer(browser,width):
             route.fulfill(body=file.read_bytes(),content_type=mimetypes.guess_type(str(file))[0] or 'text/plain')
     page.route('**/*',serve)
     page.goto('http://ui.test/admin/users')
+    expect(page.locator('script[src*="admin-activity.js"]')).to_have_attribute('src', '/static/admin-activity.js?v=20261103-ledger-first')
     expect(page.locator('#rows')).to_contain_text('demo@example.test')
     assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
     page.get_by_role('button',name='查看详情',exact=True).click()
