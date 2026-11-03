@@ -8,6 +8,7 @@ from __future__ import annotations
 from copy import deepcopy
 from datetime import datetime, timezone
 import json
+import logging
 import os
 import re
 from pathlib import Path
@@ -358,5 +359,15 @@ def generate_json(prompt):
             text_api_key=os.getenv('WECHAT_PLUS_TEXT_API_KEY', ''),
             text_base_url=os.getenv('WECHAT_PLUS_TEXT_API_BASE_URL', ''),
             text_model=configured_model()):
-            return workbench._json_text(prompt, model=configured_model(),
-                base_url=os.getenv('WECHAT_PLUS_TEXT_API_BASE_URL') or None)
+            primary = configured_model()
+            fallback = os.getenv('WECHAT_PLUS_FALLBACK_MODEL', 'gpt-6.1-sol').strip()
+            base = os.getenv('WECHAT_PLUS_TEXT_API_BASE_URL') or None
+            try:
+                return workbench._json_text(prompt, model=primary, base_url=base)
+            except workbench.ProviderError:
+                if not fallback or fallback == primary:
+                    raise
+                logging.getLogger(__name__).warning(
+                    'Plus model fallback: primary=%s fallback=%s', primary, fallback)
+                with workbench.provider_overrides(text_model=fallback):
+                    return workbench._json_text(prompt, model=fallback, base_url=base)

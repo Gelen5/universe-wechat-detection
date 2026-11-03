@@ -235,6 +235,21 @@ class NativeConversationTests(unittest.TestCase):
         self.assertEqual(state['article_state']['topic'], '新稿标题')
         self.assertEqual([version['draft'] for version in state['versions']], ['之前保存的正文', imported])
 
+    def test_provider_failure_uses_sol_fallback(self):
+        observed = []
+        def generate(prompt, *, model=None, base_url=None):
+            observed.append((model, workbench._setting('WECHAT_TEXT_MODEL')))
+            if len(observed) == 1:
+                raise workbench.ProviderError('unavailable')
+            return {'ok': True}
+        with patch.dict(os.environ, {'WECHAT_PLUS_TEXT_MODEL':'gpt-6.1-terra',
+                                    'WECHAT_PLUS_FALLBACK_MODEL':'gpt-6.1-sol'}), \
+             patch.object(workbench.accounts, 'provider_settings', return_value={}), \
+             patch.object(workbench, '_json_text', side_effect=generate):
+            self.assertEqual(service.generate_json('test'), {'ok': True})
+        self.assertEqual(observed, [('gpt-6.1-terra','gpt-6.1-terra'),
+                                    ('gpt-6.1-sol','gpt-6.1-sol')])
+
     def test_plus_model_override_does_not_change_legacy_request_settings(self):
         observed = []
         def generate(prompt, *, model=None, base_url=None):
