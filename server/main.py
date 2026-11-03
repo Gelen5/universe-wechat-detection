@@ -184,8 +184,10 @@ async def account_and_points_gate(request: Request, call_next):
     public_market = request.method == "GET" and (path.startswith("/api/market/")
                      or path.startswith("/api/hotspots"))
     # 低粉爆文榜的浏览是对外的（只读本地快照），导出/实时刷新仍要登录并计费。
+    # 低分爆图的封面代理同样对外：它只是把微信图片转一次，不触达计费上游。
     public_lowfans = request.method == "GET" and (path.startswith("/api/lowfans")
-                                                  or path == "/api/image-board")
+                                                  or path == "/api/image-board"
+                                                  or path == "/api/image-board/cover")
     public_refresh = request.method == "POST" and path == "/api/hotspots/refresh"
     # 支付宝收银接口按协议对外：异步通知由支付宝服务器直连 POST，下单/查询/退款
     # 走订单号与服务端记录，不依赖登录态；管理动作仍应另行加保护。

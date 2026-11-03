@@ -17,7 +17,7 @@ from typing import Any
 
 import requests
 from fastapi import APIRouter, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 from sqlalchemy import delete, func, or_, select
 
 from . import accounts, database
@@ -174,6 +174,62 @@ def image_board_page():
         return HTMLResponse(handle.read(), headers={"Cache-Control": "no-cache"})
 
 
+# ---------------------------------------------------------------- 封面代理
+# 微信图片有防盗链：浏览器直连 mmbiz.qpic.cn 会拿到 403 或空图，页面只剩灰块。
+# 由服务端带 Referer 取一次字节再回给前端，顺带避开用户侧跨域限制。
+COVER_HOSTS = ("mmbiz.qpic.cn", "mmecoa.qpic.cn", "mmbiz.qlogo.cn")
+COVER_CACHE: dict[str, tuple[float, bytes, str]] = {}
+COVER_TTL = 6 * 3600
+COVER_MAX_ENTRIES = 400
+
+
+def _cover_fetch(url: str) -> tuple[bytes, str] | None:
+    from urllib.parse import urlsplit
+
+    if urlsplit(url).hostname not in COVER_HOSTS:
+        return None
+    try:
+        response = requests.get(url, timeout=(5, 15), headers={
+            "Referer": "https://mp.weixin.qq.com/",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                          "(KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+        })
+        response.raise_for_status()
+    except requests.RequestException as exc:
+        logger.warning("image board cover fetch failed: %s", type(exc).__name__)
+        return None
+    content_type = (response.headers.get("Content-Type") or "image/jpeg").split(";")[0].strip()
+    if not content_type.startswith("image/"):
+        return None
+    return response.content, content_type
+
+
+@router.get("/api/image-board/cover")
+def cover(sn: str = Query(..., min_length=1, max_length=64)):
+    """按文章 sn 取封面。只读本地库 + 一次图片 GET，不产生上游积分。"""
+    now = time.time()
+    cached = COVER_CACHE.get(sn)
+    if cached and now - cached[0] < COVER_TTL:
+        return Response(cached[1], media_type=cached[2],
+                        headers={"Cache-Control": "public, max-age=86400"})
+    with database.session_scope() as session:
+        row = session.execute(select(ImageBoardItem).where(ImageBoardItem.sn == sn)
+                              .order_by(ImageBoardItem.stat_date.desc()).limit(1)).scalars().first()
+        if row is None or not row.pic_url:
+            raise HTTPException(status_code=404, detail="没有封面")
+        url = row.pic_url
+    fetched = _cover_fetch(url)
+    if fetched is None:
+        raise HTTPException(status_code=502, detail="封面获取失败")
+    payload, content_type = fetched
+    if len(COVER_CACHE) >= COVER_MAX_ENTRIES:
+        oldest = min(COVER_CACHE, key=lambda key: COVER_CACHE[key][0])
+        COVER_CACHE.pop(oldest, None)
+    COVER_CACHE[sn] = (now, payload, content_type)
+    return Response(payload, media_type=content_type,
+                    headers={"Cache-Control": "public, max-age=86400"})
+
+
 # ---------------------------------------------------------------- 只读 API
 @router.get("/api/image-board")
 def list_items(
@@ -223,6 +279,7 @@ def list_items(
         payload["rank_no"] = rank
         payload["image_first"] = is_image_first(row)
         payload["excerpt"] = (row.content or "").strip()[:120]
+        payload["cover_url"] = f"/api/image-board/cover?sn={row.sn}" if row.pic_url else ""
         payload["lowfans"] = matches.get(row.sn)
         items.append(payload)
     return {
