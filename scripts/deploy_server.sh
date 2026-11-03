@@ -129,7 +129,8 @@ fi
 # 预检：这台机器只有 1.6G 内存，构建期最容易被打爆
 MEM_AVAIL=$(awk '/MemAvailable/ {print int($2/1024)}' /proc/meminfo 2>/dev/null || echo 0)
 DISK_AVAIL=$(df -Pk / 2>/dev/null | awk 'NR==2 {print int($4/1024)}')
-[ "${MEM_AVAIL:-0}" -lt 350 ] && warn "可用内存仅 ${MEM_AVAIL}MB，构建可能被 OOM 杀掉（可先 docker builder prune）"
+[ "${MEM_AVAIL:-0}" -lt 350 ] && warn "可用内存仅 ${MEM_AVAIL}MB，构建可能影响线上服务"
+[ "${MEM_AVAIL:-0}" -ge 300 ] || die "可用内存不足 300MB，已停止构建以保护线上服务；请释放资源后重试"
 [ "${DISK_AVAIL:-0}" -lt 3000 ] && warn "根分区剩余 ${DISK_AVAIL}MB，可能不够构建"
 
 PREV_DIR="$(current_release_dir)"
@@ -195,8 +196,25 @@ if [ -n "$PREV_SHORT" ] && [ "$PREV_SHORT" != "$SHORT" ]; then
   done
 fi
 
-log "构建镜像（约 3 分钟）"
-( cd "$REL" && docker compose "${COMPOSE_ARGS[@]}" -p "$PROJECT" --env-file "$ENV_FILE" build "${SERVICES[@]}" migrate "${EXTRA_BUILD[@]}" )
+# Reuse the running authentication service only when its entire build context
+# and compose definition match the currently deployed release. Still run the
+# existing migration image on every deployment to preserve credential imports.
+REUSE_AUTH=0
+BUILD_SERVICES=("${SERVICES[@]}" migrate "${EXTRA_BUILD[@]}")
+AUTH_DIR=$(docker inspect -f '{{index .Config.Labels "com.docker.compose.project.working_dir"}}' "${PROJECT}-auth-1" 2>/dev/null || true)
+if [ "${#EXTRA_BUILD[@]}" -gt 0 ] && [ -d "${AUTH_DIR:-}/auth-service" ] \
+  && diff -qr "$AUTH_DIR/auth-service" "$REL/auth-service" >/dev/null 2>&1 \
+  && cmp -s "$AUTH_DIR/docker-compose.auth.yml" "$REL/docker-compose.auth.yml" \
+  && [ "$(docker inspect -f '{{.State.Health.Status}}' "${PROJECT}-auth-1" 2>/dev/null || true)" = healthy ]; then
+  # Both compose services share the same Dockerfile and build context.
+  docker tag "$(docker inspect -f '{{.Image}}' "${PROJECT}-auth-1")" "${PROJECT}-auth-migrate:latest"
+  REUSE_AUTH=1
+  SERVICES=(web worker beat)
+  BUILD_SERVICES=(web worker beat migrate)
+  log "认证服务源码未变化，复用现有镜像与运行容器"
+fi
+log "构建镜像（串行）"
+( cd "$REL" && COMPOSE_PARALLEL_LIMIT=1 docker compose "${COMPOSE_ARGS[@]}" -p "$PROJECT" --env-file "$ENV_FILE" build "${BUILD_SERVICES[@]}" )
 
 # A backup process is only useful if it is actually ready before auth or web
 # is restarted. Fail before touching running services when it is unavailable.
@@ -231,8 +249,10 @@ PROBE_PID=$!
 
 if [ "${#EXTRA_BUILD[@]}" -gt 0 ]; then
   log "迁移 Better Auth 独立表并导入原用户 ID / 密码哈希"
-  ( cd "$REL" && docker compose "${COMPOSE_ARGS[@]}" -p "$PROJECT" --env-file "$ENV_FILE" run --rm --no-deps auth-migrate )
-  ( cd "$REL" && docker compose "${COMPOSE_ARGS[@]}" -p "$PROJECT" --env-file "$ENV_FILE" up -d --no-deps auth )
+  ( cd "$REL" && docker compose "${COMPOSE_ARGS[@]}" -p "$PROJECT" --env-file "$ENV_FILE" run --rm --no-build --no-deps auth-migrate )
+  if [ "$REUSE_AUTH" != 1 ]; then
+    ( cd "$REL" && docker compose "${COMPOSE_ARGS[@]}" -p "$PROJECT" --env-file "$ENV_FILE" up -d --no-deps auth )
+  fi
   AUTH_READY=0
   for _ in $(seq 1 30); do
     if docker exec "${PROJECT}-auth-1" node -e "fetch('http://localhost:3001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"; then AUTH_READY=1; break; fi
