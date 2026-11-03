@@ -171,7 +171,8 @@ def test_preview_is_redacted_and_cannot_be_paged(paywall):
         assert data["preview"] is True and len(data["items"]) <= vim.preview_limit()
         assert data["page"] == 1
         for item in data["items"]:
-            assert set(item) <= {"rank_no", "wx_type", "title_preview", "publish_date", "stat_date"}
+            assert set(item) <= {"rank_no", "wx_type", "title_preview", "wx_name", "read_num", "boost_ratio", "publish_date", "stat_date"}
+            assert item['wx_name'] and item['read_num'] > 0 and item['boost_ratio'] > 0
         assert "secret" not in str(data) and "stats" not in data
     board = client.get("/api/image-board?scope=all&q=爆图").json()
     assert board["preview"] is True and len(board["items"]) <= vim.preview_limit()

@@ -99,12 +99,18 @@
   function renderList() {
     if (!el.list) return;
     if (state.preview) {
-      const rows = state.items.map((item) => `<li class="vi-preview-row"><span>${item.rank_no}</span>
-        <b>${esc(item.title_preview || '')}</b><em>${esc(item.wx_type || '')}</em></li>`).join('');
-      el.list.innerHTML = `<div class="vi-preview"><ul>${rows}</ul>
-        <div class="vi-lock"><strong>完整榜单、阅读数据和原文需开通爆款情报会员</strong>
-        <p>低粉爆文与低分爆图共用权益。开启后才开始免费试用计时，未开启不会扣费；筛选、排序和搜索在开启后可用。</p>
-        <button type="button" class="vi-primary" data-viral-insights-open>查看权益</button></div></div>`;
+      const rows = state.items.map((item) => `<li class="lf-row">
+        <span class="lf-rank${item.rank_no <= 3 ? ` is-top${item.rank_no > 1 ? item.rank_no : ''}` : ''}">${item.rank_no}</span>
+        <span class="lf-title">${esc(item.title_preview || '无标题')}</span>
+        <div class="lf-meta"><span class="lf-name">${esc(item.wx_name || '未知账号')}</span>
+          <span class="lf-type">${esc(item.wx_type || '其他')}</span><span>${esc(item.publish_date || '')}</span></div>
+        <div class="lf-metrics"><span>阅读 <b>${fmtNum(item.read_num)}</b></span></div>
+        <div class="lf-side"><div class="lf-side-top"><span class="lf-boost">${Number(item.boost_ratio) > 0 ? `${fmtBoost(item.boost_ratio)}<small>× 爆发</small>` : '倍率暂无'}</span></div></div>
+      </li>`).join('');
+      el.list.innerHTML = `<div class="vi-preview"><ul class="lf-list">${rows}</ul>
+        <div class="vi-lock"><strong>开启 5 小时免费试用，查看完整榜单</strong>
+        <p>解锁原文、搜索、排序和赛道筛选。试用由你主动开启，未开启不计时、不扣费；导出另按积分计费。</p>
+        <button type="button" class="vi-primary" data-viral-insights-open>查看试用权益</button></div></div>`;
       if (el.more) el.more.hidden = true;
       return;
     }

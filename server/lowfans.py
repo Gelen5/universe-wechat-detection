@@ -63,7 +63,8 @@ def _public(row: LowfansArticle) -> dict[str, Any]:
 
 def _preview(row: LowfansArticle, rank: int) -> dict[str, Any]:
     return {"rank_no": rank, "wx_type": _norm_type(row.wx_type),
-            "title_preview": (row.title or "")[:18] + ("…" if len(row.title or "") > 18 else ""),
+            "title_preview": row.title or "", "wx_name": row.wx_name or "",
+            "read_num": row.read_num, "boost_ratio": round(float(row.boost_ratio or 0), 2),
             "publish_date": (row.pub_time or "")[:10], "stat_date": row.stat_date}
 
 
