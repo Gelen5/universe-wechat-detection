@@ -16,7 +16,8 @@
   menu.className = 'shell-menu'; menu.id = 'shell-more-menu';
   menu.setAttribute('aria-labelledby', 'shell-more-title');
   const heading = document.createElement('h2'); heading.id = 'shell-more-title'; heading.textContent = '全部功能';
-  const close = document.createElement('button'); close.type = 'button'; close.textContent = '关闭';
+  heading.tabIndex = -1;
+  const close = document.createElement('button'); close.type = 'button'; close.className = 'shell-menu-close'; close.textContent = '关闭';
   const list = document.createElement('nav'); list.setAttribute('aria-label', '全部功能');
   menu.append(heading, close, list); document.body.append(menu);
   const ordered = document.createDocumentFragment();
@@ -58,7 +59,7 @@
   list.append(community);
   const more = document.createElement('button'); more.type = 'button'; more.className = 'shell-mobile-more';
   more.innerHTML = '<svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="8" cy="12" r=".8" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r=".8" fill="currentColor" stroke="none"/><circle cx="16" cy="12" r=".8" fill="currentColor" stroke="none"/></svg><span>更多</span>'; more.setAttribute('aria-controls', menu.id); more.setAttribute('aria-expanded', 'false');
-  more.addEventListener('click', () => { menu.showModal(); more.setAttribute('aria-expanded', 'true'); });
+  more.addEventListener('click', () => { menu.showModal(); heading.focus({preventScroll:true}); more.setAttribute('aria-expanded', 'true'); });
   close.addEventListener('click', () => menu.close());
   menu.addEventListener('close', () => more.setAttribute('aria-expanded', 'false'));
   menu.addEventListener('click', event => {
