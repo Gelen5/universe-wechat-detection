@@ -45,8 +45,12 @@
 - 支付单据复用既有 `alipay_orders`，会员订单在 `viral_insights_membership_orders` 单独记录，
   **不写 `alipay_recharges`**，因此不会误充积分、不会触发邀请充值奖励。
 - 版本化迁移：`db/alembic/versions/20261104_0013_viral_insights_membership.py`
-  （`down_revision = 20261103_0012`）。本地 SQLite 由各服务 `init_schema()` 幂等建表；
-  PostgreSQL 由 `alembic upgrade head` 负责。
+  （`down_revision = 20261103_0012`）。
+- **建表实际路径**：本仓库生产部署用 `up -d --no-deps`，compose 的 `migrate`
+  服务不会执行；线上 `alembic_version` 实测停在 `20261025_0009`，而 `wechat_plus_*`、
+  `referral_*` 等表实际由各模块 `init_schema()` 启动时创建。会员表沿用同一惯例
+  （`create_all(checkfirst=True)`），否则开启开关会因缺表直接 500。
+  Alembic 迁移保留为版本化真源，供真正执行迁移的环境使用。
 
 试用时间一律取数据库服务器 `CURRENT_TIMESTAMP`（UTC），不使用客户端时间或应用进程时钟，
 因此改本地时间、重登、清 Cookie 都不能重置或延长。

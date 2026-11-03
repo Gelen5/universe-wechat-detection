@@ -46,9 +46,17 @@ def enabled() -> bool:
     return os.getenv("VIRAL_INSIGHTS_PAYWALL_ENABLED", "0").strip() == "1"
 
 def init_schema() -> None:
-    # Local SQLite tests may initialize directly; PostgreSQL is migration-owned.
-    if database.ENGINE.dialect.name == "sqlite":
-        metadata.create_all(database.ENGINE, checkfirst=True)
+    """Idempotent startup schema.
+
+    This repo's production deploy path (`up -d --no-deps`) never runs the compose
+    `migrate` service: the live PostgreSQL `alembic_version` is far behind while
+    the real tables are created by each module's `init_schema()` at startup
+    (`checkfirst=True`). Membership tables must follow the same convention,
+    otherwise the paywall would 500 on a database without them. The Alembic
+    revision `20261104_0013` remains the versioned source of truth for
+    environments that do run migrations.
+    """
+    metadata.create_all(database.ENGINE, checkfirst=True)
 
 def _db_now(connection) -> datetime:
     """Database-server UTC time; never the client clock or app process clock."""
