@@ -18,21 +18,6 @@
     return n.toLocaleString('en-US');
   };
 
-  const SCOPES = {
-    image: '图为主',
-    lowfans: '已匹配低粉',
-    all: '全部贴图',
-  };
-
-  function renderScopes(counts) {
-    $('#ib-scopes').innerHTML = Object.entries(SCOPES).map(([key, label]) => {
-      const active = state.scope === key;
-      const count = Number(counts?.[key]) || 0;
-      return `<button type="button" class="ib-scope" data-scope="${key}" role="tab"
-        aria-selected="${active}">${label}<n>${count}</n></button>`;
-    }).join('');
-  }
-
   function renderTracks(categories, total) {
     const chips = [{ name: '', label: '全部', count: total }]
       .concat((categories || []).map((item) => ({ name: item.name, label: item.name, count: item.count })));
@@ -115,20 +100,6 @@
     });
   }
 
-  function renderNote(data) {
-    const note = $('#ib-note');
-    if (state.scope === 'image') {
-      note.innerHTML = `<b>图为主</b> = 正文不超过 ${data.image_first_max_words || 100} 字、无视频、至少 1 张图。`
-        + '这是按字段做的规则筛选，不等同于逐篇人工确认。';
-    } else if (state.scope === 'lowfans') {
-      note.innerHTML = '<b>已匹配低粉</b> 只表示文章标识出现在当前已同步的低粉爆文快照里；'
-        + '没匹配到不代表不是低粉号，只代表不在已采集的样本中。';
-    } else {
-      note.innerHTML = '<b>全部贴图</b> 来自资源库 content_type=book，里面混有新闻和普通图文，'
-        + '所以「图为主」单独作为一个范围。封面由工作台代取，原文仍在微信。';
-    }
-  }
-
   function renderMeta(data) {
     const sync = data.last_sync || {};
     $('#ib-stamp').innerHTML = data.stat_date
@@ -136,7 +107,6 @@
       : '<span>正在读取…</span>';
     const total = Number(data.total) || 0;
     $('#ib-tail').textContent = total ? `${total} 条 · ${data.stat_date || ''}` : '暂无数据';
-    renderScopes(data.counts);
     const scopeCount = Number(data.counts?.[state.scope]) || total;
     renderTracks(data.categories, scopeCount);
     const dates = data.dates || [];
@@ -169,7 +139,6 @@
       if (!response.ok) throw new Error('HTTP ' + response.status);
       const data = await response.json();
       renderMeta(data);
-      renderNote(data);
       renderList(data);
       state.loaded = true;
       if (data.degraded) $('#ib-tail').textContent = data.reason || '暂时没有数据';
@@ -184,14 +153,6 @@
   }
 
   /* ---------------------------------------------------------------- 事件 */
-  $('#ib-scopes').addEventListener('click', (event) => {
-    const button = event.target.closest('[data-scope]');
-    if (!button || button.dataset.scope === state.scope) return;
-    state.scope = button.dataset.scope;
-    state.type = '';
-    load();
-  });
-
   $('#ib-tracks').addEventListener('click', (event) => {
     const button = event.target.closest('[data-type]');
     if (!button) return;
