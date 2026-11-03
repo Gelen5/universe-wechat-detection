@@ -292,17 +292,21 @@ def _cover_fetch(url: str) -> tuple[bytes, str] | None:
 def cover(request: Request, sn: str = Query(..., min_length=1, max_length=64)):
     """按文章 sn 取封面；启用会员访问时仅有权益者可取。"""
     membership.require_access(request)
-    now = time.time()
-    cached = COVER_CACHE.get(sn)
-    if cached and now - cached[0] < COVER_TTL:
-        return Response(cached[1], media_type=cached[2],
-                        headers={"Cache-Control": "private, no-store" if membership.enabled() else "public, max-age=86400"})
     with database.session_scope() as session:
         row = session.execute(select(ImageBoardItem).where(ImageBoardItem.sn == sn)
                               .order_by(ImageBoardItem.stat_date.desc()).limit(1)).scalars().first()
         if row is None or not row.pic_url:
             raise HTTPException(status_code=404, detail="没有封面")
         url = row.pic_url
+    return _serve_cover(sn, url)
+
+
+def _serve_cover(sn: str, url: str):
+    now = time.time()
+    cached = COVER_CACHE.get(sn)
+    if cached and now - cached[0] < COVER_TTL:
+        return Response(cached[1], media_type=cached[2],
+                        headers={"Cache-Control": "private, no-store" if membership.enabled() else "public, max-age=86400"})
     fetched = _cover_fetch(url)
     if fetched is None:
         raise HTTPException(status_code=502, detail="封面获取失败")
@@ -313,6 +317,42 @@ def cover(request: Request, sn: str = Query(..., min_length=1, max_length=64)):
     COVER_CACHE[sn] = (now, payload, content_type)
     return Response(payload, media_type=content_type,
                     headers={"Cache-Control": "private, no-store" if membership.enabled() else "public, max-age=86400"})
+
+
+def _board_pool(session, stat_date: str) -> list[ImageBoardItem]:
+    candidates = session.execute(select(ImageBoardItem)
+        .where(ImageBoardItem.stat_date <= stat_date)
+        .order_by(ImageBoardItem.stat_date.desc(), ImageBoardItem.read_num.desc(),
+                  ImageBoardItem.sn.asc())).scalars()
+    rows, seen = [], set()
+    for row in candidates:
+        if row.sn in seen:
+            continue
+        rows.append(row)
+        seen.add(row.sn)
+        if len(rows) == 200:
+            break
+    return rows
+
+
+def _read_rank(row):
+    return (row.read_num, row.share_num, row.sn)
+
+
+@router.get("/api/image-board/preview-cover")
+def preview_cover(index: int = Query(..., ge=1, le=10)):
+    """Only the fixed, latest preview slots are public; no arbitrary image IDs."""
+    if index > membership.preview_limit():
+        raise HTTPException(status_code=404, detail="预览图片不存在")
+    with database.session_scope() as session:
+        stat_date = _latest_date(session)
+        rows = _board_pool(session, stat_date) if stat_date else []
+        rows.sort(key=_read_rank, reverse=True)
+        row = rows[index - 1] if len(rows) >= index else None
+        if row is None or not row.pic_url:
+            raise HTTPException(status_code=404, detail="没有封面")
+        sn, url = row.sn, row.pic_url
+    return _serve_cover(sn, url)
 
 
 # ---------------------------------------------------------------- 只读 API
@@ -337,18 +377,7 @@ def list_items(
         # Build one stable pool before applying user filters: keep the selected
         # day's items first, then fill from the nearest earlier snapshots.
         # A repeated article appears only once, using its newest snapshot.
-        candidates = session.execute(select(ImageBoardItem)
-            .where(ImageBoardItem.stat_date <= stat_date)
-            .order_by(ImageBoardItem.stat_date.desc(), ImageBoardItem.read_num.desc(),
-                      ImageBoardItem.sn.asc())).scalars()
-        rows, seen = [], set()
-        for row in candidates:
-            if row.sn in seen:
-                continue
-            rows.append(row)
-            seen.add(row.sn)
-            if len(rows) == 200:
-                break
+        rows = _board_pool(session, stat_date)
         primary_count = sum(row.stat_date == stat_date for row in rows)
         fallback_count = len(rows) - primary_count
         matches = _lowfans_matches(session, [row.sn for row in rows])
@@ -373,7 +402,7 @@ def list_items(
     needle = q.strip().lower()
     if needle:
         rows = [r for r in rows if needle in (r.title or "").lower()]
-    key = {"read": lambda r: (r.read_num, r.share_num),
+    key = {"read": _read_rank,
            "share": lambda r: (r.share_num, r.read_num),
            "time": lambda r: r.pub_time or ""}[sort]
     rows.sort(key=key, reverse=True)
@@ -381,7 +410,9 @@ def list_items(
     if not accessible:
         preview = [{"rank_no": i + 1, "wx_type": row.wx_type or OTHER_LABEL,
                     "title_preview": (row.title or "")[:18] + ("…" if len(row.title or "") > 18 else ""),
-                    "stat_date": row.stat_date} for i, row in enumerate(rows[:membership.preview_limit()])]
+                    "stat_date": row.stat_date,
+                    "cover_url": f"/api/image-board/preview-cover?index={i + 1}" if row.pic_url else ""}
+                   for i, row in enumerate(rows[:membership.preview_limit()])]
         last_sync = {"status": last.status, "inserted": last.inserted} if last else {}
         return {"items": preview, "total": len(preview), "stat_date": stat_date,
                 "counts": {"all": min(counts["all"], 999), "image": min(counts["image"], 999), "lowfans": min(counts["lowfans"], 999)},

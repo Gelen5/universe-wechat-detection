@@ -178,6 +178,22 @@ def test_preview_is_redacted_and_cannot_be_paged(paywall):
     assert "mmbiz" not in str(board) and "mp.weixin" not in str(board)
 
 
+def test_preview_covers_are_available_only_for_fixed_preview_slots(paywall):
+    from server import image_board
+    _seed()
+    client = TestClient(app)
+    data = client.get('/api/image-board').json()
+    assert all(item['cover_url'].startswith('/api/image-board/preview-cover?index=') for item in data['items'])
+    image_board.COVER_CACHE.clear()
+    with patch.object(image_board, '_cover_fetch', return_value=(b'preview-image', 'image/png')) as fetch:
+        response = client.get(data['items'][0]['cover_url'])
+        assert response.status_code == 200 and response.content == b'preview-image'
+        assert fetch.call_args.args[0].endswith('secret-12.jpg')
+        assert client.get('/api/image-board/preview-cover?index=6').status_code == 404
+        assert client.get('/api/image-board/cover?sn=vi-sn-12').status_code == 403
+    image_board.COVER_CACHE.clear()
+
+
 def test_bypass_endpoints_return_membership_403(paywall):
     _seed()
     anon = TestClient(app)

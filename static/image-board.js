@@ -74,12 +74,18 @@
   function renderPreview(data) {
     const grid = $('#ib-grid');
     grid.className = '';
-    const rows = (data.items || []).map((item) => `<li class="vi-preview-row"><span>${item.rank_no}</span>
-      <b>${esc(item.title_preview || '')}</b><em>${esc(item.wx_type || '')}</em></li>`).join('');
-    grid.innerHTML = `<div class="vi-preview"><ul>${rows}</ul>
-      <div class="vi-lock"><strong>完整封面、阅读数据和原文需开通爆款情报会员</strong>
+    const rows = (data.items || []).map((item) => `<article class="ib-card">
+      <div class="ib-cover">${item.cover_url
+        ? `<img src="${esc(item.cover_url)}" alt="" loading="lazy" decoding="async" data-fallback="${esc((item.title_preview || '图').slice(0, 2))}">`
+        : `<span class="ib-fallback">${esc((item.title_preview || '图').slice(0, 2))}</span>`}
+        <span class="ib-rank${item.rank_no <= 3 ? ' is-top' : ''}">${item.rank_no}</span></div>
+      <div class="ib-body"><b class="ib-title">${esc(item.title_preview || '')}</b>
+        <div class="ib-facts"><em>${esc(item.wx_type || '')}</em></div></div></article>`).join('');
+    grid.innerHTML = `<div class="vi-preview"><div class="ib-grid">${rows}</div>
+      <div class="vi-lock"><strong>解锁完整榜单、阅读数据和原文</strong>
       <p>低粉爆文与低分爆图共用权益。开启后才开始免费试用计时，未开启不会扣费；筛选、排序和搜索在开启后可用。</p>
       <button type="button" class="vi-primary" data-viral-insights-open>查看权益</button></div></div>`;
+    setupCovers(grid);
   }
 
   function renderList(data) {
@@ -97,6 +103,10 @@
     }
     grid.className = '';
     grid.innerHTML = `<div class="ib-grid">${items.map(cardHtml).join('')}</div>`;
+    setupCovers(grid);
+  }
+
+  function setupCovers(grid) {
     grid.querySelectorAll('.ib-cover img').forEach((img) => {
       const done = () => img.classList.add('is-ready');
       const fail = () => {
