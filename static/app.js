@@ -1242,6 +1242,11 @@ function resetViralRemixImage() {
   if (viralRemixPreview) { viralRemixPreview.hidden = true; viralRemixPreview.replaceChildren(); }
 }
 
+window.importStickerReferenceFiles = files => {
+  if (!files.length || viralFiles.length + files.length > 8) throw new Error('参考图最多 8 张，请调整已选图片');
+  if (files.some(f => f.size > 10 * 1024 * 1024 || !['image/png','image/jpeg','image/webp'].includes(f.type))) throw new Error('复刻仅支持每张小于 10MB 的 PNG、JPG 或 WebP');
+  viralFiles.push(...files); paintViralFiles(); setActiveView('viral-remix', true);
+};
 viralRemixImage?.addEventListener('change', () => {
   const files = [...(viralRemixImage.files || [])];
   if(viralFiles.length+files.length>8){showToast('最多上传8张参考图','error');viralRemixImage.value='';return;}
@@ -1539,6 +1544,7 @@ const viewMap = {
   xiaohongshu: xiaohongshuPage,
   'tie-tu': tieTuPage,
   'viral-remix': viralRemixPage,
+  'sticker-extract': document.querySelector('#sticker-extract'),
   'xhs-extract': xhsExtractPage,
   'article-visual': articleVisualPage,
   'douyin-extract': douyinExtractPage,
@@ -1557,6 +1563,7 @@ const viewTitles = {
   xiaohongshu: '小红书创作',
   'tie-tu': '微信贴图号',
   'viral-remix': '爆款贴图复刻',
+  'sticker-extract': '贴图号内容提取',
   'xhs-extract': '小红书内容提取',
   'article-visual': '爆文转贴图',
   'douyin-extract': '抖音内容提取',

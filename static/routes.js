@@ -50,6 +50,8 @@ window.APP_NAV = (() => {
      fallback: true,
      icon: svg('<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="1.6"/>' +
                '<path d="m4 17 5-5 4 4 3-3 4 4"/>')},
+    {group: '工具', href: '/sticker-extract', view: 'sticker-extract', label: '贴图号内容提取', fallback: true,
+     icon: svg('<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8" cy="8" r="1.5"/><path d="m4 17 5-5 4 4 3-3 4 4"/>')},
     // 小红书内容提取：应用内视图，静态页面里没有节点，标记 fallback 让渲染器建出来。
     {group: '工具', href: '/xhs-extract', view: 'xhs-extract', label: '小红书内容提取',
      fallback: true,

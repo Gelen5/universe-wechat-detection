@@ -28,6 +28,7 @@ from .market import router as market_router
 from .hotspots import router as hotspots_router
 from .lowfans import router as lowfans_router
 from . import lowfans_sync
+from .sticker_extract import router as sticker_extract_router
 from .xhs_extract import router as xhs_extract_router
 from .douyin_extract import router as douyin_extract_router
 from .alipay_pay import router as alipay_pay_router
@@ -82,6 +83,7 @@ app.include_router(bookshelf_router)
 app.include_router(market_router)
 app.include_router(hotspots_router)
 app.include_router(lowfans_router)
+app.include_router(sticker_extract_router)
 app.include_router(xhs_extract_router)
 app.include_router(douyin_extract_router)
 app.include_router(alipay_pay_router)
@@ -1502,7 +1504,7 @@ def legacy_creation_redirect(request: Request):
     query = request.url.query
     return RedirectResponse('/wechat-plus' + ('?' + query if query else ''), status_code=307)
 
-TAB_PAGES = {"wechat-plus", "diagnose", "xiaohongshu", "tie-tu", "viral-remix", "xhs-extract", "douyin-extract", "article-visual", "hit-detector", "morning-generator"}
+TAB_PAGES = {"wechat-plus", "diagnose", "xiaohongshu", "tie-tu", "viral-remix", "xhs-extract", "sticker-extract", "douyin-extract", "article-visual", "hit-detector", "morning-generator"}
 
 
 @app.get("/{tab}", include_in_schema=False)
