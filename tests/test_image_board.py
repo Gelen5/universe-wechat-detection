@@ -1,0 +1,39 @@
+import os
+import unittest
+from unittest.mock import patch
+
+from server import image_board
+
+
+class ImageBoardTests(unittest.TestCase):
+    def test_row_preserves_book_fields_and_limits_content(self):
+        row = image_board._row('2026-11-02', {
+            'sn': 'abc', 'wx_type': '生活', 'content_type': 'book',
+            'content': 'x' * 5000, 'word_num': 28, 'image_num': 1,
+            'video_num': 0, 'read_num': 100001,
+        })
+        self.assertEqual('abc', row['sn'])
+        self.assertEqual('book', row['content_type'])
+        self.assertEqual(4000, len(row['content']))
+        self.assertEqual(28, row['word_num'])
+
+    def test_image_first_rule_excludes_video_and_long_text(self):
+        class Item:
+            word_num = 80
+            video_num = 0
+            image_num = 1
+        self.assertTrue(image_board.is_image_first(Item()))
+        Item.video_num = 1
+        self.assertFalse(image_board.is_image_first(Item()))
+        Item.video_num = 0
+        Item.word_num = 101
+        self.assertFalse(image_board.is_image_first(Item()))
+
+    @patch.dict(os.environ, {'WXRANK_API_KEY': ''}, clear=False)
+    def test_sync_does_not_call_upstream_without_key(self):
+        result = image_board.sync('2026-11-02', pages=10)
+        self.assertEqual('unconfigured', result['status'])
+
+
+if __name__ == '__main__':
+    unittest.main()

@@ -377,3 +377,60 @@ class LowfansSyncRun(Base):
     upstream_total: Mapped[int] = mapped_column(Integer, default=0)
     status: Mapped[str] = mapped_column(String(16), default="ok")   # ok / partial / failed / busy / unconfigured
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class ImageBoardItem(Base):
+    """低分爆图：资源库 content_type=book（贴图）候选快照。
+
+    上游 book 里混有新闻/图文，这里只存原始字段，「是否图为主」在读取时按
+    字数/视频数判断，不在入库时下结论。同一 (stat_date, sn) 只保留一行。
+    """
+
+    __tablename__ = "image_board_items"
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"),
+                                    primary_key=True, autoincrement=True)
+    stat_date: Mapped[str] = mapped_column(String(10), index=True)   # 2026-11-02
+    sn: Mapped[str] = mapped_column(String(64), index=True)
+    wx_biz: Mapped[str] = mapped_column(String(64), default="")
+    wx_type: Mapped[str] = mapped_column(String(32), default="")
+    content_type: Mapped[str] = mapped_column(String(16), default="book")
+    title: Mapped[str] = mapped_column(Text, default="")
+    content: Mapped[str] = mapped_column(Text, default="")
+    art_url: Mapped[str] = mapped_column(Text, default="")
+    pic_url: Mapped[str] = mapped_column(Text, default="")
+    pub_time: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    ip_region: Mapped[str] = mapped_column(String(32), default="")
+    copyright: Mapped[str] = mapped_column(String(16), default="")
+    read_num: Mapped[int] = mapped_column(Integer, default=0)
+    like_num: Mapped[int] = mapped_column(Integer, default=0)
+    look_num: Mapped[int] = mapped_column(Integer, default=0)
+    share_num: Mapped[int] = mapped_column(Integer, default=0)
+    word_num: Mapped[int] = mapped_column(Integer, default=0)
+    image_num: Mapped[int] = mapped_column(Integer, default=0)
+    video_num: Mapped[int] = mapped_column(Integer, default=0)
+    qmusic_num: Mapped[int] = mapped_column(Integer, default=0)
+    data_update_time: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
+
+    __table_args__ = (
+        UniqueConstraint("stat_date", "sn", name="uq_image_board_item"),
+        Index("idx_image_board_date_read", "stat_date", "read_num"),
+    )
+
+
+class ImageBoardSyncRun(Base):
+    """低分爆图采集审计：每次花了几次调用（1 积分/次）、拿到多少条。"""
+
+    __tablename__ = "image_board_sync_runs"
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"),
+                                    primary_key=True, autoincrement=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc, index=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    stat_date: Mapped[str] = mapped_column(String(10), default="")
+    source: Mapped[str] = mapped_column(String(16), default="api")   # api / import
+    pages_ok: Mapped[int] = mapped_column(Integer, default=0)
+    cost_points: Mapped[int] = mapped_column(Integer, default=0)
+    inserted: Mapped[int] = mapped_column(Integer, default=0)
+    upstream_total: Mapped[int] = mapped_column(Integer, default=0)
+    status: Mapped[str] = mapped_column(String(16), default="ok")
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)

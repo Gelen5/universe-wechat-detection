@@ -1,0 +1,246 @@
+"""低分爆图：资源库贴图（content_type=book）候选榜。
+
+- 数据源：微小榜资源库 artlist，content_type=book，1 积分/次，每页 20 条。
+- 页面只读本地快照；上游只在管理员手动采集时调用，没有定时任务（不自动花钱）。
+- book 里混有新闻和图文，所以每条在读取时打「图为主 / 图文」标签：
+  正文字数 ≤ IMAGE_FIRST_MAX_WORDS 且无视频 → 图为主。这是规则判断，不是人工核验。
+- 与低粉爆文榜按文章 sn（= 低粉榜 art_id）匹配，匹配到才显示爆发倍率；
+  没匹配到不代表不是低粉，只代表不在已同步的低粉榜里。
+"""
+from __future__ import annotations
+
+import logging
+import os
+import time
+from datetime import datetime, timezone
+from typing import Any
+
+import requests
+from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse
+from sqlalchemy import delete, func, or_, select
+
+from . import accounts, database
+from .models import ImageBoardItem, ImageBoardSyncRun, LowfansArticle
+
+logger = logging.getLogger(__name__)
+router = APIRouter()
+
+ARTLIST_URL = os.getenv("WXRANK_ARTLIST_URL", "http://data.wxrank.com/weixin/artlist")
+POINTS_PER_CALL = 1
+MAX_PAGES = 10                 # 用户确认的单次上限：10 页 = 200 条 = 10 积分
+IMAGE_FIRST_MAX_WORDS = 100
+STATIC_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static")
+OTHER_LABEL = "其他"
+
+PUBLIC_FIELDS = (
+    "sn", "wx_biz", "wx_type", "title", "art_url", "pic_url", "pub_time", "read_num",
+    "like_num", "look_num", "share_num", "word_num", "image_num", "video_num", "stat_date",
+)
+
+
+def init_schema() -> None:
+    from .models import Base
+    # The matcher reads the existing lowfans snapshot; initialize both feature
+    # tables when this module is loaded in a local/test process by itself.
+    from . import lowfans_sync
+    lowfans_sync.init_schema()
+    Base.metadata.create_all(database.ENGINE,
+                             tables=[ImageBoardItem.__table__, ImageBoardSyncRun.__table__],
+                             checkfirst=True)
+
+
+def _int(value) -> int:
+    try:
+        return max(0, int(value or 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _row(stat_date: str, raw: dict) -> dict:
+    return {
+        "stat_date": stat_date,
+        "sn": str(raw.get("sn") or "")[:64],
+        "wx_biz": str(raw.get("wx_biz") or "")[:64],
+        "wx_type": str(raw.get("wx_type") or "").strip()[:32],
+        "content_type": str(raw.get("content_type") or "book")[:16],
+        "title": str(raw.get("title") or ""),
+        "content": str(raw.get("content") or "")[:4000],
+        "art_url": str(raw.get("art_url") or ""),
+        "pic_url": str(raw.get("pic_url") or ""),
+        "pub_time": str(raw.get("pub_time") or "")[:32] or None,
+        "ip_region": str(raw.get("ip_region") or "")[:32],
+        "copyright": str(raw.get("copyright") or "")[:16],
+        "read_num": _int(raw.get("read_num")),
+        "like_num": _int(raw.get("like_num")),
+        "look_num": _int(raw.get("look_num")),
+        "share_num": _int(raw.get("share_num")),
+        "word_num": _int(raw.get("word_num")),
+        "image_num": _int(raw.get("image_num")),
+        "video_num": _int(raw.get("video_num")),
+        "qmusic_num": _int(raw.get("qmusic_num")),
+        "data_update_time": str(raw.get("data_update_time") or "")[:32] or None,
+    }
+
+
+def store(stat_date: str, raw_items: list[dict], *, source: str, pages_ok: int = 0,
+          cost_points: int = 0, upstream_total: int = 0, error: str = "") -> dict:
+    """整日替换快照并写审计。只收 content_type=book 的条目。"""
+    rows, seen = [], set()
+    for raw in raw_items:
+        item = _row(stat_date, raw)
+        if not item["sn"] or item["sn"] in seen or item["content_type"] != "book":
+            continue
+        seen.add(item["sn"])
+        rows.append(item)
+    with database.session_scope() as session:
+        if rows:
+            session.execute(delete(ImageBoardItem).where(ImageBoardItem.stat_date == stat_date))
+            session.add_all(ImageBoardItem(**item) for item in rows)
+        session.add(ImageBoardSyncRun(
+            finished_at=datetime.now(timezone.utc), stat_date=stat_date, source=source,
+            pages_ok=pages_ok, cost_points=cost_points, inserted=len(rows),
+            upstream_total=upstream_total,
+            status="ok" if rows and not error else ("partial" if rows else "failed"),
+            error=error[:2000] or None))
+    return {"stat_date": stat_date, "inserted": len(rows), "pages_ok": pages_ok,
+            "cost_points": cost_points, "upstream_total": upstream_total, "error": error}
+
+
+def sync(stat_date: str, pages: int = MAX_PAGES) -> dict:
+    """按发布日拉取 book 贴图，按阅读数降序，最多 MAX_PAGES 页。"""
+    key = os.getenv("WXRANK_API_KEY", "").strip()
+    if not key:
+        return {"status": "unconfigured", "error": "WXRANK_API_KEY 未配置"}
+    day = stat_date.replace("-", "")
+    pages = max(1, min(MAX_PAGES, pages))
+    items: list[dict] = []
+    cursor, pages_ok, total, error = None, 0, 0, ""
+    for page in range(1, pages + 1):
+        payload = {"key": key, "cursor": cursor} if cursor else {
+            "key": key, "date": day, "content_type": "book", "sort": "read_num"}
+        try:
+            response = requests.post(ARTLIST_URL, json=payload, timeout=(5, 30))
+            response.raise_for_status()
+            body = response.json()
+        except (requests.RequestException, ValueError) as exc:
+            error = f"page {page}: {type(exc).__name__}"
+            break
+        if _int(body.get("code")) != 0 or body.get("code") is None:
+            error = f"page {page}: code={body.get('code')}"
+            break
+        pages_ok += 1
+        data = body.get("data") or {}
+        total = _int(data.get("total")) or total
+        batch = data.get("list") or []
+        items.extend(batch)
+        cursor = data.get("cursor")
+        if not cursor or not batch:
+            break
+        time.sleep(0.15)
+    result = store(stat_date, items, source="api", pages_ok=pages_ok,
+                   cost_points=pages_ok * POINTS_PER_CALL, upstream_total=total, error=error)
+    result["status"] = "ok" if result["inserted"] and not error else ("partial" if result["inserted"] else "failed")
+    return result
+
+
+def is_image_first(item: ImageBoardItem) -> bool:
+    return item.word_num <= IMAGE_FIRST_MAX_WORDS and item.video_num == 0 and item.image_num > 0
+
+
+def _latest_date(session) -> str:
+    return session.execute(select(ImageBoardItem.stat_date)
+                           .order_by(ImageBoardItem.stat_date.desc()).limit(1)).scalar() or ""
+
+
+def _lowfans_matches(session, sns: list[str]) -> dict[str, dict]:
+    if not sns:
+        return {}
+    rows = session.execute(
+        select(LowfansArticle).where(LowfansArticle.art_id.in_(sns))
+        .order_by(LowfansArticle.stat_date.desc())).scalars().all()
+    matches: dict[str, dict] = {}
+    for row in rows:
+        matches.setdefault(row.art_id, {
+            "wx_name": row.wx_name, "boost_ratio": round(float(row.boost_ratio or 0), 2),
+            "account_read_base": row.account_read_base, "stat_date": row.stat_date})
+    return matches
+
+
+# ---------------------------------------------------------------- 页面
+@router.get("/image-board", response_class=HTMLResponse, include_in_schema=False)
+def image_board_page():
+    with open(os.path.join(STATIC_DIR, "index.html"), encoding="utf-8") as handle:
+        return HTMLResponse(handle.read(), headers={"Cache-Control": "no-cache"})
+
+
+# ---------------------------------------------------------------- 只读 API
+@router.get("/api/image-board")
+def list_items(
+    wx_type: str = Query(default="", max_length=32),
+    q: str = Query(default="", max_length=80),
+    sort: str = Query(default="read", pattern="^(read|time|share)$"),
+    scope: str = Query(default="image", pattern="^(image|all|lowfans)$"),
+    date: str = Query(default="", max_length=10),
+):
+    with database.session_scope() as session:
+        stat_date = date.strip() or _latest_date(session)
+        if not stat_date:
+            return {"items": [], "total": 0, "stat_date": "", "categories": [], "counts": {},
+                    "degraded": True, "reason": "尚未采集任何贴图数据"}
+        rows = session.execute(select(ImageBoardItem).where(ImageBoardItem.stat_date == stat_date)
+                               ).scalars().all()
+        matches = _lowfans_matches(session, [row.sn for row in rows])
+        last = session.execute(select(ImageBoardSyncRun).order_by(ImageBoardSyncRun.id.desc())
+                               .limit(1)).scalars().first()
+        dates = session.execute(select(ImageBoardItem.stat_date).group_by(ImageBoardItem.stat_date)
+                                .order_by(ImageBoardItem.stat_date.desc()).limit(30)).scalars().all()
+
+    counts = {"all": len(rows), "image": sum(is_image_first(r) for r in rows),
+              "lowfans": sum(r.sn in matches for r in rows)}
+    if scope == "image":
+        rows = [r for r in rows if is_image_first(r)]
+    elif scope == "lowfans":
+        rows = [r for r in rows if r.sn in matches]
+    categories: dict[str, int] = {}
+    for row in rows:
+        label = row.wx_type or OTHER_LABEL
+        categories[label] = categories.get(label, 0) + 1
+    if wx_type.strip():
+        rows = [r for r in rows if (r.wx_type or OTHER_LABEL) == wx_type.strip()]
+    needle = q.strip().lower()
+    if needle:
+        rows = [r for r in rows if needle in (r.title or "").lower()]
+    key = {"read": lambda r: (r.read_num, r.share_num),
+           "share": lambda r: (r.share_num, r.read_num),
+           "time": lambda r: r.pub_time or ""}[sort]
+    rows.sort(key=key, reverse=True)
+
+    items: list[dict[str, Any]] = []
+    for rank, row in enumerate(rows, 1):
+        payload = {field: getattr(row, field) for field in PUBLIC_FIELDS}
+        payload["wx_type"] = row.wx_type or OTHER_LABEL
+        payload["rank_no"] = rank
+        payload["image_first"] = is_image_first(row)
+        payload["excerpt"] = (row.content or "").strip()[:120]
+        payload["lowfans"] = matches.get(row.sn)
+        items.append(payload)
+    return {
+        "items": items, "total": len(items), "stat_date": stat_date, "dates": list(dates),
+        "counts": counts, "image_first_max_words": IMAGE_FIRST_MAX_WORDS,
+        "categories": [{"name": k, "count": v} for k, v in
+                       sorted(categories.items(), key=lambda kv: (kv[0] == OTHER_LABEL, -kv[1]))],
+        "last_sync": {"source": last.source, "pages_ok": last.pages_ok, "cost_points": last.cost_points,
+                      "inserted": last.inserted, "upstream_total": last.upstream_total,
+                      "status": last.status} if last else {},
+        "degraded": False,
+    }
+
+
+# ---------------------------------------------------------------- 管理员（花钱）
+@router.post("/api/admin/image-board/sync")
+def admin_sync(request: Request, date: str = Query(..., min_length=8, max_length=10),
+               pages: int = Query(default=MAX_PAGES, ge=1, le=MAX_PAGES)):
+    accounts.require_admin(request)
+    stat_date = date if "-" in date else f"{date[:4]}-{date[4:6]}-{date[6:8]}"
+    return {"status": "success", "sync": sync(stat_date, pages)}

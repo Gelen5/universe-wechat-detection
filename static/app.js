@@ -1555,6 +1555,7 @@ const viewMap = {
   bookshelf: document.querySelector('#bookshelf'),
   hotspots: document.querySelector('#hotspots'),
   lowfans: document.querySelector('#lowfans'),
+  'image-board': document.querySelector('#image-board'),
 };
 
 const viewTitles = {
@@ -1574,6 +1575,7 @@ const viewTitles = {
   bookshelf: 'AI 书架',
   hotspots: '热点广场',
   lowfans: '低粉爆文',
+  'image-board': '低分爆图',
 };
 
 function pathToView(path) {
@@ -1588,10 +1590,11 @@ window.AppNav = { setActiveView };
 function setActiveView(view, updateHash = false) {
   Object.entries(viewMap).forEach(([name, element]) => { if (element) element.hidden = name !== view; });
   document.querySelectorAll('.app-tabs [data-view]').forEach(item => item.classList.toggle('active', item.dataset.view === view));
-  appShell?.classList.toggle('workbench-active', view !== 'home' && view !== 'diagnose' && view !== 'report' && view !== 'market' && view !== 'hotspots' && view !== 'lowfans');
+  appShell?.classList.toggle('workbench-active', view !== 'home' && view !== 'diagnose' && view !== 'report' && view !== 'market' && view !== 'hotspots' && view !== 'lowfans' && view !== 'image-board');
   document.body.classList.toggle('market-body', view === 'market');
   document.body.classList.toggle('hotspots-body', view === 'hotspots');
   document.body.classList.toggle('lowfans-body', view === 'lowfans');
+  document.body.classList.toggle('image-board-body', view === 'image-board');
   if (view === 'market') window.MarketView?.ensureLoaded?.();
   if (view === 'wechat-plus') window.WechatPlus?.ensureLoaded?.();
   if (view === 'article-visual') window.ArticleVisual?.ensureLoaded?.();
@@ -1601,6 +1604,7 @@ function setActiveView(view, updateHash = false) {
   }
   if (view === 'hotspots') window.HotspotsView?.ensureLoaded?.();
   if (view === 'lowfans') window.LowfansView?.ensureLoaded?.();
+  if (view === 'image-board') window.ImageBoardView?.ensureLoaded?.();
   if (downloadButton) downloadButton.hidden = view !== 'report';
   if (view === 'morning') syncMorningApiKey();
   const commandTitle = document.querySelector('#command-title');

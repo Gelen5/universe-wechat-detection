@@ -57,6 +57,7 @@
 <link rel="stylesheet" href="/static/resources-editorial.css?v=20261025-resources-3" />
     <link rel="stylesheet" href="/static/hotspots.css?v=20261025-reading-wall-1" />
 <link rel="stylesheet" href="/static/lowfans.css?v=20261101-lowfans-layout-3" />
+<link rel="stylesheet" href="/static/image-board.css?v=20261103-ib-1" />
 <link rel="stylesheet" href="/static/universe-home.css?v=20261101-centered-1" />
 <link rel="stylesheet" href="/static/settings-mint.css?v=20261025-settings-1" />
 <meta name="description" content="宇宙第一工作台：面向中文内容创作者的 AI 工作台，提供公众号 AI 写作、贴图号策划与配图、小红书内容创作、账号诊断、爆文复核和创作者 Skill。" />
@@ -113,7 +114,7 @@
           </a>
           -->
           <a data-view="wechat-plus" href="/wechat-plus"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v12H9l-5 4z"/><path d="M9 10h6M12 7v6"/></svg><span>公众号创作 Plus</span></a>
-          <a data-view="hotspots" href="/hotspots"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l5-5 4 3 5-7 4 5"/><path d="M3 21h18"/></svg><span>热点广场</span></a><a data-view="lowfans" href="/lowfans"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg><span>低粉爆文</span></a><!-- 公众号创作入口按用户要求隐藏：路由 /workbench 与 #workbench 保留，恢复时放开下面三行。 --><!-- <a data-view="workbench" href="/workbench">
+          <a data-view="hotspots" href="/hotspots"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l5-5 4 3 5-7 4 5"/><path d="M3 21h18"/></svg><span>热点广场</span></a><a data-view="lowfans" href="/lowfans"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg><span>低粉爆文</span></a><a data-view="image-board" href="/image-board"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="m4 17 4.5-4.5 3.5 3.5 3-3 5 5"/><path d="M17 2.5l1 2 2 .5-2 .5-1 2-1-2-2-.5 2-.5z"/></svg><span>低分爆图</span></a><!-- 公众号创作入口按用户要求隐藏：路由 /workbench 与 #workbench 保留，恢复时放开下面三行。 --><!-- <a data-view="workbench" href="/workbench">
             <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 13.5V4a2 2 0 0 1 2-2h8.5L20 7.5V20a2 2 0 0 1-2 2h-9.5"/><polyline points="14 2 14 8 20 8"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="13" y1="14" x2="7" y2="14"/></svg>
             <span>公众号创作</span>
           </a> -->
@@ -624,6 +625,40 @@
         <button class="lf-more" id="lf-more" type="button" hidden>加载更多</button>
       </section>
 
+<section id="image-board" class="ib-page" hidden aria-label="低分爆图">
+        <header class="ib-head">
+          <div>
+            <h1>低分爆图</h1>
+            <p>微信贴图格式里跑出高阅读的内容。先看封面和数据，再决定要不要做同款。</p>
+          </div>
+          <div class="ib-stamp" id="ib-stamp"><span>正在读取…</span></div>
+        </header>
+
+        <div class="ib-scopes" id="ib-scopes" role="tablist" aria-label="内容范围">
+          <button type="button" role="tab" data-scope="image" aria-selected="true">图为主<n></n></button>
+          <button type="button" role="tab" data-scope="lowfans" aria-selected="false">已匹配低粉<n></n></button>
+          <button type="button" role="tab" data-scope="all" aria-selected="false">全部贴图<n></n></button>
+        </div>
+        <p class="ib-note" id="ib-note"></p>
+
+        <div class="ib-bar">
+          <label class="ib-search">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input id="ib-search" placeholder="搜标题…" aria-label="搜索低分爆图" autocomplete="off" />
+          </label>
+          <select class="ib-select" id="ib-sort" aria-label="排序方式">
+            <option value="read">按阅读数</option>
+            <option value="share">按分享数</option>
+            <option value="time">按发布时间</option>
+          </select>
+          <select class="ib-select" id="ib-date" aria-label="数据日期" hidden></select>
+          <span class="ib-tail" id="ib-tail"></span>
+        </div>
+
+        <div class="ib-tracks" id="ib-tracks" role="group" aria-label="按公众号赛道筛选"></div>
+        <div id="ib-grid"></div>
+      </section>
+
 <section id="wechat-plus" class="wechat-plus-page" aria-label="公众号创作 Plus" hidden>
   <header class="wp-header"><div><p class="wp-eyebrow">内容创作 / PLUS</p><h1>公众号创作 <span>Plus</span></h1><p>从一个想法开始，一起把文章写好。</p></div><button type="button" data-wp-new>＋ 新创作</button></header>
   <div class="wp-workspace">
@@ -1126,6 +1161,7 @@
     </script>
 <script src="/static/hotspots.js?v=20261103-plus-handoff"></script>
 <script src="/static/lowfans.js?v=20261103-export-20"></script>
+<script src="/static/image-board.js?v=20261103-ib-1"></script>
     <script>
       // 同步 recent-item（首页样例：点击触发诊断）
       (function () {

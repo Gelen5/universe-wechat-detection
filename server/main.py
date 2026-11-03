@@ -28,6 +28,7 @@ from .market import router as market_router
 from .hotspots import router as hotspots_router
 from .lowfans import router as lowfans_router
 from . import lowfans_sync
+from . import image_board
 from .sticker_extract import router as sticker_extract_router
 from .xhs_extract import router as xhs_extract_router
 from .douyin_extract import router as douyin_extract_router
@@ -64,6 +65,7 @@ referrals.init_schema()
 from . import referral_recharge
 referral_recharge.init_schema()
 lowfans_sync.init_schema()
+image_board.init_schema()
 community.init_schema()
 app.include_router(community.router)
 from . import admin_activity
@@ -83,6 +85,7 @@ app.include_router(bookshelf_router)
 app.include_router(market_router)
 app.include_router(hotspots_router)
 app.include_router(lowfans_router)
+app.include_router(image_board.router)
 app.include_router(sticker_extract_router)
 app.include_router(xhs_extract_router)
 app.include_router(douyin_extract_router)
@@ -181,7 +184,8 @@ async def account_and_points_gate(request: Request, call_next):
     public_market = request.method == "GET" and (path.startswith("/api/market/")
                      or path.startswith("/api/hotspots"))
     # 低粉爆文榜的浏览是对外的（只读本地快照），导出/实时刷新仍要登录并计费。
-    public_lowfans = request.method == "GET" and path.startswith("/api/lowfans")
+    public_lowfans = request.method == "GET" and (path.startswith("/api/lowfans")
+                                                  or path == "/api/image-board")
     public_refresh = request.method == "POST" and path == "/api/hotspots/refresh"
     # 支付宝收银接口按协议对外：异步通知由支付宝服务器直连 POST，下单/查询/退款
     # 走订单号与服务端记录，不依赖登录态；管理动作仍应另行加保护。
@@ -1504,7 +1508,7 @@ def legacy_creation_redirect(request: Request):
     query = request.url.query
     return RedirectResponse('/wechat-plus' + ('?' + query if query else ''), status_code=307)
 
-TAB_PAGES = {"wechat-plus", "diagnose", "xiaohongshu", "tie-tu", "viral-remix", "xhs-extract", "sticker-extract", "douyin-extract", "article-visual", "hit-detector", "morning-generator"}
+TAB_PAGES = {"wechat-plus", "diagnose", "xiaohongshu", "tie-tu", "viral-remix", "xhs-extract", "sticker-extract", "douyin-extract", "article-visual", "hit-detector", "morning-generator", "image-board"}
 
 
 @app.get("/favicon.ico", include_in_schema=False)
