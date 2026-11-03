@@ -58,6 +58,7 @@
     <link rel="stylesheet" href="/static/hotspots.css?v=20261025-reading-wall-1" />
 <link rel="stylesheet" href="/static/lowfans.css?v=20261104-mint-glass-2" />
 <link rel="stylesheet" href="/static/image-board.css?v=20261104-mint-glass-2" />
+<link rel="stylesheet" href="/static/viral-insights-membership.css?v=20261104-vi-1" />
 <link rel="stylesheet" href="/static/universe-home.css?v=20261101-centered-1" />
 <link rel="stylesheet" href="/static/settings-mint.css?v=20261025-settings-1" />
 <meta name="description" content="宇宙第一工作台：面向中文内容创作者的 AI 工作台，提供公众号 AI 写作、贴图号策划与配图、小红书内容创作、账号诊断、爆文复核和创作者 Skill。" />
@@ -601,6 +602,7 @@
         </header>
 
         <div class="lf-stats" id="lf-stats" hidden></div>
+        <button class="vi-membership-button" data-viral-insights-open type="button"><span data-viral-insights-state>爆款情报会员</span></button>
 
         <p class="lf-note" id="lf-note" hidden></p>
 
@@ -633,6 +635,7 @@
           </div>
           <div class="ib-stamp" id="ib-stamp"><span>正在读取…</span></div>
         </header>
+        <button class="vi-membership-button" data-viral-insights-open type="button"><span data-viral-insights-state>爆款情报会员</span></button>
 
         <div class="ib-bar">
           <label class="ib-search">
@@ -1088,6 +1091,13 @@
           <p>这份报告的价值不是告诉你"账号好不好"，而是帮你找到下一步最值得投入的动作。</p>
         </section>
       </main>
+      <div id="viral-insights-membership-modal" class="account-modal vi-modal" hidden>
+        <section class="wallet-card vi-card" role="dialog" aria-modal="true" aria-labelledby="vi-modal-title">
+          <header class="vi-head"><h2 id="vi-modal-title" data-vi-modal-title>爆款情报会员</h2><button type="button" class="vi-close" data-vi-close aria-label="关闭">×</button></header>
+          <div data-vi-modal-body></div>
+          <p class="vi-foot">周卡 / 月卡 / 年卡均为一次性购买，不自动续费。导出与实时刷新仍按积分单独计费。</p>
+        </section>
+      </div>
 
       <footer class="v3-foot">
         <div class="l">
@@ -1153,8 +1163,9 @@
       })();
     </script>
 <script src="/static/hotspots.js?v=20261103-plus-handoff"></script>
-<script src="/static/lowfans.js?v=20261103-export-20"></script>
-<script src="/static/image-board.js?v=20261104-all-items-1"></script>
+<script src="/static/viral-insights-membership.js?v=20261104-vi-1"></script>
+<script src="/static/lowfans.js?v=20261104-vi-1"></script>
+<script src="/static/image-board.js?v=20261104-vi-2"></script>
     <script>
       // 同步 recent-item（首页样例：点击触发诊断）
       (function () {

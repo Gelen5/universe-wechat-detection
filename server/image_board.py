@@ -1,7 +1,9 @@
 """低分爆图：资源库贴图（content_type=book）候选榜。
 
 - 数据源：微小榜资源库 artlist，content_type=book，1 积分/次，每页 20 条。
-- 页面只读本地快照；上游只在管理员手动采集时调用，没有定时任务（不自动花钱）。
+- 页面只读本地快照；上游在管理员手动采集，或显式开启 IMAGE_BOARD_SYNC_ENABLED=1
+  后由 beat 定时调用（默认关闭，不自动花钱）。超过 IMAGE_BOARD_STALE_HOURS 未成功
+  同步即标记 degraded，页面不得称为实时榜单。
 - book 里混有新闻和图文，所以每条在读取时打「图为主 / 图文」标签：
   正文字数 ≤ IMAGE_FIRST_MAX_WORDS 且无视频 → 图为主。这是规则判断，不是人工核验。
 - 与低粉爆文榜按文章 sn（= 低粉榜 art_id）匹配，匹配到才显示爆发倍率；
@@ -21,6 +23,7 @@ from fastapi.responses import HTMLResponse, Response
 from sqlalchemy import delete, func, or_, select
 
 from . import accounts, database
+from . import viral_insights_membership as membership
 from .models import ImageBoardItem, ImageBoardSyncRun, LowfansArticle
 
 logger = logging.getLogger(__name__)
@@ -144,6 +147,53 @@ def sync(stat_date: str, pages: int = MAX_PAGES) -> dict:
     return result
 
 
+def sync_enabled() -> bool:
+    """定时同步默认关闭：上游按页计费，需显式开启 IMAGE_BOARD_SYNC_ENABLED=1。"""
+    return os.getenv("IMAGE_BOARD_SYNC_ENABLED", "0").strip() == "1"
+
+
+def sync_pages() -> int:
+    try:
+        return max(1, min(MAX_PAGES, int(os.getenv("IMAGE_BOARD_SYNC_PAGES", str(MAX_PAGES)))))
+    except ValueError:
+        return MAX_PAGES
+
+
+def stale_after_hours() -> int:
+    try:
+        return max(6, int(os.getenv("IMAGE_BOARD_STALE_HOURS", "48")))
+    except ValueError:
+        return 48
+
+
+def scheduled_sync() -> dict:
+    """定时任务入口：同步昨日（北京时间）贴图；当天已有成功快照则跳过不花钱。"""
+    if not sync_enabled():
+        return {"status": "disabled"}
+    from datetime import timedelta
+    beijing = timezone(timedelta(hours=8))
+    stat_date = (datetime.now(beijing) - timedelta(days=1)).strftime("%Y-%m-%d")
+    with database.session_scope() as session:
+        existing = session.execute(select(func.count()).select_from(ImageBoardItem)
+                                   .where(ImageBoardItem.stat_date == stat_date)).scalar() or 0
+    if existing:
+        return {"status": "cached", "stat_date": stat_date, "inserted": int(existing)}
+    # 失败只写 sync_runs，不清空旧快照（store 仅在拿到数据时整日替换）。
+    return sync(stat_date, sync_pages())
+
+
+def freshness(session) -> dict:
+    """最近一次成功同步距今多久；超过阈值标记 stale，页面不能称为实时榜单。"""
+    last_ok = session.execute(select(ImageBoardSyncRun).where(ImageBoardSyncRun.status.in_(("ok", "partial")))
+                              .order_by(ImageBoardSyncRun.id.desc()).limit(1)).scalars().first()
+    if not last_ok or not last_ok.finished_at:
+        return {"stale": True, "last_success_at": None, "stale_after_hours": stale_after_hours()}
+    finished = last_ok.finished_at if last_ok.finished_at.tzinfo else last_ok.finished_at.replace(tzinfo=timezone.utc)
+    age_hours = (datetime.now(timezone.utc) - finished).total_seconds() / 3600
+    return {"stale": age_hours > stale_after_hours(), "last_success_at": finished.isoformat(),
+            "age_hours": round(age_hours, 1), "stale_after_hours": stale_after_hours()}
+
+
 def is_image_first(item: ImageBoardItem) -> bool:
     return item.word_num <= IMAGE_FIRST_MAX_WORDS and item.video_num == 0 and item.image_num > 0
 
@@ -205,13 +255,14 @@ def _cover_fetch(url: str) -> tuple[bytes, str] | None:
 
 
 @router.get("/api/image-board/cover")
-def cover(sn: str = Query(..., min_length=1, max_length=64)):
-    """按文章 sn 取封面。只读本地库 + 一次图片 GET，不产生上游积分。"""
+def cover(request: Request, sn: str = Query(..., min_length=1, max_length=64)):
+    """按文章 sn 取封面；启用会员访问时仅有权益者可取。"""
+    membership.require_access(request)
     now = time.time()
     cached = COVER_CACHE.get(sn)
     if cached and now - cached[0] < COVER_TTL:
         return Response(cached[1], media_type=cached[2],
-                        headers={"Cache-Control": "public, max-age=86400"})
+                        headers={"Cache-Control": "private, no-store" if membership.enabled() else "public, max-age=86400"})
     with database.session_scope() as session:
         row = session.execute(select(ImageBoardItem).where(ImageBoardItem.sn == sn)
                               .order_by(ImageBoardItem.stat_date.desc()).limit(1)).scalars().first()
@@ -227,18 +278,23 @@ def cover(sn: str = Query(..., min_length=1, max_length=64)):
         COVER_CACHE.pop(oldest, None)
     COVER_CACHE[sn] = (now, payload, content_type)
     return Response(payload, media_type=content_type,
-                    headers={"Cache-Control": "public, max-age=86400"})
+                    headers={"Cache-Control": "private, no-store" if membership.enabled() else "public, max-age=86400"})
 
 
 # ---------------------------------------------------------------- 只读 API
 @router.get("/api/image-board")
 def list_items(
+    request: Request,
     wx_type: str = Query(default="", max_length=32),
     q: str = Query(default="", max_length=80),
     sort: str = Query(default="read", pattern="^(read|time|share)$"),
     scope: str = Query(default="all", pattern="^(image|all|lowfans)$"),
     date: str = Query(default="", max_length=10),
 ):
+    accessible = not membership.enabled() or membership.has_access(
+        (getattr(request.state, "user", None) or {}).get("id"))
+    if not accessible:
+        scope, sort, date, wx_type, q = "all", "read", "", "", ""
     with database.session_scope() as session:
         stat_date = date.strip() or _latest_date(session)
         if not stat_date:
@@ -251,6 +307,7 @@ def list_items(
                                .limit(1)).scalars().first()
         dates = session.execute(select(ImageBoardItem.stat_date).group_by(ImageBoardItem.stat_date)
                                 .order_by(ImageBoardItem.stat_date.desc()).limit(30)).scalars().all()
+        fresh = freshness(session)
 
     counts = {"all": len(rows), "image": sum(is_image_first(r) for r in rows),
               "lowfans": sum(r.sn in matches for r in rows)}
@@ -272,6 +329,16 @@ def list_items(
            "time": lambda r: r.pub_time or ""}[sort]
     rows.sort(key=key, reverse=True)
 
+    if not accessible:
+        preview = [{"rank_no": i + 1, "wx_type": row.wx_type or OTHER_LABEL,
+                    "title_preview": (row.title or "")[:18] + ("…" if len(row.title or "") > 18 else ""),
+                    "stat_date": row.stat_date} for i, row in enumerate(rows[:membership.preview_limit()])]
+        last_sync = {"status": last.status, "inserted": last.inserted} if last else {}
+        return {"items": preview, "total": len(preview), "stat_date": stat_date,
+                "counts": {"all": min(counts["all"], 999), "image": min(counts["image"], 999), "lowfans": min(counts["lowfans"], 999)},
+                "categories": [{"name": k, "count": min(v, 999)} for k, v in categories.items()],
+                "last_sync": last_sync, "preview": True, "membership_required": True,
+                "freshness": fresh, "degraded": fresh["stale"]}
     items: list[dict[str, Any]] = []
     for rank, row in enumerate(rows, 1):
         payload = {field: getattr(row, field) for field in PUBLIC_FIELDS}
@@ -290,7 +357,9 @@ def list_items(
         "last_sync": {"source": last.source, "pages_ok": last.pages_ok, "cost_points": last.cost_points,
                       "inserted": last.inserted, "upstream_total": last.upstream_total,
                       "status": last.status} if last else {},
-        "degraded": False,
+        "freshness": fresh,
+        "degraded": fresh["stale"],
+        "reason": "数据超过 %d 小时未更新，展示的是最近一次成功快照" % fresh["stale_after_hours"] if fresh["stale"] else "",
     }
 
 
@@ -301,3 +370,21 @@ def admin_sync(request: Request, date: str = Query(..., min_length=8, max_length
     accounts.require_admin(request)
     stat_date = date if "-" in date else f"{date[:4]}-{date[4:6]}-{date[6:8]}"
     return {"status": "success", "sync": sync(stat_date, pages)}
+
+
+def _task():
+    from .celery_app import celery_app
+
+    @celery_app.task(name="image_board.sync", max_retries=2, default_retry_delay=600)
+    def image_board_sync():
+        # 失败不抛：旧快照保留，页面按 freshness 降级展示。
+        try:
+            return scheduled_sync()
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("image board scheduled sync failed: %s", type(exc).__name__)
+            return {"status": "failed", "error": type(exc).__name__}
+
+    return image_board_sync
+
+
+image_board_sync_task = _task()

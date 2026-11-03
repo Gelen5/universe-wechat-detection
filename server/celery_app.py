@@ -15,7 +15,8 @@ REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 _beat_only = len(sys.argv) > 1 and "beat" in sys.argv[1:] and "worker" not in sys.argv[1:]
 _task_modules = ["server.workflow_tasks", "server.agent_tasks", "server.hotspots",
                  "server.provider_health", "server.wechat_plus_tasks",
-                 "server.viral_remix_tasks", "server.lowfans_sync", "server.article_visual_tasks"]
+                 "server.viral_remix_tasks", "server.lowfans_sync", "server.article_visual_tasks",
+                 "server.image_board"]
 celery_app = Celery("universe_creator", broker=REDIS_URL, backend=REDIS_URL,
                     include=[] if _beat_only else _task_modules)
 
@@ -45,6 +46,7 @@ celery_app.conf.update(
         "market.sync": {"queue": "text"},
         "hotspot.sync": {"queue": "text"},
         "lowfans.sync": {"queue": "text"},
+        "image_board.sync": {"queue": "text"},
         "provider.health": {"queue": "text"},
     },
     worker_concurrency=max(1, int(os.getenv("CELERY_WORKER_CONCURRENCY", "4"))),
@@ -71,6 +73,8 @@ celery_app.conf.update(
         "lowfans-sync-daily": {
             "task": "lowfans.sync", "schedule": crontab(hour="1,5,9", minute=30),
         },
+        # 低分爆图定时同步默认不注册，只在显式开启 IMAGE_BOARD_SYNC_ENABLED=1
+        # 后追加，避免未获数据源商业授权时自动触达付费上游。
         # A relay can fail for hours; deploy-time probing only covers deploys.
         "provider-health": {
             "task": "provider.health",
@@ -78,3 +82,10 @@ celery_app.conf.update(
         },
     },
 )
+
+if os.getenv("IMAGE_BOARD_SYNC_ENABLED", "0").strip() == "1":
+    # 跟着开关一起注册：关着时连调度项都不存在，避免看起来像在自动采集。
+    celery_app.conf.beat_schedule["image-board-sync-daily"] = {
+        "task": "image_board.sync",
+        "schedule": crontab(hour=os.getenv("IMAGE_BOARD_SYNC_HOURS_UTC", "2,6"), minute=15),
+    }

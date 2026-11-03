@@ -723,8 +723,17 @@ def _settle_referral(out_trade_no):
         logger.exception('referral.settlement_pending order=%s', out_trade_no)
 
 
+def _is_membership_order(order_id: str) -> bool:
+    from . import viral_insights_membership
+    return viral_insights_membership.is_membership_order(order_id)
+
+
 def _record_referral_payment(order_id, result, proof):
     try:
+        # Membership orders share the gateway but never enter recharge rewards.
+        from . import viral_insights_membership
+        if _is_membership_order(order_id):
+            return
         # Sandbox or simulation payments must never create referral rewards.
         if load_payment_config().get('gateway') != PRODUCTION_GATEWAY:
             return
@@ -995,13 +1004,18 @@ def _sync_from_query(order: dict[str, Any]) -> dict[str, Any]:
     # 已退款（含部分退款）是终态，不能被后续 PAID 查询覆盖回 PAID。
     refunded_statuses = ("REFUNDED", "PARTIAL_REFUNDED")
     if mapped == "PAID" and order["status"] not in refunded_statuses:
-        _record_referral_payment(order['out_trade_no'], result, 'authenticated_query')
+        if not _is_membership_order(order['out_trade_no']):
+            _record_referral_payment(order['out_trade_no'], result, 'authenticated_query')
         if order["status"] != "PAID":
             _set_order_status(
                 order["out_trade_no"], "PAID", trade_no=result.get("trade_no"), paid_at=_now()
             )
             order = _find_order(order["out_trade_no"]) or order
-        _credit_recharge(order["out_trade_no"])
+        from . import viral_insights_membership
+        if viral_insights_membership.is_membership_order(order["out_trade_no"]):
+            viral_insights_membership.apply_paid(order["out_trade_no"], result.get("trade_no"))
+        else:
+            _credit_recharge(order["out_trade_no"])
     elif mapped == "CLOSED" and order["status"] == "CREATED":
         _set_order_status(order["out_trade_no"], "CLOSED")
         order = _find_order(order["out_trade_no"]) or order
@@ -1130,6 +1144,9 @@ def refund_order(out_trade_no: str, payload: RefundPayload, request: Request) ->
         raise HTTPException(409, str(exc)) from exc
     if state=='confirmed':
         referral_recharge.confirm_refund(out_trade_no,out_request_no)
+        if _is_membership_order(out_trade_no):
+            from . import viral_insights_membership
+            viral_insights_membership.apply_refund(out_trade_no)
         return JSONResponse({'out_trade_no':out_trade_no,'out_request_no':out_request_no,'code':'10000','already_refunded':True})
     try:
         result = _trade_refund(out_trade_no, refund_amount, out_request_no, payload.refund_reason)
@@ -1145,6 +1162,9 @@ def refund_order(out_trade_no: str, payload: RefundPayload, request: Request) ->
         full_refund = cumulative >= _amount_of(order["total_amount"])
         status_after_refund = "REFUNDED" if full_refund else "PARTIAL_REFUNDED"
         referral_recharge.confirm_refund(out_trade_no,out_request_no)
+        if _is_membership_order(out_trade_no):
+            from . import viral_insights_membership
+            viral_insights_membership.apply_refund(out_trade_no)
     return JSONResponse(
         {
             "out_trade_no": out_trade_no,
@@ -1385,6 +1405,12 @@ def refund_query_order(out_trade_no: str, out_request_no: str, request: Request)
             pending=c.execute('SELECT cents FROM referral_refund_requests WHERE request_id=?',(out_trade_no+':'+out_request_no.strip(),)).fetchone()
         if pending and referral_recharge.amount_cents(str(result.get('refund_amount','-1')))==pending['cents']:
             referral_recharge.confirm_refund(out_trade_no,out_request_no.strip())
+            if _is_membership_order(out_trade_no):
+                from . import viral_insights_membership
+                viral_insights_membership.apply_refund(out_trade_no)
+        elif _is_membership_order(out_trade_no):
+            from . import viral_insights_membership
+            viral_insights_membership.apply_refund(out_trade_no)
     return JSONResponse(
         {
             "out_trade_no": out_trade_no,
@@ -1445,7 +1471,8 @@ async def alipay_notify(request: Request) -> PlainTextResponse:
         logger.warning("alipay notify rejected: amount mismatch")
         return PlainTextResponse("fail")
 
-    if _is_paid_notification(params):
+    membership_order = _is_membership_order(order['out_trade_no'])
+    if _is_paid_notification(params) and not membership_order:
         _record_referral_payment(order['out_trade_no'], params, 'verified_signature')
 
     notify_id = (params.get("notify_id") or "").strip() or f"no-notify-id:{params['out_trade_no']}"
@@ -1463,7 +1490,11 @@ async def alipay_notify(request: Request) -> PlainTextResponse:
     except IntegrityError:
         # 幂等：同一 notify_id 已处理过。仍补一次幂等入账，覆盖上次入账中断的情况。
         if _is_paid_notification(params):
-            _credit_recharge(params["out_trade_no"])
+            if membership_order:
+                from . import viral_insights_membership
+                viral_insights_membership.apply_paid(params["out_trade_no"], params.get("trade_no"))
+            else:
+                _credit_recharge(params["out_trade_no"])
         return PlainTextResponse("success")
 
     if _is_paid_notification(params) and order["status"] not in ("PAID","PARTIAL_REFUNDED","REFUNDED"):
@@ -1474,10 +1505,18 @@ async def alipay_notify(request: Request) -> PlainTextResponse:
             paid_at=_now(),
         )
     if _is_paid_notification(params):
-        _credit_recharge(params["out_trade_no"])
+        if membership_order:
+            from . import viral_insights_membership
+            viral_insights_membership.apply_paid(params["out_trade_no"], params.get("trade_no"))
+        else:
+            _credit_recharge(params["out_trade_no"])
     elif params.get('gmt_refund') or params.get('refund_fee') or params.get('out_biz_no'):
-        from . import referral_recharge
-        referral_recharge.refund_notice(order['out_trade_no'],params.get('out_biz_no') or '')
+        if membership_order:
+            from . import viral_insights_membership
+            viral_insights_membership.apply_refund(order['out_trade_no'])
+        else:
+            from . import referral_recharge
+            referral_recharge.refund_notice(order['out_trade_no'],params.get('out_biz_no') or '')
     return PlainTextResponse("success")
 
 
@@ -1535,6 +1574,13 @@ def pay_result(request: Request, out_trade_no: str = "") -> HTMLResponse:
         f"<dt>订单金额</dt><dd>{order['total_amount']} 元</dd>",
         f"<dt>支付宝交易号</dt><dd>{order['trade_no'] or '—'}</dd>",
     ]
+    if recharge is None and _is_membership_order(out_trade_no):
+        from . import viral_insights_membership
+        member = viral_insights_membership.order_summary(out_trade_no)
+        if member:
+            rows.append(f"<dt>购买内容</dt><dd>爆款情报会员 · {member['days']} 天</dd>")
+            if member.get("expires_at"):
+                rows.append(f"<dt>本单权益至</dt><dd>{member['expires_at'][:19].replace('T', ' ')} UTC</dd>")
     if recharge is not None:
         rows.append(f"<dt>到账积分</dt><dd>{recharge['credits']} 积分</dd>")
         rows.append(f"<dt>入账状态</dt><dd>{'已入账' if recharge['status'] == 'CREDITED' else '待入账'}</dd>")

@@ -28,7 +28,7 @@ from .market import router as market_router
 from .hotspots import router as hotspots_router
 from .lowfans import router as lowfans_router
 from . import lowfans_sync
-from . import image_board
+from . import image_board, viral_insights_membership
 from .sticker_extract import router as sticker_extract_router
 from .xhs_extract import router as xhs_extract_router
 from .douyin_extract import router as douyin_extract_router
@@ -66,6 +66,7 @@ from . import referral_recharge
 referral_recharge.init_schema()
 lowfans_sync.init_schema()
 image_board.init_schema()
+viral_insights_membership.init_schema()
 community.init_schema()
 app.include_router(community.router)
 from . import admin_activity
@@ -90,6 +91,7 @@ app.include_router(sticker_extract_router)
 app.include_router(xhs_extract_router)
 app.include_router(douyin_extract_router)
 app.include_router(alipay_pay_router)
+app.include_router(viral_insights_membership.router)
 app.include_router(referral_recharge.router)
 app.include_router(wallet_page_router)
 app.include_router(invite_page_router)
@@ -185,16 +187,18 @@ async def account_and_points_gate(request: Request, call_next):
                      or path.startswith("/api/hotspots"))
     # 低粉爆文榜的浏览是对外的（只读本地快照），导出/实时刷新仍要登录并计费。
     # 低分爆图的封面代理同样对外：它只是把微信图片转一次，不触达计费上游。
-    public_lowfans = request.method == "GET" and (path.startswith("/api/lowfans")
-                                                  or path == "/api/image-board"
-                                                  or path == "/api/image-board/cover")
+    public_lowfans = request.method == "GET" and (
+        path == "/api/lowfans" or path == "/api/lowfans/meta"
+        or (path.startswith("/api/lowfans/") and path != "/api/lowfans/export")
+        or path == "/api/image-board" or path == "/api/image-board/cover")
     public_refresh = request.method == "POST" and path == "/api/hotspots/refresh"
+    insights_action = request.method == "POST" and path in {"/api/lowfans/export", "/api/lowfans/refresh"}
     # 支付宝收银接口按协议对外：异步通知由支付宝服务器直连 POST，下单/查询/退款
     # 走订单号与服务端记录，不依赖登录态；管理动作仍应另行加保护。
     public_pay = path.startswith("/api/pay/alipay/") or (request.method == "GET" and path == "/api/pay/packages")
     # Logout also clears expired/revoked cookies. Requiring an active session
     # prevents a stale browser from ever completing that cleanup.
-    public_api = path in {"/api/auth/register", "/api/auth/login", "/api/auth/logout", "/api/auth/config", "/api/auth/email-code", "/api/auth/registration-link"} or public_market or public_refresh or public_pay or public_lowfans
+    public_api = path in {"/api/auth/register", "/api/auth/login", "/api/auth/logout", "/api/auth/config", "/api/auth/email-code", "/api/auth/registration-link"} or public_market or public_refresh or public_pay or public_lowfans or path in {"/api/viral-insights/membership", "/api/viral-insights/packages"}
     try:
         user = accounts.user_from_request(request)
     except HTTPException as exc:
@@ -202,6 +206,10 @@ async def account_and_points_gate(request: Request, call_next):
     request.state.user = user
     if path.startswith("/api/") and not public_api and not user:
         return JSONResponse(status_code=401, content={"detail": "请先登录"})
+    if insights_action and viral_insights_membership.enabled() and not viral_insights_membership.has_access(
+        user.get("id") if user else None):
+        return JSONResponse(status_code=403, content={"detail": {
+            "code": "INSIGHTS_MEMBERSHIP_REQUIRED", "reason": "membership_required"}})
 
     # Retired writing APIs must fail before any billing reservation. Historical
     # files remain readable so migrated articles keep their original images.

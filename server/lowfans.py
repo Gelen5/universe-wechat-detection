@@ -19,7 +19,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, Response
 from sqlalchemy import func, or_, select
 
-from . import accounts, database, lowfans_sync
+from . import accounts, database, lowfans_sync, viral_insights_membership as membership
 from .models import LowfansArticle, LowfansSyncRun
 
 router = APIRouter()
@@ -59,6 +59,17 @@ def _public(row: LowfansArticle) -> dict[str, Any]:
     payload["boost_ratio"] = round(float(row.boost_ratio or 0), 2)
     payload["burst_score"] = round(float(row.burst_score or 0), 2)
     return payload
+
+
+def _preview(row: LowfansArticle, rank: int) -> dict[str, Any]:
+    return {"rank_no": rank, "wx_type": _norm_type(row.wx_type),
+            "title_preview": (row.title or "")[:18] + ("…" if len(row.title or "") > 18 else ""),
+            "publish_date": (row.pub_time or "")[:10], "stat_date": row.stat_date}
+
+
+def _access(request: Request) -> bool:
+    user = getattr(request.state, "user", None)
+    return not membership.enabled() or membership.has_access(user.get("id") if user else None)
 
 
 def _latest_date(session) -> str:
@@ -108,6 +119,7 @@ def lowfans_page():
 # ---------------------------------------------------------------- 只读 API
 @router.get("/api/lowfans")
 def list_lowfans(
+    request: Request,
     wx_type: str = Query(default="", max_length=32),
     q: str = Query(default="", max_length=80),
     sort: str = Query(default="burst", pattern="^(burst|read|boost|time)$"),
@@ -115,6 +127,9 @@ def list_lowfans(
     page: int = Query(default=1, ge=1, le=500),
     page_size: int = Query(default=50, ge=1, le=100),
 ):
+    accessible = _access(request)
+    if not accessible:
+        page, page_size, sort, date, wx_type, q = 1, membership.preview_limit(), "burst", "", "", ""
     with database.session_scope() as session:
         stat_date = date.strip() or _latest_date(session)
         if not stat_date:
@@ -161,6 +176,16 @@ def list_lowfans(
             select(LowfansSyncRun).order_by(LowfansSyncRun.started_at.desc()).limit(1)
         ).scalars().first()
     latest_ok = bool(last and last.status == "ok")
+    accessible = _access(request)
+    if not accessible:
+        preview_rows = rows[:membership.preview_limit()]
+        return {"items": [_preview(row, index + 1) for index, row in enumerate(preview_rows)],
+                "total": int(total), "page": 1, "page_size": len(preview_rows), "pages": 1,
+                "stat_date": stat_date, "range": DEFAULT_RANGE,
+                "categories": _categories_payload(counts), "dates": dates,
+                "preview": True, "preview_limit": membership.preview_limit(),
+                "membership_required": True, "degraded": not latest_ok,
+                "last_sync": {"status": getattr(last, "status", "") or "", "inserted": getattr(last, "inserted", 0) or 0}}
     items = [_public(row) for row in rows]
     return {
         "items": items,
@@ -209,7 +234,8 @@ def lowfans_meta():
 
 
 @router.get("/api/lowfans/{art_id}")
-def lowfans_detail(art_id: str):
+def lowfans_detail(art_id: str, request: Request):
+    membership.require_access(request)
     with database.session_scope() as session:
         row = session.execute(
             select(LowfansArticle).where(LowfansArticle.art_id == art_id)
@@ -237,12 +263,13 @@ def lowfans_detail(art_id: str):
 
 # ---------------------------------------------------------------- 计费接口
 @router.post("/api/lowfans/refresh")
-def refresh_metrics(payload: dict):
+def refresh_metrics(payload: dict, request: Request):
     """实时刷新一篇的互动数（上游 getrk 2 分/次，我们收 3 积分）。
 
     路径用固定 `/api/lowfans/refresh` 而不是 `/{art_id}/refresh`：计费中间件
     按 pricing_rules.path 精确匹配，带占位符的模板匹配不上。
     """
+    membership.require_access(request)
     art_id = str(payload.get("art_id") or "").strip()[:64]
     if not art_id:
         raise HTTPException(status_code=400, detail="缺少 art_id")
@@ -288,8 +315,9 @@ def refresh_metrics(payload: dict):
 
 
 @router.post("/api/lowfans/export")
-def export_csv(payload: dict):
+def export_csv(payload: dict, request: Request):
     """按当前筛选导出一份 CSV，最多 200 行。"""
+    membership.require_access(request)
     wx_type = str(payload.get("wx_type") or "").strip()[:32]
     q = str(payload.get("q") or "").strip()[:80]
     sort = str(payload.get("sort") or "burst")

@@ -70,7 +70,19 @@
     </article>`;
   }
 
+  function renderPreview(data) {
+    const grid = $('#ib-grid');
+    grid.className = '';
+    const rows = (data.items || []).map((item) => `<li class="vi-preview-row"><span>${item.rank_no}</span>
+      <b>${esc(item.title_preview || '')}</b><em>${esc(item.wx_type || '')}</em></li>`).join('');
+    grid.innerHTML = `<div class="vi-preview"><ul>${rows}</ul>
+      <div class="vi-lock"><strong>完整封面、阅读数据和原文需开通爆款情报会员</strong>
+      <p>低粉爆文与低分爆图共用一份权益，新用户可免费试用 24 小时。</p>
+      <button type="button" class="vi-primary" data-viral-insights-open>查看权益</button></div></div>`;
+  }
+
   function renderList(data) {
+    if (data.preview) { renderPreview(data); return; }
     const items = data.items || [];
     const grid = $('#ib-grid');
     if (!items.length) {
@@ -141,7 +153,13 @@
       renderMeta(data);
       renderList(data);
       state.loaded = true;
-      if (data.degraded) $('#ib-tail').textContent = data.reason || '暂时没有数据';
+      if (data.degraded) {
+        const age = data.freshness?.last_success_at
+          ? `最近成功更新 ${new Date(data.freshness.last_success_at).toLocaleString('zh-CN', { hour12: false })}`
+          : '尚无成功同步记录';
+        $('#ib-stamp').innerHTML = `<span class="is-warn">${esc(data.stat_date ? '快照 ' + data.stat_date : '')} · ${esc(age)}</span>`;
+        $('#ib-tail').textContent = data.reason || '暂时没有数据';
+      }
     } catch (error) {
       $('#ib-grid').className = '';
       $('#ib-grid').innerHTML = `<div class="ib-empty"><strong>榜单读取失败</strong>
@@ -187,5 +205,6 @@
     ensureLoaded() {
       if (!state.loaded) load();
     },
+    reload: () => load(),
   };
 })();

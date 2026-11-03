@@ -97,6 +97,16 @@
 
   function renderList() {
     if (!el.list) return;
+    if (state.preview) {
+      const rows = state.items.map((item) => `<li class="vi-preview-row"><span>${item.rank_no}</span>
+        <b>${esc(item.title_preview || '')}</b><em>${esc(item.wx_type || '')}</em></li>`).join('');
+      el.list.innerHTML = `<div class="vi-preview"><ul>${rows}</ul>
+        <div class="vi-lock"><strong>完整榜单、阅读数据和原文需开通爆款情报会员</strong>
+        <p>低粉爆文与低分爆图共用一份权益，新用户可免费试用 24 小时。</p>
+        <button type="button" class="vi-primary" data-viral-insights-open>查看权益</button></div></div>`;
+      if (el.more) el.more.hidden = true;
+      return;
+    }
     if (!state.items.length) {
       el.list.innerHTML = `<div class="lf-empty">
         <strong>${state.wx_type ? `「${esc(state.wx_type)}」今天没有入榜文章` : '这批榜单还没有数据'}</strong>
@@ -225,6 +235,7 @@
       state.stats = data.stats || {};
       state.statDate = data.stat_date || '';
       state.degraded = !!data.degraded;
+      state.preview = !!data.preview;
       renderStats();
       renderTracks();
       renderDates();
@@ -314,6 +325,14 @@
         }),
       });
       if (response.status === 401) { location.href = '/?register=1'; return; }
+      if (response.status === 403) {
+        let payload = null;
+        try { payload = await response.clone().json(); } catch { /* 非 JSON */ }
+        if (payload?.detail?.code === 'INSIGHTS_MEMBERSHIP_REQUIRED') {
+          window.ViralInsightsMembership?.open();
+          return;
+        }
+      }
       if (response.status === 402) {
         // 和全站一致：能弹套餐窗就弹套餐窗（带支付入口），拿不到再退回原生提示。
         let detail = '积分不足：导出低粉爆文 CSV 需要 20 积分。';
