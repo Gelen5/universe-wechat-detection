@@ -22,7 +22,8 @@
 #wechat-plus .wp-message{font-size:14px;line-height:1.85;white-space:pre-wrap;overflow-wrap:anywhere;margin:0}
 #wechat-plus .wp-message[data-role=user]{background:#e3f0e7;border:1px solid #d6e8dc;border-radius:15px 15px 4px 15px;align-self:flex-end;padding:12px 15px;max-width:94%}
 #wechat-plus .wp-message[data-role=assistant]{padding:0 5px}
-#wechat-plus .wp-topic{display:block;text-align:left;width:100%;padding:14px 16px;border-radius:14px;margin-top:10px}
+#wechat-plus .wp-topic{display:block;flex-shrink:0;text-align:left;width:100%;height:auto;min-height:96px;overflow:visible;white-space:normal;padding:20px 22px;border-radius:20px;margin-top:0;border:1px solid rgba(255,255,255,.95);background:linear-gradient(130deg,rgba(255,255,255,.92),rgba(229,245,236,.65));box-shadow:inset 0 1px 0 #fff,0 8px 24px #214d3d09;backdrop-filter:blur(18px);transition:background .18s,border-color .18s}
+#wechat-plus .wp-topic:hover:not(:disabled){background:linear-gradient(130deg,#fff,#e4f4e9);border-color:#a8d2bc}
 #wechat-plus .wp-topic strong{display:block;font-size:14px;line-height:1.6}
 #wechat-plus .wp-topic small{display:block;color:var(--wp-muted);font-size:12px;line-height:1.8;margin-top:5px}
 #wechat-plus .wp-options{display:flex;gap:8px;flex-wrap:wrap;padding:0 20px}

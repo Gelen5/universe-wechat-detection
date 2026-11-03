@@ -1,13 +1,21 @@
 /* 爆文转贴图：工作台内嵌视图，配色与全局 tokens 对齐 */
 #article-visual .v3-meta { display:flex; margin-bottom:22px; color:#638675; }
 
-#article-visual .av-layout { display:grid; grid-template-columns:minmax(340px,392px) minmax(0,1fr); gap:22px; align-items:start; }
+#article-visual .av-layout { display:grid; grid-template-columns:minmax(360px,420px) minmax(0,1fr); gap:28px; align-items:start; }
 #article-visual .av-col { display:flex; flex-direction:column; gap:16px; min-width:0; }
 #article-visual .av-card {
   background:linear-gradient(135deg,#ffffffef,#f2faf5e6);
   border:1px solid #fff; border-radius:24px; box-shadow:0 18px 44px #29543d0f;
 }
-#article-visual .av-input-panel { padding:26px; }
+#article-visual .av-input-panel { padding:32px; background:linear-gradient(145deg,#ffffffed,#eef9f2b8);backdrop-filter:blur(24px);border:1px solid #ffffffef;border-radius:26px;box-shadow:inset 0 1px 0 #fff,0 16px 40px #29543d0b; }
+#article-visual .av-input-panel .av-lead { margin-bottom:26px;line-height:1.9; }
+#article-visual .av-input-panel .av-step-head { margin-top:28px;margin-bottom:18px; }
+#article-visual .av-input-panel .av-input-row { flex-direction:column;gap:12px; }
+#article-visual .av-input-panel .av-input-row input { flex:none;width:100%;height:50px;border-color:#c1ddcd;background:#ffffffb8; }
+#article-visual .av-input-panel .av-input-row .av-btn { width:100%;height:48px; }
+#article-visual .av-input-panel .av-hint { line-height:1.8;margin-top:14px; }
+#article-visual .av-input-panel .av-note-line { margin-top:24px;padding-top:20px; }
+@media(max-width:600px){#article-visual .av-input-panel{padding:24px}}
 #article-visual .av-micro { display:flex; align-items:center; gap:8px; color:#5f8a70; font-size:10px; letter-spacing:.16em; }
 #article-visual .av-micro .line { width:24px; height:1px; background:#a7c9b4; }
 #article-visual .av-title { margin:14px 0 10px; font-family:inherit; font-size:30px; line-height:1.32; font-weight:720; color:#244b39; letter-spacing:.2px; }
