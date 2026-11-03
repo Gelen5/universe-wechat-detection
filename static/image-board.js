@@ -132,7 +132,7 @@
   function renderMeta(data) {
     const sync = data.last_sync || {};
     $('#ib-stamp').innerHTML = data.stat_date
-      ? `<span>数据日期 <b>${esc(data.stat_date)}</b> · ${sync.pages_ok || 0} 页 / ${sync.cost_points || 0} 积分</span>`
+      ? `<span>榜单日期 <b>${esc(data.stat_date)}</b></span>`
       : '<span>正在读取…</span>';
     const total = Number(data.total) || 0;
     $('#ib-tail').textContent = total ? `${total} 条 · ${data.stat_date || ''}` : '暂无数据';
