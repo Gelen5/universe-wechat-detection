@@ -40,7 +40,7 @@ PACKAGES = (
     {"id": "month", "name": "月卡", "price": "29.90", "days": 30},
     {"id": "year", "name": "年卡", "price": "199.00", "days": 365},
 )
-TRIAL_HOURS = 24
+TRIAL_HOURS = 5
 
 def enabled() -> bool:
     return os.getenv("VIRAL_INSIGHTS_PAYWALL_ENABLED", "0").strip() == "1"

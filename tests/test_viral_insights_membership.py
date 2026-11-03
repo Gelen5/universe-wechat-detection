@@ -101,14 +101,14 @@ def _post_notify(client, params):
 
 
 # ---------------------------------------------------------------- 试用
-def test_trial_boundary_is_exactly_24_hours(paywall, clock):
+def test_trial_boundary_is_exactly_5_hours(paywall, clock):
     client, uid = _client_for_new_user()
     start = clock["now"]
     body = client.post("/api/viral-insights/trial/activate").json()
     assert body["activated"] is True and body["status"] == "trial_active"
-    clock["now"] = start + timedelta(hours=24) - timedelta(seconds=1)
+    clock["now"] = start + timedelta(hours=5) - timedelta(seconds=1)
     assert vim.has_access(uid) is True
-    clock["now"] = start + timedelta(hours=24)
+    clock["now"] = start + timedelta(hours=5)
     assert vim.has_access(uid) is False
     assert client.get("/api/viral-insights/membership").json()["status"] == "trial_expired"
 
@@ -138,7 +138,7 @@ def test_pending_order_does_not_grant_access_but_preserves_active_trial(paywall,
     client.post('/api/viral-insights/trial/activate')
     state = client.get('/api/viral-insights/membership').json()
     assert state['pending_order'] and state['status'] == 'trial_active' and state['active']
-    clock['now'] += timedelta(hours=24)
+    clock['now'] += timedelta(hours=5)
     assert not vim.has_access(uid)
     assert client.get('/api/viral-insights/membership').json()['status'] == 'trial_expired'
 
@@ -288,7 +288,7 @@ def test_purchase_during_trial_and_renewal_extend_sequentially(paywall, clock):
     second = _membership_order(uid, "month")
     vim.apply_paid(second)
     vim.apply_paid(second)  # idempotent
-    expected = start + timedelta(hours=24) + timedelta(days=7) + timedelta(days=30)
+    expected = start + timedelta(hours=5) + timedelta(days=7) + timedelta(days=30)
     assert client.get("/api/viral-insights/membership").json()["membership_expires_at"] == expected.isoformat()
 
 
