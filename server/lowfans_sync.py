@@ -64,6 +64,14 @@ def pages_per_day() -> int:
         return 11
 
 
+def max_attempts() -> int:
+    """同一天最多尝试几次（每天 3 次调度兜底），给残缺抓取一个成本上限。"""
+    try:
+        return max(1, min(6, int(os.getenv("LOWFANS_MAX_ATTEMPTS", "3"))))
+    except (TypeError, ValueError):
+        return 3
+
+
 def yesterday_beijing() -> str:
     """榜单统计日默认昨日（上游每日生成前一天榜单）。"""
     return (datetime.now(BEIJING) - timedelta(days=1)).strftime("%Y-%m-%d")
@@ -201,14 +209,34 @@ def sync_daily(pages: int | None = None, stat_date: str | None = None,
                         LowfansArticle.stat_date == stat_date,
                         LowfansArticle.range_type == range_type,
                     )).scalar() or 0
+                last = session.execute(
+                    select(LowfansSyncRun).where(
+                        LowfansSyncRun.stat_date == stat_date,
+                        LowfansSyncRun.range_type == range_type,
+                    ).order_by(LowfansSyncRun.started_at.desc()).limit(1)).scalars().first()
+                attempts = session.execute(
+                    select(func.count()).select_from(LowfansSyncRun).where(
+                        LowfansSyncRun.stat_date == stat_date,
+                        LowfansSyncRun.range_type == range_type,
+                    )).scalar() or 0
         except Exception as exc:  # noqa: BLE001 - 查库失败就当没数据，正常拉
             logger.warning("lowfans skip-check failed: %s", exc)
-            existing = 0
+            existing, last, attempts = 0, None, 0
         if existing:
-            if client is not None:
-                client.delete(KEY_LOCK)
-            return {"status": "cached", "stat_date": stat_date, "range_type": range_type,
-                    "inserted": int(existing), "calls": 0, "cost_points": 0}
+            # 上游当天是逐步生成的：早上抓到的可能是残缺集合。只有拿满请求页数，
+            # 或已覆盖上游自报的 total，才算这一天完成；否则留给后续调度补齐。
+            capacity = pages * PAGE_SIZE
+            upstream_known = int(getattr(last, "upstream_total", 0) or 0) if last else 0
+            complete = int(existing) >= capacity or (
+                upstream_known > 0 and int(existing) >= upstream_known)
+            if complete or attempts >= max_attempts():
+                if client is not None:
+                    client.delete(KEY_LOCK)
+                result = {"status": "cached", "stat_date": stat_date, "range_type": range_type,
+                          "inserted": int(existing), "calls": 0, "cost_points": 0}
+                if not complete:
+                    result["reason"] = "已达到本日尝试次数上限"
+                return result
 
     run_id = _open_run(stat_date, range_type)
     rows: list[dict] = []
