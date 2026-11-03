@@ -252,7 +252,8 @@ def test_active_query_compensates_missing_notification(paywall, clock):
         connection.execute(update(alipay_pay.alipay_orders).where(alipay_pay.alipay_orders.c.out_trade_no == oid)
                            .values(created_at="2000-01-01 00:00:00"))
     with patch.object(alipay_pay, "_trade_query",
-                      return_value={"code": "10000", "trade_status": "TRADE_SUCCESS", "trade_no": "Q" + oid}):
+                      return_value={"code": "10000", "trade_status": "TRADE_SUCCESS", "trade_no": "Q" + oid,
+                                    "out_trade_no": oid, "total_amount": "9.90"}):
         alipay_pay.reconcile_pending_orders(older_than_minutes=0, limit=500, trigger="test")
         alipay_pay.reconcile_pending_orders(older_than_minutes=0, limit=500, trigger="test")
     assert vim.has_access(uid) is True
@@ -311,6 +312,21 @@ def test_refund_notification_revokes_membership(paywall, clock):
         assert _post_notify(TestClient(app), params) == "success"
         assert _post_notify(TestClient(app), params) == "success"
     assert vim.has_access(uid) is False
+
+
+def test_refund_retry_recovers_after_event_recorded(paywall, clock):
+    _, uid = _client_for_new_user()
+    oid = _membership_order(uid, 'week')
+    vim.apply_paid(oid)
+    cfg, params = _signed_notify(oid, '9.90', trade_status='TRADE_CLOSED',
+                                 gmt_refund=accounts.utc_now(), refund_fee='9.90', out_biz_no='RF2')
+    with database.ENGINE.begin() as conn:
+        conn.execute(alipay_pay.alipay_notify_events.insert().values(
+            notify_id=params['notify_id'], out_trade_no=oid, trade_no=params['trade_no'],
+            trade_status='TRADE_CLOSED', received_at=accounts.utc_now()))
+    with patch.object(alipay_pay, 'load_payment_config', return_value=cfg):
+        assert _post_notify(TestClient(app), params) == 'success'
+    assert not vim.has_access(uid)
 
 
 def test_membership_payment_never_credits_points_or_referral(paywall, clock):
@@ -384,10 +400,24 @@ def test_payment_query_does_not_mark_gateway_paid_before_grant(paywall, clock):
     _, uid = _client_for_new_user()
     oid = _membership_order(uid)
     order = alipay_pay._find_order(oid)
-    with patch.object(alipay_pay, '_trade_query', return_value={'code': '10000', 'trade_status': 'TRADE_SUCCESS'}), \
+    with patch.object(alipay_pay, '_trade_query', return_value={'code': '10000', 'trade_status': 'TRADE_SUCCESS',
+                                                               'out_trade_no': oid, 'total_amount': '29.90'}), \
          patch.object(vim, 'apply_paid', side_effect=RuntimeError('interrupted')):
         with pytest.raises(RuntimeError):
             alipay_pay._sync_from_query(order)
+    assert alipay_pay._find_order(oid)['status'] == 'CREATED'
+
+
+@pytest.mark.parametrize('bad_order,bad_amount', [(True, False), (False, True), (False, None)])
+def test_membership_query_rejects_wrong_order_or_amount(paywall, clock, bad_order, bad_amount):
+    _, uid = _client_for_new_user()
+    oid = _membership_order(uid, 'week')
+    result = {'code': '10000', 'trade_status': 'TRADE_SUCCESS',
+              'out_trade_no': 'other' if bad_order else oid,
+              'total_amount': '0.01' if bad_amount else ('9.90' if bad_amount is False else None)}
+    with patch.object(alipay_pay, '_trade_query', return_value=result):
+        alipay_pay._sync_from_query(alipay_pay._find_order(oid))
+    assert not vim.has_access(uid)
     assert alipay_pay._find_order(oid)['status'] == 'CREATED'
 
 

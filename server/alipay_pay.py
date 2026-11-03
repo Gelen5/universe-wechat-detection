@@ -1004,6 +1004,13 @@ def _sync_from_query(order: dict[str, Any]) -> dict[str, Any]:
     # 已退款（含部分退款）是终态，不能被后续 PAID 查询覆盖回 PAID。
     refunded_statuses = ("REFUNDED", "PARTIAL_REFUNDED")
     if mapped == "PAID" and order["status"] not in refunded_statuses:
+        if _is_membership_order(order['out_trade_no']):
+            # A successful query is not enough: bind its result to the exact
+            # locally-priced membership order before issuing paid entitlement.
+            if (result.get('out_trade_no') != order['out_trade_no'] or
+                    _amount_of(result.get('total_amount')) != _amount_of(order['total_amount'])):
+                logger.error('membership query rejected: order or amount mismatch for %s', order['out_trade_no'])
+                return {"query": result, "order": order}
         if not _is_membership_order(order['out_trade_no']):
             _record_referral_payment(order['out_trade_no'], result, 'authenticated_query')
         is_member = _is_membership_order(order['out_trade_no'])
@@ -1515,6 +1522,11 @@ async def alipay_notify(request: Request) -> PlainTextResponse:
                 viral_insights_membership.apply_paid(params["out_trade_no"], params.get("trade_no"))
             else:
                 _credit_recharge(params["out_trade_no"])
+        elif membership_order and (params.get('gmt_refund') or params.get('refund_fee') or params.get('out_biz_no')):
+            # The event record may have committed just before the first handler
+            # crashed; replay the idempotent revocation on delivery retry.
+            from . import viral_insights_membership
+            viral_insights_membership.apply_refund(params['out_trade_no'])
         return PlainTextResponse("success")
 
     if _is_paid_notification(params) and not membership_order and order["status"] not in ("PAID","PARTIAL_REFUNDED","REFUNDED"):
