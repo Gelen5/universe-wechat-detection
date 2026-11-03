@@ -484,6 +484,11 @@
   #image-board .ib-skeleton .ib-cover { animation: none; }
 }
 
+/* 全局 shell 会给所有 section 注入实色底，爆图页需透出浅绿环境光。 */
+body.atelier.image-board-body #image-board.ib-page {
+  background: transparent !important;
+}
+
 /* ---------------------------------------------------------------- 窄屏 */
 @media (min-width: 1101px) {
   body.atelier.image-board-body {

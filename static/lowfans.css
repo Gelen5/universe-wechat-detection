@@ -520,6 +520,11 @@
 }
 #lowfans .lf-more:hover { color: var(--lf-deep); background: rgba(255, 255, 255, .8); }
 
+/* 全局 shell 会给所有 section 注入实色底，这两个榜单需要透出浅绿环境光。 */
+body.atelier.lowfans-body #lowfans.lf-page {
+  background: transparent !important;
+}
+
 /* ---------------------------------------------------------------- 响应式 */
 @media (min-width: 1101px) {
   body.atelier.lowfans-body {
