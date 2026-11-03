@@ -69,7 +69,7 @@ DEFAULT_PRICING = [
     # 小红书内容提取：抓取一次扣 1 积分。不调用模型，但消耗出口带宽和媒体
     # 缓存磁盘；按次计价，请求失败时由中间件自动退款。
     ("POST", "/api/xhs/extract", "小红书内容提取", 1, 0),
-    ("POST", "/api/sticker-extract", "贴图号内容提取", 1, 0),
+    ("POST", "/api/sticker-extract", "贴图号内容提取", 2, 0),
     # 低粉爆文榜：浏览全免费（读本地快照零边际成本），只有触达上游或产出
     # 文件才收费。实时刷新上游 getrk 2 分钱/次，收 3 积分；导出是本地 CSV，
     # 收 20 积分。
@@ -369,6 +369,9 @@ def init_db() -> None:
             "UPDATE pricing_rules SET points=2 WHERE method='POST' AND path='/api/viral-remix/analyze' AND points<>2")
         connection.execute(
             "UPDATE pricing_rules SET active=0 WHERE method='POST' AND path='/api/viral-remix/image'")
+        # 同步已有数据库的贴图提取价格；仅更新此功能。
+        connection.execute(
+            "UPDATE pricing_rules SET points=2 WHERE method='POST' AND path='/api/sticker-extract' AND points<>2")
         _warn_on_price_drift(connection)
     _bootstrap_owner_from_env()
     _sync_owner_role()

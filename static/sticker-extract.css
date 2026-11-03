@@ -122,3 +122,30 @@ body #sticker-extract{box-sizing:border-box;--xe-ink:#244b39;--xe-muted:#5f7767;
 
 #sticker-extract .sticker-select-list{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;color:var(--xe-muted);font-size:11px}
 #sticker-extract .sticker-select-list label{display:inline-flex;align-items:center;gap:4px;padding:5px 8px;border:1px solid var(--xe-edge);border-radius:7px;background:#fff}
+
+/* 提取结果：预览和图片列表并列，选图操作直接贴近缩略图。 */
+#sticker-extract #sticker-result{overflow:hidden}
+#sticker-extract .sticker-result-head{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:22px 26px;border-bottom:1px solid var(--xe-edge)}
+#sticker-extract .sticker-result-head>div{min-width:0}
+#sticker-extract .sticker-result-head h2{font-size:17px;line-height:1.55;color:var(--xe-ink);margin:6px 0 0;overflow-wrap:anywhere}
+#sticker-extract .sticker-kicker{font-size:11px;font-weight:600;color:#48805f}
+#sticker-extract .sticker-workspace{display:grid;grid-template-columns:minmax(250px, .78fr) minmax(0, 1.22fr);align-items:start}
+#sticker-extract .sticker-preview,#sticker-extract .sticker-gallery{padding:22px 26px;min-width:0}
+#sticker-extract .sticker-preview{border-right:1px solid var(--xe-edge)}
+#sticker-extract .sticker-section-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:0 0 14px;font-size:12px;color:var(--xe-muted)}
+#sticker-extract .sticker-section-head h3{font-size:14px;color:var(--xe-ink);margin:0;font-weight:650}
+#sticker-extract .sticker-section-head p{font-size:12px;color:var(--xe-muted);margin:5px 0 0;line-height:1.5}
+#sticker-extract .sticker-preview .xe-viewer{height:clamp(320px,44vh,520px)}
+#sticker-extract .sticker-preview .xe-main-image{cursor:default}
+#sticker-extract .sticker-preview-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;color:var(--xe-muted);font-size:11px}
+#sticker-extract .sticker-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:14px;align-items:start}
+#sticker-extract .sticker-card{min-width:0}
+#sticker-extract .sticker-thumb{position:relative;display:block;width:100%;aspect-ratio:3/4;overflow:hidden;padding:0;border:1px solid #d8e7dc;border-radius:10px;background:#edf3ed;cursor:pointer}
+#sticker-extract .sticker-thumb[aria-pressed=true]{outline:2px solid #37855e;outline-offset:2px}
+#sticker-extract .sticker-thumb img{width:100%;height:100%;display:block;object-fit:contain}
+#sticker-extract .sticker-thumb>span{position:absolute;left:6px;bottom:6px;padding:2px 6px;border-radius:5px;color:#fff;background:#244b3ac9;font-size:10px}
+#sticker-extract .sticker-pick{display:flex;align-items:center;justify-content:center;gap:6px;min-height:36px;color:#526f5e;font-size:12px;cursor:pointer}
+#sticker-extract .sticker-pick input{accent-color:#24744e;width:15px;height:15px}
+#sticker-extract .sticker-gallery-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;border-top:1px solid var(--xe-edge);margin-top:18px;padding-top:17px;color:var(--xe-muted);font-size:11px}
+@media(max-width:850px){#sticker-extract .sticker-workspace{grid-template-columns:minmax(0,1fr)}#sticker-extract .sticker-preview{border-right:0;border-bottom:1px solid var(--xe-edge)}#sticker-extract .sticker-grid{grid-template-columns:repeat(auto-fill,minmax(85px,1fr))}}
+@media(max-width:560px){#sticker-extract .sticker-result-head{align-items:flex-start;flex-direction:column;padding:18px}#sticker-extract .sticker-result-head .xe-button{width:100%}#sticker-extract .sticker-preview,#sticker-extract .sticker-gallery{padding:18px}#sticker-extract .sticker-preview .xe-viewer{height:360px}#sticker-extract .sticker-gallery-actions .xe-button{width:100%}}
