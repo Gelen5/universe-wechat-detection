@@ -316,7 +316,7 @@
       if (response.status === 401) { location.href = '/?register=1'; return; }
       if (response.status === 402) {
         // 和全站一致：能弹套餐窗就弹套餐窗（带支付入口），拿不到再退回原生提示。
-        let detail = '积分不足：导出低粉爆文 CSV 需要 2 积分。';
+        let detail = '积分不足：导出低粉爆文 CSV 需要 20 积分。';
         try {
           const payload = await response.clone().json();
           if (typeof payload?.detail === 'string' && payload.detail.trim()) detail = payload.detail;
