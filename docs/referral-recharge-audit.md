@@ -2,7 +2,27 @@
 
 Audited main: `d9f45dbfbd0c9dc40232c14bb0938803e5e9a057`.
 Isolated branch: `feat/referral-recharge-20261103`.
-No production mutations, migrations or deployment performed.
+Initial audit below is historical. See final delivery status immediately below.
+
+## Final delivery status — 2026-11-03
+
+Implemented: old registration/first-task rewards removed, relationships and historical balances preserved, new registration trial unchanged. Verified Alipay payment facts feed order-unique rewards; integer cents calculation uses 10% first charge, 5% repeat within fixed 90 days, 10 points/yuan and gross lifetime cap 100 per friend. Only bonus receives rewards. Historical first payment dates remain authoritative; missing provenance enters manual review. No retrospective campaign awards.
+
+Flow: invite registration → bind only → signed Alipay notice/authenticated query → actual amount/time/trade fact → original purchase credit → eligibility and risk checks → inviter wallet database row lock → unique order reward + bonus ledger in one transaction. Refund reservation → platform success → cumulative refund event → bonus-only reversal → recorded debt if insufficient → future reward offset. Durable facts and periodic reconciliation recover interrupted settlement.
+
+Additive tables: referral_campaign, referral_recharge_rewards, referral_verified_payments, referral_verified_refunds, referral_refund_requests, referral_recharge_reviews and referral_reward_risks. PostgreSQL row locks and SQLite BEGIN IMMEDIATE serialize financial changes. No history deletion, wallet rebuild or destructive cleanup. Migration: db/alembic/versions/20261103_0012_referral_recharge.py; startup additive schema matches current production approach. Do not blindly upgrade unrelated historical migrations.
+
+Changed components: server/referrals.py, accounts.py, referral_reward_rules.py, referral_recharge.py, alipay_pay.py, main.py, invite_page.py, wallet_page.py, static/app.js, static/index.html and related tests/migration. accounts task settlement callers no longer invoke old activation. Legacy compatibility on_usage_completed is a no-op; legacy rewarded status does not gate new awards.
+
+Validation: 69 related local tests passed (rules, registration, RSA signature/tamper, notification replay, refunds, bonus debt, permissions, 320/390/1440 UI). Independent PostgreSQL schema-only temporary database passed 20 integration tests including concurrent order/cap cases. No production customer data copied. Broader legacy tests still reference retired WORKBENCH_EXECUTOR (two failures reproduced on clean main) and workbench tab selectors (two browser failures); they were not deleted or skipped. No production real-money payment/refund acceptance performed.
+
+Preview: D:/Download/workbench-audit-20261027/referral-recharge-20261103/invite-390.png (synthetic demo values).
+
+Rollout: production backup /opt/universe-data/backups/pre-referral-recharge-20261103.dump already created with restricted permissions. Preflight legacy referral count, old referral ledger count and invited historical paid orders were all zero. Publish committed SHA using /opt/universe-deploy/deploy.sh. Startup adds tables; then authenticated administrator POST /api/admin/referral-recharge/campaign with enabled=true. It only enables against production payment gateway and persists the initial UTC effective time, never resetting on restart. No user refund entrance; existing refund APIs now require administrator. Admin page /admin/referral-recharge provides stats, ledger queries, risk approval, reconciliation and querying platform-confirmed refund results by order/request ID. Invite and wallet use server rules and masked friends.
+
+Operations: monitor referral exception logs, pending review/refund records and reversal debt; reconcile platform payments/refunds against unique reward rows and bonus transactions. Pause with the same campaign API enabled=false. Keep new code and immutable financial history; prefer forward fixes. Never roll back to old reward-paying code or restore a database over subsequent live payments. Fixed campaign start prevents old-order backfill. Missing history or externally notified refunds without sufficient proof remain visible for review, not silently treated as first recharge.
+
+## Historical initial audit (superseded by final status above)
 
 ## Observed implementation
 
