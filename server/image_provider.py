@@ -73,7 +73,7 @@ def generate(payload: dict[str, Any]) -> dict[str, Any]:
             )
         except ProviderRequestError as exc:
             raise ImageProviderError(f"图片接口请求失败：{exc}") from exc
-        return _fit_images(result, requested_size)
+        return _fit_images(result, requested_size, preserve_frame=payload.get("preserve_frame") is True)
 
 
 # Models that reject an explicit pixel size and only accept `auto`; they pick
@@ -119,19 +119,19 @@ def _ratio_hint(size: str) -> str:
             f"Keep the subject and any text inside safe margins; do not crop or letterbox.")
 
 
-def _fit_images(result: dict[str, Any], size: str) -> dict[str, Any]:
+def _fit_images(result: dict[str, Any], size: str, *, preserve_frame: bool = False) -> dict[str, Any]:
     """Force every returned image to exactly the requested pixel size.
 
     Models that honour `size` pass through untouched; models that only follow
-    the ratio hint get scaled, and anything still off-ratio is centre-cropped
-    first so cards never come back landscape when 3:4 was requested.
+    the ratio hint get scaled. By default off-ratio images are centre-cropped;
+    preserve_frame keeps the full image and fills the remaining canvas.
     """
     pair = _size_pair(size)
     items = result.get("data") if isinstance(result, dict) else None
     if not pair or not isinstance(items, list) or not items:
         return result
     try:
-        from PIL import Image
+        from PIL import Image, ImageFilter, ImageOps
     except Exception:
         return result
     target_width, target_height = pair
@@ -160,7 +160,16 @@ def _fit_images(result: dict[str, Any], size: str) -> dict[str, Any]:
                     item.pop('image_url', None)
                     continue
                 image = decoded.convert("RGB")
-                if abs(width / height - target_ratio) > 0.01:
+                if preserve_frame and abs(width / height - target_ratio) > 0.001:
+                    # Preserve every pixel of the generated poster. Fill the
+                    # remaining canvas with a softened copy instead of clipping
+                    # headings or the subject to force the requested ratio.
+                    background = ImageOps.fit(image, (target_width, target_height), method=Image.Resampling.LANCZOS)
+                    background = background.filter(ImageFilter.GaussianBlur(radius=max(8, min(target_width, target_height) // 28)))
+                    foreground = ImageOps.contain(image, (target_width, target_height), method=Image.Resampling.LANCZOS)
+                    background.paste(foreground, ((target_width - foreground.width) // 2, (target_height - foreground.height) // 2))
+                    image = background
+                elif abs(width / height - target_ratio) > 0.01:
                     if width / height > target_ratio:
                         crop_width = max(1, round(height * target_ratio))
                         left = (width - crop_width) // 2
@@ -169,7 +178,8 @@ def _fit_images(result: dict[str, Any], size: str) -> dict[str, Any]:
                         crop_height = max(1, round(width / target_ratio))
                         top = (height - crop_height) // 2
                         image = image.crop((0, top, width, top + crop_height))
-                image = image.resize((target_width, target_height), Image.LANCZOS)
+                if image.size != (target_width, target_height):
+                    image = image.resize((target_width, target_height), Image.LANCZOS)
                 buffer = io.BytesIO()
                 image.save(buffer, format="PNG")
             item["b64_json"] = base64.b64encode(buffer.getvalue()).decode("ascii")

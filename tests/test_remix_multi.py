@@ -35,6 +35,8 @@ class RemixMultiTests(unittest.TestCase):
             self.assertTrue((Path(folder)/'tie-tu/testsession123/remix-01.jpg').exists())
             self.assertEqual(generate.call_count,2)
             self.assertIn('中文排版',generate.call_args_list[0].args[0]['prompt'])
+            self.assertTrue(generate.call_args_list[0].args[0]['preserve_frame'])
+            self.assertIn('fully inside the image', generate.call_args_list[0].args[0]['prompt'])
             self.assertEqual(result['text_rendering'],'image-native')
 
     def test_poster_cannot_silently_become_a_text_card(self):
