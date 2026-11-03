@@ -299,12 +299,12 @@
     if (create) {
       const title = create.dataset.create || '';
       const url = create.dataset.url || '';
-      const input = document.querySelector('#workbench-topic');
+      const input = document.querySelector('#wp-input');
       if (!input) return;
       input.value = `围绕这个热点写一篇公众号：${title}（来源：${url}）`;
       input.dispatchEvent(new Event('input', { bubbles: true }));
-      window.AppNav?.setActiveView?.('workbench', true);
-      document.querySelector('#start-workbench')?.click();
+      window.AppNav?.setActiveView?.('wechat-plus', true);
+      input.focus();
     }
   });
 
