@@ -469,11 +469,7 @@ function inviteToast(mode, referral) {
   if (mode !== 'register' || !referral || referral.status !== 'bound') {
     return mode === 'register' ? '账号创建成功' : '登录成功';
   }
-  return `账号创建成功，${referral.bonus} 积分的邀请奖励已到账`;
-}
-
-function inviteStatusLabel(status) {
-  return { pending: '待完成任务', activated: '奖励发放中', rewarded: '已发奖励' }[status] || status;
+  return '账号创建成功，邀请关系已绑定';
 }
 
 function inviteLink(code) {
@@ -500,21 +496,16 @@ async function loadInvitePanel(panel) {
   panel.hidden = !info.enabled;
   if (!info.enabled) return;
   document.querySelector('#invite-code').textContent = info.code;
-  document.querySelector('#invite-signup-reward').textContent = info.rewards.signup;
+  document.querySelector('#invite-rule-summary').textContent = `首充返 ${info.rules.first_bps / 100}%，${info.rules.window_hours / 24} 天内复充返 ${info.rules.repeat_bps / 100}%，每位好友最多贡献 ${info.rules.cap} 积分`;
   const parts = [
     `已邀请 ${info.counts.total} 人`,
-    `${info.counts.rewarded} 人已完成首个任务`,
+    `${info.counts.paid} 位好友已充值`,
     `累计获得 ${number(info.earned_points)} 积分`,
   ];
-  if (info.caps.remaining_today <= 0) {
-    parts.push(`今日名额已用完，明天再来`);
-  } else {
-    parts.push(`今天还能邀请 ${info.caps.remaining_today} 人`);
-  }
   document.querySelector('#invite-stats').textContent = parts.join(' · ');
   const list = document.querySelector('#invite-list');
   list.innerHTML = info.invitees.length
-    ? info.invitees.map(item => `<article><div><strong>${esc(item.display_name)}</strong><small>${esc(item.email)} · ${new Date(item.created_at).toLocaleDateString('zh-CN')}</small></div><span class="invite-status ${item.status}">${inviteStatusLabel(item.status)}</span></article>`).join('')
+    ? info.invitees.map(item => `<article><div><strong>${esc(item.display_name)}</strong><small>${new Date(item.created_at).toLocaleDateString('zh-CN')}</small></div><span>${item.paid ? '已充值' : '待充值'} · 贡献 ${number(item.earned_points)} 积分</span></article>`).join('')
     : '<p>还没有人通过你的邀请码注册。把链接发出去试试。</p>';
   document.querySelector('#invite-copy').dataset.code = info.code;
 }

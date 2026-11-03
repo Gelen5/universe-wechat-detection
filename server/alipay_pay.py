@@ -683,6 +683,7 @@ def _credit_recharge(out_trade_no: str) -> dict[str, Any] | None:
     if recharge is None:
         return None
     if recharge["status"] == "CREDITED":
+        _settle_referral(out_trade_no)
         return {"credited": False, "reason": "already_credited", "credits": recharge["credits"]}
     try:
         result = accounts.credit_alipay_recharge(
@@ -709,7 +710,27 @@ def _credit_recharge(out_trade_no: str) -> dict[str, Any] | None:
                 .where(alipay_recharges.c.out_trade_no == out_trade_no)
                 .values(status="CREDITED", credited_at=recharge["credited_at"] or _now())
             )
+    _settle_referral(out_trade_no)
     return result
+
+
+def _settle_referral(out_trade_no):
+    try:
+        from . import referral_recharge
+        referral_recharge.settle(out_trade_no)
+    except Exception:
+        logger.exception('referral.settlement_pending order=%s', out_trade_no)
+
+
+def _record_referral_payment(order_id, result, proof):
+    try:
+        # Sandbox or simulation payments must never create referral rewards.
+        if load_payment_config().get('gateway') != PRODUCTION_GATEWAY:
+            return
+        from . import referral_recharge
+        referral_recharge.verified_payment(order_id,result,proof)
+    except Exception:
+        logger.exception('referral.payment_evidence_pending order=%s',order_id)
 
 
 @router.get("/pay", response_class=HTMLResponse, include_in_schema=False)
@@ -973,6 +994,7 @@ def _sync_from_query(order: dict[str, Any]) -> dict[str, Any]:
     # 已退款（含部分退款）是终态，不能被后续 PAID 查询覆盖回 PAID。
     refunded_statuses = ("REFUNDED", "PARTIAL_REFUNDED")
     if mapped == "PAID" and order["status"] not in refunded_statuses:
+        _record_referral_payment(order['out_trade_no'], result, 'authenticated_query')
         if order["status"] != "PAID":
             _set_order_status(
                 order["out_trade_no"], "PAID", trade_no=result.get("trade_no"), paid_at=_now()
@@ -1088,7 +1110,7 @@ def refund_order(out_trade_no: str, payload: RefundPayload, request: Request) ->
     order = _find_order(out_trade_no)
     if order is None:
         raise HTTPException(status_code=404, detail="订单不存在")
-    if order["status"] != "PAID":
+    if order["status"] not in ("PAID", "PARTIAL_REFUNDED", "REFUNDED"):
         raise HTTPException(status_code=409, detail="只有已支付订单可以退款")
     try:
         refund_amount = _normalize_amount(payload.refund_amount, field="退款金额")
@@ -1096,10 +1118,18 @@ def refund_order(out_trade_no: str, payload: RefundPayload, request: Request) ->
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     refunded = _amount_of(order["refunded_amount"])
-    if refunded + Decimal(refund_amount) > _amount_of(order["total_amount"]):
-        raise HTTPException(status_code=400, detail="累计退款金额超过订单实付金额")
+    # Reservation below serializes outstanding refunds and handles replay before
+    # checking remaining balance, including fully refunded orders.
 
     out_request_no = (payload.out_request_no or "").strip() or f"RF{secrets.token_hex(6).upper()}"
+    from . import referral_recharge
+    try:
+        state=referral_recharge.reserve_refund(out_trade_no,out_request_no,referral_recharge.amount_cents(refund_amount))
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
+    if state=='confirmed':
+        referral_recharge.confirm_refund(out_trade_no,out_request_no)
+        return JSONResponse({'out_trade_no':out_trade_no,'out_request_no':out_request_no,'code':'10000','already_refunded':True})
     try:
         result = _trade_refund(out_trade_no, refund_amount, out_request_no, payload.refund_reason)
     except Exception as exc:  # noqa: BLE001
@@ -1113,9 +1143,7 @@ def refund_order(out_trade_no: str, payload: RefundPayload, request: Request) ->
         cumulative = refunded + Decimal(refund_amount)
         full_refund = cumulative >= _amount_of(order["total_amount"])
         status_after_refund = "REFUNDED" if full_refund else "PARTIAL_REFUNDED"
-        _bump_refunded(out_trade_no, Decimal(refund_amount))
-        _set_order_status(out_trade_no, status_after_refund)
-        clawback = _claw_back_refund(order, refunded, Decimal(refund_amount), out_request_no)
+        referral_recharge.confirm_refund(out_trade_no,out_request_no)
     return JSONResponse(
         {
             "out_trade_no": out_trade_no,
@@ -1199,6 +1227,8 @@ async def reconcile_loop() -> None:
         await asyncio.sleep(interval)
         try:
             await asyncio.to_thread(reconcile_pending_orders)
+            from . import referral_recharge
+            await asyncio.to_thread(referral_recharge.reconcile)
         except Exception:  # noqa: BLE001 - 循环不因单轮异常退出
             logger.warning("alipay reconcile loop error", exc_info=True)
 
@@ -1336,7 +1366,8 @@ document.getElementById('run-reconcile')?.addEventListener('click', async () => 
 
 
 @router.get("/api/pay/alipay/orders/{out_trade_no}/refund-query")
-def refund_query_order(out_trade_no: str, out_request_no: str) -> JSONResponse:
+def refund_query_order(out_trade_no: str, out_request_no: str, request: Request) -> JSONResponse:
+    accounts.require_admin(request)
     order = _find_order(out_trade_no)
     if order is None:
         raise HTTPException(status_code=404, detail="订单不存在")
@@ -1347,6 +1378,12 @@ def refund_query_order(out_trade_no: str, out_request_no: str) -> JSONResponse:
     except Exception as exc:  # noqa: BLE001
         logger.warning("alipay refund query failed", exc_info=True)
         raise HTTPException(status_code=502, detail="退款查询失败，请稍后重试") from exc
+    if result.get('code')=='10000' and result.get('refund_status')=='REFUND_SUCCESS':
+        from . import referral_recharge
+        with accounts._connect() as c:
+            pending=c.execute('SELECT cents FROM referral_refund_requests WHERE request_id=?',(out_trade_no+':'+out_request_no.strip(),)).fetchone()
+        if pending and referral_recharge.amount_cents(str(result.get('refund_amount','-1')))==pending['cents']:
+            referral_recharge.confirm_refund(out_trade_no,out_request_no.strip())
     return JSONResponse(
         {
             "out_trade_no": out_trade_no,
@@ -1407,6 +1444,9 @@ async def alipay_notify(request: Request) -> PlainTextResponse:
         logger.warning("alipay notify rejected: amount mismatch")
         return PlainTextResponse("fail")
 
+    if _is_paid_notification(params):
+        _record_referral_payment(order['out_trade_no'], params, 'verified_signature')
+
     notify_id = (params.get("notify_id") or "").strip() or f"no-notify-id:{params['out_trade_no']}"
     try:
         with ENGINE.begin() as connection:
@@ -1425,7 +1465,7 @@ async def alipay_notify(request: Request) -> PlainTextResponse:
             _credit_recharge(params["out_trade_no"])
         return PlainTextResponse("success")
 
-    if _is_paid_notification(params) and order["status"] != "PAID":
+    if _is_paid_notification(params) and order["status"] not in ("PAID","PARTIAL_REFUNDED","REFUNDED"):
         _set_order_status(
             order["out_trade_no"],
             "PAID",
@@ -1434,6 +1474,9 @@ async def alipay_notify(request: Request) -> PlainTextResponse:
         )
     if _is_paid_notification(params):
         _credit_recharge(params["out_trade_no"])
+    elif params.get('gmt_refund') or params.get('refund_fee') or params.get('out_biz_no'):
+        from . import referral_recharge
+        referral_recharge.refund_notice(order['out_trade_no'],params.get('out_biz_no') or '')
     return PlainTextResponse("success")
 
 

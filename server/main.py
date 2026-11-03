@@ -60,6 +60,8 @@ app = FastAPI(
 accounts.init_db()
 from . import referrals
 referrals.init_schema()
+from . import referral_recharge
+referral_recharge.init_schema()
 lowfans_sync.init_schema()
 community.init_schema()
 app.include_router(community.router)
@@ -83,6 +85,7 @@ app.include_router(lowfans_router)
 app.include_router(xhs_extract_router)
 app.include_router(douyin_extract_router)
 app.include_router(alipay_pay_router)
+app.include_router(referral_recharge.router)
 app.include_router(wallet_page_router)
 app.include_router(invite_page_router)
 app.include_router(bill_page_router)

@@ -975,10 +975,6 @@ def settle_usage(request_id: str, http_status: int, duration_ms: int) -> None:
                WHERE request_id=? AND status='reserved'""",
             (http_status, duration_ms, utc_now(), request_id),
         ).rowcount
-    if settled:
-        # 邀请奖励的门槛是「一次真实扣分任务跑完」，而这里是所有收费路径唯一的
-        # 完成落点，所以激活判定挂在这里，不额外引入第二套完成事件。
-        _notify_referral_activation(request_id)
 
 
 def settle_usage_with_points(request_id: str, http_status: int, duration_ms: int,
@@ -1049,19 +1045,6 @@ def settle_usage_with_points(request_id: str, http_status: int, duration_ms: int
             (actual, http_status, duration_ms, now, request_id),
         )
         connection.execute("COMMIT")
-    if actual > 0:
-        _notify_referral_activation(request_id)
-
-
-def _notify_referral_activation(request_id: str) -> None:
-    """Invite rewards must never be able to fail a settled request."""
-    try:
-        from . import referrals
-        referrals.on_usage_completed(request_id)
-    except Exception:
-        logging.getLogger(__name__).warning(
-            "Referral activation unavailable; request_id=%s", request_id
-        )
 
 
 def refund_usage(request_id: str, http_status: int, duration_ms: int) -> None:

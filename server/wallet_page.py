@@ -138,13 +138,13 @@ def _invite_card(user_id: str) -> str:
         info = referrals.summary(user_id)
     except Exception:  # noqa: BLE001 - 邀请活动异常不能把钱包页弄挂
         return ""
-    rewards = info["rewards"]
+    rules = info["rules"]
     return (
         '<section class="wx-invite-card">'
         "<div>"
-        "<h2>邀请好友，双方都得积分</h2>"
-        f'<p>好友用你的邀请码注册即得 {rewards["signup"]} 积分；他跑完第一个任务后，'
-        f'你再得 {rewards["activate_inviter"]} 积分，他再得 {rewards["activate_invitee"]} 积分。'
+        "<h2>邀请好友充值，积分持续返</h2>"
+        f'<p>好友首充返 {rules["first_bps"]/100:g}%，首次充值后 {rules["window_hours"]//24} 天内复充返 {rules["repeat_bps"]/100:g}%；'
+        f'每位好友最多贡献 {rules["cap"]} 积分。'
         f'已邀请 {info["counts"]["total"]} 人，累计获得 {info["earned_points"]} 积分。</p>'
         "</div>"
         '<div class="wx-invite-side">'
