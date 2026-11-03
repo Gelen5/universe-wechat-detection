@@ -188,6 +188,18 @@ class NativeConversationTests(unittest.TestCase):
         self.assertTrue(article['quality_report']['hard_gate']['blocked'])
         self.assertFalse(article['formatted_output'])
 
+    def test_layout_preview_for_missing_information_anchor_keeps_review_warning(self):
+        draft = ('# 关于陪伴的思考\n\n' + ('陪伴需要尊重每个人的想法，也需要认真倾听。每个人都有自己的选择，关心应当从理解开始。\n\n' * 20)).strip()
+        state = self.run_turn({}, '请用温暖故事风格排版：\n' + draft, [
+            {'action':'format','existing_draft':draft}])
+        article = state['article_state']
+        self.assertEqual(article['draft'], draft)
+        self.assertEqual(article['nodes']['review']['status'], 'blocked')
+        self.assertNotEqual(article['nodes']['delivery']['status'], 'passed')
+        self.assertTrue(article['quality_report']['hard_gate']['blocked'])
+        self.assertTrue(Path(article['formatted_output']).is_file())
+        self.assertTrue(any('正文复核' in warning for warning in state['layout_warnings']))
+
     def test_requesting_alternative_topics_does_not_mutate_existing_article(self):
         article = runtime.initialize('给上班族写邮件处理建议')
         article = runtime.resume(article, 'intent', {'intent':{'goal':'实用建议'},

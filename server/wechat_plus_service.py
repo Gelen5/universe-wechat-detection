@@ -300,19 +300,35 @@ def _execute(state, message, generate, *, output_dir, progress,
                 else:
                     original_draft = article.get('draft', '')
                     reviewed = article.get('nodes', {}).get('review', {}).get('status') == 'passed'
+                    preview_only = False
                     if action != 'format' or not reviewed:
                         reset_from(article, 'review')
-                        node('review')
+                        try:
+                            node('review')
+                        except Blocked:
+                            # A lack of information anchors is an editorial issue,
+                            # not a reason to prevent a faithful layout preview.
+                            # Keep the failed review and do not mark delivery passed.
+                            findings = article.get('quality_report', {}).get('hard_gate', {}).get('findings', [])
+                            revisions = [item.get('code') for item in findings if item.get('level') != 'note']
+                            if action != 'format' or not revisions or set(revisions) != {'no_information_anchor'}:
+                                raise
+                            preview_only = True
                     if action == 'format':
                         # Review suggestions must never rewrite a formatting-only request.
                         article['draft'] = original_draft
-                        node('delivery')
+                        if not preview_only:
+                            node('delivery')
                         preference_message = message.replace(imported, '') if isinstance(imported, str) and imported.strip() and imported in message else message
                         auto_request = preference_message.strip() in {'排版','排版看看','开始排版','帮我排版','生成排版'} or any(word in preference_message for word in ('帮我选','自动','换一种'))
                         request = preference_message if (quick_layout or layout_adjustment or auto_request) else preference_message + ' ' + str(decision.get('layout_request') or '')
                         theme = layout.choose(request, state.get('layout_theme') or state.get('layout_previous_theme'), fresh=not bool(state.get('layout_theme')), content=original_draft)
                         formatted = layout.render(original_draft, theme)
                         warnings = layout.check(formatted)
+                        if preview_only:
+                            output_dir.mkdir(parents=True, exist_ok=True)
+                            article['formatted_output'] = str(output_dir / 'article.html')
+                            warnings.append('正文复核提示缺少具体事实或案例，建议补充后再发布；详情见“复核与来源”。')
                         Path(article['formatted_output']).write_text(formatted, encoding='utf-8')
                         state['layout_theme'] = theme
                         state['layout_warnings'] = warnings
