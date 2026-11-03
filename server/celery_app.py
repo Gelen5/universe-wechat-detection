@@ -2,16 +2,21 @@
 from __future__ import annotations
 
 import os
+import sys
 
 from celery import Celery
 from celery.schedules import crontab
 
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+# Beat only publishes named tasks; importing the worker's task modules here
+# wastes substantial memory. Workers still import and register every task.
+_beat_only = len(sys.argv) > 1 and "beat" in sys.argv[1:] and "worker" not in sys.argv[1:]
+_task_modules = ["server.workflow_tasks", "server.agent_tasks", "server.hotspots",
+                 "server.provider_health", "server.wechat_plus_tasks",
+                 "server.viral_remix_tasks", "server.lowfans_sync", "server.article_visual_tasks"]
 celery_app = Celery("universe_creator", broker=REDIS_URL, backend=REDIS_URL,
-                    include=["server.workflow_tasks", "server.agent_tasks", "server.hotspots",
-                             "server.provider_health", "server.wechat_plus_tasks",
-                             "server.viral_remix_tasks", "server.lowfans_sync", "server.article_visual_tasks"])
+                    include=[] if _beat_only else _task_modules)
 celery_app.conf.update(
     task_serializer="json", result_serializer="json", accept_content=["json"],
     task_acks_late=True, task_reject_on_worker_lost=True,
