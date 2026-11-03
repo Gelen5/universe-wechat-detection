@@ -204,12 +204,16 @@ def fulfill(payload: dict[str, Any], node: str, generate: Callable,
         records = (pack.get('sources') or {}).get('records', [])
         known = set()
         for record in records:
+            if supplied.get('mode') == 'user_links' and record.get('status') == 'verified':
+                record['status'] = 'unverified'
             if record.get('url') and record['url'] not in allowed:
                 raise ValueError('研究结果引用了未检索到的来源，请重试或补充材料')
             if record.get('kind') == 'web' and not record.get('url'):
                 raise ValueError('公开来源缺少可追溯链接')
             known.add(record.get('source_id'))
         for claim in pack.get('claims', []):
+            if supplied.get('mode') == 'user_links' and claim.get('status') == 'verified':
+                claim['status'] = 'unverified'
             if any(source not in known for source in claim.get('source_ids', [])):
                 raise ValueError('主张引用了不存在的来源')
         if supplied.get('status') in {'unavailable', 'failed'}:

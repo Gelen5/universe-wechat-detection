@@ -1,7 +1,7 @@
 from pathlib import Path
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 import os
 
 from server import wechat_plus_service as service
@@ -114,6 +114,61 @@ class NativeConversationTests(unittest.TestCase):
                 {'title':'整理材料','angle':'材料'}, {'title':'会议记录','angle':'记录'}]}])
         self.assertEqual(state['last_action'], 'topics')
         self.assertEqual(state['article_state']['draft'], '')
+
+    def test_user_url_is_read_directly_without_search(self):
+        url = 'https://example.com/article'
+        fetched = {'url': url, 'final_url': 'https://example.com/final', 'content': '事实材料' * 80}
+        search = Mock(side_effect=AssertionError('should not search'))
+        captured = {}
+        class ResearchReached(Exception): pass
+        def fulfill(article, node, generate, **kwargs):
+            if node == 'research':
+                captured.update(kwargs['evidence'])
+                raise ResearchReached()
+            article['nodes'][node]['status'] = 'passed'
+            return article
+        with patch.object(service.workbench_research, 'fetch_source', return_value=fetched) as read, \
+                patch.object(runtime, 'fulfill', side_effect=fulfill):
+            with self.assertRaises(ResearchReached):
+                service.execute({}, '按这个链接写：https://example.com/article',
+                    lambda _: {'action':'write','explicit_topic':'测试主题'}, output_dir=self.output, search=search)
+        search.assert_not_called()
+        self.assertEqual(read.call_args.args[0]['url'], url)
+        self.assertEqual(captured['mode'], 'user_links')
+        self.assertEqual(captured['sources'][0]['url'], url)
+        self.assertEqual(captured['fetched'][0]['url'], 'https://example.com/final')
+        self.assertIn('未经独立事实核验', captured['limitations'])
+
+    def test_unreadable_user_url_stops_and_does_not_search(self):
+        search = Mock(side_effect=AssertionError('should not search'))
+        def fulfill(article, node, generate, **kwargs):
+            article['nodes'][node]['status'] = 'passed'
+            return article
+        with patch.object(service.workbench_research, 'fetch_source', return_value={'fetch_status':'unavailable'}), \
+                patch.object(runtime, 'fulfill', side_effect=fulfill):
+            with self.assertRaisesRegex(ValueError, '无法读取你提供的链接'):
+                service.execute({}, '直接写 https://example.com/blocked',
+                    lambda _: {'action':'write','explicit_topic':'测试主题'}, output_dir=self.output, search=search)
+        search.assert_not_called()
+
+    def test_links_persist_through_clarification_and_clear_on_new_topic(self):
+        state = self.run_turn({}, '依据 https://example.com/article 写文章', [
+            {'action':'clarify','reply':'想写给谁？'}])
+        self.assertEqual(state['source_links'], ['https://example.com/article'])
+        service.select_topic(state, '换个话题', '新主题')
+        self.assertNotIn('source_links', state)
+
+    def test_provided_link_is_an_allowed_research_source(self):
+        article = runtime.initialize('根据链接写作')
+        article = runtime.resume(article, 'intent', {'intent':{'goal':'解读'}, 'audience':{'description':'普通读者'}, 'topic':'事件'})
+        article = runtime.resume(article, 'topic', {'topic':'事件','angle':'解读'})
+        url = 'https://example.com/article'
+        output = runtime.fulfill(article, 'research', lambda prompt:{'evidence_pack':{
+            'sources':{'records':[{'source_id':'S1','kind':'web','url':url,'title':'用户提供', 'status':'verified'}]},
+            'claims':[], 'research_status':'partial', 'limitations':[]}}, evidence={'mode':'user_links','status':'complete',
+                'sources':[{'url':url}], 'fetched':[{'url':url,'excerpt':'正文材料'}]})
+        self.assertEqual(output['evidence_pack']['sources']['records'][0]['url'], url)
+        self.assertEqual(output['evidence_pack']['sources']['records'][0]['status'], 'unverified')
 
     def test_research_rejects_model_invented_source(self):
         article = runtime.initialize('写给上班族的邮件处理建议')
@@ -325,5 +380,34 @@ def test_plus_api_worker_refunds_incomplete_topic_without_internal_prompt(tmp_pa
         assert 'intent.search_intent' not in loaded['turns'][0]['error']
         assert '未完整返回' in loaded['turns'][0]['error']
         assert accounts.wallet_summary('owner')['balance'] == 100
+    finally:
+        case.tearDown()
+
+
+def test_plus_unreadable_user_link_refunds_and_retains_existing_state(tmp_path):
+    from tests import test_wechat_plus_api as api_tests
+    from server import wechat_plus_tasks as tasks, accounts
+    case = api_tests.PlusAPITests(methodName='runTest')
+    case.setUp()
+    try:
+        row = case.client.post('/api/wechat-plus/sessions', json={'title':'事件'}, headers=case.headers).json()['session']
+        sent = case.client.post('/api/wechat-plus/sessions/'+row['id']+'/messages', headers=case.headers,
+            json={'message':'直接写 https://example.com/blocked','version':1,'idempotency_key':'link-failure-refund-test'})
+        assert sent.status_code == 202
+        turn_id = sent.json()['turn']['id']
+        def fulfill(article, node, generate, **kwargs):
+            article['nodes'][node]['status'] = 'passed'
+            return article
+        with patch.object(workbench, 'SKILL_DIR', ROOT/'vendor/skills/weChat-autoCreate'), \
+             patch.object(workbench, 'OUTPUT_DIR', tmp_path), \
+             patch.object(tasks.service, 'generate_json', return_value={'action':'write','explicit_topic':'事件'}), \
+             patch.object(service.workbench_research, 'fetch_source', return_value={'fetch_status':'unavailable'}), \
+             patch.object(runtime, 'fulfill', side_effect=fulfill):
+            result = tasks.execute_turn.apply(args=[turn_id], task_id='test-worker', throw=True).get()
+        assert result['status'] == 'failed'
+        loaded = case.client.get('/api/wechat-plus/sessions/'+row['id'],headers=case.headers).json()['session']
+        assert '无法读取你提供的链接' in loaded['turns'][0]['error']
+        assert accounts.wallet_summary('owner')['balance'] == 100
+        assert loaded['version'] == 1
     finally:
         case.tearDown()

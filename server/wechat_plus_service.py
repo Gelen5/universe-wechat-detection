@@ -87,11 +87,42 @@ def select_topic(state, title, angle):
     states, _ = runtime.skill_article_adapter._skill_modules()
     article['evidence_pack'] = states.ArticleState().to_dict()['evidence_pack']
     state.pop('research', None)
+    state.pop('source_links', None)
     state.pop('imported', None)
     state.pop('topic_proposal', None)
     state['selected_topic'] = {'title': title, 'angle': angle}
     state['choices'] = []
     reset_from(article, 'topic')
+
+
+def user_source_links(message: str) -> list[str]:
+    """Capture links in the user's message, never from model output."""
+    found = re.findall(r'https?://[^\s<>"\u3000]+', message or '', flags=re.I)
+    links = []
+    for value in found:
+        value = value.rstrip('，。；、！？）》】）)]}\'"')
+        if value and value not in links:
+            links.append(value)
+    if len(links) > 5:
+        raise ValueError('一次最多提供 5 个链接，请减少链接数量后重试。')
+    return links
+
+
+def read_user_sources(links: list[str], *, check_cancelled=lambda: None) -> dict:
+    """Read the supplied URLs directly, without search or fabricated excerpts."""
+    sources, fetched = [], []
+    for url in links:
+        check_cancelled()
+        item = workbench_research.fetch_source({'url': url, 'title': '用户提供的链接',
+                                                'provider': 'user_provided'}, max_bytes=5_000_000)
+        if not item.get('content'):
+            raise ValueError('无法读取你提供的链接，可能需要登录、验证或页面不支持读取。请提供可访问的链接，或直接粘贴正文；本次不会扣费。')
+        sources.append({'url': url, 'title': item.get('title') or '用户提供的链接',
+                        'provider': 'user_provided', 'verification': 'page_fetched_not_fact_checked'})
+        fetched.append({'url': item.get('final_url') or url, 'title': item.get('title') or '用户提供的链接',
+                        'excerpt': item['content'][:6000], 'provider': 'user_provided'})
+    return {'status': 'complete', 'mode': 'user_links', 'sources': sources, 'fetched': fetched,
+            'limitations': '内容直接读取自用户提供的链接，网页内容未经独立事实核验。'}
 
 
 def execute(state, message, generate, *, output_dir: Path, progress=lambda _: None,
@@ -122,6 +153,7 @@ def execute(state, message, generate, *, output_dir: Path, progress=lambda _: No
 def _execute(state, message, generate, *, output_dir, progress,
              check_cancelled, search):
     state = deepcopy(state)
+    supplied_links = user_source_links(message)
     state.pop('_blocked', None)
     history = state.setdefault('messages', [])
     history.append({'role': 'user', 'content': message})
@@ -167,13 +199,21 @@ def _execute(state, message, generate, *, output_dir, progress,
         if index < 0 or index >= len(choices):
             raise ValueError('所选选题不存在，请重新选择')
         choice = choices[index]
+        proposal_links = state.get('source_links', []) if state.get('topic_proposal') else []
         select_topic(state, choice['title'], choice.get('angle') or choice.get('focus') or choice['title'])
+        if proposal_links: state['source_links'] = proposal_links
     explicit = None if action == 'format' and existing_article.get('draft') else decision.get('explicit_topic')
     if isinstance(explicit, str) and explicit.strip():
         if article.get('topic') != explicit[:500]:
             select_topic(state, explicit[:500], explicit[:2000])
         elif not state.get('selected_topic'):
             state['selected_topic'] = {'title': explicit[:500], 'angle': explicit[:2000]}
+    if supplied_links:
+        # New user-provided material invalidates old research for this topic.
+        if supplied_links != state.get('source_links'):
+            state.pop('research', None)
+            reset_from(article, 'research')
+        state['source_links'] = supplied_links
     imported = decision.get('existing_draft')
     if isinstance(imported, str) and imported.strip() == article.get('draft', '').strip():
         # Some planners echo the current document while asking to format it.
@@ -267,8 +307,13 @@ def _execute(state, message, generate, *, output_dir, progress,
                         check_cancelled()
                         states, _ = runtime.skill_article_adapter._skill_modules()
                         article['evidence_pack'] = states.ArticleState().to_dict()['evidence_pack']
-                        raw = search(article['topic'], fetch=True, max_sources=10, max_fetch=3, timeout=10)
-                        state['research'] = workbench_research.compact(raw, excerpt_chars=2500)
+                        links = state.get('source_links') or []
+                        if links:
+                            progress('正在读取你提供的链接')
+                            state['research'] = read_user_sources(links, check_cancelled=check_cancelled)
+                        else:
+                            raw = search(article['topic'], fetch=True, max_sources=10, max_fetch=3, timeout=10)
+                            state['research'] = workbench_research.compact(raw, excerpt_chars=2500)
                     node('research')
                 if article['nodes']['strategy']['status'] != 'passed':
                     node('strategy')
