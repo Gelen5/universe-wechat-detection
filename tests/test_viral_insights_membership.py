@@ -353,6 +353,20 @@ def test_image_board_scheduled_sync_disabled_by_default(monkeypatch):
         sync.assert_not_called()
 
 
+def test_lowfans_empty_upstream_retries_are_bounded(monkeypatch):
+    from server import lowfans_sync
+    monkeypatch.setenv('WXRANK_API_KEY', 'test')
+    monkeypatch.setenv('LOWFANS_MAX_ATTEMPTS', '2')
+    with patch.object(lowfans_sync, '_redis', return_value=None), \
+         patch.object(lowfans_sync, 'fetch_page', return_value={'code': 0, 'data': {'list': []}}) as fetch:
+        first = lowfans_sync.sync_daily(stat_date='2099-01-01')
+        second = lowfans_sync.sync_daily(stat_date='2099-01-01')
+        third = lowfans_sync.sync_daily(stat_date='2099-01-01')
+    assert first['status'] == second['status'] == 'partial'
+    assert third['calls'] == 0
+    assert fetch.call_count == 2
+
+
 def test_reconciliation_repairs_paid_membership_without_grant(paywall, clock):
     client, uid = _client_for_new_user()
     oid = _membership_order(uid)

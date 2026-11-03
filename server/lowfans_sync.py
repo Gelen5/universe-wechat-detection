@@ -222,6 +222,12 @@ def sync_daily(pages: int | None = None, stat_date: str | None = None,
         except Exception as exc:  # noqa: BLE001 - 查库失败就当没数据，正常拉
             logger.warning("lowfans skip-check failed: %s", exc)
             existing, last, attempts = 0, None, 0
+        if not existing and attempts >= max_attempts():
+            if client is not None:
+                client.delete(KEY_LOCK)
+            return {"status": "cached", "stat_date": stat_date, "range_type": range_type,
+                    "inserted": 0, "calls": 0, "cost_points": 0,
+                    "reason": "已达到本日尝试次数上限"}
         if existing:
             # 上游当天是逐步生成的：早上抓到的可能是残缺集合。只有拿满请求页数，
             # 或已覆盖上游自报的 total，才算这一天完成；否则留给后续调度补齐。
@@ -278,7 +284,8 @@ def sync_daily(pages: int | None = None, stat_date: str | None = None,
                         LowfansArticle.stat_date == stat_date,
                         LowfansArticle.range_type == range_type,
                     )).scalar() or 0
-                if existing and not complete:
+                unique_count = len({item["art_id"] for item in rows})
+                if existing and (not complete or unique_count < existing):
                     # 本次不完整但库里已有整份数据：宁可留旧的，不拿半份覆盖
                     logger.warning("lowfans sync incomplete (%s pages), keep existing %s rows",
                                    pages_ok, existing)
@@ -299,7 +306,7 @@ def sync_daily(pages: int | None = None, stat_date: str | None = None,
 
         if pages_ok == 0:
             status = "failed"
-        elif complete:
+        elif complete and rows:
             status = "ok"
         else:
             status = "partial"

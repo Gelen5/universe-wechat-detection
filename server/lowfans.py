@@ -175,7 +175,7 @@ def list_lowfans(
         last = session.execute(
             select(LowfansSyncRun).order_by(LowfansSyncRun.started_at.desc()).limit(1)
         ).scalars().first()
-    latest_ok = bool(last and last.status == "ok")
+    latest_ok = bool(last and last.status == "ok" and stat_date >= lowfans_sync.yesterday_beijing())
     accessible = _access(request)
     if not accessible:
         preview_rows = rows[:membership.preview_limit()]
