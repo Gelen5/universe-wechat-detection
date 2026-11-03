@@ -112,7 +112,7 @@ def test_parse_invalid_link_gets_actionable_hint():
 
     with pytest.raises(ValueError) as exc:
         article_visual.parse_article_html("<html><body>参数错误</body></html>")
-    assert "链接可能被截断" in str(exc.value)
+    assert "重新复制完整链接" in str(exc.value)
 
 
 

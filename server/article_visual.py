@@ -115,18 +115,18 @@ def parse_article_html(html: str, url: str = "") -> dict[str, Any]:
             if reason in html:
                 hint = ""
                 if reason == "参数错误":
-                    hint = "（链接可能被截断，请在微信里重新复制完整链接）"
+                    hint = "（链接可能不完整，请先在微信中打开文章，再重新复制完整链接）"
                 elif reason == "环境异常":
                     hint = "（微信拦了这次访问，过几分钟再试）"
                 raise ValueError(f"文章打不开：{reason}{hint}")
-        raise ValueError("没有解析到正文，可能被风控或文章已删除")
+        raise ValueError("暂时无法读取文章正文。请先在微信中确认文章可以打开，并重新复制完整链接；如果仍无法读取，请稍后再试。")
 
     from bs4 import BeautifulSoup
 
     soup = BeautifulSoup(html, "html.parser")
     content = soup.find(id="js_content")
     if content is None:
-        raise ValueError("没有解析到正文")
+        raise ValueError("暂时无法读取文章正文。请先在微信中确认文章可以打开，并重新复制完整链接；如果仍无法读取，请稍后再试。")
 
     title = ""
     og = soup.find("meta", property="og:title")
@@ -658,7 +658,7 @@ def build_plan(article: dict[str, Any], progress=None, initial_raw: str = '', sa
     except (ValueError, TypeError, KeyError, json.JSONDecodeError) as exc:
         logger.warning("article_visual plan invalid: code=%s response_chars=%d", _plan_error_code(exc), len(raw_text))
         log_event('article_visual.plan_failed', trace_id=trace_id, code=_plan_error_code(exc))
-        raise ValueError("拆解方案不完整或未通过原文校验，请重试；本次失败会退还积分") from exc
+        raise ValueError("文章已读取，但本次配图方案未通过系统检查。失败积分将自动退回，请稍后重试；如多次失败，请联系客服。") from exc
     plan = _normalize_plan(parsed, article)
     plan["source"] = "model"
     plan["article_digest"] = article_digest(article)
