@@ -46,7 +46,7 @@ fetch('/api/auth/config').then(response => response.ok ? response.json() : {}).t
   emailVerificationRequired = Boolean(config.email_verification_required);
   window.AuthChallenge?.configure(config);
   window.AuthChallenge?.mode(document.querySelector('#auth-form').dataset.mode || 'login');
-  document.querySelector('#auth-email-code-field').hidden = !emailVerificationRequired || document.querySelector('#auth-form').dataset.mode !== 'register';
+  document.querySelector('#auth-email-code-field').hidden = !emailVerificationRequired || document.querySelector('#auth-form').dataset.mode !== 'register' || Boolean(registrationToken);
   if (registrationToken) {
     fetch('/api/auth/registration-link', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({registration_token:registrationToken})})
       .then(readApiResponse).then(data => {
@@ -302,14 +302,30 @@ function setAuthMode(mode) {
   });
   document.querySelector('#display-name-field').hidden = !register;
   document.querySelector('#invite-code-field').hidden = !register;
+  document.querySelector('#auth-optional').hidden = !register;
   document.querySelector('#auth-email-code-field').hidden = !register || !emailVerificationRequired || Boolean(registrationToken);
   document.querySelector('#auth-title').textContent = register ? '创建你的账号' : '欢迎回来';
-  document.querySelector('#auth-description').textContent = register ? '从一个想法，开始你的创作。' : '登录，继续你的创作。';
+  document.querySelector('#auth-description').textContent = register ? '注册后开始创作，体验贴图复刻、爆文转贴图和内容提取。' : '登录，继续你的创作。';
   document.querySelector('#auth-submit').textContent = register ? '注册并进入工作台' : '登录';
   document.querySelector('#auth-password').autocomplete = register ? 'new-password' : 'current-password';
   document.querySelector('#auth-form').dataset.mode = mode;
   document.querySelector('#auth-error').hidden = true;
+  document.querySelectorAll('#auth-form [aria-invalid]').forEach(input => input.removeAttribute('aria-invalid'));
 }
+
+function authError(message, input) {
+  const error = document.querySelector('#auth-error');
+  error.textContent = message; error.hidden = false;
+  if (input) { input.setAttribute('aria-invalid', 'true'); input.focus({preventScroll:true}); input.scrollIntoView({block:'nearest'}); }
+}
+function validAuthEmail() {
+  const email = document.querySelector('#auth-email');
+  if (!email.value.trim()) { authError('请先输入邮箱地址。', email); return false; }
+  if (!email.validity.valid) { authError('邮箱格式不正确，请检查后重试。', email); return false; }
+  email.removeAttribute('aria-invalid'); return true;
+}
+document.querySelectorAll('#auth-form input').forEach(input => input.addEventListener('input', () => input.removeAttribute('aria-invalid')));
+document.querySelector('#auth-email')?.addEventListener('input', () => { document.querySelector('#auth-code-status').textContent = ''; });
 
 function dismissAuth() {
   if (!currentAccount) return;
@@ -330,14 +346,17 @@ document.querySelector('#auth-send-code')?.addEventListener('click', async event
   const button = event.currentTarget;
   const error = document.querySelector('#auth-error');
   error.hidden = true;
+  if (!validAuthEmail()) return;
+  const sentEmail = document.querySelector('#auth-email').value.trim();
   button.disabled = true;
   try {
     const challenge = await window.AuthChallenge?.getToken('register_email');
     const response = await fetch('/api/auth/email-code', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: document.querySelector('#auth-email').value.trim(), ...(challenge ? {turnstile_token: challenge} : {}) }),
+      body: JSON.stringify({ email: sentEmail, ...(challenge ? {turnstile_token: challenge} : {}) }),
     });
     await readApiResponse(response);
+    document.querySelector('#auth-code-status').textContent = `如果该邮箱可用于注册，验证码将发送至 ${sentEmail}，请检查收件箱和垃圾邮件。`;
     let seconds = 60;
     button.textContent = `${seconds} 秒后重发`;
     const cooldown = setInterval(() => {
@@ -346,7 +365,7 @@ document.querySelector('#auth-send-code')?.addEventListener('click', async event
       if (seconds <= 0) { clearInterval(cooldown); button.disabled = false; }
     }, 1000);
   } catch (exception) {
-    error.textContent = exception.message;
+    error.textContent = exception instanceof TypeError ? '网络连接异常，请检查网络后重试。' : exception.message;
     error.hidden = false;
     button.disabled = false;
   } finally { window.AuthChallenge?.reset(); }
@@ -363,7 +382,7 @@ document.querySelector('#auth-password-toggle')?.addEventListener('click', event
 authModal?.addEventListener('keydown', event => {
   if (event.key === 'Escape') { event.preventDefault(); dismissAuth(); return; }
   if (event.key !== 'Tab') return;
-  const controls = [...authModal.querySelectorAll('a[href], button:not(:disabled), input:not(:disabled)')].filter(el => el.getClientRects().length);
+  const controls = [...authModal.querySelectorAll('a[href], summary, button:not(:disabled), input:not(:disabled)')].filter(el => el.getClientRects().length);
   const first = controls[0], last = controls.at(-1);
   if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
   else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
@@ -375,6 +394,13 @@ document.querySelector('#auth-form')?.addEventListener('submit', async event => 
   const submit = document.querySelector('#auth-submit');
   const error = document.querySelector('#auth-error');
   error.hidden = true;
+  if (!validAuthEmail()) return;
+  const password = document.querySelector('#auth-password');
+  if (!password.value || (mode === 'register' && password.value.length < 8)) { authError(mode === 'register' ? '密码至少需要 8 位，请检查后重试。' : '请输入密码。', password); return; }
+  const code = document.querySelector('#auth-email-code');
+  if (mode === 'register' && emailVerificationRequired && !registrationToken && !/^\d{6}$/.test(code.value.trim())) {
+    authError('请输入邮箱收到的 6 位验证码。', code); return;
+  }
   const finish = beginButton(submit, mode === 'register' ? '正在注册…' : '正在登录…');
   try {
     const challenge = mode === 'register' ? await window.AuthChallenge?.getToken('register') : '';
@@ -403,7 +429,7 @@ document.querySelector('#auth-form')?.addEventListener('submit', async event => 
     // 新注册的人是活动最强的传播源：当场把邀请码摆到他面前，而不是等他去翻设置。
     if (mode === 'register') guideToInvite();
   } catch (exception) {
-    error.textContent = exception.message;
+    error.textContent = exception instanceof TypeError ? '网络连接异常，请检查网络后重试。' : exception.message;
     error.hidden = false;
   } finally { finish(); window.AuthChallenge?.reset(); }
 });
@@ -436,6 +462,7 @@ function pendingInviteCode() {
   if (!code) return;
   const input = document.querySelector('#auth-invite-code');
   if (input) input.value = code;
+  const optional = document.querySelector('#auth-optional'); if (optional) optional.open = true;
   document.querySelector('#auth-modal')?.setAttribute('data-invited', '1');
 })();
 

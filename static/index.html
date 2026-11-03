@@ -70,7 +70,7 @@
 <link rel="stylesheet" href="/static/brand-galaxy.css?v=20261025-galaxy-1" />
 <link rel="stylesheet" href="/static/mobile-creator.css?v=20261101-home-20261027-runtime-ui-3" />
 <link rel="stylesheet" href="/static/points-notice.css?v=20261103-packages-2" />
-<link rel="stylesheet" href="/static/auth-mint.css?v=20261101-contact-1" />
+<link rel="stylesheet" href="/static/auth-mint.css?v=20261103-register-2" />
 <script src="/static/points-notice.js?v=20261103-packages-2" defer></script>
 <link rel="stylesheet" href="/static/viral-remix.css?v=20261101-history-1">
 <link rel="stylesheet" href="/static/xhs-extract.css?v=20261031-workspace-5">
@@ -198,16 +198,15 @@
             <p id="auth-description">登录，继续你的创作。</p>
           </div>
           <div class="auth-tabs" aria-label="账号操作"><button class="active" aria-pressed="true" data-auth-mode="login" type="button">登录</button><button aria-pressed="false" data-auth-mode="register" type="button">注册</button></div>
-          <form id="auth-form" class="auth-form">
+          <form id="auth-form" class="auth-form" novalidate>
             <div class="auth-identity-fields">
-              <label id="display-name-field" hidden>昵称（选填）<input id="auth-display-name" type="text" maxlength="40" autocomplete="name" placeholder="怎么称呼你"></label>
               <div class="auth-email-field"><label for="auth-email">邮箱</label><input id="auth-email" type="email" maxlength="254" autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false" placeholder="输入你的邮箱" required></div>
             </div>
             <label for="auth-password">密码</label>
             <div class="auth-password-wrap"><input id="auth-password" type="password" minlength="8" maxlength="128" autocomplete="current-password" placeholder="至少 8 位" required><button id="auth-password-toggle" type="button" aria-label="显示密码" aria-pressed="false" aria-controls="auth-password">显示</button></div>
             <div id="auth-challenge" hidden><div class="auth-verification-head"><span>安全验证</span><small class="auth-verification-note">验证通过后即可继续</small></div><div id="auth-challenge-widget"></div></div>
-            <div id="auth-email-code-field" hidden><label for="auth-email-code">邮箱验证码</label><div><input id="auth-email-code" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="6 位验证码"><button id="auth-send-code" type="button">发送验证码</button></div></div>
-            <div id="invite-code-field" hidden><label for="auth-invite-code">邀请码（选填）</label><input id="auth-invite-code" type="text" maxlength="16" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="填了双方各得积分"><small class="invite-hint">好友邀请你来的话填这里，注册即送 <b id="auth-invite-bonus">10</b> 积分。</small></div>
+            <div id="auth-email-code-field" hidden><label for="auth-email-code">邮箱验证码</label><div><input id="auth-email-code" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="6 位验证码"><button id="auth-send-code" type="button">发送验证码</button></div><small id="auth-code-status" role="status" aria-live="polite"></small></div>
+            <details id="auth-optional" class="auth-optional" hidden><summary>昵称与邀请码 <span>选填</span></summary><div class="auth-optional-content"><label id="display-name-field" hidden>昵称（选填）<input id="auth-display-name" type="text" maxlength="40" autocomplete="name" placeholder="怎么称呼你"></label><div id="invite-code-field" hidden><label for="auth-invite-code">邀请码（选填）</label><input id="auth-invite-code" type="text" maxlength="16" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="输入好友邀请码"><small class="invite-hint">邀请奖励以活动实际规则为准。</small></div></div></details>
             <p id="auth-error" class="auth-error" role="alert" hidden></p>
             <button id="auth-submit" class="primary-action" type="submit">登录</button>
           </form>
@@ -1134,7 +1133,7 @@
     <script src="/static/creation-history.js?v=20261101-1"></script>
     <script src="/static/remix-publication.js?v=20261101-article1"></script>
     <script src="/static/remix-save.js?v=20261101-publication-1"></script>
-    <script src="/static/app.js?v=20261103-behavior-1"></script>
+    <script src="/static/app.js?v=20261103-register-2"></script>
     <script src="/static/flow.js?v=20261031-hide-diagnose-1"></script>
     <script src="/static/studio-tools.js?v=20261028-tietu-1"></script>
     <link rel="stylesheet" href="/static/creator-chat.css?v=20260906-conversation-1">

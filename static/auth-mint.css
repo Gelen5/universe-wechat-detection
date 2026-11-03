@@ -72,3 +72,19 @@ body.atelier #auth-modal #auth-copy-contact{flex-shrink:0;min-height:40px;min-wi
 body.atelier #auth-modal #auth-copy-contact:hover{background:#e6f3eb}
 body.atelier #auth-modal #auth-copy-status{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 @media(max-height:650px){body.atelier #auth-modal .auth-card{padding-top:24px!important;padding-bottom:24px!important}}
+
+/* Registration keeps optional details collapsed until needed. */
+body.atelier #auth-modal .auth-identity-fields{display:block}
+body.atelier #auth-modal .auth-optional{margin:18px 0 0;border:1px solid #d6e8dc;border-radius:14px;background:#ffffff85}
+body.atelier #auth-modal .auth-optional[hidden]{display:none}
+body.atelier #auth-modal .auth-optional summary{cursor:pointer;min-height:44px;padding:12px 14px;color:#355f49;font-size:13px;font-weight:600;list-style:none}
+body.atelier #auth-modal .auth-optional summary::-webkit-details-marker{display:none}
+body.atelier #auth-modal .auth-optional summary:before{content:'＋';margin-right:8px;color:#4d9671}
+body.atelier #auth-modal .auth-optional[open] summary:before{content:'−'}
+body.atelier #auth-modal .auth-optional summary span{font-size:12px;font-weight:400;color:#789687;margin-left:6px}
+body.atelier #auth-modal .auth-optional-content{padding:4px 14px 14px}
+body.atelier #auth-modal #auth-code-status{display:block;margin:8px 0 0;font-size:12px;line-height:1.6;color:#477c60;overflow-wrap:anywhere}
+body.atelier #auth-modal #auth-code-status:empty{display:none}
+body.atelier #auth-modal input[aria-invalid=true]{border-color:#b4654c!important}
+body.atelier #auth-modal .auth-card{overscroll-behavior:contain;scroll-padding:24px}
+@media(max-width:600px){body.atelier #auth-modal .auth-optional{margin-top:14px}body.atelier #auth-modal #auth-description{font-size:14px!important}}
