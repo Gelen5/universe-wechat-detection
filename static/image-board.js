@@ -1,4 +1,4 @@
-/* 低分爆图：封面优先的图片榜。
+/* 低粉爆图：封面优先的图片榜。
    只读本地快照 API，浏览时不触达计费上游；封面走 /api/image-board/cover 代理，
    因为微信图片有防盗链，浏览器直连会变成灰块。 */
 (() => {
@@ -83,7 +83,7 @@
         <div class="ib-facts"><em>${esc(item.wx_type || '')}</em></div></div></article>`).join('');
     grid.innerHTML = `<div class="vi-preview"><div class="ib-grid">${rows}</div>
       <div class="vi-lock"><strong>解锁完整榜单、阅读数据和原文</strong>
-      <p>低粉爆文与低分爆图共用权益。开启后才开始免费试用计时，未开启不会扣费；筛选、排序和搜索在开启后可用。</p>
+      <p>低粉爆文与低粉爆图共用权益。开启后才开始免费试用计时，未开启不会扣费；筛选、排序和搜索在开启后可用。</p>
       <button type="button" class="vi-primary" data-viral-insights-open>查看权益</button></div></div>`;
     setupCovers(grid);
   }

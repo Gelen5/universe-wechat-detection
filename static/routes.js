@@ -32,8 +32,8 @@ window.APP_NAV = (() => {
      fallback: true,
      icon: svg('<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 ' +
                '.5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>')},
-    // 低分爆图：资源库贴图（book）候选榜，和低粉爆文共用一套页面骨架。
-    {group: '选题灵感', href: '/image-board', view: 'image-board', label: '低分爆图',
+    // 低粉爆图：资源库贴图（book）候选榜，和低粉爆文共用一套页面骨架。
+    {group: '选题灵感', href: '/image-board', view: 'image-board', label: '低粉爆图',
      fallback: true,
      icon: svg('<rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.5"/>' +
                '<path d="m4 17 4.5-4.5 3.5 3.5 3-3 5 5"/><path d="M17 2.5l1 2 2 .5-2 .5-1 2-1-2-2-.5 2-.5z"/>')},

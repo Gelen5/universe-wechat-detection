@@ -1575,7 +1575,7 @@ const viewTitles = {
   bookshelf: 'AI 书架',
   hotspots: '热点广场',
   lowfans: '低粉爆文',
-  'image-board': '低分爆图',
+  'image-board': '低粉爆图',
 };
 
 function pathToView(path) {
