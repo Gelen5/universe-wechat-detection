@@ -46,6 +46,7 @@ from alipay.aop.api.request.AlipayTradeQueryRequest import AlipayTradeQueryReque
 from alipay.aop.api.request.AlipayTradeRefundRequest import AlipayTradeRefundRequest
 from alipay.aop.api.util.SignatureUtils import get_sign_content, verify_with_rsa
 
+from .site_icons import SITE_ICONS
 from . import accounts
 from .database import ENGINE
 
@@ -559,7 +560,7 @@ def _page(title: str, body: str) -> str:
     return (
         '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
-        f"<title>{title}</title><style>{_STYLE}</style></head><body>"
+        f"<title>{title}</title>{SITE_ICONS}<style>{_STYLE}</style></head><body>"
         f'<main class="card">{body}</main><script src="/static/behavior-observer.js?v=20261103-retire-wish-1" defer></script></body></html>'
     )
 

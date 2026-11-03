@@ -11,6 +11,8 @@ from fastapi import APIRouter
 from fastapi.responses import HTMLResponse, Response
 
 
+from .site_icons import SITE_ICONS
+
 router = APIRouter()
 SITE = "https://yuzoudiyigongzuotai.cn"
 STATIC = Path(__file__).resolve().parents[1] / "static"
@@ -83,7 +85,7 @@ def _page(slug: str) -> str:
     import json
     return f'''<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{escape(page["title"])}</title><meta name="description" content="{escape(page["description"], quote=True)}">
+<title>{escape(page["title"])}</title>{SITE_ICONS}<meta name="description" content="{escape(page["description"], quote=True)}">
 <link rel="canonical" href="{canonical}"><meta property="og:type" content="website"><meta property="og:title" content="{escape(page["title"], quote=True)}"><meta property="og:description" content="{escape(page["description"], quote=True)}"><meta property="og:url" content="{canonical}">
 <script type="application/ld+json">{json.dumps(schema, ensure_ascii=False).replace("</", "<\\/")}</script>
 <style>body{{margin:0;color:#18231d;background:#f7f6f1;font:16px/1.8 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}}main{{max-width:860px;margin:auto;padding:48px 24px 72px}}nav{{font-size:14px}}a{{color:#17633f;text-decoration:none}}a:hover{{text-decoration:underline}}.brand{{font-weight:700;color:#18231d}}h1{{font-size:clamp(32px,6vw,52px);line-height:1.18;letter-spacing:-.04em;margin:72px 0 20px}}.lead{{font-size:20px;max-width:700px;color:#42544a}}.grid{{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:48px 0}}section{{background:#fff;border:1px solid #e7e7df;border-radius:16px;padding:22px}}h2{{font-size:19px;line-height:1.35;margin:0 0 10px}}p{{margin:0;color:#526058}}.cta{{display:inline-block;margin-top:30px;padding:12px 19px;background:#17633f;border-radius:999px;color:white;font-weight:650}}footer{{margin-top:56px;color:#758078;font-size:13px}}@media(max-width:680px){{main{{padding-top:24px}}h1{{margin-top:52px}}.grid{{grid-template-columns:1fr}}}}</style></head>

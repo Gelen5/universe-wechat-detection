@@ -18,6 +18,7 @@ from typing import Any
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, Response
 
+from .site_icons import SITE_ICONS
 from . import accounts
 
 router = APIRouter(tags=["bill-page"])
@@ -160,7 +161,7 @@ def _page(title: str, body: str) -> str:
     return (
         '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
-        f"<title>{title}</title><style>{_STYLE}</style></head><body>"
+        f"<title>{title}</title>{SITE_ICONS}<style>{_STYLE}</style></head><body>"
         f'<div class="bl-wrap">{body}</div></body></html>'
     )
 

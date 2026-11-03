@@ -1507,6 +1507,11 @@ def legacy_creation_redirect(request: Request):
 TAB_PAGES = {"wechat-plus", "diagnose", "xiaohongshu", "tie-tu", "viral-remix", "xhs-extract", "sticker-extract", "douyin-extract", "article-visual", "hit-detector", "morning-generator"}
 
 
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    return FileResponse(STATIC_DIR / "favicon.ico", media_type="image/x-icon")
+
+
 @app.get("/{tab}", include_in_schema=False)
 def tab_page(tab: str):
     if tab in TAB_PAGES:
