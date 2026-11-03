@@ -115,15 +115,21 @@ class NativeConversationTests(unittest.TestCase):
         self.assertEqual(state['last_action'], 'topics')
         self.assertEqual(state['article_state']['draft'], '')
 
-    def test_research_rejects_model_invented_source(self):
+    def test_research_drops_model_invented_source_without_failing(self):
         article = runtime.initialize('写给上班族的邮件处理建议')
         article = runtime.resume(article, 'intent', {
             'intent':{'goal':'实用建议'}, 'audience':{'description':'上班族'},'topic':'处理邮件'})
         article = runtime.resume(article, 'topic', {'topic':'处理邮件','angle':'待办分类'})
-        with self.assertRaisesRegex(ValueError, '未检索到'):
-            runtime.fulfill(article, 'research', lambda prompt:{'evidence_pack':{
-                'sources':{'records':[{'source_id':'fake','kind':'web','url':'https://invented.example/source'}]},
-                'claims':[], 'research_status':'complete', 'limitations':[]}}, evidence={'sources':[], 'fetched':[]})
+        article = runtime.fulfill(article, 'research', lambda prompt:{'evidence_pack':{
+            'sources':{'records':[{'source_id':'fake','kind':'web','title':'虚构来源',
+                'url':'https://invented.example/source'}]},
+            'claims':[{'claim_id':'claim-fake','text':'虚构主张','source_ids':['fake']}],
+            'research_status':'complete', 'limitations':[]}}, evidence={'sources':[], 'fetched':[]})
+        pack = article['evidence_pack']
+        self.assertEqual(pack['sources']['records'], [])
+        self.assertEqual(pack['claims'], [])
+        self.assertTrue(any('不在本次检索范围内' in item for item in pack['limitations']))
+        self.assertEqual(article['nodes']['research']['status'], 'passed')
 
     def test_observed_research_aliases_preserve_unverified_status_and_limits(self):
         result = runtime.normalize_research({

@@ -203,15 +203,32 @@ def fulfill(payload: dict[str, Any], node: str, generate: Callable,
                    for item in supplied.get(group, []) if item.get('url')}
         records = (pack.get('sources') or {}).get('records', [])
         known = set()
+        kept_records = []
+        limitations = pack.setdefault('limitations', [])
         for record in records:
             if record.get('url') and record['url'] not in allowed:
-                raise ValueError('研究结果引用了未检索到的来源，请重试或补充材料')
+                # Model fabricated a URL not present in the supplied evidence;
+                # drop it silently rather than hard-failing the whole turn.
+                limitations.append(
+                    '来源「' + str(record.get('title') or record.get('source_id') or '未知') +
+                    '」的链接不在本次检索范围内，已从引用中移除。')
+                continue
             if record.get('kind') == 'web' and not record.get('url'):
-                raise ValueError('公开来源缺少可追溯链接')
+                limitations.append(
+                    '来源「' + str(record.get('title') or record.get('source_id') or '未知') +
+                    '」缺少可追溯链接，已从引用中移除。')
+                continue
             known.add(record.get('source_id'))
+            kept_records.append(record)
+        pack['sources']['records'] = kept_records
+        kept_claims = []
         for claim in pack.get('claims', []):
             if any(source not in known for source in claim.get('source_ids', [])):
-                raise ValueError('主张引用了不存在的来源')
+                limitations.append(
+                    '主张「' + str(claim.get('text', ''))[:60] + '…」引用了已移除的来源，已从引用中移除。')
+                continue
+            kept_claims.append(claim)
+        pack['claims'] = kept_claims
         if supplied.get('status') in {'unavailable', 'failed'}:
             pack['research_status'] = 'failed'
             pack.setdefault('limitations', []).append('本次公开检索未取得可用资料，不能以模型记忆代替核验。')
