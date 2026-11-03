@@ -6,6 +6,7 @@ import sys
 
 from celery import Celery
 from celery.schedules import crontab
+from celery.signals import worker_process_init
 
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
@@ -17,6 +18,13 @@ _task_modules = ["server.workflow_tasks", "server.agent_tasks", "server.hotspots
                  "server.viral_remix_tasks", "server.lowfans_sync", "server.article_visual_tasks"]
 celery_app = Celery("universe_creator", broker=REDIS_URL, backend=REDIS_URL,
                     include=[] if _beat_only else _task_modules)
+
+@worker_process_init.connect
+def _reset_database_pool_after_fork(**_kwargs):
+    # Parent and prefork children must never share DB connections.
+    from . import database
+    database.ENGINE.dispose(close=False)
+
 celery_app.conf.update(
     task_serializer="json", result_serializer="json", accept_content=["json"],
     task_acks_late=True, task_reject_on_worker_lost=True,
