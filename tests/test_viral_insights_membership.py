@@ -127,6 +127,22 @@ def test_existing_user_gets_trial_once_and_repeat_does_not_reset(paywall, clock)
     assert second["status"] == "trial_expired"
 
 
+def test_pending_order_does_not_grant_access_but_preserves_active_trial(paywall, clock):
+    client, uid = _client_for_new_user()
+    oid = _membership_order(uid, 'week')
+    with database.ENGINE.begin() as conn:
+        conn.execute(update(vim.orders).where(vim.orders.c.out_trade_no == oid)
+                     .values(created_at=clock['now'].isoformat()))
+    assert not vim.has_access(uid)
+    assert client.get('/api/viral-insights/membership').json()['status'] == 'trial_available'
+    client.post('/api/viral-insights/trial/activate')
+    state = client.get('/api/viral-insights/membership').json()
+    assert state['pending_order'] and state['status'] == 'trial_active' and state['active']
+    clock['now'] += timedelta(hours=24)
+    assert not vim.has_access(uid)
+    assert client.get('/api/viral-insights/membership').json()['status'] == 'trial_expired'
+
+
 def test_purchase_removes_trial_eligibility(paywall, clock):
     client, uid = _client_for_new_user()
     oid = _membership_order(uid, "week")
