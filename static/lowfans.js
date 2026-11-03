@@ -291,7 +291,7 @@
     if (!button) return;
     const topic = button.dataset.write || '';
     const type = button.dataset.type || '';
-    location.href = '/workbench?topic=' + encodeURIComponent(topic)
+    location.href = '/wechat-plus?topic=' + encodeURIComponent(topic)
       + (type ? '&type=' + encodeURIComponent(type) : '');
   });
 

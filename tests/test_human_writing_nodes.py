@@ -137,36 +137,8 @@ def test_unspecified_framework_name_does_not_silently_become_scqa():
     assert frame['name']=='按材料组织'
 
 
-def test_one_click_writer_shares_genre_rules_without_fetching_or_model_calls():
-    from server import qihaoshou
-    data=qihaoshou.Draft(topic='把纪要变成行动项',instructions='写一篇教程').model_dump()
-    with patch.object(qihaoshou.workbench,'_text') as model, \
-         patch.object(qihaoshou.workbench_research,'fetch_source') as fetch:
-        prompt=qihaoshou.draft_prompt(data)
-    assert skill_runtime.node_rules('draft')[0] in prompt
-    assert '不要输出写作过程' in prompt
-    assert '资料台账' not in prompt  # no fabricated research payload
-    assert not model.called and not fetch.called
 
 
-@pytest.mark.parametrize('enabled', [True, False])
-def test_compact_first_draft_rules_are_shared_and_can_be_rolled_back(enabled):
-    from server import qihaoshou, writing_guidance
-    data = qihaoshou.Draft(topic='普通题目').model_dump()
-    flag = '1' if enabled else '0'
-    with patch.dict('os.environ', {'WECHAT_WRITING_QUALITY_V1': flag}), \
-         patch.object(w, '_require_skill'), patch.object(w, '_record_skill'), \
-         patch.object(w, '_text', return_value='# 标题\n\n正文。') as model:
-        w._draft('普通题目', {'name': '自由结构', 'outline': ['内容']}, '普通作者')
-        one_click_prompt = qihaoshou.draft_prompt(data)
-    workbench_prompt = model.call_args.args[0]
-    # The flag governs the one-click compact addition; the V2 agent draft has a
-    # fixed compact contract that must not change when the flag flips.
-    assert (writing_guidance.DRAFT_QUALITY_RULES in one_click_prompt) is enabled
-    assert writing_guidance.DRAFT_QUALITY_RULES not in workbench_prompt
-    for prompt in (workbench_prompt, one_click_prompt):
-        assert '素材不足时缩小范围' in prompt
-    assert model.call_count == 1
 
 
 def test_draft_trace_records_versions_and_hashes_without_article_text():

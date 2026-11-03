@@ -9,7 +9,7 @@ import unittest
 from unittest.mock import patch
 
 from tests import support  # noqa: F401 - isolated account database
-from server import qihaoshou, workbench
+from server import workbench
 from server.providers.base import USER_UNAVAILABLE_MESSAGE
 
 
@@ -58,27 +58,8 @@ def _settings(name, default=''):
 
 
 class ProviderErrorMessageTests(unittest.TestCase):
-    def _stream_error(self, response):
-        with patch.object(workbench, 'provider_overrides', contextlib.nullcontext), \
-             patch.object(workbench, '_setting', side_effect=_settings), \
-             patch.object(workbench, '_headers', return_value={'Authorization': 'Bearer x'}), \
-             patch.object(workbench, '_verify_ssl', return_value=True), \
-             patch.object(qihaoshou.requests, 'Session', lambda: _FakeSession(response)):
-            list(qihaoshou.text_stream('prompt', __import__('threading').Event()))
 
-    def test_stream_http_502_hides_the_operator_checklist(self):
-        with self.assertRaises(workbench.ProviderError) as caught:
-            self._stream_error(_FakeResponse(502, '<!DOCTYPE html> bad gateway'))
-        message = str(caught.exception)
-        self.assertEqual(USER_UNAVAILABLE_MESSAGE, message)
-        self.assertNotIn('管理员', message)
-        self.assertNotIn('白名单', message)
-        self.assertNotIn('502', message)
 
-    def test_stream_without_event_stream_is_also_user_facing(self):
-        with self.assertRaises(workbench.ProviderError) as caught:
-            self._stream_error(_FakeResponse(200, '{}', {'Content-Type': 'application/json'}))
-        self.assertEqual(USER_UNAVAILABLE_MESSAGE, str(caught.exception))
 
     def _post_error(self, response):
         with patch.object(workbench.requests, 'Session', lambda: _FakeSession(response)), \

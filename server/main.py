@@ -4,27 +4,25 @@ import re
 import threading
 import time
 import uuid
-from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 import requests
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from . import accounts, diagnosis_service, image_provider, email_verification
 from . import creator_tools, creator_conversation, community
-from . import wish_square
 from . import workbench
 from . import legacy_routes
 from . import conversation_repository, database
 from .workflow_api import router as workflow_router
 from .conversation_api import router as conversation_router
 from .article_visual import router as article_visual_router
-from .qihaoshou import router as qihaoshou_router
+from .legacy_article_media import router as legacy_article_media_router
 from .bookshelf import router as bookshelf_router
 from .market import router as market_router
 from .hotspots import router as hotspots_router
@@ -49,7 +47,6 @@ from .auth_rate_limit import check_auth_attempt, record_auth_result, client_ip
 ROOT = Path(__file__).resolve().parent.parent
 STATIC_DIR = ROOT / "static"
 WORKBENCH_JOB_LOCK = threading.RLock()
-WORKBENCH_EXECUTOR = ThreadPoolExecutor(max_workers=2, thread_name_prefix="workbench")
 
 app = FastAPI(
     title="公众号账号诊断",
@@ -66,8 +63,6 @@ referrals.init_schema()
 lowfans_sync.init_schema()
 community.init_schema()
 app.include_router(community.router)
-wish_square.init_schema()
-app.include_router(wish_square.router)
 from . import admin_activity
 admin_activity.init_db()
 app.include_router(admin_activity.router)
@@ -80,7 +75,7 @@ database.require_postgres_in_production()
 app.include_router(workflow_router)
 app.include_router(conversation_router)
 app.include_router(article_visual_router)
-app.include_router(qihaoshou_router)
+app.include_router(legacy_article_media_router)
 app.include_router(bookshelf_router)
 app.include_router(market_router)
 app.include_router(hotspots_router)
@@ -197,10 +192,21 @@ async def account_and_points_gate(request: Request, call_next):
     if path.startswith("/api/") and not public_api and not user:
         return JSONResponse(status_code=401, content={"detail": "请先登录"})
 
+    # Retired writing APIs must fail before any billing reservation. Historical
+    # files remain readable so migrated articles keep their original images.
+    retired_workbench = path.startswith('/api/workbench/') and not (
+        request.method == 'GET' and path.startswith(('/api/workbench/assets/', '/api/workbench/preview/', '/api/workbench/html/')))
+    retired_one_click = path.startswith('/api/qihaoshou/') and not (
+        request.method == 'GET' and path.startswith('/api/qihaoshou/assets/'))
+    if retired_workbench or retired_one_click:
+        return JSONResponse(status_code=410, content={'detail':'旧版创作已停用，请使用公众号创作 Plus；历史内容可在 Plus 的历史创作中查看。'})
+
     # Superseded workbench APIs: the browser has used /api/conversations since
     # the normalized workbench shipped. Gate runs before the billing rule lookup
     # so a blocked call never reserves points.
-    if legacy_routes.matches(path):
+    legacy_read_only_asset = request.method == 'GET' and path.startswith((
+        '/api/workbench/assets/', '/api/workbench/preview/', '/api/workbench/html/'))
+    if legacy_routes.matches(path) and not legacy_read_only_asset:
         gate_mode = legacy_routes.mode()
         log_event("legacy.route_blocked" if gate_mode == "gone" else "legacy.route_hit",
                   request_id=getattr(request.state, "request_id", None),
@@ -255,60 +261,14 @@ class DiagnoseRequest(BaseModel):
     textApiKey: str | None = Field(default=None, max_length=300)
 
 
-class WorkbenchCreateRequest(BaseModel):
-    topic: str = Field(default="", max_length=240)
-    mode: str = Field(default="interactive", pattern="^(auto|interactive|step|single)$")
-    persona: str = Field(default="深度观察者", max_length=80)
-    theme: str = Field(default="default", max_length=80)
-    textApiKey: str | None = Field(default=None, max_length=300)
-    imageApiKey: str | None = Field(default=None, max_length=300)
-    textBaseUrl: str | None = Field(default=None, max_length=300)
-    imageBaseUrl: str | None = Field(default=None, max_length=300)
-    textModel: str | None = Field(default=None, max_length=120)
-    imageModel: str | None = Field(default=None, max_length=120)
-    idempotency_key: str = Field(min_length=8, max_length=120)
 
 
-class WorkbenchStepRequest(BaseModel):
-    session_id: str = Field(min_length=8, max_length=80)
-    step: int = Field(ge=1, le=8)
-    selection: int | None = Field(default=None, ge=1, le=10)
-    article: str | None = Field(default=None, max_length=200000)
-    textApiKey: str | None = Field(default=None, max_length=300)
-    imageApiKey: str | None = Field(default=None, max_length=300)
-    textBaseUrl: str | None = Field(default=None, max_length=300)
-    imageBaseUrl: str | None = Field(default=None, max_length=300)
-    textModel: str | None = Field(default=None, max_length=120)
-    imageModel: str | None = Field(default=None, max_length=120)
 
 
-class WorkbenchChatRequest(BaseModel):
-    session_id: str = Field(min_length=8, max_length=80)
-    message: str = Field(min_length=1, max_length=4000)
-    action: str = Field(default="auto", pattern="^(auto|rewrite_article|regenerate_topics|regenerate_framework|revise_image_plan|change_theme)$")
-    selection_text: str = Field(default="", max_length=20000)
 
 
-class WorkbenchPreviewRequest(BaseModel):
-    session_id: str = Field(min_length=8, max_length=80)
-    article: str | None = Field(default=None, max_length=200000)
-    textApiKey: str | None = Field(default=None, max_length=300)
-    imageApiKey: str | None = Field(default=None, max_length=300)
-    textBaseUrl: str | None = Field(default=None, max_length=300)
-    imageBaseUrl: str | None = Field(default=None, max_length=300)
-    textModel: str | None = Field(default=None, max_length=120)
-    imageModel: str | None = Field(default=None, max_length=120)
 
 
-class WorkbenchPublishRequest(BaseModel):
-    session_id: str = Field(min_length=8, max_length=80)
-    draft: bool = True
-    textApiKey: str | None = Field(default=None, max_length=300)
-    imageApiKey: str | None = Field(default=None, max_length=300)
-    textBaseUrl: str | None = Field(default=None, max_length=300)
-    imageBaseUrl: str | None = Field(default=None, max_length=300)
-    textModel: str | None = Field(default=None, max_length=120)
-    imageModel: str | None = Field(default=None, max_length=120)
 
 
 class ImageGenerationRequest(BaseModel):
@@ -373,7 +333,7 @@ class ImpersonateRequest(BaseModel):
 
 
 class TaskCreateRequest(BaseModel):
-    type: str = Field(pattern="^(diagnose|xiaohongshu|tie_tu|hit_detect|hit_rewrite|creator_image|morning_image|workbench|workbench_step|creator_chat)$")
+    type: str = Field(pattern="^(diagnose|xiaohongshu|tie_tu|hit_detect|hit_rewrite|creator_image|morning_image|creator_chat)$")
     idempotency_key: str = Field(min_length=8, max_length=120)
     payload: dict[str, Any]
 
@@ -924,8 +884,6 @@ TASK_DEFINITIONS = {
     "hit_rewrite": ("text", "POST", "/api/hit-detector/rewrite"),
     "creator_image": ("image", "POST", "/api/creator-tools/image"),
     "morning_image": ("image", "POST", "/api/images/generations"),
-    "workbench": ("text", "POST", "/api/workbench/sessions"),
-    "workbench_step": ("image", "POST", "/api/workbench/steps"),
 }
 
 
@@ -1332,105 +1290,20 @@ def rewrite_article(payload: HitRewriteRequest):
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
-def _run_workbench_job(job_id: str, user_id: str, session_id: str, payload: dict[str, Any], usage_id: str) -> None:
-    started = time.perf_counter()
-    accounts.update_workbench_job(job_id, "running")
-    try:
-        with workbench.provider_overrides():
-            workbench.create(
-                payload["topic"], payload["mode"], payload["persona"], payload["theme"],
-                user_id=user_id, session_id=session_id,
-            )
-        accounts.settle_usage(usage_id, 200, int((time.perf_counter() - started) * 1000))
-        accounts.update_workbench_job(job_id, "completed")
-    except Exception as exc:
-        accounts.refund_usage(usage_id, 500, int((time.perf_counter() - started) * 1000))
-        accounts.update_workbench_job(job_id, "failed", str(exc)[-1000:])
 
 
-def _public_workbench_job(job: dict[str, Any]) -> dict[str, Any]:
-    return {key: job.get(key) for key in (
-        "id", "session_id", "status", "error", "created_at", "started_at", "finished_at"
-    )}
 
 
-@app.post("/api/workbench/sessions", status_code=202)
-def create_workbench_session(payload: WorkbenchCreateRequest, request: Request):
-    user = request.state.user
-    with WORKBENCH_JOB_LOCK:
-        existing = accounts.workbench_job_by_key(user["id"], payload.idempotency_key)
-        if existing:
-            return {"status": "accepted", "job": _public_workbench_job(existing), "idempotent_replay": True}
-        rule = accounts.pricing_rule("POST", "/api/workbench/sessions")
-        if not rule:
-            raise HTTPException(status_code=503, detail="公众号完整工作流计费规则未启用")
-        usage_id = accounts.reserve_points(user["id"], rule, "POST", "/api/workbench/sessions")
-        session_id = uuid.uuid4().hex
-        job = accounts.create_workbench_job(
-            user["id"], payload.idempotency_key, session_id, usage_id,
-        )
-        if job.get("usage_id") != usage_id:
-            accounts.refund_usage(usage_id, 409, 0)
-            return {"status": "accepted", "job": _public_workbench_job(job), "idempotent_replay": True}
-        try:
-            WORKBENCH_EXECUTOR.submit(
-                _run_workbench_job, job["id"], user["id"], session_id,
-                {"topic": payload.topic, "mode": payload.mode, "persona": payload.persona, "theme": payload.theme},
-                usage_id,
-            )
-        except Exception as exc:
-            accounts.refund_usage(usage_id, 503, 0)
-            accounts.update_workbench_job(job["id"], "failed", f"任务调度失败：{exc}")
-            raise HTTPException(status_code=503, detail="任务暂时无法调度，积分已退还") from exc
-    return {"status": "accepted", "job": _public_workbench_job(job), "idempotent_replay": False}
 
 
-@app.get("/api/workbench/jobs/{job_id}")
-def get_workbench_job(job_id: str, request: Request):
-    job = accounts.workbench_job(job_id, request.state.user["id"])
-    if not job:
-        raise HTTPException(status_code=404, detail="任务不存在或不属于当前用户")
-    session = None
-    if job["status"] == "completed":
-        session = accounts.load_workbench_session(job["session_id"], request.state.user["id"])
-        if session:
-            session = workbench._session_view(session)
-    return {"status": "success", "job": _public_workbench_job(job), "session": session}
 
 
-@app.get("/api/workbench/provider-status")
-def get_workbench_provider_status():
-    return {"status": "success", "provider": workbench.provider_status()}
 
 
-@app.get('/api/workbench/sessions/{session_id}')
-def read_workbench_session(session_id: str, request: Request):
-    try:
-        session = workbench._get_session(session_id, request.state.user['id'])
-        return {'session':workbench._session_view(session)}
-    except KeyError as exc:
-        raise HTTPException(status_code=404, detail='创作会话不存在或不属于当前用户') from exc
 
 
-@app.post("/api/workbench/steps")
-def advance_workbench(payload: WorkbenchStepRequest, request: Request):
-    try:
-        with workbench.provider_overrides():
-            return {"status": "success", "session": workbench.step(payload.session_id, payload.step, payload.selection, payload.article, user_id=request.state.user["id"])}
-    except KeyError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except workbench.ProviderError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"工作台执行失败：{exc}") from exc
 
 
-@app.post("/api/workbench/cancel")
-def cancel_workbench(payload: WorkbenchStepRequest, request: Request):
-    try:
-        return {"status": "success", "cancel": workbench.cancel(payload.session_id, user_id=request.state.user["id"])}
-    except KeyError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 class CreatorChatRequest(BaseModel):
@@ -1568,32 +1441,8 @@ def creator_history_item(kind: str, item_id: str, request: Request):
     return {'item': plan}
 
 
-@app.post("/api/workbench/chat")
-def chat_workbench(payload: WorkbenchChatRequest, request: Request):
-    try:
-        with workbench.provider_overrides():
-            session = workbench.chat(
-                payload.session_id, payload.message, payload.action, payload.selection_text,
-                user_id=request.state.user["id"],
-            )
-            return {"status": "success", "session": session}
-    except KeyError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except (ValueError, workbench.ProviderError) as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"创作调整失败：{exc}") from exc
 
 
-@app.post("/api/workbench/preview")
-def preview_workbench(payload: WorkbenchPreviewRequest, request: Request):
-    try:
-        with workbench.provider_overrides():
-            return {"status": "success", "session": workbench.preview(payload.session_id, payload.article, user_id=request.state.user["id"])}
-    except KeyError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"预览失败：{exc}") from exc
 
 
 def _require_workbench_owner(session_id: str, request: Request) -> None:
@@ -1634,15 +1483,6 @@ def get_workbench_asset(session_id: str, filename: str, request: Request):
     return FileResponse(path)
 
 
-@app.post("/api/workbench/publish")
-def publish_workbench(payload: WorkbenchPublishRequest, request: Request):
-    try:
-        with workbench.provider_overrides():
-            return {"status": "success", "session": workbench.publish(payload.session_id, payload.draft, user_id=request.state.user["id"])}
-    except KeyError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"发布失败：{exc}") from exc
 
 
 @app.get("/", include_in_schema=False)
@@ -1650,19 +1490,16 @@ def index():
     return FileResponse(STATIC_DIR / "index.html", media_type="text/html; charset=utf-8")
 
 
-@app.get("/wish-square", include_in_schema=False)
-def wish_square_page(request: Request):
-    if request.query_params.get("embed") == "1":
-        return FileResponse(STATIC_DIR / "wish-square.html", media_type="text/html; charset=utf-8")
-    return FileResponse(STATIC_DIR / "index.html", media_type="text/html; charset=utf-8")
-
-
-@app.get("/admin/wishes", include_in_schema=False)
-def wish_review_page():
-    return FileResponse(STATIC_DIR / "wish-review.html", media_type="text/html; charset=utf-8")
 # 每个功能 tab 对应一个真实路径（/workbench、/xiaohongshu、/tie-tu、/hit-detector、/morning-generator），
 # 由前端 SPA 根据 pathname 渲染对应 section；其余路径交给 /static 与 /api。
-TAB_PAGES = {"wechat-plus", "one-click-writing", "diagnose", "workbench", "xiaohongshu", "tie-tu", "viral-remix", "xhs-extract", "douyin-extract", "article-visual", "wish-square", "hit-detector", "morning-generator"}
+@app.get('/workbench', include_in_schema=False)
+@app.get('/one-click-writing', include_in_schema=False)
+@app.get('/qihaoshou', include_in_schema=False)
+def legacy_creation_redirect(request: Request):
+    query = request.url.query
+    return RedirectResponse('/wechat-plus' + ('?' + query if query else ''), status_code=307)
+
+TAB_PAGES = {"wechat-plus", "diagnose", "xiaohongshu", "tie-tu", "viral-remix", "xhs-extract", "douyin-extract", "article-visual", "hit-detector", "morning-generator"}
 
 
 @app.get("/{tab}", include_in_schema=False)

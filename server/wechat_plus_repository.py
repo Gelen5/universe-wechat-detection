@@ -45,7 +45,7 @@ def get(session_id,user_id):
 
 def list_sessions(user_id):
     with database.ENGINE.connect() as db:
-        return [dict(r) for r in db.execute(select(sessions.c.id,sessions.c.title,sessions.c.version,sessions.c.updated_at).where(sessions.c.user_id==user_id).order_by(sessions.c.updated_at.desc()).limit(50)).mappings()]
+        return [dict(r) for r in db.execute(select(sessions.c.id,sessions.c.title,sessions.c.version,sessions.c.updated_at).where(sessions.c.user_id==user_id).order_by(sessions.c.updated_at.desc())).mappings()]
 
 def recent_layout_theme(user_id, exclude_session_id):
     """Look at this user's recent sessions only, to avoid repeating auto themes."""

@@ -61,6 +61,8 @@ def _not_found(exc: Exception):
 
 @router.post("/api/conversations", status_code=201)
 def create_conversation(payload: ConversationCreate, request: Request):
+    if payload.skill_id == 'wechat_writer':
+        raise HTTPException(410, '旧版公众号创作已停用，请使用公众号创作 Plus。')
     if payload.skill_id:
         try:
             get_registry().executable(payload.skill_id)
@@ -119,6 +121,8 @@ def send_message(conversation_id: str, payload: MessageCreate, request: Request,
         conversation = conversation_repository.get_conversation(conversation_id, user_id)
         if not conversation:
             raise KeyError("conversation not found")
+        if conversation.get('skill_id') == 'wechat_writer':
+            raise HTTPException(410, '旧版公众号创作已停用，请在 Plus 的历史创作中继续。')
         manifest = get_registry().executable(conversation["skill_id"]) if conversation["skill_id"] else None
         limit = check_agent_submission(
             user_id=user_id, ip=client_ip(request),

@@ -8,7 +8,7 @@ import unittest
 from unittest.mock import patch
 
 from tests import support  # noqa: F401 - isolated account database
-from server import qihaoshou, skill_runtime
+from server import workbench, skill_runtime
 
 
 def body(chars):
@@ -61,52 +61,21 @@ class LengthInstructionTests(unittest.TestCase):
                          skill_runtime.length_instruction('至少1500字'))
         self.assertEqual('', skill_runtime.length_instruction('随便写一篇'))
 
-    def test_one_click_prompt_states_the_band(self):
-        prompt = qihaoshou.draft_prompt(qihaoshou.Draft(topic='题目', length=1200).model_dump())
-        self.assertIn('960—1440', prompt)
 
     def test_agent_draft_prompt_states_the_band_only_for_an_explicit_length(self):
         frame = {'name': '结构', 'outline': ['一'], 'research': {},
                  'writing_strategy': {'article_type': 'opinion'}}
         prompts = []
-        with patch.object(qihaoshou.workbench, '_require_skill'), \
-             patch.object(qihaoshou.workbench, '_record_skill'), \
-             patch.object(qihaoshou.workbench, '_text',
+        with patch.object(workbench, '_require_skill'), \
+             patch.object(workbench, '_record_skill'), \
+             patch.object(workbench, '_text',
                           side_effect=lambda p, **kw: prompts.append(p) or body(1200)):
-            qihaoshou.workbench._draft('题目', frame, '语气', '1200字左右')
-            qihaoshou.workbench._draft('题目', frame, '语气', '随便写')
+            workbench._draft('题目', frame, '语气', '1200字左右')
+            workbench._draft('题目', frame, '语气', '随便写')
         self.assertIn('960—1440', prompts[0])
         self.assertNotIn('篇幅：正文需在', prompts[1])
 
 
-class OneClickLengthEnforcementTests(unittest.TestCase):
-    def test_in_band_body_is_not_rewritten(self):
-        calls = []
-        text, unmet = qihaoshou.enforce_length(body(1200), '1200字', lambda issue: calls.append(issue) or body(1200))
-        self.assertEqual(body(1200), text)
-        self.assertIsNone(unmet)
-        self.assertEqual([], calls)
-
-    def test_out_of_band_body_is_rewritten_once(self):
-        calls = []
-        text, unmet = qihaoshou.enforce_length(
-            body(1900), '1200字', lambda issue: calls.append(issue) or body(1250))
-        self.assertEqual(body(1250), text)
-        self.assertIsNone(unmet)
-        self.assertEqual(1, len(calls))
-        self.assertIn('1900', calls[0])
-
-    def test_unusable_rewrite_keeps_the_original(self):
-        text, unmet = qihaoshou.enforce_length(body(1900), '1200字', lambda issue: '短')
-        self.assertEqual(body(1900), text)
-        self.assertIn('1900', unmet)
-
-    def test_progress_is_reported_only_while_rewriting(self):
-        seen = []
-        qihaoshou.enforce_length(body(1200), '1200字', lambda issue: body(1200), on_progress=seen.append)
-        self.assertEqual([], seen)
-        qihaoshou.enforce_length(body(1900), '1200字', lambda issue: body(1250), on_progress=seen.append)
-        self.assertEqual(1, len(seen))
 
 
 if __name__ == '__main__':

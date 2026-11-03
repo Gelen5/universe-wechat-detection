@@ -18,7 +18,7 @@ events = Table('behavior_events', meta,
     Column('event', String(40), nullable=False), Column('seconds', Integer, nullable=False),
     Column('device', String(12), nullable=False), Column('created_at', String(40), nullable=False))
 Index('ix_behavior_time', events.c.created_at)
-PAGES = {'home','workbench','wechat-plus','one-click-writing','qihaoshou','hotspots','lowfans','xiaohongshu','tie-tu','viral-remix','article-visual','wish-square','xhs-extract','douyin-extract','bookshelf','market','pricing','pay','wallet'}
+PAGES = {'home','workbench','wechat-plus','one-click-writing','qihaoshou','hotspots','lowfans','xiaohongshu','tie-tu','viral-remix','article-visual','xhs-extract','douyin-extract','bookshelf','market','pricing','pay','wallet'}
 EVENTS = {'page_view','active_time','open_pricing','choose_starter','choose_pro','choose_master','checkout_submit','remix_analyze','remix_generate','remix_save','article_analyze','article_download','xhs_extract','douyin_extract','plus_send','plus_copy'}
 class Observation(BaseModel):
     visitor: str = Field(pattern=r'^[a-f0-9]{32}$')

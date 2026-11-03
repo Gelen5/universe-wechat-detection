@@ -38,18 +38,18 @@
   async function loadRecent() {
     const request = ++recentRequest;
     try {
-      const response = await fetch('/api/conversations?limit=50');
+      const response = await fetch('/api/wechat-plus/sessions');
       if (request !== recentRequest) return;
       if (response.status === 401) { message('登录后查看最近的公众号创作。'); return; }
       if (!response.ok) throw new Error('load failed');
       const data = await response.json();
       if (request !== recentRequest) return;
-      const items = (data.conversations || []).filter(item => item.skill_id === 'wechat_writer').slice(0, 3);
+      const items = (data.sessions || []).slice(0, 3);
       if (!items.length) { message('暂无最近的公众号创作记录，从一个选题开始吧。'); return; }
       recent.replaceChildren();
       for (const item of items) {
         const link = document.createElement('a'); link.className = 'hv-row';
-        link.href = `/workbench?conversation=${encodeURIComponent(item.id)}`;
+        link.href = `/wechat-plus?session=${encodeURIComponent(item.id)}`;
         const text = document.createElement('span'); text.className = 'txt';
         const title = document.createElement('b'); title.textContent = item.title || '未命名创作';
         const time = document.createElement('span'); const updated = new Date(item.updated_at);

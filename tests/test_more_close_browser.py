@@ -2,7 +2,7 @@ import pytest
 from playwright.sync_api import expect
 from tests.test_ui_shell_browser import browser, ui
 
-@pytest.mark.parametrize('path',['/','/qihaoshou','/bookshelf','/market'])
+@pytest.mark.parametrize('path',['/','/wechat-plus','/bookshelf','/market'])
 def test_more_close_has_no_border_until_keyboard_focus(ui,path):
  page,_=ui
  page.set_viewport_size({'width':390,'height':844})
@@ -21,7 +21,7 @@ def test_more_close_has_no_border_until_keyboard_focus(ui,path):
  expect(page.get_by_role('dialog',name='全部功能')).to_be_hidden()
  expect(more).to_be_focused()
 
-@pytest.mark.parametrize('path',['/','/qihaoshou','/bookshelf','/market'])
+@pytest.mark.parametrize('path',['/','/wechat-plus','/bookshelf','/market'])
 def test_heading_never_shows_focus_outline_when_opened_with_keyboard(ui,path):
  page,_=ui
  page.set_viewport_size({'width':390,'height':844})

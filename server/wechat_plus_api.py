@@ -3,7 +3,7 @@ from copy import deepcopy
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel, Field
 
 from . import accounts
@@ -49,12 +49,24 @@ class Edit(BaseModel):
 
 @router.get('/sessions')
 def sessions(request: Request):
+    user_id = owner(request)
+    # Copy only the caller's historical articles; a transient migration failure
+    # must not prevent access to the caller's existing Plus work.
+    from . import wechat_plus_legacy
+    migration_error = False
+    try:
+        wechat_plus_legacy.migrate_for(user_id)
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception('Legacy history migration failed')
+        migration_error = True
     # 文案直接从计分表生成：改价时不会再出现「说明写 12、实际扣 9」的漂移。
     points = accounts.PLUS_ACTION_POINTS
     pricing = (f"按动作计费：推荐选题 {points['topics']} · 生成初稿 {points['write']} · "
                f"改稿 {points['revise']} · 复核 {points['review']} · 排版 {points['format']}；"
                "澄清与追问免费，完整一篇约 20 积分")
-    return {'sessions': repo.list_sessions(owner(request)), 'model': service.configured_model(),
+    return {'sessions': repo.list_sessions(user_id), 'model': service.configured_model(),
+            'legacy_migration_error': migration_error,
             'pricing': pricing,
             'pricing_points': dict(accounts.PLUS_ACTION_POINTS)}
 
@@ -64,9 +76,29 @@ def create(payload: Create, request: Request):
     return {'session': repo.create(owner(request), payload.title)}
 
 
+@router.get('/legacy/conversation/{source_id}')
+def legacy_conversation(source_id: str, request: Request):
+    from . import wechat_plus_legacy
+    try:
+        return {'id': repo.get(wechat_plus_legacy._id('conversation', source_id), owner(request))['id']}
+    except KeyError as exc:
+        raise HTTPException(404, '历史创作不存在或不属于当前用户') from exc
+
+
 @router.get('/sessions/{session_id}')
 def session(session_id: str, request: Request):
     return {'session': get(session_id, request)}
+
+
+@router.get('/sessions/{session_id}/legacy-preview')
+def legacy_preview(session_id: str, request: Request):
+    state = get(session_id, request)['state']
+    if not state.get('legacy_preview_html') or (state.get('article_state') or {}).get('draft') != state.get('legacy_original_draft'):
+        raise HTTPException(404, '历史排版不存在或正文已修改')
+    return HTMLResponse(state['legacy_preview_html'], headers={
+        'Cache-Control':'private, no-store',
+        'Content-Security-Policy':"default-src 'none'; img-src 'self' data: https:; style-src 'unsafe-inline'; sandbox",
+        'X-Content-Type-Options':'nosniff'})
 
 
 @router.post('/sessions/{session_id}/messages', status_code=202)

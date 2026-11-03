@@ -91,45 +91,6 @@
   nav.addEventListener('click', e => { if(e.target.closest('a')) closeMenu(); });
   document.addEventListener('keydown',e=>{ if(e.key==='Escape' && header.classList.contains('nav-open')) { closeMenu(); menu.focus(); } });
   document.addEventListener('click',e=>{ if(!header.contains(e.target)) closeMenu(); });
-  // 创作模式切换放进顶栏，避免在页面上多出一条独立横条。
-  const studioModes = document.querySelector('#workbench .studio-modes');
-  const studioHeading = document.querySelector('#workbench .studio-heading');
-  if (studioModes && studioHeading) studioHeading.append(studioModes);
-  const workspace = document.querySelector('#workbench');
-  const toggle = document.querySelector('#assistant-toggle');
-  function showAssistant(open) {
-    workspace.classList.toggle('assistant-collapsed',!open);
-    toggle.setAttribute('aria-expanded',String(open)); toggle.textContent=open?'收起助手':'打开助手';
-  }
-  toggle.addEventListener('click',()=>showAssistant(workspace.classList.contains('assistant-collapsed')));
-  function focusComposer() {
-    showAssistant(true);
-    workspace.dataset.studioView='chat';
-    workspace.querySelectorAll('.studio-switch button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.studioView==='chat')));
-    document.querySelector('#workbench-topic').focus();
-  }
-  const decision = document.querySelector('#workbench-decision');
-  const start = document.createElement('button');
-  start.type = 'button';
-  start.className = 'begin-writing';
-  start.innerHTML = '<span>描述主题，生成 3 个选题方向</span><i aria-hidden="true">→</i>';
-  start.addEventListener('click', focusComposer);
-  function syncEmpty() {
-    const stage = workspace.dataset.stage;
-    const isEmpty = !stage || stage === '0';
-    if (isEmpty && !decision.contains(start)) decision.append(start);
-    else if (!isEmpty && decision.contains(start)) start.remove();
-    // 还没有任何候选选题时，“换一批方向”没有可换的对象，收起来减少抢焦点。
-    const topics = document.querySelectorAll('#topic-list .topic-item, #topic-list > *').length;
-    workspace.classList.toggle('has-topics', topics > 0);
-    decision.classList.toggle('is-empty-stage', isEmpty);
-  }
-  new MutationObserver(syncEmpty).observe(decision, {childList: true});
-  new MutationObserver(syncEmpty).observe(workspace, {attributes: true, attributeFilter: ['data-stage']});
-  const topicList = document.querySelector('#topic-list');
-  if (topicList) new MutationObserver(syncEmpty).observe(topicList, {childList: true});
-  syncEmpty();
-  document.querySelector('#new-workbench-chat').addEventListener('click',()=>showAssistant(true));
   const names = {'/diagnose':'账号诊断','/hit-detector':'发布前复核'};
   document.querySelectorAll('#home .hc-card').forEach(a=>{ if(names[a.getAttribute('href')]) a.querySelector('.t').textContent=names[a.getAttribute('href')]; });
 

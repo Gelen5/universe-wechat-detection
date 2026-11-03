@@ -560,7 +560,7 @@ def _page(title: str, body: str) -> str:
         '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
         f"<title>{title}</title><style>{_STYLE}</style></head><body>"
-        f'<main class="card">{body}</main><script src="/static/behavior-observer.js?v=1" defer></script></body></html>'
+        f'<main class="card">{body}</main><script src="/static/behavior-observer.js?v=20261103-retire-wish-1" defer></script></body></html>'
     )
 
 

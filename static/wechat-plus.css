@@ -72,3 +72,8 @@
 #wechat-plus .wp-toolbar-meta{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
 #wechat-plus .wp-layout-theme{font-size:11px;color:#307251;padding:5px 9px;background:#eaf5ed;border:1px solid #d4e9dc;border-radius:999px;white-space:nowrap}
 @media(max-width:760px){#wechat-plus .wp-layout-options button{min-height:44px}#wechat-plus .wp-layout-options{margin:0 12px}#wechat-plus .wp-toolbar-meta{gap:4px}#wechat-plus .wp-layout-theme{font-size:10px}}
+#wechat-plus .wp-legacy-images{margin:0 18px 10px;border:1px solid #dcebe1;border-radius:12px;padding:10px 12px;color:#456b58;font-size:12px}
+#wechat-plus .wp-legacy-images[hidden]{display:none}
+#wechat-plus .wp-legacy-images summary{cursor:pointer;font-weight:600}
+#wechat-plus .wp-legacy-images div{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+#wechat-plus .wp-legacy-images a{color:#267857;text-decoration:underline}

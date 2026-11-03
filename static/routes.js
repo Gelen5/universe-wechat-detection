@@ -32,22 +32,9 @@ window.APP_NAV = (() => {
      fallback: true,
      icon: svg('<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 ' +
                '.5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>')},
-    // 公众号创作入口暂时隐藏（用户要求）：从三套导航里全部摘掉，但 viewFor 仍能
-    // 解析 /workbench，直链和已保存的对话链接照常打开。恢复时只需删掉 hidden。
-    {group: '创作', href: '/workbench', view: 'workbench', label: '公众号创作', short: '创作',
-     hidden: true,
-     icon: svg('<path d="M4 13.5V4a2 2 0 0 1 2-2h8.5L20 7.5V20a2 2 0 0 1-2 2h-9.5"/>' +
-               '<polyline points="14 2 14 8 20 8"/><line x1="10" y1="11" x2="10" y2="17"/>' +
-               '<line x1="13" y1="14" x2="7" y2="14"/>')},
-    // 一键成文继续走创作页顶部的模式切换（不占侧栏）；Plus 按用户要求回到侧栏，
-    // 因为侧栏现在只剩「公众号创作」一项且它是隐藏的，用户找不到 Plus。
     {group: '创作', href: '/wechat-plus', view: 'wechat-plus', label: '公众号创作 Plus',
      fallback: true,
      icon: svg('<path d="M4 4h16v12H9l-5 4z"/><path d="M9 10h6M12 7v6"/>')},
-    {group: '创作', href: '/one-click-writing', view: 'one-click-writing',
-     label: '公众号一键成文', short: '一键成文',
-     hidden: true,
-     icon: svg('<path d="M4 20h16M5 15l10-10 4 4-10 10H5z"/>')},
     {group: '创作', href: '/xiaohongshu', view: 'xiaohongshu', label: '小红书',
      icon: svg('<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/>' +
                '<polyline points="2 12 12 17 22 12"/>')},
@@ -95,11 +82,6 @@ window.APP_NAV = (() => {
      icon: svg('<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 ' +
                '1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>' +
                '<polyline points="9 12 11 14 15 10"/>')},
-    // 心愿广场复用工作台壳层，避免切换时换掉整套导航与主题。
-    // 2026-11-01 起入口全站隐藏（合规观察期）：路由保留，直接访问 /wish-square 仍可打开。
-    {group: '社区', href: '/wish-square', view: 'wish-square', label: '心愿广场', short: '心愿',
-     fallback: true, hidden: true,
-     icon: svg('<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/>')},
     {group: '资源', href: '/market', view: 'market', label: 'AI 超市', short: '超市',
      icon: svg('<path d="M3 7h18l-1.4 12.1a2 2 0 0 1-2 1.9H6.4a2 2 0 0 1-2-1.9z"/>' +
                '<path d="M8 7V5.5a4 4 0 0 1 8 0V7"/>')},

@@ -11,7 +11,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from tests import support  # noqa: F401 - isolated account database
-from server import qihaoshou, workbench, writing_guidance
+from server import workbench, writing_guidance
 
 GOLDEN = Path(__file__).with_name('golden') / 'writing_prompts.json'
 
@@ -53,9 +53,6 @@ def snapshot():
         'draft_strategy_v2': {k: writing_guidance.draft_strategy_v2(s, r) for k, (s, r) in DRAFT_CASES.items()},
     }}
     data['agent_draft'] = {k: _draft_prompt(s, r) for k, (s, r) in DRAFT_CASES.items()}
-    data['one_click_draft'] = {
-        style: qihaoshou.draft_prompt(dict(ONE_CLICK_BASE, style=style)) for style in sorted(qihaoshou.STYLES)
-    }
     return data
 
 
@@ -80,10 +77,10 @@ class PromptSnapshotTests(unittest.TestCase):
             GOLDEN.write_text(json.dumps(current, ensure_ascii=False, indent=1), encoding='utf-8')
             self.skipTest('golden regenerated')
         expected = json.loads(GOLDEN.read_text(encoding='utf-8'))
-        for group, rows in expected.items():
+        for group, rows in current.items():
             for key, value in rows.items():
                 with self.subTest(group=group, key=key):
-                    self.assertEqual(value, current[group][key])
+                    self.assertEqual(expected[group][key], value)
 
 
 if __name__ == '__main__':

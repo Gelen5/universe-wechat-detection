@@ -81,6 +81,18 @@
   }
   function render() {
     const state = session?.state || {}, article = state.article_state || {};
+    const legacyImages = $('legacy-images');
+    const legacyList = $('legacy-image-list');
+    if (legacyImages && legacyList) {
+      legacyList.replaceChildren();
+      const images = Array.isArray(state.legacy_images) ? state.legacy_images : [];
+      legacyImages.hidden = !images.length;
+      images.forEach((item, index) => {
+        if (!/^\/api\/(?:(?:workbench|qihaoshou)\/assets|storage)\//.test(item.url || '')) return;
+        const link = document.createElement('a'); link.href = item.url; link.target = '_blank'; link.rel = 'noopener noreferrer';
+        link.textContent = `查看历史配图 ${index + 1}`; legacyList.append(link);
+      });
+    }
     const nearBottom = messageRoot.scrollHeight - messageRoot.scrollTop - messageRoot.clientHeight < 80;
     const messages = state.messages || [];
     messageRoot.replaceChildren();
@@ -133,10 +145,11 @@
     $('versions').value = shownVersion;
     $('save-state').textContent = shownVersion ? '历史版本 · 只读' : dirty ? '有未保存修改' : article.draft ? '已保存' : '';
     drawReview(article);
-    const nextPreview = article.formatted_output ? `${session.id}:${session.version}` : '';
+    const legacyPreview = Boolean(state.legacy_preview_html && article.draft === state.legacy_original_draft && !dirty);
+    const nextPreview = article.formatted_output ? `${session.id}:${session.version}:current` : legacyPreview ? `${session.id}:${session.version}:legacy` : '';
     if (nextPreview !== previewKey) {
       previewKey = nextPreview;
-      if (nextPreview) $('preview').src = `/api/wechat-plus/sessions/${session.id}/preview?v=${session.version}`;
+      if (nextPreview) $('preview').src = `/api/wechat-plus/sessions/${session.id}/${article.formatted_output ? 'preview' : 'legacy-preview'}?v=${session.version}`;
       else $('preview').removeAttribute('src');
     }
     $('preview').hidden = !nextPreview;
@@ -144,8 +157,8 @@
     $('copy-html').disabled = !nextPreview || Boolean(shownVersion);
     const themeLabel = $('layout-theme');
     if (themeLabel) {
-      themeLabel.hidden = !nextPreview || !state.layout_theme?.name;
-      themeLabel.textContent = state.layout_theme?.name ? `排版 · ${state.layout_theme.name}` : '';
+      themeLabel.hidden = !nextPreview || (!state.layout_theme?.name && !legacyPreview);
+      themeLabel.textContent = state.layout_theme?.name ? `排版 · ${state.layout_theme.name}` : legacyPreview ? '历史排版' : '';
     }
     $('input').placeholder = article.draft ? '告诉我排版风格，例如：蓝色科技感、标题醒目…' : '想写的方向、已有素材，或者直接粘贴文章…';
     updateBusy();
@@ -156,6 +169,7 @@
     const result = await api('/sessions');
     if (sequence !== epoch) return;
     $('history').replaceChildren(new Option('历史创作', ''));
+    $('history-warning').hidden = !result.legacy_migration_error;
     result.sessions.forEach(row => $('history').append(new Option(row.title, row.id)));
     $('history').value = session?.id || '';
     $('pricing').textContent = result.pricing;
@@ -260,7 +274,25 @@
       await list();
       if (owner !== expectedOwner) return;
       const id = localStorage.getItem(key('active'));
-      if (id) await open(id); else render();
+      const params = new URLSearchParams(location.search);
+      const topic = params.get('topic');
+      const legacyConversation = params.get('conversation');
+      const requestedSession = params.get('session');
+      if (topic) {
+        render();
+        $('input').value = topic;
+        params.delete('topic'); params.delete('type');
+        history.replaceState(null, '', location.pathname + (params.size ? '?' + params : '') + location.hash);
+      } else if (legacyConversation) {
+        const migrated = await api(`/legacy/conversation/${encodeURIComponent(legacyConversation)}`);
+        await open(migrated.id);
+        params.delete('conversation');
+        history.replaceState(null, '', location.pathname + (params.size ? '?' + params : '') + location.hash);
+      } else if (requestedSession) {
+        await open(requestedSession);
+        params.delete('session');
+        history.replaceState(null, '', location.pathname + (params.size ? '?' + params : '') + location.hash);
+      } else if (id) await open(id); else render();
       const stored = JSON.parse(localStorage.getItem(key('pending')) || 'null');
       if (stored && session?.id === stored.session) { pending = stored; updateBusy(); await publishPending(); }
       timer = setInterval(() => { updateBusy(); if (active) poll(); }, 2000);
@@ -294,8 +326,10 @@
   $('copy-html').onclick = async () => {
     try {
       await save();
-      if (!session?.state.article_state?.formatted_output || shownVersion) throw new Error('正文已修改，请重新排版后复制。');
-      const response = await fetch(`/api/wechat-plus/sessions/${session.id}/preview`, {credentials:'same-origin', cache:'no-store', signal:AbortSignal.timeout(30000)});
+      const state = session?.state || {}, article = state.article_state || {};
+      const legacy = Boolean(state.legacy_preview_html && article.draft === state.legacy_original_draft && !dirty);
+      if ((!article.formatted_output && !legacy) || shownVersion) throw new Error('正文已修改，请重新排版后复制。');
+      const response = await fetch(`/api/wechat-plus/sessions/${session.id}/${article.formatted_output ? 'preview' : 'legacy-preview'}`, {credentials:'same-origin', cache:'no-store', signal:AbortSignal.timeout(30000)});
       await window.AccountLifecycle?.checkResponse(response);
       if (!response.ok || !response.headers.get('content-type')?.includes('text/html')) throw new Error('读取排版未完成，请稍后重试。');
       const html = await response.text();

@@ -14,7 +14,7 @@
      const wrapper = document.createElement('span'); wrapper.id='nav-menu-wrap';
      const trigger=oldAvatar || document.createElement('span'); trigger.id='nav-avatar'; trigger.className='avatar';
      const menu=document.createElement('div'); menu.id='settings-menu'; menu.className='settings-popover'; menu.setAttribute('role','menu'); menu.hidden=true;
-     menu.innerHTML='<a role="menuitem" href="/workbench?sidebar=settings">设置</a><a role="menuitem" href="/wallet">我的积分</a><a role="menuitem" href="/bill" hidden>账单</a><a role="menuitem" href="/owner-revenue" hidden>站长收益</a><a role="menuitem" href="/owner-behavior" hidden>用户行为分析</a>';
+     menu.innerHTML='<a role="menuitem" href="/wechat-plus?sidebar=settings">设置</a><a role="menuitem" href="/wallet">我的积分</a><a role="menuitem" href="/bill" hidden>账单</a><a role="menuitem" href="/owner-revenue" hidden>站长收益</a><a role="menuitem" href="/owner-behavior" hidden>用户行为分析</a>';
      trigger.addEventListener('click',()=>{menu.hidden=!menu.hidden;});
      wrapper.append(trigger,menu);right.append(wrapper);
      document.addEventListener('click',event=>{if(!wrapper.contains(event.target))menu.hidden=true;});
