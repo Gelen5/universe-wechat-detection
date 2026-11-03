@@ -70,7 +70,7 @@
 <link rel="stylesheet" href="/static/auth-mint.css?v=20261103-register-2" />
 <script src="/static/points-notice.js?v=20261103-packages-2" defer></script>
 <link rel="stylesheet" href="/static/viral-remix.css?v=20261101-history-1">
-<link rel="stylesheet" href="/static/sticker-extract.css?v=20261103-2">
+<link rel="stylesheet" href="/static/sticker-extract.css?v=20261103-layout-3">
 <link rel="stylesheet" href="/static/xhs-extract.css?v=20261031-workspace-5">
 <link rel="stylesheet" href="/static/article-visual.css?v=20261103-glass-spacing">
 <link rel="stylesheet" href="/static/douyin-extract.css?v=20261031-workspace-3">
@@ -501,7 +501,7 @@
         <form id="sticker-form" class="xe-input-card">
           <div class="extract-link-label"><label for="sticker-url">公众号文章链接或分享文案</label><span>自动识别图片</span></div>
           <div class="xe-input-row extract-glass-field"><span class="extract-link-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.1 0l2.1-2.1a5 5 0 0 0-7.1-7.1l-1.2 1.2"/><path d="M14 11a5 5 0 0 0-7.1 0l-2.1 2.1a5 5 0 0 0 7.1 7.1l1.2-1.2"/></svg></span><textarea id="sticker-url" autocomplete="off" required rows="2" placeholder="粘贴公众号文章链接，或整段分享文案…"></textarea><button id="sticker-start" class="xe-button xe-primary extract-submit" type="submit">开始提取 →</button></div>
-          <div class="xe-input-footer"><details><summary>在哪里复制分享链接？</summary><p>打开公众号文章，点击右上角的分享按钮，选择复制链接，然后粘贴到这里。</p></details><span>每次提取 1 积分 · 提取失败自动退还</span></div>
+          <div class="xe-input-footer"><details><summary>在哪里复制分享链接？</summary><p>打开公众号文章，点击右上角的分享按钮，选择复制链接，然后粘贴到这里。</p></details><span>提取失败自动退还</span></div>
         </form>
         <div id="sticker-progress" class="xe-progress" hidden><span class="xe-spinner" aria-hidden="true"></span><span role="status">正在提取图片，请稍候…</span><span class="xe-progress-hint">完成后更新结果</span></div>
         <div id="sticker-error" class="xe-error" role="alert" hidden></div>
@@ -514,7 +514,7 @@
         <form id="xhs-extract-form" class="xe-input-card">
           <div class="extract-link-label"><label for="xhs-extract-url">作品链接或分享文案</label><span>图文 / 视频自动识别</span></div>
           <div class="xe-input-row extract-glass-field"><span class="extract-link-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.1 0l2.1-2.1a5 5 0 0 0-7.1-7.1l-1.2 1.2"/><path d="M14 11a5 5 0 0 0-7.1 0l-2.1 2.1a5 5 0 0 0 7.1 7.1l1.2-1.2"/></svg></span><textarea id="xhs-extract-url" name="url" autocomplete="off" required rows="2" placeholder="粘贴小红书分享链接，或整段分享文案…"></textarea><button id="xhs-extract-start" class="xe-button xe-primary extract-submit" type="submit">开始提取 →</button></div>
-          <div class="xe-input-footer"><details><summary>在哪里复制分享链接？</summary><p>打开小红书作品，点击“分享 → 复制链接”，将整段分享文案粘贴到这里。若链接无法提取，请重新复制完整分享链接。</p></details><span>每次提取 1 积分 · 提取失败自动退还</span></div>
+          <div class="xe-input-footer"><details><summary>在哪里复制分享链接？</summary><p>打开小红书作品，点击“分享 → 复制链接”，将整段分享文案粘贴到这里。若链接无法提取，请重新复制完整分享链接。</p></details><span>提取失败自动退还</span></div>
         </form>
         <div id="xhs-extract-progress" class="xe-progress" hidden><span class="xe-spinner" aria-hidden="true"></span><span id="xhs-extract-progress-text" role="status" aria-live="polite"></span><span class="xe-progress-hint">完成后更新结果</span></div>
         <div id="xhs-extract-error" class="xe-error" role="alert" hidden></div>
@@ -1085,7 +1085,7 @@
     <link rel="stylesheet" href="/static/ui-system.css?v=20261031-no-collapse-4">
     <script src="/static/creator-chat.js?v=20261101-history-1"></script>
     <script src="/static/notion-workspace.js?v=20261103-plus-only-1"></script>
-    <script src="/static/sticker-extract.js?v=20261103-1"></script>
+    <script src="/static/sticker-extract.js?v=20261103-layout-3"></script>
     <script src="/static/xhs-extract.js?v=20261102-extract-2"></script>
     <script src="/static/article-visual.js?v=20261101-async-plan-1"></script>
     <script src="/static/douyin-extract.js?v=20261102-extract-2"></script>
