@@ -27,7 +27,7 @@
 | `IMAGE_BOARD_SYNC_ENABLED` | `0`（关闭） | 低分爆图定时同步开关；关闭时不注册 beat 调度项 |
 | `IMAGE_BOARD_SYNC_PAGES` | `10` | 每次同步页数（1–10，每页 1 积分） |
 | `IMAGE_BOARD_STALE_HOURS` | `48` | 超过该小时数未成功同步即标记 `degraded` |
-| `IMAGE_BOARD_SYNC_HOURS_UTC` | `2,6` | 同步小时（UTC），仅在同步开关打开时生效 |
+| 同步时间 | 北京时间 11:00 | 两榜每天各调度一次；一次同步可包含多页上游调用 |
 
 套餐由服务端固定定义，客户端不能改金额或天数：
 

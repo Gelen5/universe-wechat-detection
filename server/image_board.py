@@ -459,7 +459,7 @@ def admin_sync(request: Request, date: str = Query(..., min_length=8, max_length
 def _task():
     from .celery_app import celery_app
 
-    @celery_app.task(name="image_board.sync", max_retries=2, default_retry_delay=600)
+    @celery_app.task(name="image_board.sync", max_retries=0)
     def image_board_sync():
         # 失败不抛：旧快照保留，页面按 freshness 降级展示。
         try:

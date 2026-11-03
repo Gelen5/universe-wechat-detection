@@ -363,7 +363,7 @@ def last_run() -> dict:
 def _task():
     from .celery_app import celery_app
 
-    @celery_app.task(name="lowfans.sync", max_retries=2, default_retry_delay=300)
+    @celery_app.task(name="lowfans.sync", max_retries=0)
     def lowfans_sync():
         result = sync_daily()
         if result.get("status") in {"failed", "unconfigured"}:

@@ -66,12 +66,9 @@ celery_app.conf.update(
             "task": "hotspot.sync", "schedule": 600.0,
         },
         # 微小榜每日生成前一天的 7d 低粉爆文榜。
-        # ⚠️ 本文件没设 timezone 且 enable_utc=True，crontab 按 UTC 解析：
-        # hour=1,5,9 分钟 30 = 北京时间 09:30 / 13:30 / 17:30。
-        # 跑三次是兜底：sync_daily 发现当天数据已存在会直接返回 cached，
-        # 只有第一次真花钱，后两次补偿「榜单还没生成」或「部署重启错过窗口」。
+        # Celery 按 UTC 调度：03:00 UTC = 北京时间 11:00，每天仅一次。
         "lowfans-sync-daily": {
-            "task": "lowfans.sync", "schedule": crontab(hour="1,5,9", minute=30),
+            "task": "lowfans.sync", "schedule": crontab(hour=3, minute=0),
         },
         # 低分爆图定时同步默认不注册，只在显式开启 IMAGE_BOARD_SYNC_ENABLED=1
         # 后追加，避免未获数据源商业授权时自动触达付费上游。
@@ -87,5 +84,5 @@ if os.getenv("IMAGE_BOARD_SYNC_ENABLED", "0").strip() == "1":
     # 跟着开关一起注册：关着时连调度项都不存在，避免看起来像在自动采集。
     celery_app.conf.beat_schedule["image-board-sync-daily"] = {
         "task": "image_board.sync",
-        "schedule": crontab(hour=os.getenv("IMAGE_BOARD_SYNC_HOURS_UTC", "2,6"), minute=15),
+        "schedule": crontab(hour=3, minute=0),  # 北京时间 11:00，每天仅一次
     }
