@@ -149,3 +149,14 @@ body #sticker-extract{box-sizing:border-box;--xe-ink:#244b39;--xe-muted:#5f7767;
 #sticker-extract .sticker-gallery-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;border-top:1px solid var(--xe-edge);margin-top:18px;padding-top:17px;color:var(--xe-muted);font-size:11px}
 @media(max-width:850px){#sticker-extract .sticker-workspace{grid-template-columns:minmax(0,1fr)}#sticker-extract .sticker-preview{border-right:0;border-bottom:1px solid var(--xe-edge)}#sticker-extract .sticker-grid{grid-template-columns:repeat(auto-fill,minmax(85px,1fr))}}
 @media(max-width:560px){#sticker-extract .sticker-result-head{align-items:flex-start;flex-direction:column;padding:18px}#sticker-extract .sticker-result-head .xe-button{width:100%}#sticker-extract .sticker-preview,#sticker-extract .sticker-gallery{padding:18px}#sticker-extract .sticker-preview .xe-viewer{height:360px}#sticker-extract .sticker-gallery-actions .xe-button{width:100%}}
+/* 空状态与抖音提取统一材质和信息层级。 */
+body #sticker-extract .sticker-empty-glass{min-height:480px;padding:56px 28px;text-align:center}
+#sticker-extract .sticker-empty-icon{display:grid;place-items:center;width:48px;height:48px;margin:0 auto 17px;border:1px solid rgba(255,255,255,.9);border-radius:15px;color:#43866a;background:rgba(255,255,255,.68);box-shadow:inset 0 1px #fff,0 6px 18px rgba(40,96,61,.06)}
+#sticker-extract .sticker-empty-icon svg{width:21px;height:21px;margin:0}
+#sticker-extract .sticker-empty-label{color:#5b8a70;font-size:12px;font-weight:650;margin-bottom:15px}
+#sticker-extract .sticker-empty-glass h2{font-family:Georgia,'Noto Serif SC',serif;font-size:27px;font-weight:500;line-height:1.4;margin-bottom:12px;letter-spacing:.01em}
+#sticker-extract .sticker-empty-glass p{color:#718b7c;line-height:1.9}
+#sticker-extract .sticker-steps{width:min(100%,900px);padding:0;margin:35px 0 0;list-style:none;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+#sticker-extract .sticker-steps li{min-width:0;padding:13px 14px;border:1px solid rgba(184,214,194,.7);border-radius:12px;background:rgba(255,255,255,.56);font-size:12px;color:#5c7e69;text-align:left;white-space:nowrap}
+#sticker-extract .sticker-steps b{color:#398a62;margin-right:7px;font-variant-numeric:tabular-nums}
+@media(max-width:700px){#sticker-extract .sticker-steps{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}body #sticker-extract .sticker-empty-glass{min-height:380px;padding:38px 18px}#sticker-extract .sticker-empty-glass h2{font-size:23px}}

@@ -70,13 +70,13 @@
 <link rel="stylesheet" href="/static/auth-mint.css?v=20261103-register-2" />
 <script src="/static/points-notice.js?v=20261103-packages-2" defer></script>
 <link rel="stylesheet" href="/static/viral-remix.css?v=20261101-history-1">
-<link rel="stylesheet" href="/static/sticker-extract.css?v=20261103-layout-3">
+<link rel="stylesheet" href="/static/sticker-extract.css?v=20261103-glass-4">
 <link rel="stylesheet" href="/static/xhs-extract.css?v=20261031-workspace-5">
 <link rel="stylesheet" href="/static/article-visual.css?v=20261103-glass-spacing">
 <link rel="stylesheet" href="/static/douyin-extract.css?v=20261031-workspace-3">
 <link rel="stylesheet" href="/static/review-studio.css?v=20261031-mint-1">
 <link rel="stylesheet" href="/static/referrals.css?v=20261031-invite-1">
-<link rel="stylesheet" href="/static/extract-unified.css?v=20261102-glass-input-2">
+<link rel="stylesheet" href="/static/extract-unified.css?v=20261103-sticker-glass-4">
 </head>
   <body class="atelier">
     <script>if(location.pathname.replace(/\/$/,'')==='/hotspots')document.body.classList.add('hotspots-body');</script>
@@ -497,7 +497,7 @@
 
 
       <section id="sticker-extract" class="skill-page xhs-extract" aria-label="贴图号内容提取" hidden>
-        <header class="xe-page-head"><div><p class="xe-breadcrumb">内容创作 / 贴图号内容提取</p><h1>贴图号内容提取</h1><p class="xe-subtitle">粘贴公众号文章链接，把图片素材整理到一起。</p></div><span class="xe-auto-label">公众号图片提取</span></header>
+        <header class="xe-page-head"><div><h1>贴图号内容提取</h1><p class="xe-subtitle">粘贴公众号文章链接，把图片素材整理到一起。</p></div><span class="xe-auto-label">公众号图片提取</span></header>
         <form id="sticker-form" class="xe-input-card">
           <div class="extract-link-label"><label for="sticker-url">公众号文章链接或分享文案</label><span>自动识别图片</span></div>
           <div class="xe-input-row extract-glass-field"><span class="extract-link-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.1 0l2.1-2.1a5 5 0 0 0-7.1-7.1l-1.2 1.2"/><path d="M14 11a5 5 0 0 0-7.1 0l-2.1 2.1a5 5 0 0 0 7.1 7.1l1.2-1.2"/></svg></span><textarea id="sticker-url" autocomplete="off" required rows="2" placeholder="粘贴公众号文章链接，或整段分享文案…"></textarea><button id="sticker-start" class="xe-button xe-primary extract-submit" type="submit">开始提取 →</button></div>
@@ -505,7 +505,11 @@
         </form>
         <div id="sticker-progress" class="xe-progress" hidden><span class="xe-spinner" aria-hidden="true"></span><span role="status">正在提取图片，请稍候…</span><span class="xe-progress-hint">完成后更新结果</span></div>
         <div id="sticker-error" class="xe-error" role="alert" hidden></div>
-        <div id="sticker-empty" class="xe-empty"><svg viewBox="0 0 80 80" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="17" y="9" width="43" height="59" rx="9"/><path d="M28 25h21M28 33h15M28 43h21M28 51h14"/><rect x="43" y="44" width="26" height="23" rx="5" fill="#edf5ee"/><path d="m48 60 7-8 7 8"/></svg><h2>一条链接，图片素材一次整理好</h2><p>提取后可以逐张预览、下载图片，<br>也可以将全部图片打包保存。</p><div class="xe-output-tags"><span>文章标题</span><span>图片预览</span><span>批量下载</span></div></div>
+        <div id="sticker-empty" class="xe-empty sticker-empty-glass">
+          <div class="sticker-empty-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m4 17 5-5 4 4 3-3 4 4"/></svg></div>
+          <span class="sticker-empty-label">图片提取 · 准备开始</span><h2>找到想要的图片，<br>一键整理保存。</h2><p>粘贴公众号文章链接，预览图片、按需下载，<br>也可以选择参考图用于贴图复刻。</p>
+          <ol class="sticker-steps" aria-label="图片提取流程"><li><b>01</b> 粘贴文章链接</li><li><b>02</b> 提取图片素材</li><li><b>03</b> 预览并下载</li><li><b>04</b> 选择图片复刻</li></ol>
+        </div>
         <div id="sticker-result" hidden></div>
         <p class="xe-footer-note">请用于已获授权的素材整理与创作参考。</p>
       </section>
