@@ -52,6 +52,9 @@ class ImageBoardTests(unittest.TestCase):
                  'word_num': 200 if i % 2 else 10, 'image_num': 1, 'read_num': i}
                 for i in range(200)
             ], source='test')
+            image_board.store('2026-11-02', [
+                {'sn': 'partial', 'content_type': 'book', 'title': 'partial'}
+            ], source='test', error='page 2 failed')
             app = FastAPI()
             app.include_router(image_board.router)
             with TestClient(app) as client:
@@ -60,6 +63,7 @@ class ImageBoardTests(unittest.TestCase):
                 self.assertEqual(200, len(data['items']))
                 self.assertEqual(100, data['counts']['image'])
                 self.assertEqual(100, client.get('/api/image-board?scope=image').json()['total'])
+                self.assertTrue(data['freshness']['stale'])
         engine.dispose()
 
 

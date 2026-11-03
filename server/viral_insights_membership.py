@@ -252,7 +252,7 @@ def apply_paid(out_trade_no: str, trade_no: str | None = None) -> bool:
                            .values(status="PAID", paid_at=now.isoformat()))
         _recompute(connection, row["user_id"])
         from . import alipay_pay
-        values = {"status": "PAID", "updated_at": alipay_pay._now()}
+        values = {"status": "PAID", "paid_at": alipay_pay._now(), "updated_at": alipay_pay._now()}
         if trade_no:
             values["trade_no"] = trade_no
         connection.execute(update(alipay_pay.alipay_orders)

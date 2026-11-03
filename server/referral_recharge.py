@@ -97,6 +97,11 @@ def confirm_refund(order_id, request_id):
     from . import alipay_pay
     fresh=alipay_pay._find_order(order_id)
     alipay_pay._claw_back_refund(fresh, alipay_pay._amount_of(fresh['refunded_amount']),alipay_pay.Decimal('0'),request_id)
+    # Reconciliation may confirm a refund after the original HTTP request died.
+    # Replay the membership revocation as well as the recharge clawback.
+    from . import viral_insights_membership
+    if viral_insights_membership.is_membership_order(order_id):
+        viral_insights_membership.apply_refund(order_id)
 
 
 def reconcile_refunds():

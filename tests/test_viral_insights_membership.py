@@ -353,6 +353,42 @@ def test_image_board_scheduled_sync_disabled_by_default(monkeypatch):
         sync.assert_not_called()
 
 
+def test_reconciliation_repairs_paid_membership_without_grant(paywall, clock):
+    client, uid = _client_for_new_user()
+    oid = _membership_order(uid)
+    with database.ENGINE.begin() as conn:
+        conn.execute(update(alipay_pay.alipay_orders).where(
+            alipay_pay.alipay_orders.c.out_trade_no == oid).values(status='PAID'))
+    assert not vim._state(uid)['active']
+    with patch.object(alipay_pay, '_trade_query', return_value={'code': '40004'}):
+        alipay_pay.reconcile_pending_orders()
+    assert vim._state(uid)['active']
+    assert client.get('/api/viral-insights/membership').json()['status'] == 'member_active'
+
+
+def test_payment_query_does_not_mark_gateway_paid_before_grant(paywall, clock):
+    _, uid = _client_for_new_user()
+    oid = _membership_order(uid)
+    order = alipay_pay._find_order(oid)
+    with patch.object(alipay_pay, '_trade_query', return_value={'code': '10000', 'trade_status': 'TRADE_SUCCESS'}), \
+         patch.object(vim, 'apply_paid', side_effect=RuntimeError('interrupted')):
+        with pytest.raises(RuntimeError):
+            alipay_pay._sync_from_query(order)
+    assert alipay_pay._find_order(oid)['status'] == 'CREATED'
+
+
+def test_confirmed_refund_reconciliation_revokes_membership(paywall, clock):
+    from server import referral_recharge
+    client, uid = _client_for_new_user()
+    oid = _membership_order(uid, 'week')
+    vim.apply_paid(oid)
+    referral_recharge.reserve_refund(oid, 'recover-refund', 990)
+    referral_recharge.confirm_refund(oid, 'recover-refund')
+    referral_recharge.confirm_refund(oid, 'recover-refund')
+    assert not vim._state(uid)['active']
+    assert client.get('/api/viral-insights/membership').json()['status'] == 'member_expired'
+
+
 def test_image_board_stale_snapshot_is_flagged(monkeypatch):
     from server import image_board
     _seed()

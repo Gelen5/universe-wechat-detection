@@ -70,6 +70,7 @@
   /* 概览条：只反映当天全量，不受赛道/搜索筛选影响 */
   function renderStats() {
     if (!el.stats) return;
+    if (state.preview) { el.stats.hidden = true; return; }
     const stats = state.stats || {};
     const rows = Number(stats.rows) || Number(state.total) || 0;
     const tracks = Number(stats.tracks) || (state.categories || []).length;
@@ -102,7 +103,7 @@
         <b>${esc(item.title_preview || '')}</b><em>${esc(item.wx_type || '')}</em></li>`).join('');
       el.list.innerHTML = `<div class="vi-preview"><ul>${rows}</ul>
         <div class="vi-lock"><strong>完整榜单、阅读数据和原文需开通爆款情报会员</strong>
-        <p>低粉爆文与低分爆图共用一份权益，新用户可免费试用 24 小时。</p>
+        <p>低粉爆文与低分爆图共用权益。开启后才开始免费试用计时，未开启不会扣费；筛选、排序和搜索在开启后可用。</p>
         <button type="button" class="vi-primary" data-viral-insights-open>查看权益</button></div></div>`;
       if (el.more) el.more.hidden = true;
       return;
@@ -211,7 +212,7 @@
   }
 
   async function load({ append = false } = {}) {
-    if (state.loading) return;
+    if (state.loading) { state.reloadPending = true; return; }
     state.loading = true;
     if (!append) {
       state.page = 1;
@@ -236,8 +237,10 @@
       state.statDate = data.stat_date || '';
       state.degraded = !!data.degraded;
       state.preview = !!data.preview;
+      [el.search, el.sort, el.date].forEach(node => { if (node) node.disabled = state.preview; });
       renderStats();
       renderTracks();
+      el.tracks?.querySelectorAll('button').forEach(node => { node.disabled = state.preview; });
       renderDates();
       renderList();
       renderNote();
@@ -251,6 +254,7 @@
     } finally {
       state.loading = false;
       state.loaded = true;
+      if (state.reloadPending) { state.reloadPending = false; load(); }
     }
   }
 

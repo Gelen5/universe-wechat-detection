@@ -1006,7 +1006,8 @@ def _sync_from_query(order: dict[str, Any]) -> dict[str, Any]:
     if mapped == "PAID" and order["status"] not in refunded_statuses:
         if not _is_membership_order(order['out_trade_no']):
             _record_referral_payment(order['out_trade_no'], result, 'authenticated_query')
-        if order["status"] != "PAID":
+        is_member = _is_membership_order(order['out_trade_no'])
+        if order["status"] != "PAID" and not is_member:
             _set_order_status(
                 order["out_trade_no"], "PAID", trade_no=result.get("trade_no"), paid_at=_now()
             )
@@ -1014,6 +1015,7 @@ def _sync_from_query(order: dict[str, Any]) -> dict[str, Any]:
         from . import viral_insights_membership
         if viral_insights_membership.is_membership_order(order["out_trade_no"]):
             viral_insights_membership.apply_paid(order["out_trade_no"], result.get("trade_no"))
+            order = _find_order(order["out_trade_no"]) or order
         else:
             _credit_recharge(order["out_trade_no"])
     elif mapped == "CLOSED" and order["status"] == "CREATED":
@@ -1213,6 +1215,24 @@ def reconcile_pending_orders(
         except Exception:  # noqa: BLE001 - 单笔失败不影响其他订单
             summary["failed"] += 1
             logger.warning("alipay reconcile query failed: %s", row["out_trade_no"], exc_info=True)
+
+    # Recover the historical two-step payment path if the process stopped after
+    # persisting a verified gateway payment but before granting membership.
+    from . import viral_insights_membership
+    with ENGINE.connect() as connection:
+        stranded = connection.execute(select(alipay_orders.c.out_trade_no, alipay_orders.c.trade_no)
+            .join(viral_insights_membership.orders,
+                  viral_insights_membership.orders.c.out_trade_no == alipay_orders.c.out_trade_no)
+            .where(alipay_orders.c.status == "PAID",
+                   viral_insights_membership.orders.c.status.in_(("CREATED", "PENDING_PAYMENT")))
+            .limit(max(1, limit))).all()
+    for order_id, trade_no in stranded:
+        try:
+            viral_insights_membership.apply_paid(order_id, trade_no)
+            summary["paid"] += 1
+        except Exception:
+            summary["failed"] += 1
+            logger.exception("membership grant reconciliation failed: %s", order_id)
 
     if summary["paid"] or summary["failed"]:
         logger.warning("alipay reconcile: %s", summary)
@@ -1497,7 +1517,7 @@ async def alipay_notify(request: Request) -> PlainTextResponse:
                 _credit_recharge(params["out_trade_no"])
         return PlainTextResponse("success")
 
-    if _is_paid_notification(params) and order["status"] not in ("PAID","PARTIAL_REFUNDED","REFUNDED"):
+    if _is_paid_notification(params) and not membership_order and order["status"] not in ("PAID","PARTIAL_REFUNDED","REFUNDED"):
         _set_order_status(
             order["out_trade_no"],
             "PAID",
@@ -1574,13 +1594,15 @@ def pay_result(request: Request, out_trade_no: str = "") -> HTMLResponse:
         f"<dt>订单金额</dt><dd>{order['total_amount']} 元</dd>",
         f"<dt>支付宝交易号</dt><dd>{order['trade_no'] or '—'}</dd>",
     ]
-    if recharge is None and _is_membership_order(out_trade_no):
+    is_member = recharge is None and _is_membership_order(out_trade_no)
+    if is_member:
         from . import viral_insights_membership
         member = viral_insights_membership.order_summary(out_trade_no)
         if member:
             rows.append(f"<dt>购买内容</dt><dd>爆款情报会员 · {member['days']} 天</dd>")
             if member.get("expires_at"):
-                rows.append(f"<dt>本单权益至</dt><dd>{member['expires_at'][:19].replace('T', ' ')} UTC</dd>")
+                expires = datetime.fromisoformat(member['expires_at'].replace('Z', '+00:00'))
+                rows.append(f"<dt>本单权益至</dt><dd>{expires.astimezone(timezone(timedelta(hours=8))).strftime('%Y-%m-%d %H:%M:%S')} 北京时间</dd>")
     if recharge is not None:
         rows.append(f"<dt>到账积分</dt><dd>{recharge['credits']} 积分</dd>")
         rows.append(f"<dt>入账状态</dt><dd>{'已入账' if recharge['status'] == 'CREDITED' else '待入账'}</dd>")
@@ -1601,7 +1623,7 @@ def pay_result(request: Request, out_trade_no: str = "") -> HTMLResponse:
         + "".join(rows)
         + "</dl>"
         + '<div class="actions">'
-        + ('<a class="primary" href="/">返回工作台</a>' if paid else '<a class="primary" href="javascript:location.reload()">刷新状态</a>')
+        + (('<a class="primary" href="/lowfans">查看爆款榜单</a>' if is_member else '<a class="primary" href="/">返回工作台</a>') if paid else '<a class="primary" href="javascript:location.reload()">刷新状态</a>')
         + '<a href="/pricing">继续充值</a>'
         + "</div>"
     )

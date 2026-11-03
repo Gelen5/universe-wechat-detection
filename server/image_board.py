@@ -97,16 +97,21 @@ def store(stat_date: str, raw_items: list[dict], *, source: str, pages_ok: int =
         seen.add(item["sn"])
         rows.append(item)
     with database.session_scope() as session:
-        if rows:
+        existing = session.execute(select(func.count()).select_from(ImageBoardItem)
+                                   .where(ImageBoardItem.stat_date == stat_date)).scalar() or 0
+        # Never replace a more complete snapshot with a failed or smaller pull.
+        replace = bool(rows) and (not existing or (not error and len(rows) >= existing))
+        if replace:
             session.execute(delete(ImageBoardItem).where(ImageBoardItem.stat_date == stat_date))
             session.add_all(ImageBoardItem(**item) for item in rows)
         session.add(ImageBoardSyncRun(
             finished_at=datetime.now(timezone.utc), stat_date=stat_date, source=source,
-            pages_ok=pages_ok, cost_points=cost_points, inserted=len(rows),
+            pages_ok=pages_ok, cost_points=cost_points, inserted=len(rows) if replace else 0,
             upstream_total=upstream_total,
-            status="ok" if rows and not error else ("partial" if rows else "failed"),
+            status="ok" if replace and not error else ("partial" if rows else "failed"),
             error=error[:2000] or None))
-    return {"stat_date": stat_date, "inserted": len(rows), "pages_ok": pages_ok,
+    return {"stat_date": stat_date, "inserted": len(rows) if replace else 0,
+            "retained": existing if not replace else 0, "pages_ok": pages_ok,
             "cost_points": cost_points, "upstream_total": upstream_total, "error": error}
 
 
@@ -143,7 +148,7 @@ def sync(stat_date: str, pages: int = MAX_PAGES) -> dict:
         time.sleep(0.15)
     result = store(stat_date, items, source="api", pages_ok=pages_ok,
                    cost_points=pages_ok * POINTS_PER_CALL, upstream_total=total, error=error)
-    result["status"] = "ok" if result["inserted"] and not error else ("partial" if result["inserted"] else "failed")
+    result["status"] = "ok" if result["inserted"] and not error else ("partial" if result["inserted"] or result["retained"] else "failed")
     return result
 
 
@@ -199,7 +204,7 @@ def scheduled_sync() -> dict:
                                    .where(ImageBoardItem.stat_date == stat_date)).scalar() or 0
         attempts = session.execute(select(func.count()).select_from(ImageBoardSyncRun)
                                    .where(ImageBoardSyncRun.stat_date == stat_date)).scalar() or 0
-    if existing >= min_complete_items():
+    if existing >= min(200, sync_pages() * 20):
         return {"status": "cached", "stat_date": stat_date, "inserted": int(existing)}
     if attempts >= max_attempts():
         return {"status": "cached", "stat_date": stat_date, "inserted": int(existing),
@@ -208,15 +213,18 @@ def scheduled_sync() -> dict:
     return sync(stat_date, sync_pages())
 
 
-def freshness(session) -> dict:
+def freshness(session, stat_date: str) -> dict:
     """最近一次成功同步距今多久；超过阈值标记 stale，页面不能称为实时榜单。"""
     last_ok = session.execute(select(ImageBoardSyncRun).where(ImageBoardSyncRun.status.in_(("ok", "partial")))
                               .order_by(ImageBoardSyncRun.id.desc()).limit(1)).scalars().first()
     if not last_ok or not last_ok.finished_at:
         return {"stale": True, "last_success_at": None, "stale_after_hours": stale_after_hours()}
     finished = last_ok.finished_at if last_ok.finished_at.tzinfo else last_ok.finished_at.replace(tzinfo=timezone.utc)
-    age_hours = (datetime.now(timezone.utc) - finished).total_seconds() / 3600
-    return {"stale": age_hours > stale_after_hours(), "last_success_at": finished.isoformat(),
+    now = datetime.now(timezone.utc)
+    age_hours = (now - finished).total_seconds() / 3600
+    from datetime import timedelta
+    expected = (now.astimezone(timezone(timedelta(hours=8))) - timedelta(days=1)).date().isoformat()
+    return {"stale": age_hours > stale_after_hours() or stat_date < expected, "last_success_at": finished.isoformat(),
             "age_hours": round(age_hours, 1), "stale_after_hours": stale_after_hours()}
 
 
@@ -333,7 +341,7 @@ def list_items(
                                .limit(1)).scalars().first()
         dates = session.execute(select(ImageBoardItem.stat_date).group_by(ImageBoardItem.stat_date)
                                 .order_by(ImageBoardItem.stat_date.desc()).limit(30)).scalars().all()
-        fresh = freshness(session)
+        fresh = freshness(session, stat_date)
 
     counts = {"all": len(rows), "image": sum(is_image_first(r) for r in rows),
               "lowfans": sum(r.sn in matches for r in rows)}
@@ -364,7 +372,8 @@ def list_items(
                 "counts": {"all": min(counts["all"], 999), "image": min(counts["image"], 999), "lowfans": min(counts["lowfans"], 999)},
                 "categories": [{"name": k, "count": min(v, 999)} for k, v in categories.items()],
                 "last_sync": last_sync, "preview": True, "membership_required": True,
-                "freshness": fresh, "degraded": fresh["stale"]}
+                "freshness": fresh, "degraded": fresh["stale"],
+                "reason": "榜单未更新至最近日期，当前展示最近可用数据" if fresh["stale"] else ""}
     items: list[dict[str, Any]] = []
     for rank, row in enumerate(rows, 1):
         payload = {field: getattr(row, field) for field in PUBLIC_FIELDS}
@@ -385,7 +394,7 @@ def list_items(
                       "status": last.status} if last else {},
         "freshness": fresh,
         "degraded": fresh["stale"],
-        "reason": "数据超过 %d 小时未更新，展示的是最近一次成功快照" % fresh["stale_after_hours"] if fresh["stale"] else "",
+        "reason": "榜单未更新至最近日期，当前展示最近可用数据" if fresh["stale"] else "",
     }
 
 

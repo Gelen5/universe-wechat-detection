@@ -5,7 +5,7 @@
   const root = document.querySelector('#image-board');
   if (!root) return;
 
-  const state = { scope: 'all', type: '', q: '', sort: 'read', date: '', loaded: false, loading: false };
+  const state = { scope: 'all', type: '', q: '', sort: 'read', date: '', loaded: false, loading: false, reloadPending: false };
   const $ = (sel) => root.querySelector(sel);
 
   const esc = (value) => String(value ?? '').replace(/[&<>"']/g,
@@ -77,7 +77,7 @@
       <b>${esc(item.title_preview || '')}</b><em>${esc(item.wx_type || '')}</em></li>`).join('');
     grid.innerHTML = `<div class="vi-preview"><ul>${rows}</ul>
       <div class="vi-lock"><strong>完整封面、阅读数据和原文需开通爆款情报会员</strong>
-      <p>低粉爆文与低分爆图共用一份权益，新用户可免费试用 24 小时。</p>
+      <p>低粉爆文与低分爆图共用权益。开启后才开始免费试用计时，未开启不会扣费；筛选、排序和搜索在开启后可用。</p>
       <button type="button" class="vi-primary" data-viral-insights-open>查看权益</button></div></div>`;
   }
 
@@ -139,7 +139,7 @@
   }
 
   async function load() {
-    if (state.loading) return;
+    if (state.loading) { state.reloadPending = true; return; }
     state.loading = true;
     skeleton();
     const params = new URLSearchParams({ scope: state.scope, sort: state.sort });
@@ -150,8 +150,10 @@
       const response = await fetch('/api/image-board?' + params.toString(), { credentials: 'same-origin' });
       if (!response.ok) throw new Error('HTTP ' + response.status);
       const data = await response.json();
+      root.querySelectorAll('#ib-search, #ib-sort, #ib-date').forEach(el => { el.disabled = !!data.preview; });
       renderMeta(data);
       renderList(data);
+      root.querySelectorAll('#ib-tracks button').forEach(el => { el.disabled = !!data.preview; });
       state.loaded = true;
       if (data.degraded) {
         const age = data.freshness?.last_success_at
@@ -167,6 +169,7 @@
       $('#ib-stamp').innerHTML = '<span>读取失败</span>';
     } finally {
       state.loading = false;
+      if (state.reloadPending) { state.reloadPending = false; load(); }
     }
   }
 
