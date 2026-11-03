@@ -246,10 +246,11 @@ PUBLIC_PROBE_URL="${PUBLIC_PROBE_URL:-https://yuzoudiyigongzuotai.cn/health/read
   done
 ) &
 PROBE_PID=$!
+trap 'kill "${PROBE_PID:-}" 2>/dev/null || true; if [ -n "${TMP:-}" ]; then rm -rf "$TMP"; fi' EXIT
 
 if [ "${#EXTRA_BUILD[@]}" -gt 0 ]; then
   log "迁移 Better Auth 独立表并导入原用户 ID / 密码哈希"
-  ( cd "$REL" && docker compose "${COMPOSE_ARGS[@]}" -p "$PROJECT" --env-file "$ENV_FILE" run --rm --no-build --no-deps auth-migrate )
+  ( cd "$REL" && docker compose "${COMPOSE_ARGS[@]}" -p "$PROJECT" --env-file "$ENV_FILE" run --rm --no-deps auth-migrate )
   if [ "$REUSE_AUTH" != 1 ]; then
     ( cd "$REL" && docker compose "${COMPOSE_ARGS[@]}" -p "$PROJECT" --env-file "$ENV_FILE" up -d --no-deps auth )
   fi
