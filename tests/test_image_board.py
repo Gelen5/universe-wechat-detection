@@ -66,6 +66,29 @@ class ImageBoardTests(unittest.TestCase):
                 self.assertTrue(data['freshness']['stale'])
         engine.dispose()
 
+    def test_fill_from_earlier_snapshots_deduplicates_and_filters_pool(self):
+        engine = create_engine('sqlite://', connect_args={'check_same_thread': False}, poolclass=StaticPool)
+        with patch.object(database, 'ENGINE', engine), patch.object(database, 'SessionLocal',
+                sessionmaker(bind=engine, expire_on_commit=False)):
+            image_board.init_schema()
+            image_board.store('2026-11-01', [
+                {'sn': str(i), 'content_type': 'book', 'title': f'old {i}', 'wx_type': '历史', 'read_num': i}
+                for i in range(200)], source='test')
+            image_board.store('2026-11-02', [
+                {'sn': str(i), 'content_type': 'book', 'title': f'new {i}', 'wx_type': '当日', 'read_num': i}
+                for i in range(132)], source='test')
+            app = FastAPI()
+            app.include_router(image_board.router)
+            with patch.dict(os.environ, {'VIRAL_INSIGHTS_PAYWALL_ENABLED': '0'}), TestClient(app) as client:
+                data = client.get('/api/image-board').json()
+                self.assertEqual((200, 132, 68), (data['total'], data['primary_count'], data['fallback_count']))
+                self.assertEqual(200, len({item['sn'] for item in data['items']}))
+                self.assertEqual(68, sum(item['is_fallback'] for item in data['items']))
+                self.assertEqual('new 1', next(item['title'] for item in data['items'] if item['sn'] == '1'))
+                self.assertEqual(68, client.get('/api/image-board?wx_type=历史').json()['total'])
+                self.assertEqual(200, client.get('/api/image-board?date=2026-11-01').json()['total'])
+        engine.dispose()
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -42,6 +42,7 @@
     const facts = [
       `<em>${item.image_num || 0} 图</em>`,
       `<em>${item.word_num || 0} 字</em>`,
+      item.is_fallback ? `<em>补充 · ${esc(item.stat_date)}</em>` : '',
       item.wx_type ? `<em>${esc(item.wx_type)}</em>` : '',
       low ? `<em class="is-warm">${esc(low.wx_name || '')}</em>` : '',
     ].filter(Boolean).join('');
@@ -118,7 +119,8 @@
       ? `<span>榜单日期 <b>${esc(data.stat_date)}</b></span>`
       : '<span>正在读取…</span>';
     const total = Number(data.total) || 0;
-    $('#ib-tail').textContent = total ? `${total} 条 · ${data.stat_date || ''}` : '暂无数据';
+    const pool = data.fallback_count ? `（当日 ${data.primary_count} 条，历史补充 ${data.fallback_count} 条）` : '';
+    $('#ib-tail').textContent = total ? `${data.preview ? '预览 ' : ''}${total} 条 · ${data.stat_date || ''}${pool}` : '暂无数据';
     const scopeCount = Number(data.counts?.[state.scope]) || total;
     renderTracks(data.categories, scopeCount);
     const dates = data.dates || [];
@@ -160,7 +162,7 @@
           ? `最近成功更新 ${new Date(data.freshness.last_success_at).toLocaleString('zh-CN', { hour12: false })}`
           : '尚无成功同步记录';
         $('#ib-stamp').innerHTML = `<span class="is-warn">${esc(data.stat_date ? '快照 ' + data.stat_date : '')} · ${esc(age)}</span>`;
-        $('#ib-tail').textContent = data.reason || '暂时没有数据';
+        if (data.reason) $('#ib-tail').textContent += ` · ${data.reason}`;
       }
     } catch (error) {
       $('#ib-grid').className = '';

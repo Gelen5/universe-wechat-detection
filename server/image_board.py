@@ -334,8 +334,23 @@ def list_items(
         if not stat_date:
             return {"items": [], "total": 0, "stat_date": "", "categories": [], "counts": {},
                     "degraded": True, "reason": "尚未采集任何贴图数据"}
-        rows = session.execute(select(ImageBoardItem).where(ImageBoardItem.stat_date == stat_date)
-                               ).scalars().all()
+        # Build one stable pool before applying user filters: keep the selected
+        # day's items first, then fill from the nearest earlier snapshots.
+        # A repeated article appears only once, using its newest snapshot.
+        candidates = session.execute(select(ImageBoardItem)
+            .where(ImageBoardItem.stat_date <= stat_date)
+            .order_by(ImageBoardItem.stat_date.desc(), ImageBoardItem.read_num.desc(),
+                      ImageBoardItem.sn.asc())).scalars()
+        rows, seen = [], set()
+        for row in candidates:
+            if row.sn in seen:
+                continue
+            rows.append(row)
+            seen.add(row.sn)
+            if len(rows) == 200:
+                break
+        primary_count = sum(row.stat_date == stat_date for row in rows)
+        fallback_count = len(rows) - primary_count
         matches = _lowfans_matches(session, [row.sn for row in rows])
         last = session.execute(select(ImageBoardSyncRun).order_by(ImageBoardSyncRun.id.desc())
                                .limit(1)).scalars().first()
@@ -373,12 +388,14 @@ def list_items(
                 "categories": [{"name": k, "count": min(v, 999)} for k, v in categories.items()],
                 "last_sync": last_sync, "preview": True, "membership_required": True,
                 "freshness": fresh, "degraded": fresh["stale"],
+                "primary_count": primary_count, "fallback_count": fallback_count,
                 "reason": "榜单未更新至最近日期，当前展示最近可用数据" if fresh["stale"] else ""}
     items: list[dict[str, Any]] = []
     for rank, row in enumerate(rows, 1):
         payload = {field: getattr(row, field) for field in PUBLIC_FIELDS}
         payload["wx_type"] = row.wx_type or OTHER_LABEL
         payload["rank_no"] = rank
+        payload["is_fallback"] = row.stat_date != stat_date
         payload["image_first"] = is_image_first(row)
         payload["excerpt"] = (row.content or "").strip()[:120]
         payload["cover_url"] = f"/api/image-board/cover?sn={row.sn}" if row.pic_url else ""
@@ -386,6 +403,7 @@ def list_items(
         items.append(payload)
     return {
         "items": items, "total": len(items), "stat_date": stat_date, "dates": list(dates),
+        "primary_count": primary_count, "fallback_count": fallback_count,
         "counts": counts, "image_first_max_words": IMAGE_FIRST_MAX_WORDS,
         "categories": [{"name": k, "count": v} for k, v in
                        sorted(categories.items(), key=lambda kv: (kv[0] == OTHER_LABEL, -kv[1]))],
