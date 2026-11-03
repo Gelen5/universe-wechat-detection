@@ -641,9 +641,9 @@ def _result_url(request: Request) -> str:
 
 # ------------------------------------------------------------------ 接口
 _PACKAGES = (
-    {"id": "starter", "name": "入门", "credits": 100, "price": "10.00", "blurb": "偶尔写作与配图"},
-    {"id": "pro", "name": "进阶", "credits": 300, "price": "29.00", "blurb": "每周稳定产出"},
-    {"id": "master", "name": "专业", "credits": 1000, "price": "98.00", "blurb": "高频创作与批量改稿"},
+    {"id": "starter", "name": "体验包", "credits": 199, "price": "19.90", "blurb": "从第一张作品开始"},
+    {"id": "pro", "name": "创作者包", "credits": 499, "price": "49.90", "blurb": "适合持续创作", "recommended": True},
+    {"id": "master", "name": "高产包", "credits": 999, "price": "99.90", "blurb": "适合高频创作"},
 )
 
 
@@ -663,6 +663,7 @@ def list_packages() -> JSONResponse:
             "packages": [dict(package) for package in _PACKAGES],
             "currency": "points",
             "face_value_cny": 0.1,
+            "image_example_points": accounts.VIRAL_REMIX_POINTS_PER_IMAGE,
         }
     )
 
@@ -823,48 +824,37 @@ def pay_page(
 
 @router.get("/pricing", response_class=HTMLResponse, include_in_schema=False)
 def pricing_page() -> HTMLResponse:
+    image_points = accounts.VIRAL_REMIX_POINTS_PER_IMAGE
     cards = []
     for package in _PACKAGES:
+        if package.get("secondary"):
+            continue
+        recommended = bool(package.get("recommended"))
+        badge = '<span class="plan-badge">推荐选择</span>' if recommended else ''
         cards.append(
-            f'<a class="plan" href="/pay?package={package["id"]}">'
-            f'<div class="plan-name">{package["name"]}</div>'
+            f'<article class="plan {"plan-featured" if recommended else ""}">'
+            f'<div class="plan-top"><span class="plan-name">{package["name"]}</span>{badge}</div>'
+            f'<p class="plan-blurb">{package["blurb"]}</p>'
+            f'<div class="plan-price"><span>¥</span>{package["price"].rstrip("0").rstrip(".")}</div>'
             f'<div class="plan-credits">{package["credits"]} 积分</div>'
-            f'<div class="plan-blurb">{package["blurb"]}</div>'
-            f'<div class="plan-price">¥{package["price"]}</div>'
-            '<div class="plan-cta">立即购买</div>'
-            "</a>"
+            f'<div class="plan-estimate"><span>约可生成图片</span><strong>{package["credits"] // image_points}<small> 张</small></strong></div>'
+            f'<a class="plan-cta" href="/pay?package={package["id"]}">选择{package["name"]} <span aria-hidden="true">↗</span></a>'
+            '</article>'
         )
-    extra_style = (
-        "<style>"
-        ".plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:14px;margin:24px 0 0}"
-        ".plan{display:flex;flex-direction:column;padding:20px 18px;border:1px solid var(--hairline);"
-        "border-radius:18px;text-decoration:none;color:var(--ink1);background:rgba(255,255,255,.62);"
-        "box-shadow:0 1px 2px rgba(12,45,30,.03),0 10px 24px -22px rgba(12,45,30,.28);"
-        "transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease,background .18s ease}"
-        ".plan:hover{transform:translateY(-3px);border-color:rgba(27,122,88,.45);background:rgba(255,255,255,.9);"
-        "box-shadow:0 18px 36px -24px rgba(12,45,30,.4)}"
-        ".plan-name{font-size:12.5px;letter-spacing:.04em;color:var(--ink3)}"
-        ".plan-credits{font-size:22px;font-weight:700;margin-top:7px;color:var(--g900);letter-spacing:-.01em}"
-        ".plan-blurb{font-size:12px;color:var(--ink3);margin-top:7px;min-height:34px;line-height:1.5}"
-        ".plan-price{font-family:Georgia,'Songti SC',serif;font-size:27px;margin-top:auto;"
-        "padding-top:14px;color:var(--g700)}"
-        ".plan-cta{margin-top:12px;text-align:center;padding:10px 12px;border-radius:12px;"
-        "background:linear-gradient(158deg,#1B7A58,#0F5132);color:#fff;font-size:13px;font-weight:600;"
-        "box-shadow:inset 0 1px 0 rgba(255,255,255,.26)}"
-        "</style>"
-    )
     body = (
-        '<div class="brand"><span class="dot"></span>宇宙第一工作台 · 商品</div>'
-        "<h1>积分套餐</h1>"
-        '<p class="lead">积分用于公众号创作、账号诊断、配图与改稿等能力，1 积分 = ¥0.10。购买前需登录，积分会自动记入当前账号。</p>'
-        + extra_style
-        + '<div class="plans">'
-        + "".join(cards)
-        + "</div>"
-        + '<p class="hint">付款成功后积分会自动记入当前账号；如需发票或对公转账，请联系服务方。</p>'
-        + '<div class="actions"><a href="/">返回工作台</a>'
-        '<a class="primary" href="/pay">自定义金额收银台</a></div>'
+        '<link rel="stylesheet" href="/static/pricing-packages.css?v=20261103-1">'
+        '<div class="pricing-shell"><a class="pricing-back" href="/">← 返回工作台</a>'
+        '<header class="pricing-intro"><div><div class="pricing-kicker"><span></span> CREATOR OS · 积分套餐</div>'
+        '<h1>让灵感，<br><em>变成一张张作品。</em></h1>'
+        '<p>从第一张图片，到持续创作。选择适合自己的积分，按需使用。</p></div>'
+        '<div class="pricing-rate"><span>简单透明</span><strong>¥1 <i>=</i> 10 积分</strong><small>积分统一使用，按功能消耗</small></div></header>'
+        '<section aria-label="选择积分套餐"><div class="pricing-section"><div><span>CHOOSE YOUR PLAN</span><h2>为创作，选一个刚好的开始</h2></div><p>所有套餐均按 1 元 = 10 积分到账</p></div>'
+        '<div class="plans">' + ''.join(cards) + '</div></section>'
+        f'<div class="pricing-details"><strong>关于图片数量</strong><p>按爆款贴图复刻原创图片 {image_points} 积分 / 张估算，实际张数向下取整。不同图片功能消耗可能不同；拆解、策划和文案等步骤如需积分，将分别计费，具体以功能页面为准。</p>'
+        '<p>付款成功后积分自动记入当前账号。任务失败按对应功能规则退还积分。</p></div>'
+        '<div class="pricing-footer"><span>宇宙第一工作台 · 为每一个创作想法留出空间</span><a href="/">返回工作台 →</a></div></div>'
     )
+
     return HTMLResponse(_page("积分套餐", body), headers={"Cache-Control": "no-cache"})
 
 

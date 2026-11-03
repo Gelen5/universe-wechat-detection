@@ -8,7 +8,7 @@
     if (!packagesPromise) {
       packagesPromise = fetch('/api/pay/packages', { credentials: 'same-origin' })
         .then(response => (response.ok ? response.json() : Promise.reject(new Error('packages'))))
-        .then(payload => (Array.isArray(payload?.packages) ? payload.packages : []))
+        .then(payload => (Array.isArray(payload?.packages) ? payload : null))
         .catch(() => null);
     }
     return packagesPromise;
@@ -21,9 +21,10 @@
     return node;
   }
 
-  function renderPackages(list) {
+  function renderPackages(payload) {
     const box = dialog.querySelector('#points-notice-packages');
     box.replaceChildren();
+    const list = payload?.packages;
     if (!list || !list.length) {
       const fallback = el('p', 'points-notice-empty', '套餐加载失败，请打开套餐页选购。');
       box.append(fallback);
@@ -31,15 +32,20 @@
     }
     for (const item of list) {
       const card = el('a', 'points-notice-plan');
+      if (item.recommended) card.classList.add('is-recommended');
       card.href = '/pay?package=' + encodeURIComponent(String(item.id || ''));
       card.setAttribute('data-package', String(item.id || ''));
       const head = el('span', 'points-notice-plan-head');
-      head.append(el('b', null, String(item.name || '套餐')));
-      head.append(el('span', 'points-notice-plan-credits', `${Number(item.credits) || 0} 积分`));
+      head.append(el('b', null, String(item.name || '套餐') + (item.recommended ? ' · 推荐' : '')));
+      const points = Number(payload.image_example_points);
+      const estimate = points > 0 ? ` · 约 ${Math.floor(Number(item.credits) / points)} 张图片` : '';
+      head.append(el('span', 'points-notice-plan-credits', `${Number(item.credits) || 0} 积分${estimate}`));
       const price = el('span', 'points-notice-plan-price', `¥${String(item.price || '')}`);
       card.append(head, price);
       box.append(card);
     }
+    const points = Number(payload.image_example_points);
+    if (points > 0) box.append(el('p', 'points-notice-example', `按复刻原创图片 ${points} 积分/张估算，拆解等步骤另计，具体以功能页面为准。`));
   }
 
   function open(detail) {

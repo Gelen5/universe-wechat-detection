@@ -6,9 +6,13 @@ edit cannot quietly fall back to the old look.
 """
 import re
 import unittest
+import uuid
+from unittest.mock import patch
 
 from tests import support  # noqa: F401 - isolated account database
 from server.main import app
+from server import alipay_pay
+from sqlalchemy import insert
 from fastapi.testclient import TestClient
 
 BLUE = re.compile(r'#1677ff|rgba\(22,\s*119,\s*255|#eef2ff', re.I)
@@ -49,6 +53,41 @@ class PricingStyleTests(unittest.TestCase):
         for path in ('/pricing', '/pay'):
             with self.subTest(path=path):
                 self.assertEqual(200, self.client.get(path).status_code)
+
+    def test_packages_and_checkout_use_same_price_and_credits(self):
+        expected = {'starter': ('19.90', 199), 'pro': ('49.90', 499),
+                    'master': ('99.90', 999)}
+        packages = self.client.get('/api/pay/packages').json()['packages']
+        self.assertEqual({p['id']: (p['price'], p['credits']) for p in packages}, expected)
+        self.client.post('/api/auth/register', json={'email': f'{uuid.uuid4().hex}@example.com',
+            'password': 'testing-pass-123', 'display_name': 'test'})
+        with patch.object(alipay_pay, 'load_payment_config', return_value={'app_id': 'test'}), \
+             patch.object(alipay_pay, '_page_pay_form', return_value='<form></form>'):
+            for package_id, (price, credits) in expected.items():
+                result = self.client.post('/api/pay/alipay/orders', json={'package_id': package_id,
+                    'total_amount': '0.01'}).json()
+                self.assertEqual((result['total_amount'], result['credits']), (price, credits))
+                row = alipay_pay._recharge_for(result['out_trade_no'])
+                self.assertEqual((row['amount'], row['credits']), (price, credits))
+
+    def test_pricing_displays_image_estimates_and_caveat(self):
+        html = self._page('/pricing')
+        for count in ('99', '249', '499'):
+            self.assertIn(f'<strong>{count}<small> 张</small></strong>', html)
+        self.assertIn('不同图片功能消耗可能不同', html)
+        self.assertIn('拆解、策划和文案', html)
+
+    def test_old_order_uses_recorded_credits_after_package_changes(self):
+        order_id = uuid.uuid4().hex
+        with alipay_pay.ENGINE.begin() as db:
+            db.execute(insert(alipay_pay.alipay_recharges).values(out_trade_no=order_id,
+                user_id='existing-user', package_id='pro', credits=300, amount='29.00',
+                status='PENDING', created_at=alipay_pay._now()))
+        with patch.object(alipay_pay.accounts, 'credit_alipay_recharge', return_value={'credited': True}) as credit:
+            alipay_pay._credit_recharge(order_id)
+            self.assertEqual(credit.call_args.args[1], 300)
+            alipay_pay._credit_recharge(order_id)
+            credit.assert_called_once()
 
 
 if __name__ == '__main__':
