@@ -78,7 +78,7 @@ def public_url(url):
         raise ValueError('Private source address rejected')
 
 
-def fetch_source(source, *, max_bytes=1_000_000):
+def fetch_source(source):
     result = dict(source)
     url = source['url']
     try:
@@ -94,7 +94,7 @@ def fetch_source(source, *, max_bytes=1_000_000):
                 raw = bytearray()
                 for chunk in response.iter_content(16384):
                     raw.extend(chunk)
-                    if len(raw) > max_bytes:
+                    if len(raw) > 1_000_000:
                         raise ValueError('Source exceeds size limit')
                 soup = BeautifulSoup(bytes(raw),'html.parser')
                 for node in soup.select('script,style,nav,header,footer'):
