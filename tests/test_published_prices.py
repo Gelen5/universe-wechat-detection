@@ -31,7 +31,7 @@ class PublishedPriceTests(unittest.TestCase):
 
         defaults = _defaults()
         # 拆解：一次 1 积分。
-        self.assertEqual(1, defaults[('POST', '/api/viral-remix/analyze')])
+        self.assertEqual(2, defaults[('POST', '/api/viral-remix/analyze')])
         # 生成：按张计费（2 积分/张），不在中间件计价表里——
         # 它是 202 异步任务，中间件在响应时结算会算错。
         self.assertNotIn(('POST', '/api/viral-remix/image'), defaults)

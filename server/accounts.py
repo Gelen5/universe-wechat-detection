@@ -50,7 +50,7 @@ DEFAULT_PRICING = [
     ("POST", "/api/diagnose", "公众号诊断", 10, 0),
     ("POST", "/api/xiaohongshu/package", "小红书图文生成", 10, 0),
     ("POST", "/api/tie-tu/plan", "微信贴图策划", 2, 0),
-    ("POST", "/api/viral-remix/analyze", "爆款贴图结构拆解", 1, 0),
+    ("POST", "/api/viral-remix/analyze", "爆款贴图结构拆解", 2, 0),
     # 爆款贴图原创生成不在这张表里：它按张计费（2 积分/张，一次最多 8 张），
     # 而且是 202 异步任务，中间件在响应时结算会算错。预扣与按张结算在
     # server/viral_remix_jobs.py 里做，见 VIRAL_REMIX_POINTS_PER_IMAGE。
@@ -361,11 +361,11 @@ def init_db() -> None:
                 (method, path, feature, points, cost, now),
             )
         connection.execute("INSERT OR IGNORE INTO provider_settings(id,updated_at) VALUES (1,?)", (now,))
-        # 爆款贴图复刻改价：拆解 2 → 1；生成改成按张计费（2 积分/张）。
+        # 爆款贴图复刻：策划统一 2 积分；生成按张计费（2 积分/张）。
         # 老库里那张「一次 2 积分」的规则必须下线，否则中间件会在 202 响应时先扣
         # 一次，worker 再按张结算一次，等于双倍扣费。
         connection.execute(
-            "UPDATE pricing_rules SET points=1 WHERE method='POST' AND path='/api/viral-remix/analyze' AND points<>1")
+            "UPDATE pricing_rules SET points=2 WHERE method='POST' AND path='/api/viral-remix/analyze' AND points<>2")
         connection.execute(
             "UPDATE pricing_rules SET active=0 WHERE method='POST' AND path='/api/viral-remix/image'")
         _warn_on_price_drift(connection)
