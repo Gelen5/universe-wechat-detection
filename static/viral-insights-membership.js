@@ -6,10 +6,10 @@
   const fmt = (iso) => { if (!iso) return ''; const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleString('zh-CN', {hour12:false}); };
   const text = (status, d) => {
     if (d?.pending_order && status === 'trial_active') return `试用中 · ${fmt(d?.trial_expires_at)} 到期（订单待支付）`;
-    if (d?.pending_order && status !== 'member_active') return '订单待支付 · 尚未开通会员';
+    if (d?.pending_order && !['member_active', 'owner_permanent'].includes(status)) return '订单待支付 · 尚未开通会员';
     return ({logged_out:'登录后可试用',trial_available:'开启 5 小时试用',
       trial_active:`试用中 · ${fmt(d?.trial_expires_at)} 到期`,trial_expired:'试用已结束',
-      member_active:`会员有效 · ${fmt(d?.membership_expires_at)} 到期`,member_expired:'会员已过期'}[status] || '开通爆款情报会员');
+      member_active:`会员有效 · ${fmt(d?.membership_expires_at)} 到期`,owner_permanent:'管理员 · 永久会员',member_expired:'会员已过期'}[status] || '开通爆款情报会员');
   };
   async function status() {
     const r = await fetch('/api/viral-insights/membership', {credentials:'same-origin', cache:'no-store'});
@@ -30,7 +30,9 @@
     node.hidden = false; node.querySelector('[data-vi-modal-title]').textContent = text(state.data?.status, state.data);
     const body = node.querySelector('[data-vi-modal-body]');
     const d = state.data || {};
-    body.innerHTML = d.status === 'logged_out'
+    body.innerHTML = d.status === 'owner_permanent'
+      ? '<p>管理员账号已拥有低粉爆文和低分爆图永久查看权益。导出和实时刷新仍按积分计费。</p>'
+      : d.status === 'logged_out'
       ? '<p>登录后可选择开启一次 5 小时免费试用；不点击不会开始计时，也不会自动扣费。</p><button class="vi-primary" data-vi-login>登录 / 注册</button>'
       : `${d.pending_order ? `<p class="vi-pending">订单 ${esc(d.pending_order.out_trade_no)} 待支付。${d.status === 'trial_active' ? '当前可查看完整内容是因为试用仍在有效期内，订单未付款不会开通付费会员。' : d.status === 'member_active' ? '当前可查看完整内容是因为已有会员权益仍然有效。' : '未付款不会开通会员。'}付款完成后稍候刷新。</p>` : ''}
          <p>低粉爆文和低分爆图共用一份权益，可查看完整榜单、筛选和原文。数据以页面标注的榜单日期为准。</p><p>${d.status === 'trial_available' ? '主动开启后开始计时，共 5 小时；不自动扣费。' : '会员到期后立即失效；有效期内续费自动顺延。'}</p>

@@ -1,6 +1,11 @@
 /* Phone-first polish, deliberately isolated from the desktop workspace. */
-.mobile-site-brand,.fl-mobile-copy{display:none}
+.mobile-site-brand,.fl-mobile-copy,.mobile-inspiration{display:none}
 @media(max-width:800px){
+ .mobile-inspiration{display:block;margin:0 0 18px;padding:16px;border:1px solid #cfe6d5;border-radius:18px;background:#f1faf3}
+ .mobile-inspiration strong{display:block;color:#193f30;font-size:16px}.mobile-inspiration div>span{display:block;margin-top:3px;color:#52715c;font-size:12px}
+ .mobile-inspiration-links{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:12px}
+ .mobile-inspiration-links a{display:flex;align-items:center;justify-content:space-between;min-height:44px;padding:0 9px;border-radius:11px;background:#fff;color:#20563b;font-size:13px;font-weight:600;text-decoration:none}
+ .mobile-inspiration-links a span{margin:0;color:#40815b;font-size:15px}
  body.atelier #home.home-v2{padding:0 18px 100px!important}
  .mobile-site-brand{display:block;padding:22px 2px 16px}
  .mobile-site-brand a{display:flex;align-items:center;gap:10px;width:fit-content;text-decoration:none;color:#193f30}

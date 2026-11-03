@@ -8,7 +8,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
-from sqlalchemy import Column, Index, Integer, MetaData, String, Table, insert, select, update
+from sqlalchemy import Column, Index, Integer, MetaData, String, Table, func, insert, select, update
 from sqlalchemy.exc import IntegrityError
 
 from . import accounts, database
@@ -77,6 +77,10 @@ def _state(user_id: str, connection=None) -> dict[str, Any]:
     connection = connection or database.ENGINE.connect()
     try:
         now = _db_now(connection)
+        from .models import users_table
+        owner = connection.execute(select(users_table.c.id).where(
+            users_table.c.id == user_id, users_table.c.role == 'admin',
+            func.lower(users_table.c.email) == accounts.OWNER_EMAIL)).first() is not None
         trial = connection.execute(select(trials).where(trials.c.user_id == user_id)).mappings().first()
         paid = connection.execute(select(orders).where(orders.c.user_id == user_id,
             orders.c.status == "PAID").order_by(orders.c.created_at.desc())).mappings().all()
@@ -89,8 +93,8 @@ def _state(user_id: str, connection=None) -> dict[str, Any]:
             .order_by(orders.c.created_at.desc()).limit(1)).mappings().first()
         ever_purchased = connection.execute(select(orders.c.out_trade_no).where(
             orders.c.user_id == user_id, orders.c.status.in_(("PAID", "REFUNDED"))).limit(1)).first() is not None
-        active = bool((paid_until and paid_until > now) or (trial_until and trial_until > now))
-        status = "member_active" if paid_until and paid_until > now else (
+        active = bool(owner or (paid_until and paid_until > now) or (trial_until and trial_until > now))
+        status = "owner_permanent" if owner else "member_active" if paid_until and paid_until > now else (
             "trial_active" if trial_until and trial_until > now else (
             "member_expired" if ever_purchased else "trial_expired" if trial else "trial_available"))
         return {"enabled": enabled(), "status": status, "active": active,

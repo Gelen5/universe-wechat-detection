@@ -101,6 +101,19 @@ def _post_notify(client, params):
 
 
 # ---------------------------------------------------------------- 试用
+def test_only_configured_owner_admin_gets_permanent_membership(paywall, monkeypatch):
+    owner_email = uuid.uuid4().hex + '@example.test'
+    monkeypatch.setattr(accounts, 'OWNER_EMAIL', owner_email)
+    owner = accounts.create_user(owner_email, 'testing-pass-123', 'owner', role='admin')
+    other = accounts.create_user(uuid.uuid4().hex + '@example.test', 'testing-pass-123', 'other', role='admin')
+    with accounts._connect() as conn:
+        conn.execute("UPDATE users SET role='admin' WHERE id=?", (other['id'],))
+    state = vim._state(owner['id'])
+    assert state['status'] == 'owner_permanent' and state['active'] and state['membership_expires_at'] is None
+    assert vim.has_access(owner['id'])
+    assert not vim.has_access(other['id'])
+
+
 def test_trial_boundary_is_exactly_5_hours(paywall, clock):
     client, uid = _client_for_new_user()
     start = clock["now"]
