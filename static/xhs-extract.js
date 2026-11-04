@@ -146,11 +146,12 @@
     .observe(root, {attributes:true, attributeFilter:['hidden']});
   function stop() {
     clearInterval(timer); timer = null; busy = false; progress.hidden = true;
-    root.removeAttribute('aria-busy'); input.readOnly = false; submit.disabled = !owner; submit.textContent = '开始提取 →';
+    root.removeAttribute('aria-busy'); input.readOnly = false; submit.disabled = false; submit.textContent = '开始提取 →';
   }
   form.addEventListener('submit', async event => {
-    event.preventDefault(); if (busy || !owner) return;
+    event.preventDefault(); if (busy) return;
     const url = input.value.trim(); if (!url) {input.focus(); return;}
+    if (!owner) {showAuth(true); return;}
     const sequence = epoch; busy = true; clearError(); submit.disabled = true; input.readOnly = true; submit.textContent = '正在提取…';
     root.setAttribute('aria-busy','true'); progress.hidden = false;
     const elapsed = document.createElement('span'); elapsed.setAttribute('aria-hidden','true'); elapsed.textContent = '已等待 0 秒';
@@ -179,14 +180,15 @@
   input.addEventListener('keydown', event => {if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {event.preventDefault(); form.requestSubmit();}});
   function syncAccount() {
     const next = getOwner(); if (next === owner) return;
+    const guestInput = !owner && next ? input.value : '';
     owner = next; ++epoch; controller?.abort(); controller = null; stop();
     note = null; images = []; index = 0; result.replaceChildren(); result.hidden = true; empty.hidden = false; clearError();
     if (lightbox.open) lightbox.close(); lightbox.querySelector('img').removeAttribute('src'); lightbox.querySelector('img').alt = ''; input.value = '';
     if (!owner) return;
     const prefill = !prefillUsed ? new URLSearchParams(location.search).get('url') : '';
     prefillUsed = true;
-    try {input.value = prefill || JSON.parse(localStorage.getItem(storageKey()) || 'null')?.url || '';}
-    catch {input.value = prefill || '';}
+    try {input.value = guestInput || prefill || JSON.parse(localStorage.getItem(storageKey()) || 'null')?.url || '';}
+    catch {input.value = guestInput || prefill || '';}
   }
   window.addEventListener('account-changed', syncAccount);
   syncAccount();

@@ -34,8 +34,8 @@
   }
   function updateBusy() {
     const busy = Boolean(active || pending || submitting);
-    $('send').disabled = busy || !owner;
-    $('input').disabled = busy || !owner;
+    $('send').disabled = busy;
+    $('input').disabled = busy;
     $('history').disabled = Boolean(pending || submitting);
     $('new').disabled = Boolean(pending || submitting);
     editor.readOnly = busy || Boolean(shownVersion);
@@ -219,8 +219,9 @@
     $('error').hidden = true; $('input').value = ''; editor.value = ''; tab('draft'); render();
   }
   async function send(value) {
-    if (pending || active || submitting || !owner) return;
+    if (pending || active || submitting) return;
     const content = (value || $('input').value).trim(); if (!content) return;
+    if (!owner) { $('input').value = content; showAuth(true); return; }
     const sequence = epoch; $('error').hidden = true; submitting = true; updateBusy();
     try {
       await save();
@@ -266,7 +267,11 @@
   async function ensureLoaded() {
     if (loading || root.hidden) return;
     const account = typeof currentAccount === 'undefined' ? null : currentAccount;
-    if (!account?.id) { render(); return; }
+    if (!account?.id) {
+      const params = new URLSearchParams(location.search), topic = params.get('topic');
+      if (topic && !$('input').value) { $('input').value = topic; params.delete('topic'); params.delete('type'); history.replaceState(null, '', location.pathname + (params.size ? '?' + params : '') + location.hash); }
+      render(); return;
+    }
     if (owner === account.id && timer) return;
     loading = true; owner = account.id;
     const expectedOwner = owner;
@@ -350,10 +355,11 @@
   window.addEventListener('beforeunload', event => {if (dirty) {event.preventDefault(); event.returnValue='';}});
   window.addEventListener('before-account-change', event => {if (dirty) event.detail.pending.push(save());});
   window.addEventListener('account-changed', () => {
-    const next = typeof currentAccount === 'undefined' ? null : currentAccount?.id;
+    const next = typeof currentAccount === 'undefined' ? null : currentAccount?.id || null;
     if (owner === next) return;
+    const guestInput = !owner && next ? $('input').value : '';
     ++epoch; clearInterval(timer); timer=null; owner=null; session=null; active=null; pending=null; submitting=false; dirty=false; shownVersion=''; previewKey='';
-    editor.value=''; $('preview').removeAttribute('src'); $('input').value=''; $('error').hidden=true;
+    editor.value=''; $('preview').removeAttribute('src'); $('input').value=guestInput; $('error').hidden=true;
     render(); ensureLoaded();
   });
   window.WechatPlus = {ensureLoaded};

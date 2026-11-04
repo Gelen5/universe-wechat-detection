@@ -10,8 +10,9 @@
   function account() {return typeof currentAccount !== 'undefined' ? currentAccount?.id || null : null;}
   function syncOwner() {
     const next = account(); if (next === owner) return;
+    const guestInput = !owner && next ? input.value : '';
     owner = next; epoch++; images = []; index = 0; result.replaceChildren(); result.hidden = true;
-    empty.hidden = false; error.hidden = true; input.value = ''; button.disabled = !owner;
+    empty.hidden = false; error.hidden = true; input.value = guestInput; button.disabled = false;
   }
   function select(n) {
     if (!images.length) return;
@@ -54,7 +55,8 @@
     finally {target.disabled = false;}
   });
   form.addEventListener('submit', async event => {
-    event.preventDefault(); if (busy || !owner) return;
+    event.preventDefault(); if (busy) return;
+    if (!owner) { showAuth(true); return; }
     const sequence = epoch; busy = true; button.disabled = true; button.textContent = '正在提取…'; input.readOnly = true; progress.hidden = false; error.hidden = true;
     try {
       const response = await fetch('/api/sticker-extract', {method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({url:input.value.trim()})});
@@ -69,7 +71,7 @@
       render(data);
       toast('提取完成');
     } catch (err) {if (sequence === epoch) {error.textContent = err.message || '提取失败，请稍后重试'; error.hidden = false;}}
-    finally {busy = false; progress.hidden = true; input.readOnly = false; button.disabled = !account(); button.textContent = '开始提取 →';}
+    finally {busy = false; progress.hidden = true; input.readOnly = false; button.disabled = false; button.textContent = '开始提取 →';}
   });
   window.addEventListener('account-changed', syncOwner); syncOwner();
 })();

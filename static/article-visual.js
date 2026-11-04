@@ -426,6 +426,8 @@
   async function analyze() {
     const url = els.url.value.trim();
     if (!url) { els.url.focus(); return; }
+    await initialAccountReady;
+    if (!currentAccount?.id) { showAuth(true); return; }
     if (state.busy) return;
     state.job = null;
     state.activeId = null;

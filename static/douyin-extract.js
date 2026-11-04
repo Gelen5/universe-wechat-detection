@@ -271,6 +271,8 @@
     event.preventDefault();
     const url = input.value.trim();
     if (!url) { input.focus(); return; }
+    await initialAccountReady;
+    if (!currentAccount?.id) { showAuth(true); return; }
     clearError();
     const label = submit.textContent;
     submit.disabled = true;
