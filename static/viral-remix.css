@@ -40,6 +40,7 @@
 #viral-remix .remix-page-list h4{font-size:16px;margin:10px 0}
 #viral-remix .remix-page-list p{margin:8px 0;line-height:1.75}
 #viral-remix .viral-ideas{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:14px;margin:0}
+#viral-remix .viral-ideas > p{grid-column:1/-1;margin:0}
 #viral-remix .remix-choices{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0 16px;padding:20px;border:1px solid #dbe9df;border-radius:14px;background:#ffffff8c}
 #viral-remix .remix-choices h3,#viral-remix .remix-choices>p{grid-column:1/-1;margin:0 0 14px}
 #viral-remix .viral-idea{display:flex;flex-direction:column;padding:22px;min-width:0;border-radius:16px}
