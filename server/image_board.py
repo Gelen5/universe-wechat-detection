@@ -31,7 +31,10 @@ router = APIRouter()
 
 ARTLIST_URL = os.getenv("WXRANK_ARTLIST_URL", "http://data.wxrank.com/weixin/artlist")
 POINTS_PER_CALL = 1
-MAX_PAGES = 10                 # 用户确认的单次上限：10 页 = 200 条 = 10 积分
+BASE_PAGES = 10                # 日常读取最多 10 页，再按需要扩展
+MAX_PAGES = 30                 # 单次上游调用预算上限（每成功页 1 积分）
+MIN_READ = 10000
+TARGET_HIGH_READ = 100
 IMAGE_FIRST_MAX_WORDS = 100
 STATIC_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static")
 OTHER_LABEL = "其他"
@@ -115,16 +118,17 @@ def store(stat_date: str, raw_items: list[dict], *, source: str, pages_ok: int =
             "cost_points": cost_points, "upstream_total": upstream_total, "error": error}
 
 
-def sync(stat_date: str, pages: int = MAX_PAGES) -> dict:
-    """按发布日拉取 book 贴图，按阅读数降序，最多 MAX_PAGES 页。"""
+def sync(stat_date: str, pages: int = BASE_PAGES, *, extended_pages: int | None = None) -> dict:
+    """按指定日期和阅读数降序采集；确有可能凑够万阅内容时才扩页。"""
     key = os.getenv("WXRANK_API_KEY", "").strip()
     if not key:
         return {"status": "unconfigured", "error": "WXRANK_API_KEY 未配置"}
     day = stat_date.replace("-", "")
     pages = max(1, min(MAX_PAGES, pages))
+    budget = max(pages, min(MAX_PAGES, extended_pages or pages))
     items: list[dict] = []
     cursor, pages_ok, total, error = None, 0, 0, ""
-    for page in range(1, pages + 1):
+    for page in range(1, budget + 1):
         payload = {"key": key, "cursor": cursor} if cursor else {
             "key": key, "date": day, "content_type": "book", "sort": "read_num"}
         try:
@@ -145,6 +149,15 @@ def sync(stat_date: str, pages: int = MAX_PAGES) -> dict:
         cursor = data.get("cursor")
         if not cursor or not batch:
             break
+        if page >= pages:
+            qualified = {str(item.get('sn')) for item in items if item.get('sn')
+                         and str(item.get('content_type') or 'book') == 'book'
+                         and _int(item.get('read_num')) >= MIN_READ}
+            # The upstream orders by read count descending. Once a valid item is
+            # below the threshold, later pages cannot add qualifying entries.
+            reached_below = any(_int(item.get('read_num')) < MIN_READ for item in batch)
+            if len(qualified) >= TARGET_HIGH_READ or reached_below:
+                break
         time.sleep(0.15)
     result = store(stat_date, items, source="api", pages_ok=pages_ok,
                    cost_points=pages_ok * POINTS_PER_CALL, upstream_total=total, error=error)
@@ -159,9 +172,9 @@ def sync_enabled() -> bool:
 
 def sync_pages() -> int:
     try:
-        return max(1, min(MAX_PAGES, int(os.getenv("IMAGE_BOARD_SYNC_PAGES", str(MAX_PAGES)))))
+        return max(1, min(MAX_PAGES, int(os.getenv("IMAGE_BOARD_SYNC_PAGES", str(BASE_PAGES)))))
     except ValueError:
-        return MAX_PAGES
+        return BASE_PAGES
 
 
 def stale_after_hours() -> int:
@@ -202,15 +215,18 @@ def scheduled_sync() -> dict:
     with database.session_scope() as session:
         existing = session.execute(select(func.count()).select_from(ImageBoardItem)
                                    .where(ImageBoardItem.stat_date == stat_date)).scalar() or 0
+        high_read = session.execute(select(func.count()).select_from(ImageBoardItem)
+                                   .where(ImageBoardItem.stat_date == stat_date,
+                                          ImageBoardItem.read_num >= MIN_READ)).scalar() or 0
         attempts = session.execute(select(func.count()).select_from(ImageBoardSyncRun)
                                    .where(ImageBoardSyncRun.stat_date == stat_date)).scalar() or 0
-    if existing >= min(200, sync_pages() * 20):
+    if existing >= min(200, sync_pages() * 20) and high_read >= TARGET_HIGH_READ:
         return {"status": "cached", "stat_date": stat_date, "inserted": int(existing)}
     if attempts >= max_attempts():
         return {"status": "cached", "stat_date": stat_date, "inserted": int(existing),
                 "reason": "已达到本日尝试次数上限"}
     # 失败只写 sync_runs，不清空旧快照（store 仅在拿到数据时整日替换）。
-    return sync(stat_date, sync_pages())
+    return sync(stat_date, sync_pages(), extended_pages=MAX_PAGES)
 
 
 def freshness(session, stat_date: str) -> dict:
@@ -240,14 +256,15 @@ def _latest_date(session) -> str:
 def _lowfans_matches(session, sns: list[str]) -> dict[str, dict]:
     if not sns:
         return {}
-    rows = session.execute(
-        select(LowfansArticle).where(LowfansArticle.art_id.in_(sns))
-        .order_by(LowfansArticle.stat_date.desc())).scalars().all()
     matches: dict[str, dict] = {}
-    for row in rows:
-        matches.setdefault(row.art_id, {
-            "wx_name": row.wx_name, "boost_ratio": round(float(row.boost_ratio or 0), 2),
-            "account_read_base": row.account_read_base, "stat_date": row.stat_date})
+    for start in range(0, len(sns), 500):
+        rows = session.execute(
+            select(LowfansArticle).where(LowfansArticle.art_id.in_(sns[start:start + 500]))
+            .order_by(LowfansArticle.stat_date.desc())).scalars()
+        for row in rows:
+            matches.setdefault(row.art_id, {
+                "wx_name": row.wx_name, "boost_ratio": round(float(row.boost_ratio or 0), 2),
+                "account_read_base": row.account_read_base, "stat_date": row.stat_date})
     return matches
 
 
@@ -330,13 +347,11 @@ def _board_pool(session, stat_date: str) -> list[ImageBoardItem]:
             continue
         rows.append(row)
         seen.add(row.sn)
-        if len(rows) == 200:
-            break
     return rows
 
 
 def _read_rank(row):
-    return (row.stat_date, row.read_num, row.share_num, row.sn)
+    return (row.read_num >= MIN_READ, row.stat_date, row.read_num, row.share_num, row.sn)
 
 
 @router.get("/api/image-board/preview-cover")
@@ -374,9 +389,8 @@ def list_items(
         if not stat_date:
             return {"items": [], "total": 0, "stat_date": "", "categories": [], "counts": {},
                     "degraded": True, "reason": "尚未采集任何贴图数据"}
-        # Build one stable pool before applying user filters: keep the selected
-        # day's items first, then fill from the nearest earlier snapshots.
-        # A repeated article appears only once, using its newest snapshot.
+        # Combine the selected date and earlier snapshots without a 200-item
+        # cutoff. Repeated articles use their newest available snapshot.
         rows = _board_pool(session, stat_date)
         primary_count = sum(row.stat_date == stat_date for row in rows)
         fallback_count = len(rows) - primary_count
@@ -403,8 +417,8 @@ def list_items(
     if needle:
         rows = [r for r in rows if needle in (r.title or "").lower()]
     key = {"read": _read_rank,
-           "share": lambda r: (r.stat_date, r.share_num, r.read_num, r.sn),
-           "time": lambda r: (r.stat_date, r.pub_time or "", r.sn)}[sort]
+           "share": lambda r: (r.read_num >= MIN_READ, r.stat_date, r.share_num, r.read_num, r.sn),
+           "time": lambda r: (r.read_num >= MIN_READ, r.stat_date, r.pub_time or "", r.sn)}[sort]
     rows.sort(key=key, reverse=True)
 
     if not accessible:
@@ -415,8 +429,8 @@ def list_items(
                    for i, row in enumerate(rows[:membership.preview_limit()])]
         last_sync = {"status": last.status, "inserted": last.inserted} if last else {}
         return {"items": preview, "total": len(preview), "stat_date": stat_date,
-                "counts": {"all": min(counts["all"], 999), "image": min(counts["image"], 999), "lowfans": min(counts["lowfans"], 999)},
-                "categories": [{"name": k, "count": min(v, 999)} for k, v in categories.items()],
+                "counts": counts,
+                "categories": [{"name": k, "count": v} for k, v in categories.items()],
                 "last_sync": last_sync, "preview": True, "membership_required": True,
                 "freshness": fresh, "degraded": fresh["stale"],
                 "primary_count": primary_count, "fallback_count": fallback_count,
@@ -450,7 +464,7 @@ def list_items(
 # ---------------------------------------------------------------- 管理员（花钱）
 @router.post("/api/admin/image-board/sync")
 def admin_sync(request: Request, date: str = Query(..., min_length=8, max_length=10),
-               pages: int = Query(default=MAX_PAGES, ge=1, le=MAX_PAGES)):
+               pages: int = Query(default=BASE_PAGES, ge=1, le=MAX_PAGES)):
     accounts.require_admin(request)
     stat_date = date if "-" in date else f"{date[:4]}-{date[4:6]}-{date[6:8]}"
     return {"status": "success", "sync": sync(stat_date, pages)}

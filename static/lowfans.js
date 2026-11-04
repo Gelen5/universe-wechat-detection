@@ -379,10 +379,26 @@
   });
 
   function ensureLoaded() {
-    if (state.loaded || state.loading) return;
+    if (state.loaded) { checkLatest(); return; }
+    if (state.loading) return;
     readUrl();
     load();
   }
+
+  let checkingLatest = false;
+  async function checkLatest() {
+    if (checkingLatest || !state.loaded || state.date || root.hidden || document.hidden) return;
+    checkingLatest = true;
+    try {
+      const response = await fetch('/api/lowfans/meta', { credentials: 'same-origin', cache: 'no-store' });
+      if (!response.ok) return;
+      const data = await response.json();
+      if (data.stat_date && data.stat_date !== state.statDate && !state.date && !root.hidden) load();
+    } catch { /* Keep the current snapshot visible until the next check. */ }
+    finally { checkingLatest = false; }
+  }
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) checkLatest(); });
+  setInterval(checkLatest, 60000);
 
   window.LowfansView = { ensureLoaded, reload: () => load() };
 

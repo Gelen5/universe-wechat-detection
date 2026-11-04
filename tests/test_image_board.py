@@ -104,6 +104,58 @@ class ImageBoardTests(unittest.TestCase):
                 image_board.COVER_CACHE.clear()
         engine.dispose()
 
+    def test_full_pool_puts_all_10k_items_before_lower_read_items(self):
+        engine = create_engine('sqlite://', connect_args={'check_same_thread': False}, poolclass=StaticPool)
+        with patch.object(database, 'ENGINE', engine), patch.object(database, 'SessionLocal',
+                sessionmaker(bind=engine, expire_on_commit=False)), patch.dict(os.environ, {'VIRAL_INSIGHTS_PAYWALL_ENABLED': '0'}):
+            image_board.init_schema()
+            image_board.store('2026-11-01', [
+                {'sn': f'high-{i}', 'content_type': 'book', 'read_num': 10000+i, 'title': f'high {i}'}
+                for i in range(140)], source='test')
+            image_board.store('2026-11-02', [
+                {'sn': f'low-{i}', 'content_type': 'book', 'read_num': 9999, 'title': f'low {i}'}
+                for i in range(150)], source='test')
+            app = FastAPI()
+            app.include_router(image_board.router)
+            with TestClient(app) as client:
+                for sort in ('read', 'share', 'time'):
+                    data = client.get(f'/api/image-board?sort={sort}').json()
+                    self.assertEqual(290, data['total'])
+                    self.assertTrue(all(x['read_num'] >= 10000 for x in data['items'][:140]))
+                    self.assertTrue(all(x['read_num'] < 10000 for x in data['items'][140:]))
+        engine.dispose()
+
+    @patch.dict(os.environ, {'WXRANK_API_KEY': 'test'}, clear=False)
+    def test_sync_expands_only_when_more_qualifying_results_are_possible(self):
+        class Response:
+            def __init__(self, batch, cursor): self.batch, self.cursor = batch, cursor
+            def raise_for_status(self): pass
+            def json(self): return {'code': 0, 'data': {'list': self.batch, 'cursor': self.cursor}}
+        pages = [[{'sn': f'id-{i}', 'read_num': 12000} for i in range(90)] for _ in range(10)]
+        pages.append([{'sn': f'new-{i}', 'read_num': 11000} for i in range(10)])
+        pages.append([{'sn': 'extra', 'read_num': 11000}])
+        responses = [Response(batch, f'cursor-{i}') for i, batch in enumerate(pages)]
+        with patch.object(image_board.requests, 'post', side_effect=responses) as post, \
+             patch.object(image_board.time, 'sleep'), \
+             patch.object(image_board, 'store', return_value={'inserted': 100, 'retained': 0}):
+            image_board.sync('2026-11-03', pages=10, extended_pages=30)
+        self.assertEqual(11, post.call_count)
+        self.assertEqual('20261103', post.call_args_list[0].kwargs['json']['date'])
+        self.assertEqual('read_num', post.call_args_list[0].kwargs['json']['sort'])
+        self.assertEqual({'key': 'test', 'cursor': 'cursor-0'}, post.call_args_list[1].kwargs['json'])
+
+    @patch.dict(os.environ, {'WXRANK_API_KEY': 'test'}, clear=False)
+    def test_sync_stops_when_descending_results_drop_below_threshold(self):
+        class Response:
+            def raise_for_status(self): pass
+            def json(self):
+                return {'code': 0, 'data': {'list': [{'sn': 'same', 'read_num': 9999}], 'cursor': 'next'}}
+        with patch.object(image_board.requests, 'post', return_value=Response()) as post, \
+             patch.object(image_board.time, 'sleep'), \
+             patch.object(image_board, 'store', return_value={'inserted': 1, 'retained': 0}):
+            image_board.sync('2026-11-03', pages=10, extended_pages=30)
+        self.assertEqual(10, post.call_count)
+
 
 if __name__ == '__main__':
     unittest.main()
