@@ -335,7 +335,7 @@
           wx_type: state.wx_type, q: state.q, sort: state.sort, date: state.date,
         }),
       });
-      if (response.status === 401) { location.href = '/?register=1'; return; }
+      if (response.status === 401) { if (typeof showAuth === 'function') showAuth(true); else location.href = '/?register=1'; return; }
       if (response.status === 403) {
         let payload = null;
         try { payload = await response.clone().json(); } catch { /* 非 JSON */ }

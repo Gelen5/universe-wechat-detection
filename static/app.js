@@ -277,7 +277,7 @@ function showAuth(force = false) {
   if (force) authDismissed = false;
   if (authModal && authModal.hidden) {
     if (!authModal.dataset.initialModeSet) { setAuthMode('register'); authModal.dataset.initialModeSet='true'; }
-    const close=document.querySelector('#auth-close');if(close)close.hidden=true;
+    const close=document.querySelector('#auth-close');if(close)close.hidden=false;
     for(const child of appShell?.children||[])if(!child.contains(authModal)&&child!==authModal)child.inert=true;
     authModal.hidden = false;
     document.body.classList.add('auth-open');
@@ -327,7 +327,6 @@ document.querySelectorAll('#auth-form input').forEach(input => input.addEventLis
 document.querySelector('#auth-email')?.addEventListener('input', () => { document.querySelector('#auth-code-status').textContent = ''; });
 
 function dismissAuth() {
-  if (!currentAccount) return;
   authDismissed = true;
   hideAuth();
   document.querySelector('#logout-button')?.focus({preventScroll:true});
@@ -582,6 +581,7 @@ async function refreshWallet(open = false) {
 
 async function openWallet() {
   toggleSettingsMenu(false);
+  if (!currentAccount) { showAuth(true); return; }
   try {
     await refreshWallet(true);
     const isOwnerAdmin = currentAccount?.role === 'admin' && currentAccount?.email?.toLowerCase() === 'gelen5@163.com';
@@ -665,7 +665,7 @@ logoutButton?.addEventListener('click', async () => {
   syncAdminVisibility();
   renderWallet({ balance: 0, trial: 0, bonus: 0, paid: 0 });
   walletModal.hidden = true;
-  showAuth(true);
+  hideAuth();
 });
 
 async function loadAccount() {
@@ -679,12 +679,6 @@ async function loadAccount() {
         window.dispatchEvent(new Event('account-changed'));
         syncAdminVisibility();
         renderWallet({ balance: 0, trial: 0, bonus: 0, paid: 0 });
-        showAuth();
-      } else if (!currentAccount) {
-        showAuth();
-        const error = document.querySelector('#auth-error');
-        error.textContent = '暂时无法确认登录状态，请稍后重试登录。';
-        error.hidden = false;
       }
       return;
     }
@@ -696,7 +690,7 @@ async function loadAccount() {
     renderWallet(data.wallet);
     document.querySelector('#wallet-user-line').textContent = `${currentAccount.display_name} · ${currentAccount.email}`;
     document.querySelector('.api-live-dot')?.classList.remove('offline');
-  } catch { if (!currentAccount) showAuth(); }
+  } catch { /* Allow browsing if the account service is unavailable. */ }
   finally { resolveInitialAccount(); }
 }
 
@@ -1639,4 +1633,5 @@ setActiveView(initialView);
 window.dispatchEvent(new Event('app-nav-ready'));
 refreshConfigStatus();
 loadAccount();
+if (new URLSearchParams(location.search).has('register')) showAuth(true);
 window.lucide?.createIcons({ attrs: { 'stroke-width': 1.8 } });

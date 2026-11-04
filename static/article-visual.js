@@ -105,7 +105,8 @@
     try { data = await response.json(); } catch (_) { /* ignore */ }
     if (!response.ok) {
       if (response.status === 401) {
-        window.location.href = "/";
+        if (typeof showAuth === 'function') showAuth(true);
+        else window.location.href = "/?register=1";
         throw new Error("请先登录");
       }
       const retries = options._retryCount || 0;

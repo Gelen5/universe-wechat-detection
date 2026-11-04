@@ -102,6 +102,20 @@ def test_logout_accepts_expired_session_but_does_not_hide_server_failure(ui, sta
         assert page.evaluate('currentAccount.id') == 'test-user'
     else:
         page.wait_for_function('currentAccount === null')
-        expect(page.locator('#auth-modal')).to_be_visible()
+        expect(page.locator('#auth-modal')).to_be_hidden()
         assert page.evaluate('currentWallet.balance') == 0
         expect(page.get_by_text('退出未确认，请稍后重试', exact=True)).to_have_count(0)
+
+
+def test_guest_can_browse_and_open_and_close_login(ui):
+    page, _ = ui
+    page.route('**/api/auth/me', lambda route: route.fulfill(status=401, json={'detail': '请先登录'}))
+    page.goto('http://ui.test/workbench', wait_until='networkidle')
+    expect(page.locator('#auth-modal')).to_be_hidden()
+    assert page.evaluate('currentAccount') is None
+    page.evaluate('openWallet()')
+    expect(page.locator('#auth-modal')).to_be_visible()
+    page.locator('#auth-close').click()
+    expect(page.locator('#auth-modal')).to_be_hidden()
+    page.goto('http://ui.test/?register=1', wait_until='networkidle')
+    expect(page.locator('#auth-modal')).to_be_visible()
