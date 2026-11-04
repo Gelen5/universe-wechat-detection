@@ -1175,7 +1175,8 @@ def generate_viral_remix_image(payload: ViralRemixImageRequest, request: Request
                 raise ValueError('这份方案没有完整原始数据，请重新上传清晰原图并拆解；不会继续生成无标签图表，本次不扣分')
             if dataset:
                 creator_tools.validate_remix_dataset(dataset)
-                payload.idea = {**payload.idea, 'data_contract': dataset}
+                from . import remix_design
+                payload.idea = {**payload.idea, 'data_contract': dataset, 'cards': remix_design.pages(dataset)}
             payload.idea = {**payload.idea, 'text_policy': creator_tools.remix_text_policy(session.get('goal') or '')}
         if session and session.get('preserve_person'):
             if not session.get('person_reference'):
