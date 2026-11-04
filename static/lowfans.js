@@ -103,7 +103,7 @@
         <span class="lf-rank${item.rank_no <= 3 ? ` is-top${item.rank_no > 1 ? item.rank_no : ''}` : ''}">${item.rank_no}</span>
         <span class="lf-title">${esc(item.title_preview || '无标题')}</span>
         <div class="lf-meta"><span class="lf-name">${esc(item.wx_name || '未知账号')}</span>
-          <span class="lf-type">${esc(item.wx_type || '其他')}</span><span>${esc(item.publish_date || '')}</span></div>
+          <span class="lf-type">${esc(item.wx_type || '其他')}</span>${item.is_new ? '<span class="lf-type">本期新入榜</span>' : ''}<span>${esc(item.publish_date || '')}</span></div>
         <div class="lf-metrics"><span>阅读 <b>${fmtNum(item.read_num)}</b></span></div>
         <div class="lf-side"><div class="lf-side-top"><span class="lf-boost">${Number(item.boost_ratio) > 0 ? `${fmtBoost(item.boost_ratio)}<small>× 爆发</small>` : '倍率暂无'}</span></div></div>
       </li>`).join('');
@@ -137,6 +137,7 @@
         <div class="lf-meta">
           <span class="lf-name">${esc(item.wx_name)}</span>
           <span class="lf-type${typeCls}">${esc(type)}</span>
+          ${item.is_new ? '<span class="lf-type">本期新入榜</span>' : ''}
           <span class="lf-base">阅读基线 ${fmtNum(item.account_read_base)}</span>
           <span>${esc(fmtTime(item.pub_time))}</span>
         </div>

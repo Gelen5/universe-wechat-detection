@@ -60,7 +60,15 @@ def data(request:Request,start:str='',end:str='',page:int=1):
     except ValueError:raise HTTPException(422,'日期格式无效')
     if last<first or (last-first).days>90:raise HTTPException(422,'请选择不超过 91 天的时间范围')
     with accounts._connect() as c:
-        rows=[dict(r) for r in c.execute("""SELECT o.out_trade_no,o.subject,o.total_amount,o.status,o.refunded_amount,o.created_at,o.paid_at,r.package_id,r.credits,u.email FROM alipay_orders o JOIN alipay_recharges r ON o.out_trade_no=r.out_trade_no LEFT JOIN users u ON u.id=r.user_id ORDER BY o.created_at DESC""").fetchall()]
+        rows=[dict(r) for r in c.execute("""SELECT o.out_trade_no,o.subject,o.total_amount,o.status,o.refunded_amount,o.created_at,
+            COALESCE(NULLIF(o.paid_at,''),v.paid_at) AS paid_at,
+            COALESCE(r.package_id,v.package_id) AS package_id,r.credits,u.email
+            FROM alipay_orders o
+            LEFT JOIN alipay_recharges r ON o.out_trade_no=r.out_trade_no
+            LEFT JOIN viral_insights_membership_orders v ON o.out_trade_no=v.out_trade_no
+            LEFT JOIN users u ON u.id=COALESCE(r.user_id,v.user_id)
+            WHERE r.out_trade_no IS NOT NULL OR v.out_trade_no IS NOT NULL
+            ORDER BY o.created_at DESC""").fetchall()]
     result=calculate(rows,first,last,today)
     orders=result.pop('orders'); page=max(1,page)
     result.update({'orders':orders[(page-1)*20:page*20],'total_orders':len(orders),'page':page,'start':first.isoformat(),'end':last.isoformat(),'updated_at':datetime.now(TZ).isoformat(),'refund_timing_available':False})

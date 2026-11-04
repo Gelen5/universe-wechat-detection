@@ -17,7 +17,7 @@ from typing import Any
 import requests
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, Response
-from sqlalchemy import func, or_, select
+from sqlalchemy import case, func, or_, select
 
 from . import accounts, database, lowfans_sync, viral_insights_membership as membership
 from .models import LowfansArticle, LowfansSyncRun
@@ -87,6 +87,15 @@ def _dates(session, limit: int = 30) -> list[str]:
         .order_by(LowfansArticle.stat_date.desc()).limit(limit)
     ).scalars().all()
     return [str(value) for value in rows]
+
+
+def _previous_ids(session, stat_date: str):
+    previous = session.execute(select(func.max(LowfansArticle.stat_date)).where(
+        LowfansArticle.range_type == DEFAULT_RANGE, LowfansArticle.stat_date < stat_date)).scalar()
+    if not previous:
+        return None
+    return select(LowfansArticle.art_id).where(
+        LowfansArticle.range_type == DEFAULT_RANGE, LowfansArticle.stat_date == previous).correlate(None)
 
 
 def _category_counts(session, stat_date: str) -> dict[str, int]:
@@ -160,8 +169,12 @@ def list_lowfans(
             "boost": LowfansArticle.boost_ratio.desc(),
             "time": LowfansArticle.pub_time.desc(),
         }[sort]
+        previous_ids = _previous_ids(session, stat_date)
+        old_ids = set(session.execute(previous_ids).scalars()) if previous_ids is not None else None
+        priority = case((LowfansArticle.art_id.in_(previous_ids), 1), else_=0) if previous_ids is not None else None
+        ordering = [priority, order, LowfansArticle.rank_no] if priority is not None else [order, LowfansArticle.rank_no]
         rows = session.execute(
-            select(LowfansArticle).where(*conditions).order_by(order, LowfansArticle.rank_no)
+            select(LowfansArticle).where(*conditions).order_by(*ordering)
             .offset((page - 1) * page_size).limit(page_size)
         ).scalars().all()
         counts = _category_counts(session, stat_date)
@@ -180,14 +193,14 @@ def list_lowfans(
     accessible = _access(request)
     if not accessible:
         preview_rows = rows[:membership.preview_limit()]
-        return {"items": [_preview(row, index + 1) for index, row in enumerate(preview_rows)],
+        return {"items": [dict(_preview(row, index + 1), is_new=old_ids is not None and row.art_id not in old_ids) for index, row in enumerate(preview_rows)],
                 "total": int(total), "page": 1, "page_size": len(preview_rows), "pages": 1,
                 "stat_date": stat_date, "range": DEFAULT_RANGE,
                 "categories": _categories_payload(counts), "dates": dates,
                 "preview": True, "preview_limit": membership.preview_limit(),
                 "membership_required": True, "degraded": not latest_ok,
                 "last_sync": {"status": getattr(last, "status", "") or "", "inserted": getattr(last, "inserted", 0) or 0}}
-    items = [_public(row) for row in rows]
+    items = [dict(_public(row), is_new=old_ids is not None and row.art_id not in old_ids) for row in rows]
     return {
         "items": items,
         "total": int(total),
@@ -347,8 +360,11 @@ def export_csv(payload: dict, request: Request):
             "boost": LowfansArticle.boost_ratio.desc(),
             "time": LowfansArticle.pub_time.desc(),
         }[sort]
+        previous_ids = _previous_ids(session, stat_date)
+        priority = case((LowfansArticle.art_id.in_(previous_ids), 1), else_=0) if previous_ids is not None else None
+        ordering = [priority, order, LowfansArticle.rank_no] if priority is not None else [order, LowfansArticle.rank_no]
         rows = session.execute(
-            select(LowfansArticle).where(*conditions).order_by(order).limit(EXPORT_LIMIT)
+            select(LowfansArticle).where(*conditions).order_by(*ordering).limit(EXPORT_LIMIT)
         ).scalars().all()
     buffer = io.StringIO()
     writer = csv.writer(buffer)

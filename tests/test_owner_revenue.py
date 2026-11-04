@@ -44,3 +44,25 @@ def test_real_http_owner_and_other_user(monkeypatch):
  assert outsider.post('/api/auth/register',json={'email':uuid.uuid4().hex+'@example.test','password':'testing-pass-123'}).status_code==200
  assert outsider.get('/owner-revenue').status_code==403
  assert outsider.get('/api/owner-revenue').status_code==403
+
+
+def test_membership_payments_and_refunds_join_revenue_once(monkeypatch):
+ import uuid
+ from server import accounts, alipay_pay, database, viral_insights_membership as vim
+ user=accounts.create_user(uuid.uuid4().hex+'@example.test','testing-pass-123','买家')
+ key=uuid.uuid4().hex[:12]
+ with database.ENGINE.begin() as conn:
+  for suffix,status,refund in [('paid','PAID','0.00'),('refund','PARTIAL_REFUNDED','3.00'),('pending','CREATED','0.00')]:
+   oid=key+suffix
+   conn.execute(alipay_pay.alipay_orders.insert().values(out_trade_no=oid,app_id='test',subject='爆款情报会员·周卡',total_amount='9.90',status=status,refunded_amount=refund,created_at='2098-01-01 10:00:00',paid_at='2098-01-01 10:00:00' if suffix=='paid' else None,updated_at='2098-01-01 10:00:00'))
+   conn.execute(vim.orders.insert().values(out_trade_no=oid,user_id=user['id'],package_id='week',amount='9.90',days=7,status='PAID' if status!='CREATED' else 'PENDING_PAYMENT',created_at='2098-01-01T02:00:00+00:00',paid_at='2098-01-01T02:00:00+00:00' if status!='CREATED' else None))
+  # A malformed order associated with both products must not be counted twice.
+  conn.execute(alipay_pay.alipay_recharges.insert().values(out_trade_no=key+'paid',user_id=user['id'],package_id='test',credits=1,amount='9.90',status='CREDITED',created_at='2098-01-01 10:00:00'))
+ owner=TestClient(app)
+ assert owner.post('/api/auth/login',json={'email':accounts.OWNER_EMAIL,'password':'testing-pass-123'}).status_code==200
+ monkeypatch.setattr(owner_revenue,'OWNER',accounts.OWNER_EMAIL)
+ data=owner.get('/api/owner-revenue?start=2098-01-01&end=2098-01-01').json()
+ rows=[row for row in data['orders'] if row['out_trade_no'].startswith(key)]
+ assert len(rows)==2 and data['period_paid']=='19.80' and data['period_count']==2
+ assert sum(float(row['refunded_amount']) for row in rows)==3.0
+ assert all(row['email']==user['email'] for row in rows)

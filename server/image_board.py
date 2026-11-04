@@ -336,7 +336,7 @@ def _board_pool(session, stat_date: str) -> list[ImageBoardItem]:
 
 
 def _read_rank(row):
-    return (row.read_num, row.share_num, row.sn)
+    return (row.stat_date, row.read_num, row.share_num, row.sn)
 
 
 @router.get("/api/image-board/preview-cover")
@@ -403,8 +403,8 @@ def list_items(
     if needle:
         rows = [r for r in rows if needle in (r.title or "").lower()]
     key = {"read": _read_rank,
-           "share": lambda r: (r.share_num, r.read_num),
-           "time": lambda r: r.pub_time or ""}[sort]
+           "share": lambda r: (r.stat_date, r.share_num, r.read_num, r.sn),
+           "time": lambda r: (r.stat_date, r.pub_time or "", r.sn)}[sort]
     rows.sort(key=key, reverse=True)
 
     if not accessible:
