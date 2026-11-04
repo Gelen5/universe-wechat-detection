@@ -62,6 +62,7 @@ MOBILE_HEADERS = {
 # 同一链接 10 分钟内复用解析结果：用户失败重试、或部署重启后重试时
 # 不必再打一次微信，减少被「环境异常」拦的概率。
 _ARTICLE_CACHE: dict[str, tuple[float, dict[str, Any]]] = {}
+STICKER_ARTICLE_ERROR = '这是贴图号图文，图片文字暂不能直接按文章正文拆解。可前往贴图号内容提取；本次失败积分将自动退回。'
 
 
 # --------------------------------------------------------------------------- 抓取
@@ -97,7 +98,7 @@ def extract_article(url: str) -> dict[str, Any]:
         except ValueError as exc:
             last_error = exc
             # 链接本身参数错误，换 UA 也没用，直接报给用户
-            if "参数错误" in str(exc):
+            if "参数错误" in str(exc) or str(exc) == STICKER_ARTICLE_ERROR:
                 break
         except requests.RequestException as exc:
             last_error = exc
@@ -117,6 +118,15 @@ def parse_article_html(html: str, url: str = "") -> dict[str, Any]:
                 elif reason == "环境异常":
                     hint = "（微信拦了这次访问，过几分钟再试）"
                 raise ValueError(f"文章打不开：{reason}{hint}")
+        if re.search(r'picture_page_info_list\s*[:=]\s*\[', html):
+            from .sticker_extract import parse_images
+            try:
+                sticker_images = parse_images(html)
+            except ValueError:
+                # The extractor also rejects lists above its supported limit.
+                sticker_images = True
+            if sticker_images:
+                raise ValueError(STICKER_ARTICLE_ERROR)
         raise ValueError("暂时无法读取文章正文。请先在微信中确认文章可以打开，并重新复制完整链接；如果仍无法读取，请稍后再试。")
 
     from bs4 import BeautifulSoup

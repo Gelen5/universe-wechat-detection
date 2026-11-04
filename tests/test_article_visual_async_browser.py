@@ -53,3 +53,22 @@ def test_review_unavailable_preserves_and_resumes(ui):
     expect(page.locator('#av-article-title')).to_have_text('测试文章', timeout=10000)
     assert state['requests'][1]['resume_task_id'] == 'task1'
     assert not observed['errors']
+
+
+def test_sticker_guidance_preserves_link_without_starting_extraction(ui):
+    page, observed = ui
+    source = 'https://mp.weixin.qq.com/s/sticker-example'
+    page.route('**/api/article-visual/tasks/start', lambda r: r.fulfill(json={'job':{'id':'sticker1','status':'queued'}}))
+    page.route('**/api/article-visual/tasks/sticker1', lambda r: r.fulfill(json={'job':{
+        'id':'sticker1','status':'failed','error':'这是贴图号图文，图片文字暂不能直接按文章正文拆解。可前往贴图号内容提取；本次失败积分将自动退回。'}}))
+    page.goto('http://ui.test/article-visual', wait_until='networkidle')
+    page.locator('#av-url').fill(source)
+    page.locator('#av-analyze').click()
+    button = page.locator('#av-go-sticker-extract')
+    expect(button).to_be_visible()
+    expect(page.locator('#av-hint')).to_contain_text('积分将自动退回')
+    button.click()
+    expect(page.locator('#sticker-extract')).to_be_visible()
+    expect(page.locator('#sticker-url')).to_have_value(source)
+    assert '/api/sticker-extract' not in observed['requests']
+    assert not observed['errors']

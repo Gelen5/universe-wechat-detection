@@ -34,6 +34,8 @@
 #article-visual .av-input-row input::placeholder { color:#9db3a6; }
 #article-visual .av-hint { margin:9px 0 0; font-size:11px; color:#9ab3a5; }
 #article-visual .av-hint.is-error { color:#b04a3a; }
+#article-visual .av-sticker-link { margin-top:10px; }
+#article-visual .av-sticker-link[hidden] { display:none !important; }
 #article-visual .av-note-line { margin-top:16px; padding-top:13px; border-top:1px dashed #d9e9de; font-size:11.5px; color:#8aa796; line-height:1.7; }
 
 #article-visual .av-btn {

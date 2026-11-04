@@ -24,6 +24,7 @@
     url: $("av-url"),
     analyze: $("av-analyze"),
     hint: $("av-hint"),
+    stickerLink: $("av-go-sticker-extract"),
     articlePanel: $("av-article-panel"),
     empty: $("av-empty"),
     plan: $("av-plan"),
@@ -440,6 +441,7 @@
     els.analyze.disabled = true;
     els.analyze.textContent = "拆解中…";
     els.hint.classList.remove("is-error");
+    els.stickerLink.hidden = true;
     els.hint.textContent = '正在提交拆解任务…';
     try {
       await initialAccountReady;
@@ -461,6 +463,7 @@
     } catch (error) {
       els.hint.classList.add("is-error");
       els.hint.textContent = error.message;
+      els.stickerLink.hidden = !error.message.startsWith('这是贴图号图文');
       if (!state.job) {
         els.articlePanel.hidden = true;
         els.empty.hidden = false;
@@ -523,7 +526,7 @@
       state.job = job; state.activeId = job.slots[0]?.id || null; els.articlePanel.hidden = false;
       history.replaceState(null, '', `/article-visual?job=${encodeURIComponent(job.id)}`);
       render(); setTab('plan'); els.hint.textContent = `已恢复拆解结果，${job.plan?.alternatives?.length || 0} 个方向通过校验。`;
-    } catch (error) { els.hint.textContent = error.message; els.hint.classList.add('is-error'); }
+    } catch (error) { els.hint.textContent = error.message; els.hint.classList.add('is-error'); els.stickerLink.hidden = !error.message.startsWith('这是贴图号图文'); }
     finally { state.busy = false; els.analyze.disabled = false; els.url.readOnly = false; if (state.job) renderAngles(); }
   }
 
@@ -669,9 +672,17 @@
     history.replaceState(null, "", "/article-visual");
     els.hint.textContent = "支持公开公众号文章 · 拆解包含策划与原文核对";
     els.hint.classList.remove("is-error");
+    els.stickerLink.hidden = true;
     setTab("plan");
     els.url.focus();
   });
+  els.stickerLink.addEventListener('click', () => {
+    const value = els.url.value;
+    window.AppNav?.setActiveView('sticker-extract', true);
+    const input = $('sticker-url');
+    if (input) { input.value = value; input.focus({preventScroll:true}); }
+  });
+  els.url.addEventListener('input', () => { els.stickerLink.hidden = true; });
   $('av-new').addEventListener('click', () => els.reset.click());
   window.CreationHistory?.register('article-visual', async item => {
     if (state.busy) { toast('当前任务进行中，请等待完成后再切换'); return false; }
