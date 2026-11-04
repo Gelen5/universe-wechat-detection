@@ -15,3 +15,11 @@ def test_selection_uses_server_facts_and_plan():
 
 def test_unknown_plan_is_rejected():
     with pytest.raises(ValueError): remix_contract.select({'result':{'ideas':[]}},{'id':'A'})
+
+
+def test_tutorial_coverage_rejects_missing_duplicate_and_reordered_steps():
+    ledger=remix_contract.build({'content_type':'tutorial','content_core':{'steps':['打开应用','输入内容','保存']}},'')
+    ids=[item['id'] for item in ledger['items']]
+    remix_contract.validate_coverage(ledger,[{'source_ids':ids[:2]},{'source_ids':ids[2:]}])
+    for actual in (ids[:-1],list(reversed(ids)),ids+[ids[0]]):
+        with pytest.raises(ValueError): remix_contract.validate_coverage(ledger,[{'source_ids':actual}])

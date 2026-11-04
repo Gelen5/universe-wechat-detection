@@ -1400,7 +1400,7 @@ function renderViralRemix(result, sessionId) {
     const stopWaiting = startRemixOutputWait('正在生成原创图', idea.name || '');
     storeDraft({pending:true,selectedIdea:idea.id});
     try {
-      const choices={track:root.querySelector('[name=remix-track]')?.value,emotion:root.querySelector('[name=remix-emotion]')?.value,boundaries:root.querySelector('[name=remix-boundaries]')?.value};
+      const choices={track:root.querySelector('[name=remix-track]')?.value,emotion:root.querySelector('[name=remix-emotion]')?.value,boundaries:root.querySelector('[name=remix-boundaries]')?.value,strength:root.querySelector('[name=remix-strength]')?.value,textMode:root.querySelector('[name=remix-textMode]')?.value};
       // 出图改成了异步任务：这里只拿到 job_id，真正的进度靠轮询。
       const data = await postCreator('/api/viral-remix/image', { sessionId, idea: {...idea,choices,copy_directions:result.copy_directions,tags:result.tags} });
       const job = data.job;
@@ -1433,6 +1433,11 @@ function renderViralRemix(result, sessionId) {
   const context=document.createElement('section');context.className='viral-result-card';
   context.innerHTML=`<h3>顺序与逐页分析</h3><p>${esc((result.order||[]).join(' → '))} · ${esc(result.order_reason||'单图，无需排序')}</p><p>${esc(JSON.stringify(result.pages||[]))}</p><p>${esc(result.verification?.message||'待核实')}</p><h3>确认创作方向</h3><label>赛道<select name="remix-track">${['情感关系','育儿成长','赚钱职场','生活消费','娱乐搞笑'].map(t=>`<option>${t}</option>`).join('')}</select></label><label>想让读者感到<select name="remix-emotion">${['被理解','被点醒','被教会','被逗笑','有点急'].map(t=>`<option>${t}</option>`).join('')}</select></label><label>画面禁区<select name="remix-boundaries"><option>不出现真人正脸</option><option>不出现品牌和产品</option><option>不出现特定人物或同行</option><option>无额外禁区</option></select></label><p>确认后点选下方 A/B/C 方案。文字与画面由 GPT Image 一体生成，整组保持相同视觉方向。</p>`;
   root.querySelector('.viral-ideas').before(context);
+  for(const [name,label,options] of [['strength','视觉强度',['醒目','均衡','克制']],['textMode','文字模式',['遵循原始要求','正常文字','封面不要标题文字','整组无字']]]){
+    const field=document.createElement('label');field.textContent=label;
+    const select=document.createElement('select');select.name=`remix-${name}`;
+    options.forEach(value=>{const option=document.createElement('option');option.value=option.textContent=value;select.append(option);});field.append(select);context.append(field);
+  }
   if (result.data_contract) {
     const details=document.createElement('details');details.className='remix-source-review';
     const summary=document.createElement('summary');summary.textContent=`核对原图数据：${result.data_contract.rows.length} 项（未独立核实）`;
@@ -1497,7 +1502,7 @@ function renderViralRemix(result, sessionId) {
   ['拆解报告','翻新方案','成图交付'].forEach((label,index)=>{const b=document.createElement('button');b.type='button';b.textContent=`0${index+1} ${label}`;b.setAttribute('role','tab');b.setAttribute('aria-controls',panels[index].id);b.onclick=()=>selectPanel(index);b.onkeydown=e=>{if(['ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();const next=(index+(e.key==='ArrowRight'?1:2))%3;selectPanel(next);tabs.children[next].focus();}};tabs.append(b);});
   root.replaceChildren(tabs,...panels);selectPanel(0);
   if(saved.choices) for(const [key,value] of Object.entries(saved.choices)){const field=root.querySelector(`[name="remix-${key}"]`);if(field)field.value=value;}
-  root.querySelectorAll('.remix-choices select').forEach(field=>field.addEventListener('change',()=>storeDraft({choices:{track:root.querySelector('[name=remix-track]')?.value,emotion:root.querySelector('[name=remix-emotion]')?.value,boundaries:root.querySelector('[name=remix-boundaries]')?.value}})));
+  root.querySelectorAll('.remix-choices select').forEach(field=>field.addEventListener('change',()=>storeDraft({choices:Object.fromEntries([...root.querySelectorAll('.remix-choices select')].map(el=>[el.name.replace('remix-',''),el.value]))})));
   root.querySelectorAll('.viral-generate').forEach(button=>button.addEventListener('click',()=>storeDraft({selectedIdea:button.dataset.idea})));
   for(const generated of saved.generated||[]){
     renderRemixJobResult(generated, {}, output, result, null);

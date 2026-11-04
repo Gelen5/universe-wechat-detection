@@ -1153,8 +1153,9 @@ def analyze_viral_remix(payload: ViralRemixAnalyzeRequest, request: Request):
         ledger = remix_contract.build(result, payload.goal, payload.preservePerson)
         result['content_type'] = ledger['category']
         result['source_fingerprint'] = ledger['fingerprint']
+        product_reference = (payload.imageData[0] if isinstance(payload.imageData,list) else payload.imageData) if ledger['category']=='product' else None
         if payload.sessionId:
-            accounts.save_workbench_session(accounts.require_user(request)['id'], {'id': payload.sessionId, 'conversation_skill': 'viral-remix', 'result': result, 'content_ledger':ledger, 'goal': payload.goal, 'preserve_person': payload.preservePerson, 'person_reference': (payload.imageData[0] if isinstance(payload.imageData, list) else payload.imageData) if payload.preservePerson else None})
+            accounts.save_workbench_session(accounts.require_user(request)['id'], {'id': payload.sessionId, 'conversation_skill': 'viral-remix', 'result': result, 'content_ledger':ledger, 'goal': payload.goal, 'product_reference':product_reference, 'preserve_person': payload.preservePerson, 'person_reference': (payload.imageData[0] if isinstance(payload.imageData, list) else payload.imageData) if payload.preservePerson else None})
         return {"status": "success", "result": result}
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
@@ -1205,6 +1206,8 @@ def generate_viral_remix_image(payload: ViralRemixImageRequest, request: Request
             raise ValueError('创作记录不存在，请重新上传拆解')
         from . import remix_contract
         payload.idea = remix_contract.select(session, payload.idea)
+        if session.get('product_reference'):
+            payload.idea['product_reference'] = session['product_reference']
         if session:
             analysis = session.get('result') or {}
             dataset = analysis.get('data_contract')
@@ -1215,6 +1218,11 @@ def generate_viral_remix_image(payload: ViralRemixImageRequest, request: Request
                 from . import remix_design
                 payload.idea = {**payload.idea, 'data_contract': dataset, 'cards': remix_design.pages(dataset)}
             payload.idea = {**payload.idea, 'text_policy': creator_tools.remix_text_policy(session.get('goal') or '')}
+            text_mode = (payload.idea.get('choices') or {}).get('textMode')
+            if text_mode in ('正常文字','封面不要标题文字','整组无字'):
+                payload.idea['text_policy'] = {'正常文字':'','封面不要标题文字':'cover_no_text','整组无字':'all_no_text'}[text_mode]
+            if dataset and payload.idea.get('text_policy'):
+                raise ValueError('数据图必须保留名称与数值，请选择正常文字；本次未扣分')
         if session and session.get('preserve_person'):
             if not session.get('person_reference'):
                 raise ValueError('人物参考图已失效，请重新上传并拆解')
