@@ -157,8 +157,21 @@
     $('copy-html').disabled = !nextPreview || Boolean(shownVersion);
     const themeLabel = $('layout-theme');
     if (themeLabel) {
-      themeLabel.hidden = !nextPreview || (!state.layout_theme?.name && !legacyPreview);
-      themeLabel.textContent = state.layout_theme?.name ? `排版 · ${state.layout_theme.name}` : legacyPreview ? '历史排版' : '';
+      const theme = state.layout_theme || {};
+      const capability = state.layout_capability || {};
+      const modules = (theme.modules || []).map(item => item.name || item);
+      const styleName = capability.style || theme.style_name || theme.name || '';
+      themeLabel.hidden = !nextPreview || (!theme.name && !legacyPreview);
+      themeLabel.textContent = styleName
+        ? `排版 · ${styleName}${modules.length ? ` · ${modules.length} 模块` : ''}`
+        : legacyPreview ? '历史排版' : '';
+      const human = state.humanizer_report || {};
+      themeLabel.title = [
+        theme.name ? `基础主题 · ${theme.name}` : '',
+        capability.library_size ? `模块库 · ${capability.library_size} 个` : '',
+        modules.length ? `本版模块 · ${modules.join(' · ')}` : '',
+        human.summary ? `活人感 · ${human.summary}` : '',
+      ].filter(Boolean).join('\n');
     }
     $('input').placeholder = article.draft ? '告诉我排版风格，例如：蓝色科技感、标题醒目…' : '想写的方向、已有素材，或者直接粘贴文章…';
     updateBusy();
