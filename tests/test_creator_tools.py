@@ -1,4 +1,5 @@
 import base64
+import io
 import tempfile
 import unittest
 from pathlib import Path
@@ -109,6 +110,33 @@ class CreatorToolsTests(unittest.TestCase):
                 result = creator_tools.generate_card_image("tie-tu", "session123", {"index": 1, "overlay_text": "早安"}, "温暖")
             self.assertGreater(result["bytes"], 0)
             self.assertIn("/api/creator-tools/assets/tie-tu/session123/card-01.png", result["url"])
+
+    def test_tie_tu_preserves_source_frame_and_requests_complete_text(self):
+        from PIL import Image, ImageDraw
+        source = Image.new('RGB', (400, 200), 'white')
+        draw = ImageDraw.Draw(source)
+        draw.rectangle((0, 0, 24, 199), fill='red')
+        draw.rectangle((375, 0, 399, 199), fill='blue')
+        buf = io.BytesIO()
+        source.save(buf, format='PNG')
+
+        def provider(payload):
+            self.assertTrue(payload['preserve_frame'])
+            self.assertIn('把在意说清楚', payload['prompt'])
+            self.assertIn('从一句真诚的话开始。', payload['prompt'])
+            self.assertIn('at least 10% clear margin', payload['prompt'])
+            return image_provider._fit_images({'data': [{'b64_json': base64.b64encode(buf.getvalue()).decode()}]},
+                                              payload['size'], preserve_frame=payload['preserve_frame'])
+
+        with tempfile.TemporaryDirectory() as folder, patch.object(creator_tools, 'OUTPUT_DIR', Path(folder)), \
+             patch.object(image_provider, 'generate', side_effect=provider):
+            creator_tools.generate_card_image('tie-tu', 'sample', {'index': 1, 'overlay_text': '把在意说清楚',
+                                               'caption': '从一句真诚的话开始。'}, size='768x1024')
+            with Image.open(Path(folder) / 'tie-tu' / 'sample' / 'card-01.png') as image:
+                image = image.convert('RGB')
+                self.assertEqual((768, 1024), image.size)
+                self.assertEqual((255, 0, 0), image.getpixel((5, 512)))
+                self.assertEqual((0, 0, 255), image.getpixel((762, 512)))
 
     def test_tie_tu_no_people_is_carried_to_image_prompt(self):
         png = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=")

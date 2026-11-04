@@ -512,20 +512,28 @@ def generate_card_image(tool: str, session_id: str, card: dict[str, Any], style:
     safe_tool = "xiaohongshu" if tool == "xiaohongshu" else "tie-tu"
     index = max(1, int(card.get("index") or 1))
     headline = str(card.get("headline") or card.get("overlay_text") or "").strip()
+    caption = str(card.get("caption") or "").strip() if safe_tool == 'tie-tu' else ""
     no_people = safe_tool == 'tie-tu' and card.get('portrait_enabled') is False
     consistency = ('Do not depict people, faces, body parts or crowds; use objects and environments only.' if no_people else
                    'Keep the same fictional adult person, face and clothing logic when a person is requested; keep typography and palette consistent.')
+    text_safety = ("\nText layout is essential: keep every character completely visible inside the central 80% of the canvas, "
+                   "leaving at least 10% clear margin on every side. Never let characters touch or cross the canvas edge. "
+                   "If text is long, reduce font size and wrap naturally into multiple balanced lines; "
+                   "preserve every character and never crop, omit, abbreviate, or cover any requested text. "
+                   "Use the full requested headline exactly, with no cut-off strokes."
+                   if safe_tool == 'tie-tu' else '')
     prompt = f"""Use case: social media content card
 Asset type: complete Chinese content card for {safe_tool}, size {size}
 Primary request: create card {index} as a complete finished image, with the exact Chinese title rendered inside the image.
 Headline (verbatim): "{headline}"
+{f'Secondary text (verbatim): {json.dumps(caption, ensure_ascii=False)}' if caption and caption != headline else ''}
 Message: {card.get('message') or card.get('caption') or card.get('purpose') or ''}
 Scene: {card.get('scene') or card.get('visual_subject') or card.get('visual_prompt') or ''}
 Action: {card.get('action') or ''}
 Composition: {card.get('composition') or '3:4 portrait, one visual focus, generous text-safe margins'}
 Art direction: {style or 'clean, bright, polished Chinese creator editorial style'}
 Consistency: {consistency}
-Constraints: generate image and accurate Chinese text in this one call; no border, no watermark, no logo, no QR code, no extra text, no fake metrics, no garbled text, no duplicated person, no cropped face or hands."""
+Constraints: generate image and accurate Chinese text in this one call; no border, no watermark, no logo, no QR code, no extra text, no fake metrics, no garbled text, no duplicated person, no cropped face or hands.{text_safety}"""
     model = workbench._setting("WECHAT_IMAGE_MODEL", "gpt-image-2")
     from . import image_provider
     data = image_provider.generate({
@@ -533,6 +541,7 @@ Constraints: generate image and accurate Chinese text in this one call; no borde
         "prompt": prompt,
         "n": 1,
         "size": size,
+        "preserve_frame": safe_tool == 'tie-tu',
     })
     raw = _decode_image(data)
     from PIL import Image
