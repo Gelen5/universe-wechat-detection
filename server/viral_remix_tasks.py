@@ -48,6 +48,22 @@ def run(self, job_id: str):
             try:
                 with workbench.provider_overrides():
                     image = creator_tools.generate_remix_card(idea, page, index, total, directory)
+                    if idea.get('content_ledger') and not idea.get('data_contract'):
+                        from . import remix_quality
+                        from pathlib import Path
+                        accounts.progress_job(job_id, done=len(images), total=total, stage='validating', images=images)
+                        file = directory / f'remix-{index:02d}.jpg'
+                        report = remix_quality.inspect_image(file, idea, {**page,'page_index':index})
+                        if not report['passed']:
+                            accounts.progress_job(job_id, done=len(images), total=total, stage='repairing', images=images)
+                            page = {**page,'repair_instruction':report['repair'] or '; '.join(report['issues'])}
+                            image = creator_tools.generate_remix_card(idea,page,index,total,directory)
+                            report = remix_quality.inspect_image(file,idea,{**page,'page_index':index})
+                        (directory / f'acceptance-{index:02d}.json').write_text(json.dumps(report,ensure_ascii=False),encoding='utf-8')
+                        if not report['passed']:
+                            raise ValueError('成图检查未通过：'+'；'.join(report['issues']))
+                        image['acceptance'] = report
+                        image['check_passed'] = True
             except Exception as exc:  # noqa: BLE001 - 单张失败不该拖垮整单
                 logging.getLogger(__name__).exception('remix card failed: %s', job_id)
                 error = str(exc)[:300] or '出图失败'
@@ -68,6 +84,9 @@ def run(self, job_id: str):
                   'copy_directions': idea.get('copy_directions', []),
                   'tags': idea.get('tags', {}),
                   'warning': error, 'expected': total}
+        result['source_fingerprint'] = idea.get('source_fingerprint')
+        result['design_style'] = idea.get('design_style') or idea.get('id')
+        result['content_type'] = (idea.get('content_ledger') or {}).get('category')
         accounts.finish_job(job_id, result)
         jobs.settle(job, images, elapsed)
         return {'status': 'succeeded', 'images': len(images), 'expected': total}

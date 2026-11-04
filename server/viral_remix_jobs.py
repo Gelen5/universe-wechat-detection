@@ -17,7 +17,7 @@ from . import accounts, creator_tools
 
 LANE = 'image'
 TASK_TYPE = 'viral_remix.image'
-PROGRESS_STAGES = {'preparing': '正在展开创意', 'generating': '正在出图'}
+PROGRESS_STAGES = {'preparing': '正在展开创意', 'generating': '正在出图', 'validating':'正在检查成图', 'repairing':'正在修复成图'}
 
 
 def job_key(session_id: str, idea: dict[str, Any]) -> str:

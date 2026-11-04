@@ -1413,7 +1413,9 @@ function renderViralRemix(result, sessionId) {
         const remain = Math.max(0, total - made);
         // 出图之前还有一步文字模型（把创意展开成卡片计划），可能要一两分钟。
         // 这一段没有进度，说成「正在生成第 1 张」会让人以为卡在出图。
-        if (state.stage === 'preparing') {
+        if (state.stage === 'validating' || state.stage === 'repairing') {
+          stopWaiting.setStatus?.(state.stage === 'validating' ? '正在检查文字、内容完整性与画面可读性…' : '正在修复未通过检查的画面，本次修复不重复扣分…');
+        } else if (state.stage === 'preparing') {
           stopWaiting.setStatus?.('正在展开创意与画面方案（这一步由文字模型完成，通常 1 分钟左右）');
         } else {
           stopWaiting.setProgress?.(made, total);
