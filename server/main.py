@@ -44,6 +44,7 @@ from . import wechat_plus_billing
 from .workflow_events import redis_ready
 from .observability import event as log_event
 from .auth_rate_limit import check_auth_attempt, record_auth_result, client_ip
+from .rate_limit import check_behavior_observation
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -200,7 +201,7 @@ async def account_and_points_gate(request: Request, call_next):
     # Logout also clears expired/revoked cookies. Requiring an active session
     # prevents a stale browser from ever completing that cleanup.
     public_behavior = request.method == "POST" and path == "/api/behavior"
-    public_api = path in {"/api/auth/register", "/api/auth/login", "/api/auth/logout", "/api/auth/config", "/api/auth/email-code", "/api/auth/registration-link"} or public_market or public_refresh or public_pay or public_lowfans or public_behavior or path in {"/api/viral-insights/membership", "/api/viral-insights/packages"}
+    public_api = path in {"/api/auth/register", "/api/auth/login", "/api/auth/logout", "/api/auth/config", "/api/auth/email-code", "/api/auth/registration-link", "/api/auth/challenge-diagnostic"} or public_market or public_refresh or public_pay or public_lowfans or public_behavior or path in {"/api/viral-insights/membership", "/api/viral-insights/packages"}
     try:
         user = accounts.user_from_request(request)
     except HTTPException as exc:
@@ -336,6 +337,11 @@ class RegisterRequest(AuthRequest):
 class EmailCodeRequest(BaseModel):
     email: str = Field(min_length=5, max_length=254)
     turnstile_token: str = Field(default="", max_length=2048)
+
+
+class ChallengeDiagnosticRequest(BaseModel):
+    code: str = Field(pattern=r'^(\d{3,8}|script_load|timeout|expired|unknown)$')
+    action: str = Field(pattern=r'^(register_email|register)$')
 
 
 class RegistrationLinkRequest(BaseModel):
@@ -745,6 +751,18 @@ def auth_config():
     if better_auth_bridge.enabled():
         return better_auth_bridge.call('config', {})
     return {"email_verification_required": email_verification.required()}
+
+
+@app.post('/api/auth/challenge-diagnostic', status_code=204)
+def auth_challenge_diagnostic(payload: ChallengeDiagnosticRequest, request: Request):
+    """Log only the bounded widget error code and action, never credentials."""
+    import logging
+    from . import better_auth_bridge
+    better_auth_bridge.validate_origin(request)
+    ip = client_ip(request)
+    if check_behavior_observation(visitor='auth-challenge:' + ip, ip=ip).allowed:
+        logging.getLogger('uvicorn.error').warning('turnstile_client_error code=%s action=%s', payload.code, payload.action)
+    return Response(status_code=204)
 
 
 @app.post("/api/auth/email-code")
