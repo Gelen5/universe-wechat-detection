@@ -195,7 +195,7 @@ def validate_remix_dataset(dataset):
     if not isinstance(dataset, dict) or dataset.get('complete') is not True:
         raise ValueError('数据图未能完整识别，请上传清晰原图或补充完整数据；不会生成空白图表')
     rows = dataset.get('rows')
-    if not isinstance(rows, list) or not rows or len(rows) > 200:
+    if not isinstance(rows, list) or not rows or len(rows) > 96:
         raise ValueError('数据行不完整或过多，请拆分数据图后重试')
     for row in rows:
         if not isinstance(row, dict) or not str(row.get('label') or '').strip() or not str(row.get('value') or '').strip():
@@ -224,6 +224,7 @@ def prepare_remix_cards(session_id: str, idea: dict[str, Any]):
         if idea.get('text_policy'):
             raise ValueError('数据图需要显示名称和数值，与无字要求冲突；请取消无字要求后重试')
     fallback_reason = ''
+    expected_pages = len(idea['cards']) if idea.get('cards') else int(idea.get('page_count') or 1)
     if dataset:
         from . import remix_design
         directory = OUTPUT_DIR / 'tie-tu' / re.sub(r'[^a-zA-Z0-9_-]', '', session_id)[:64]
@@ -250,6 +251,8 @@ def prepare_remix_cards(session_id: str, idea: dict[str, Any]):
     cards = idea.get('cards') or [idea]
     if not isinstance(cards,list) or not 1 <= len(cards) <= 8:
         raise ValueError('原创卡片数量须为1到8张')
+    if idea.get('content_ledger') and len(cards) != expected_pages:
+        raise ValueError('方案展开页数与确认页数不一致，已停止生成，请重新选择方案')
     if not contract:
         contract = idea.get('visual_contract') or {}
     if fallback_reason:
