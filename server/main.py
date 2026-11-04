@@ -393,6 +393,7 @@ class TieTuPlanRequest(BaseModel):
 
 class ViralRemixAnalyzeRequest(BaseModel):
     imageData: str | list[str]
+    preservePerson: bool = False
     goal: str = Field(default="", max_length=300)
     sessionId: str | None = Field(default=None, min_length=8, max_length=80, pattern=r'^[a-zA-Z0-9_-]+$')
 
@@ -1131,7 +1132,7 @@ def analyze_viral_remix(payload: ViralRemixAnalyzeRequest, request: Request):
         with workbench.provider_overrides():
             result = creator_tools.viral_remix_analysis(payload.imageData, payload.goal)
         if payload.sessionId:
-            accounts.save_workbench_session(accounts.require_user(request)['id'], {'id': payload.sessionId, 'conversation_skill': 'viral-remix', 'result': result, 'goal': payload.goal})
+            accounts.save_workbench_session(accounts.require_user(request)['id'], {'id': payload.sessionId, 'conversation_skill': 'viral-remix', 'result': result, 'goal': payload.goal, 'preserve_person': payload.preservePerson, 'person_reference': (payload.imageData[0] if isinstance(payload.imageData, list) else payload.imageData) if payload.preservePerson else None})
         return {"status": "success", "result": result}
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
@@ -1148,6 +1149,11 @@ def generate_viral_remix_image(payload: ViralRemixImageRequest, request: Request
     from . import viral_remix_jobs, viral_remix_tasks
     user = accounts.require_user(request)
     try:
+        session = accounts.load_workbench_session(payload.sessionId, user['id'])
+        if session and session.get('preserve_person'):
+            if not session.get('person_reference'):
+                raise ValueError('人物参考图已失效，请重新上传并拆解')
+            payload.idea = {**payload.idea, 'preserve_person': True, 'person_reference': session['person_reference']}
         job = viral_remix_jobs.submit(user['id'], payload.sessionId, payload.idea)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc

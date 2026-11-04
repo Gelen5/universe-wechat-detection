@@ -378,7 +378,8 @@
                 <label class="field-wide">你想做的内容（可留空）<textarea id="viral-remix-goal" name="goal" maxlength="300" placeholder="例如：同样讲职场成长，但换成新人第一次做述职的角度"></textarea></label>
               </div>
               <button id="viral-remix-start" class="skill-primary" type="submit">开始拆解 →</button>
-              <p class="viral-notice">对标图只被拆解，不会被裁切、贴入或作为图生图输入。</p>
+              <label class="viral-notice"><input type="checkbox" id="viral-preserve-person"> 保留原人物（以第一张图的人物为准）</label>
+              <p class="viral-notice">开启后将第一张原图传给成图模型，优先保留五官、脸型和肤色；生成仍可能有偏差。关闭时仅参考结构，原创生成新画面。</p>
             </form>
             <button type="button" id="remix-history-open" class="remix-history-open">查看我生成的图片</button>
           </div>
@@ -1122,7 +1123,7 @@
     <script src="/static/creation-history.js?v=20261101-1"></script>
     <script src="/static/remix-publication.js?v=20261101-article1"></script>
     <script src="/static/remix-save.js?v=20261101-publication-1"></script>
-    <script src="/static/app.js?v=20261104-welcome-1"></script>
+    <script src="/static/app.js?v=20261104-preserve-person"></script>
     <script src="/static/flow.js?v=20261031-hide-diagnose-1"></script>
     <script src="/static/studio-tools.js?v=20261028-tietu-1"></script>
     <link rel="stylesheet" href="/static/creator-chat.css?v=20260906-conversation-1">

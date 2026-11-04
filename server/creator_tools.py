@@ -229,7 +229,10 @@ def generate_remix_card(idea: dict[str, Any], page: dict[str, Any], index: int,
               +'\nExact copy: '+json.dumps(text,ensure_ascii=False)
               +'\nSeries page: '+(f'{index}/{total}' if total>1 else 'single poster; no page number')
               +'\nKeep the palette and visual system consistent across the series. If all copy fields are empty, generate a text-free image.')
-    result=image_provider.generate({'model':workbench._setting('WECHAT_IMAGE_MODEL','gpt-image-2'),'prompt':prompt,'n':1,'size':'768x1024','preserve_frame':True})
+    reference = idea.get('person_reference') if idea.get('preserve_person') else None
+    if reference:
+        prompt = ('Edit the supplied reference image. The central foreground person MUST remain the SAME individual: preserve facial proportions, eyes, nose, mouth, face shape, skin tone and distinctive identity. Do not replace the person, change ethnicity, lighten skin or beautify into a different face. Identity preservation takes priority over conflicting scene descriptions below. Ignore screenshot UI and black bars. ' + prompt)
+    result=image_provider.generate({'model':workbench._setting('WECHAT_IMAGE_MODEL','gpt-image-2'),'prompt':prompt,'n':1,'size':'768x1024','preserve_frame':True, 'reference_image': reference})
     raw=_decode_image(result)
     with Image.open(io.BytesIO(raw)) as decoded:
         decoded.load()

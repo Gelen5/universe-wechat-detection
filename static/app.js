@@ -1502,7 +1502,7 @@ viralRemixForm?.addEventListener('submit', async event => {
     await preserveRemixDraft();
     const imageData = await Promise.all(viralFiles.map(file=>new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = () => reject(new Error('图片读取失败')); reader.readAsDataURL(file); })));
     const sessionId = crypto.randomUUID().replaceAll('-', '');
-    const data = await postCreator('/api/viral-remix/analyze', { imageData, sessionId, goal: document.querySelector('#viral-remix-goal').value.trim() });
+    const data = await postCreator('/api/viral-remix/analyze', { imageData, sessionId, preservePerson: document.querySelector('#viral-preserve-person')?.checked === true, goal: document.querySelector('#viral-remix-goal').value.trim() });
     renderViralRemix(data.result, sessionId);
   } catch (error) { showToast(error.message, 'error'); } finally { finish(); }
 });

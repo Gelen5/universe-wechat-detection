@@ -61,6 +61,24 @@ def generate(payload: dict[str, Any]) -> dict[str, Any]:
         if remaining is not None:
             image_timeout = max(1, min(image_timeout, remaining))
         try:
+            if payload.get('reference_image'):
+                reference = str(payload['reference_image'])
+                match = re.fullmatch(r'data:image/(png|jpeg|webp);base64,([A-Za-z0-9+/=]+)', reference)
+                if not match:
+                    raise ImageProviderError('人物参考图格式无效，请重新上传')
+                raw = base64.b64decode(match[2], validate=True)
+                if len(raw) > 10 * 1024 * 1024:
+                    raise ImageProviderError('人物参考图不能超过10MB')
+                with requests.Session() as client:
+                    client.trust_env = False
+                    response = client.post(base_url.rstrip('/') + '/images/edits',
+                        headers={'Authorization': 'Bearer ' + api_key},
+                        data=body, files={'image': ('reference.' + match[1], raw, 'image/' + match[1])},
+                        timeout=(15, image_timeout), verify=workbench._verify_ssl())
+                if not response.ok:
+                    raise ImageProviderError('人物参考图编辑接口暂不可用（HTTP %s），未改为无参考图生成' % response.status_code)
+                result = response.json()
+                return result if payload.get('preserve_original') else _fit_images(result, requested_size, preserve_frame=payload.get('preserve_frame') is True)
             result = ModelService(
                 provider,
                 usage_recorder=attribution.get("usage_recorder"),
