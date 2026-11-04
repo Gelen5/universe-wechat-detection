@@ -1,7 +1,7 @@
 (() => {
   if (window.__behaviorObserver || window.top !== window.self) return;
   window.__behaviorObserver = true;
-  const pages = new Set(['home','workbench','wechat-plus','one-click-writing','qihaoshou','hotspots','lowfans','xiaohongshu','tie-tu','viral-remix','article-visual','xhs-extract','douyin-extract','bookshelf','market','pricing','pay','wallet']);
+  const pages = new Set(['home','workbench','wechat-plus','one-click-writing','qihaoshou','hotspots','lowfans','image-board','xiaohongshu','tie-tu','viral-remix','article-visual','sticker-extract','xhs-extract','douyin-extract','bookshelf','market','pricing','pay','wallet']);
   let visitor;
   try { visitor = sessionStorage.getItem('behavior-visitor'); if (!/^[a-f0-9]{32}$/.test(visitor || '')) { const bytes = crypto.getRandomValues(new Uint8Array(16)); visitor = Array.from(bytes, n => n.toString(16).padStart(2,'0')).join(''); sessionStorage.setItem('behavior-visitor', visitor); } } catch { return; }
   const currentPage = () => { const name = location.pathname.replace(/^\/+|\/+$/g,'') || 'home'; return pages.has(name) ? name : null; };
@@ -30,7 +30,7 @@
     const el=e.target.closest('a,button'); if(!el || !e.isTrusted || el.disabled)return;
     const href=el.getAttribute('href') || '';
     let event;
-    const selectors={'#viral-remix-start':'remix_analyze','.viral-generate':'remix_generate','#remix-save-action':'remix_save','#av-analyze':'article_analyze','#av-download-all':'article_download','#xhs-extract-start':'xhs_extract','#douyin-extract-start':'douyin_extract','[data-wp-send]':'plus_send','[data-wp-copy]':'plus_copy'};
+    const selectors={'#auth-browse':'welcome_browse','[data-auth-mode="login"]':'auth_login','[data-auth-mode="register"]':'auth_register','#viral-remix-start':'remix_analyze','.viral-generate':'remix_generate','#remix-save-action':'remix_save','#av-analyze':'article_analyze','#av-download-all':'article_download','#sticker-start':'sticker_extract','#xhs-extract-start':'xhs_extract','#douyin-extract-start':'douyin_extract','[data-wp-send]':'plus_send','[data-wp-copy]':'plus_copy'};
     event=Object.entries(selectors).find(([selector])=>el.matches(selector))?.[1];
     if(page==='pay' && el.id==='submit')event='checkout_submit';
     if(href==='/pricing') event='open_pricing';

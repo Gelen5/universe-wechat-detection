@@ -25,3 +25,14 @@ def test_setting_entry_is_visible_only_to_owner(ui):
  page.goto('http://ui.test/')
  expect(page.locator('#owner-behavior-button')).to_be_attached()
  expect(page.locator('#owner-behavior-button')).not_to_have_attribute('hidden','')
+
+def test_guest_visit_and_browse_choice_are_sent(ui):
+ page,_=ui
+ observations=[]
+ page.route('**/api/auth/me',lambda r:r.fulfill(status=401,json={'detail':'请先登录'}))
+ page.route('**/api/behavior',lambda r:(observations.append(json.loads(r.request.post_data)),r.fulfill(status=204,body='')))
+ page.goto('http://ui.test/image-board',wait_until='networkidle')
+ page.get_by_role('button',name='先逛逛，暂不登录').click()
+ page.wait_for_timeout(200)
+ assert any(x['page']=='image-board' and x['event']=='page_view' for x in observations)
+ assert any(x['event']=='welcome_browse' for x in observations)

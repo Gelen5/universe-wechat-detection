@@ -199,7 +199,8 @@ async def account_and_points_gate(request: Request, call_next):
     public_pay = path.startswith("/api/pay/alipay/") or (request.method == "GET" and path == "/api/pay/packages")
     # Logout also clears expired/revoked cookies. Requiring an active session
     # prevents a stale browser from ever completing that cleanup.
-    public_api = path in {"/api/auth/register", "/api/auth/login", "/api/auth/logout", "/api/auth/config", "/api/auth/email-code", "/api/auth/registration-link"} or public_market or public_refresh or public_pay or public_lowfans or path in {"/api/viral-insights/membership", "/api/viral-insights/packages"}
+    public_behavior = request.method == "POST" and path == "/api/behavior"
+    public_api = path in {"/api/auth/register", "/api/auth/login", "/api/auth/logout", "/api/auth/config", "/api/auth/email-code", "/api/auth/registration-link"} or public_market or public_refresh or public_pay or public_lowfans or public_behavior or path in {"/api/viral-insights/membership", "/api/viral-insights/packages"}
     try:
         user = accounts.user_from_request(request)
     except HTTPException as exc:

@@ -33,6 +33,22 @@ class LimitResult:
     retry_after: int = 0
 
 
+def check_behavior_observation(*, visitor: str, ip: str) -> LimitResult:
+    """Bound public analytics writes without storing a visitor's IP address."""
+    window = 60
+    epoch = int(time.time()) // window
+    keys = [f'rate:behavior:{epoch}:visitor:{_token(visitor)}',
+            f'rate:behavior:{epoch}:ip:{_token(ip or "unknown")}']
+    redis = Redis.from_url(REDIS_URL, decode_responses=True, socket_timeout=0.25, socket_connect_timeout=0.15)
+    try:
+        allowed, index, ttl = redis.eval(_SCRIPT, 2, *keys, 180, 900, window)
+        return LimitResult(bool(int(allowed)), '' if int(allowed) else ('visitor', 'ip')[int(index)-1], max(1, int(ttl)))
+    except Exception:
+        return LimitResult(False)
+    finally:
+        redis.close()
+
+
 def _token(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()[:24]
 
