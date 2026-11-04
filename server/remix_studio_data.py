@@ -98,6 +98,7 @@ def render(document,options=(),previous=None):
             draw.text((warning_x,y),'*',font=ImageFont.truetype(bold,24),fill=ink)
     footer='原图标注来源（未独立核实）：'+str(source.get('source_text') or '用户提供原图')
     notes=[str(note) for note in source.get('uncertain',[]) if not ('来源' in str(note) and '未独立核实' in str(note)) and not ('裁切' in str(note) and '裁切' in footer)]
+    notes=[('* '+note) if any(str(row['label']) in note for row in rows) else note for note in notes]
     facts=[str(fact) for fact in source.get('facts',[]) if any(word in str(fact) for word in ('暂无','不含','范围','口径','缺失')) and not ('港澳台' in str(fact) and '港澳台' in footer)]
     footer_lines=wrap(footer,23,1080)+[line for note in facts+notes for line in wrap(note,23,1080)]
     # Enlarge the one output rather than clipping a source note or deleting a row.

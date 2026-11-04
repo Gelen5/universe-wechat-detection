@@ -106,6 +106,12 @@ def plan(reference,goal,options,previous=None):
     if previous:
         # A revision may redesign presentation, never silently rewrite its source.
         result['source']=previous['source']
+        import re
+        if re.search(r'(只|仅).{0,8}(字体|字号|排版)',str(goal)) and not re.search(r'改写|重写|改成|换成|文案',str(goal)):
+            result['design']['headline']=previous['design'].get('headline','')
+            prior_lines=(previous['design'].get('data_layout') or {}).get('headline_lines')
+            if prior_lines:
+                result['design'].setdefault('data_layout',{})['headline_lines']=list(prior_lines)
     source=result['source']
     if source.get('missing_required'):
         raise ValueError('原图有必要内容看不清：'+'；'.join(str(x) for x in source['missing_required'])[:300])

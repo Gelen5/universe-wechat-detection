@@ -1,4 +1,6 @@
 import pytest
+import os
+from pathlib import Path
 from playwright.sync_api import expect
 from tests.test_ui_shell_browser import browser, ui
 
@@ -15,6 +17,8 @@ def test_guided_create_and_revision(ui,width):
         route.fulfill(json={'job':{'id':'version-'+str(len(calls)),'status':'succeeded','images':[{'url':image}],'created_at':'2026-11-04T00:00:00Z'}})
     page.route('**/api/remix-studio/create',serve)
     page.route('**/api/remix-studio/*/revise',serve)
+    if os.getenv('STUDIO_SAMPLE_IMAGE'):
+        page.route('**'+image,lambda route:route.fulfill(body=Path(os.environ['STUDIO_SAMPLE_IMAGE']).read_bytes(),content_type='image/jpeg'))
     page.goto('http://ui.test/viral-remix')
     page.wait_for_function('currentAccount?.id === "test-user"')
     page.locator('#viral-remix-image').set_input_files({'name':'reference.png','mimeType':'image/png','buffer':b'reference'})
@@ -30,3 +34,6 @@ def test_guided_create_and_revision(ui,width):
     assert calls[1][1]['goal']=='其他数据不变'
     assert '/version-1/revise' in calls[1][0]
     assert page.evaluate('document.documentElement.scrollWidth <= innerWidth+1')
+    if os.getenv('STUDIO_SCREENSHOTS_DIR'):
+        directory=Path(os.environ['STUDIO_SCREENSHOTS_DIR']);directory.mkdir(parents=True,exist_ok=True)
+        page.screenshot(path=str(directory/f'studio-{width}.png'),full_page=True)

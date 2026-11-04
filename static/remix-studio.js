@@ -28,6 +28,7 @@
     const image=job.images?.[0];
     if(!image || !/^\/api\/creator-tools\/assets\//.test(image.url)){root.append(node('p','图片暂时不可用，请从历史记录重新加载。'));return;}
     const img=node('img');img.src=image.url;img.alt='二创成图';img.className='studio-output-image';root.append(img);
+    img.tabIndex=0;img.setAttribute('role','button');img.setAttribute('aria-label','查看成图大图');img.onclick=()=>window.RemixSave?.open(image.url);img.onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();img.click();}};
     if(window.RemixSave)root.append(window.RemixSave.saveButton(image.url,'保存 / 下载图片'));
     const editor=node('section',null,'studio-editor');editor.append(node('h3','哪里还想调整？'),node('p','选择方向或写下具体要求，修改这张图；原版本会保留。'));
     const selected=new Set(), chips=node('div',null,'studio-guidance');
