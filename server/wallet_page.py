@@ -268,8 +268,8 @@ def wallet_page(request: Request) -> HTMLResponse:
         + hero
         + composition
         + invite_card
-        + f'<section class="wx-history">{toolbar}<div id="wx-list"></div></section>'
         + admin_block
+        + f'<section class="wx-history">{toolbar}<div id="wx-list"></div></section>'
         + f'<script type="application/json" id="wx-data">{data_json}</script>'
         + _SCRIPT
     )

@@ -32,6 +32,19 @@ class BillPageTests(unittest.TestCase):
         self.assertEqual(200, response.status_code, response.text)
         return response.json()
 
+    def test_wallet_recharge_only_for_owner_and_above_history(self):
+        owner, _ = self._owner_client()
+        html = owner.get('/wallet').text
+        self.assertIn('<section class="wx-admin"', html)
+        self.assertLess(html.index('<section class="wx-admin"'), html.index('<section class="wx-history"'))
+        self._register(f'wallet-outsider-{id(self)}@example.com')
+        user_html = self.client.get('/wallet').text
+        self.assertNotIn('<section class="wx-admin"', user_html)
+        result = self.client.post('/api/admin/recharge', json={
+            'user_id': '00000000000000000000000000000000', 'points': 1, 'bucket': 'trial', 'note': 'test',
+        })
+        self.assertEqual(403, result.status_code)
+
     def test_anonymous_user_is_asked_to_log_in(self):
         response = self.client.get('/bill')
         self.assertEqual(401, response.status_code)
