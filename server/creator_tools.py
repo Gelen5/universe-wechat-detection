@@ -385,7 +385,20 @@ def generate_remix_card(idea: dict[str, Any], page: dict[str, Any], index: int,
         canvas.save(buffer, format='PNG')
         raw = buffer.getvalue()
     else:
-        result=image_provider.generate({'model':workbench._setting('WECHAT_IMAGE_MODEL','gpt-image-2'),'prompt':prompt,'n':1,'size':'768x1024','preserve_frame':True, 'reference_image': reference})
+        request = {'model':workbench._setting('WECHAT_IMAGE_MODEL','gpt-image-2'),'prompt':prompt,'n':1,'size':'768x1024','preserve_frame':True, 'reference_image': reference}
+        try:
+            result=image_provider.generate(request)
+        except image_provider.ImageProviderError as exc:
+            # Only retry when the relay explicitly confirms cancellation.
+            # Never replace a required person/product reference with a blank.
+            if reference or '动态超时' not in str(exc) or '已由平台取消' not in str(exc):
+                raise
+            canvas=Image.new('RGB',(768,1024),'white');buffer=io.BytesIO();canvas.save(buffer,format='PNG')
+            canvas_url='data:image/png;base64,'+base64.b64encode(buffer.getvalue()).decode()
+            from .observability import event
+            event('remix.cancelled_generation_retry',route='blank_canvas_edit')
+            result=image_provider.generate({**request,'reference_image':canvas_url,
+                'prompt':'Use this blank canvas to create the requested complete composition, filling the entire frame. '+prompt})
         raw=_decode_image(result)
     with Image.open(io.BytesIO(raw)) as decoded:
         decoded.load()
