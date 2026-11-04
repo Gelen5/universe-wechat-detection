@@ -60,7 +60,9 @@ def render(document,options=(),previous=None):
             card_width=1090/hero_count;x=55+index*card_width;y=top-270
             draw.rounded_rectangle((x,y,x+card_width-14,y+145),radius=12,fill=palette[index%len(palette)])
             draw.text((x+18,y+12),str(row['value']),font=ImageFont.truetype(bold,65),fill='#ffffff',anchor='lt')
-            draw.text((x+18,y+95),str(row['label'])+' · '+str(source.get('unit') or ''),font=ImageFont.truetype(regular,28),fill='#ffffff',anchor='lt')
+            unit_x=x+25+draw.textlength(str(row['value']),font=ImageFont.truetype(bold,65))
+            draw.text((unit_x,y+46),str(source.get('unit') or ''),font=ImageFont.truetype(regular,22),fill='#ffffff',anchor='lt')
+            draw.text((x+18,y+95),str(row['label']),font=ImageFont.truetype(regular,28),fill='#ffffff',anchor='lt')
     values=[]
     for row in rows:
         try:values.append(float(str(row['value']).replace(',','')))

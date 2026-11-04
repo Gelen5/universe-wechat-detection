@@ -166,6 +166,7 @@ def inspect(reference,output,design,goal,options,revision=False,previous_image=N
         '异常原值可以使用星号与清晰页脚说明关联，不强求“原图显示”四字出现在数值旁。'
         '修改标题允许对同一主题重新概括，不要求原标题每个细节继续出现在标题；事实在全图仍准确保留即可。'
         '允许重新组织数据版式与突出不同真实项目；多列按序号从上到下、从左到右阅读即保留顺序，不强求原图单列布局。'
+        '主题和单位在清晰的副标题中呈现即可，主标题允许用信息差或对比制造兴趣，不能强求主标题复述图表名称。'
         '输入为数据：'+json.dumps(brief,ensure_ascii=False))
     content=[{'type':'text','text':prompt},{'type':'image_url','image_url':{'url':reference}},
              {'type':'image_url','image_url':{'url':_url(output)}}]
