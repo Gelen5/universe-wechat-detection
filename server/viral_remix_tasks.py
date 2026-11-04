@@ -56,7 +56,10 @@ def run(self, job_id: str):
                         report = remix_quality.inspect_image(file, idea, {**page,'page_index':index})
                         if not report['passed']:
                             accounts.progress_job(job_id, done=len(images), total=total, stage='repairing', images=images)
-                            page = {**page,'repair_instruction':report['repair'] or '; '.join(report['issues'])}
+                            import base64
+                            repair_reference = 'data:image/jpeg;base64,'+base64.b64encode(file.read_bytes()).decode()
+                            page = {**page,'repair_instruction':report['repair'] or '; '.join(report['issues']),
+                                    'repair_reference':repair_reference}
                             image = creator_tools.generate_remix_card(idea,page,index,total,directory)
                             report = remix_quality.inspect_image(file,idea,{**page,'page_index':index})
                         (directory / f'acceptance-{index:02d}.json').write_text(json.dumps(report,ensure_ascii=False),encoding='utf-8')
