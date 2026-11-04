@@ -26,12 +26,13 @@ def current() -> dict[str, Any]:
 
 
 @contextmanager
-def bind(*, run_id: str | None = None, user_id: str | None = None,
+def bind(*, run_id: str | None = None, user_id: str | None = None, job_id: str | None = None,
          usage_recorder: Callable[[dict[str, Any]], None] | None = None,
          cost_policy: Any = None, idempotency_key: str | None = None,
          deadline: float | None = None, is_cancelled: Callable[[], bool] | None = None):
     value = {
         "run_id": run_id,
+        "job_id": job_id,
         "user_id": user_id,
         "usage_recorder": usage_recorder,
         "cost_policy": cost_policy,

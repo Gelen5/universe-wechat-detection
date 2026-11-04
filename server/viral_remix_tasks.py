@@ -9,6 +9,7 @@ from .celery_app import celery_app
 from . import accounts, creator_tools
 from . import viral_remix_jobs as jobs
 from . import workbench
+from .providers import call_context
 
 
 def dispatch(job_id: str) -> str:
@@ -46,7 +47,7 @@ def run(self, job_id: str):
         accounts.progress_job(job_id, done=0, total=total, stage='preparing')
         for index, page in enumerate(cards, 1):
             try:
-                with workbench.provider_overrides():
+                with workbench.provider_overrides(), call_context.bind(job_id=job_id, user_id=job.get("user_id")):
                     image = creator_tools.generate_remix_card(idea, page, index, total, directory)
                     if idea.get('content_ledger') and not idea.get('data_contract'):
                         from . import remix_quality

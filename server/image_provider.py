@@ -11,6 +11,12 @@ from typing import Any
 import requests
 
 from . import accounts, workbench
+from .observability import event
+
+
+def _upstream_request_id(value: str) -> str | None:
+    match = re.search(r"request[ _-]?id[\s:=]+([A-Za-z0-9_-]{6,128})", value, re.IGNORECASE)
+    return match.group(1) if match else None
 
 
 class ImageProviderError(RuntimeError):
@@ -60,6 +66,13 @@ def generate(payload: dict[str, Any]) -> dict[str, Any]:
         remaining = call_context.remaining_seconds()
         if remaining is not None:
             image_timeout = max(1, min(image_timeout, remaining))
+        started = time.monotonic()
+        operation = "edit" if payload.get("reference_image") else "generation"
+        diagnostic = {"operation": operation, "model": body["model"], "size": body["size"],
+                      "count": body["n"], "run_id": attribution.get("run_id"), "job_id": attribution.get("job_id"),
+                      "user_id": attribution.get("user_id"),
+                      "idempotency_key": attribution.get("idempotency_key")}
+        event("provider.image_started", **diagnostic)
         try:
             if payload.get('reference_image'):
                 reference = str(payload['reference_image'])
@@ -76,8 +89,13 @@ def generate(payload: dict[str, Any]) -> dict[str, Any]:
                         data=body, files={'image': ('reference.' + match[1], raw, 'image/' + match[1])},
                         timeout=(15, image_timeout), verify=workbench._verify_ssl())
                 if not response.ok:
+                    request_id = response.headers.get('x-request-id') or _upstream_request_id(response.text[:4096])
+                    event('provider.image_failed', **diagnostic, status_code=response.status_code,
+                          upstream_request_id=request_id, latency_ms=int((time.monotonic()-started)*1000))
                     raise ImageProviderError('人物参考图编辑接口暂不可用（HTTP %s），未改为无参考图生成' % response.status_code)
                 result = response.json()
+                event("provider.image_completed", **diagnostic, status_code=response.status_code,
+                      upstream_request_id=response.headers.get("x-request-id"), latency_ms=int((time.monotonic()-started)*1000))
                 return result if payload.get('preserve_original') else _fit_images(result, requested_size, preserve_frame=payload.get('preserve_frame') is True)
             result = ModelService(
                 provider,
@@ -90,7 +108,15 @@ def generate(payload: dict[str, Any]) -> dict[str, Any]:
                 run_id=attribution.get("run_id"), user_id=attribution.get("user_id"),
             )
         except ProviderRequestError as exc:
+            event("provider.image_failed", **diagnostic, error_code=exc.code, status_code=exc.status_code,
+                  transient=exc.transient, upstream_request_id=_upstream_request_id(str(exc)),
+                  latency_ms=int((time.monotonic()-started)*1000))
             raise ImageProviderError(f"图片接口请求失败：{exc}") from exc
+        except requests.RequestException as exc:
+            event("provider.image_failed", **diagnostic, error_type=type(exc).__name__,
+                  latency_ms=int((time.monotonic()-started)*1000))
+            raise ImageProviderError("图片接口连接失败，请稍后再试") from exc
+        event("provider.image_completed", **diagnostic, latency_ms=int((time.monotonic()-started)*1000))
         if payload.get("preserve_original") is True:
             return result
         return _fit_images(result, requested_size, preserve_frame=payload.get("preserve_frame") is True)
