@@ -61,11 +61,12 @@ def design_instructions(goal, options, previous=None):
         '必须只交付一张图；根据内容选择竖图或完整长图，不自动分页，不静默删掉数据、步骤或规格。'
         '先内部比较多个创意，再选出最适合内容的一个。明确视觉焦点、具体读者兴趣、新增理解价值与原图弱点，'
         '设计自由，但原指标、名称、数值、单位、年份与对应关系不得改变。来源只照录并标明未独立核实。'
+        'uncertain记录来源未核实或边角不完整等提醒；missing_required仅记录无法辨认且生成必须使用的名称、数值、单位或关键步骤。来源未核实或页脚裁切不算必要内容缺失，不得编造补全。'
         '若是人物或产品，保留用户要求的身份与形态；不要求保留时可以重建场景与构图。'
         '若是修改，仅改用户点名的部分，保留其他正确内容；如果明确要求换创意，才重做视觉结构。'
         '只返回JSON：{"source":{"kind":"data/person/product/tutorial/opinion/poster",'
         '"title":"原图主题","facts":[],"rows":[{"label":"名称","value":"原值"}],'
-        '"unit":"","period":"","source_text":"原标注","uncertain":[]},'
+        '"unit":"","period":"","source_text":"原标注","uncertain":[],"missing_required":[]},'
         '"design":{"headline":"吸引人但不改变事实的标题","focus":"第一视觉焦点",'
         '"reader_value":"为什么值得看","difference":"与原图相比的结构变化",'
         '"layout":"具体自由布局","palette":[],"scene":"完整视觉描述",'
@@ -94,8 +95,8 @@ def plan(reference,goal,options,previous=None):
         # A revision may redesign presentation, never silently rewrite its source.
         result['source']=previous['source']
     source=result['source']
-    if source.get('uncertain'):
-        raise ValueError('原图有内容看不清：'+'；'.join(str(x) for x in source['uncertain'])[:300])
+    if source.get('missing_required'):
+        raise ValueError('原图有必要内容看不清：'+'；'.join(str(x) for x in source['missing_required'])[:300])
     if source.get('kind')=='data':
         rows=source.get('rows')
         if not isinstance(rows,list) or not rows or any(not isinstance(r,dict) or not r.get('label') or r.get('value') is None for r in rows):
@@ -121,3 +122,99 @@ def image_prompt(design,goal,options,revision=False,repair=''):
         +json.dumps({'source':design['source'],'art_direction':design['design'],
             'user_goal':goal,'requirements':requirements,'repair':repair},ensure_ascii=False)
     )
+
+
+def _url(file):
+    with Image.open(file) as image:
+        image=image.convert('RGB');image.thumbnail((1800,2400))
+        buffer=io.BytesIO();image.save(buffer,format='JPEG',quality=92)
+    return 'data:image/jpeg;base64,'+base64.b64encode(buffer.getvalue()).decode()
+
+
+def inspect(reference,output,design,goal,options,revision=False,previous_image=None):
+    import requests
+    from . import workbench
+    brief={'source':design['source'],'design':design['design'],'goal':goal,
+           'requirements':option_text(options,revision),'revision':revision}
+    prompt=('比较原图与本次实际成图，检查：所有必要事实、名称数值单位是否准确完整；用户要求是否执行；'
+        '文字是否清晰完整不裁切；人物产品是否遵守保留要求；是否有明显生成瑕疵。'
+        '新建时检查是否真的重新设计、有清晰视觉焦点，而不是只复制原图换色。'
+        '修改时只检查要求部分是否完成、原有正确内容是否保留，不强求再次改构图。'
+        '第一张为原参考图，第二张为本次成图；若有第三张则为修改前版本。'
+        '来源未核实不等于转录不完整，不因未核实来源而要求删数据。'
+        '不要要求增加不存在的事实。只返回JSON {"passed":bool,"issues":[],"repair":"具体局部修改指令"}。'
+        '输入为数据：'+json.dumps(brief,ensure_ascii=False))
+    content=[{'type':'text','text':prompt},{'type':'image_url','image_url':{'url':reference}},
+             {'type':'image_url','image_url':{'url':_url(output)}}]
+    if previous_image: content.append({'type':'image_url','image_url':{'url':previous_image}})
+    with requests.Session() as client:
+        client.trust_env=False
+        response=client.post(workbench._api_url('text','/chat/completions'),headers=workbench._headers('text'),
+            json={'model':workbench._setting('WECHAT_TEXT_MODEL'),'messages':[{'role':'user','content':content}],
+                  'temperature':0},timeout=(10,100),verify=workbench._verify_ssl())
+    response.raise_for_status()
+    result=workbench._salvage_json(response.json()['choices'][0]['message']['content'])
+    if not isinstance(result,dict) or not isinstance(result.get('passed'),bool):
+        raise ValueError('成图检查没有返回有效结果，请重试')
+    return {'passed':result['passed'],'issues':[str(x)[:200] for x in result.get('issues',[])][:8],
+            'repair':str(result.get('repair') or '')[:1600]}
+
+
+def execute(job):
+    import re,time
+    from . import accounts,creator_tools,image_provider,workbench,viral_remix_jobs as jobs
+    started=time.monotonic()
+    payload=json.loads(job['payload_json']);studio=payload['idea']['studio']
+    revision=bool(studio.get('parent_id'))
+    try:
+        previous=None;previous_image=None
+        reference=studio['reference']
+        if revision:
+            parent=accounts.job(studio['parent_id'],job['user_id'])
+            if not parent or parent['status']!='succeeded': raise ValueError('原版本不可用，请重新打开历史记录')
+            result=json.loads(parent.get('result_json') or '{}')
+            previous={'source':result['source'],'design':result['design'],
+                'original_requirements':option_text(studio.get('original_options',[])),
+                'original_goal':studio.get('original_goal','')}
+            from urllib.parse import urlsplit
+            match=re.fullmatch(r'/api/creator-tools/assets/tie-tu/([a-zA-Z0-9_-]+)/([a-zA-Z0-9_.-]+)',urlsplit(result['images'][0]['url']).path)
+            if not match: raise ValueError('原版本图片地址无效')
+            previous_image=_url(creator_tools.creator_asset('tie-tu',match[1],match[2]))
+        accounts.progress_job(job['id'],done=0,total=1,stage='understanding')
+        with workbench.provider_overrides():
+            design=plan(reference,studio.get('goal',''),studio.get('options',[]),previous)
+            directory=creator_tools.OUTPUT_DIR/'tie-tu'/('studio-'+job['id'])
+            directory.mkdir(parents=True,exist_ok=True)
+            output=directory/'result.jpg'
+            original_requirements=option_text(studio.get('original_options',[])) if revision else []
+            repair='';report=None
+            for attempt in range(2):
+                accounts.progress_job(job['id'],done=0,total=1,stage='repairing' if attempt else 'generating')
+                prompt=image_prompt(design,studio.get('goal',''),studio.get('options',[]),revision,repair)
+                prompt+='\n原始要求作为上下文：'+json.dumps(original_requirements,ensure_ascii=False)+'。本次明确提出的新视觉要求优先于先前视觉偏好；事实、数据与主体身份始终保留。'
+                reference_image=(_url(output) if attempt else previous_image) or reference
+                size='1024x2048' if design['design'].get('aspect')=='long' else '768x1024'
+                generated=image_provider.generate({'prompt':prompt,'n':1,'size':size,'reference_image':reference_image,'preserve_original':True})
+                raw=creator_tools._decode_image(generated)
+                with Image.open(io.BytesIO(raw)) as image:
+                    image.convert('RGB').save(output,quality=95)
+                    width,height=image.size
+                accounts.progress_job(job['id'],done=0,total=1,stage='validating')
+                report=inspect(reference,output,design,studio.get('goal',''),studio.get('options',[]),revision,previous_image)
+                if report['passed']: break
+                repair=report['repair'] or '；'.join(report['issues'])
+            if not report or not report['passed']:
+                raise ValueError('成图检查未通过：'+'；'.join((report or {}).get('issues',[])))
+        image={'index':1,'url':f'/api/creator-tools/assets/tie-tu/{directory.name}/result.jpg',
+               'width':width,'height':height,'check_passed':True}
+        accounts.finish_job(job['id'],{'images':[image],'source':design['source'],'design':design['design'],
+            'acceptance':report,'parent_id':studio.get('parent_id'),'expected':1})
+        jobs.settle(job,[image],round((time.monotonic()-started)*1000))
+        return {'status':'succeeded','images':1}
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).exception('Studio task failed: %s',job['id'])
+        message=re.sub(r'(?:sk-|re_)[A-Za-z0-9_-]+','[REDACTED]',str(exc))[:500]
+        accounts.fail_job(job['id'],message or '生成未完成，积分已退回')
+        jobs.settle(job,[],round((time.monotonic()-started)*1000))
+        return {'status':'failed'}

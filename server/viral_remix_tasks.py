@@ -23,6 +23,9 @@ def run(self, job_id: str):
         return {'status': 'ignored'}
     payload = json.loads(job['payload_json'] or '{}')
     idea = payload.get('idea') or {}
+    if idea.get('studio'):
+        from . import remix_studio
+        return remix_studio.execute(job)
     session_id = payload.get('session_id') or ''
     started = time.monotonic()
     images: list[dict] = []

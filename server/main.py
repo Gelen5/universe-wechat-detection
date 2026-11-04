@@ -94,6 +94,8 @@ app.include_router(douyin_extract_router)
 app.include_router(alipay_pay_router)
 app.include_router(viral_insights_membership.router)
 app.include_router(referral_recharge.router)
+from . import remix_studio_api
+app.include_router(remix_studio_api.router)
 app.include_router(wallet_page_router)
 app.include_router(invite_page_router)
 app.include_router(bill_page_router)

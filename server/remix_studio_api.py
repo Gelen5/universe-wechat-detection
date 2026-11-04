@@ -57,7 +57,10 @@ def submit(user,request_id,studio,session_id):
             raise
         if job.get('usage_id')!=usage: accounts.refund_usage(usage,200,0)
     try: tasks.dispatch(job['id'])
-    except Exception: pass  # Existing queued-job recovery can redispatch it.
+    except Exception:
+        accounts.fail_job(job['id'],'任务暂时无法启动，请稍后重试；预扣积分已退还。')
+        jobs.settle(job,[],0)
+        job=accounts.job(job['id'],user['id'])
     return job
 
 
