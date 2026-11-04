@@ -1170,8 +1170,16 @@ class RemixDataCorrection(BaseModel):
 
 @app.put('/api/viral-remix/sessions/{session_id}/data')
 def correct_remix_data(session_id: str, payload: RemixDataCorrection, request: Request):
-    from . import remix_contract, remix_design
     user = accounts.require_user(request)
+    try:
+        with accounts.conversation_lock('remix-data-'+session_id,user['id']):
+            return _correct_remix_data(session_id,payload,user)
+    except ValueError as exc:
+        raise HTTPException(409,str(exc)) from exc
+
+
+def _correct_remix_data(session_id, payload, user):
+    from . import remix_contract, remix_design
     session = accounts.load_workbench_session(session_id, user['id'])
     if not session or session.get('conversation_skill') != 'viral-remix':
         raise HTTPException(404, '创作记录不存在')

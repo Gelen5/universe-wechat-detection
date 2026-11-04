@@ -25,3 +25,11 @@ def test_three_previews_and_history_are_readable(ui,width,tmp_path):
     page.evaluate('''result=>renderViralRemix(result,'qa-session-v2')''',result)
     page.get_by_role('tab',name='02 翻新方案').click()
     expect(page.locator('.remix-design-preview')).to_have_count(3)
+    page.locator('[name=remix-strength]').select_option('克制')
+    page.locator('[name=remix-textMode]').select_option('正常文字')
+    page.route('**/api/viral-remix/image',lambda route:route.fulfill(status=422,json={'detail':'验收请求已收到'}))
+    with page.expect_request('**/api/viral-remix/image') as captured:
+        page.locator('.viral-generate').first.click()
+    assert captured.value.post_data_json['idea']['choices']['strength']=='克制'
+    assert captured.value.post_data_json['idea']['choices']['textMode']=='正常文字'
+    page.wait_for_function("JSON.parse(localStorage.getItem('viral-remix-draft:test-user')).pending===false")

@@ -31,6 +31,7 @@ samples=[('product',{'product_reference':reference,'content_ledger':remix_contra
     })]
 with workbench.provider_overrides():
     for name,idea in samples:
+        if len(sys.argv)>1 and name not in sys.argv[1:]: continue
         idea['id']='A'; directory=ROOT/name;directory.mkdir(exist_ok=True)
         page=idea['cards'][0]
         result=creator_tools.generate_remix_card(idea,page,1,1,directory)
