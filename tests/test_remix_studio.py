@@ -24,3 +24,9 @@ def test_source_is_validated_before_reservation():
     source='data:image/png;base64,'+base64.b64encode(buffer.getvalue()).decode()
     assert studio.validate_reference(source)==source
     with pytest.raises(ValueError): studio.validate_reference('https://untrusted/image.png')
+
+
+def test_automatic_repair_keeps_creation_options():
+    prompt=studio.design_instructions('修复遗漏',['stronger','facts'],{'_repair':True,'source':{'rows':[]}})
+    assert '视觉更抓眼球' in prompt
+    assert '保留原图全部数据' in prompt

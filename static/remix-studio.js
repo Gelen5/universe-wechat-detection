@@ -50,6 +50,7 @@
   }
   async function track(job, token) {
     localStorage.setItem(key(),job.id);
+    visible();root.scrollIntoView({behavior:'smooth',block:'start'});
     while(token===epoch){render(job);if(!active(job))return;
       await new Promise(resolve=>setTimeout(resolve,2500));if(token!==epoch)return;
       try{job=(await api('jobs/'+encodeURIComponent(job.id))).job;}
@@ -74,15 +75,18 @@
   }
   function reset(){if(busy){showToast('请等待当前任务完成后再新建','error');return;}epoch++;current=null;localStorage.removeItem(key());choices.clear();document.querySelectorAll('[data-studio-option]').forEach(el=>el.setAttribute('aria-pressed','false'));resetViralRemixImage();$('#viral-remix-goal').value='';root.replaceChildren();root.hidden=true;$('#viral-remix-empty').hidden=false;}
   document.querySelectorAll('[data-studio-option]').forEach(chip=>chip.onclick=()=>{const id=chip.dataset.studioOption;choices.has(id)?choices.delete(id):choices.add(id);chip.setAttribute('aria-pressed',String(choices.has(id)));});
-  const historyButton=button('查看二创与修改历史',async()=>{
+  const historyButton=$('#studio-history-open');historyButton.onclick=async()=>{
     if(busy){showToast('请等待当前任务完成','error');return;}
     const token=epoch;
-    try{const data=await api('history');if(token!==epoch)return;visible();root.replaceChildren();root.append(node('h3','二创与修改历史'));if(!data.jobs.length)root.append(node('p','还没有创作记录。'));
+    async function load(before=''){
+    const data=await api('history'+(before?'?before='+encodeURIComponent(before):''));if(token!==epoch)return;if(!before){visible();root.replaceChildren();root.append(node('h3','二创与修改历史'));if(!data.jobs.length)root.append(node('p','还没有创作记录。'));}
       for(const job of data.jobs){const item=button(`${new Date(job.created_at).toLocaleString('zh-CN')} · ${job.parent_id?'修改版本':'原创版本'} · ${active(job)?'处理中':job.status==='succeeded'?'已完成':'未完成'}`,async()=>{if(busy)return;lock(true);try{await track(job,token);}finally{if(token===epoch)lock(false);}});item.className='studio-history-item';root.append(item);}
+      if(data.next_before){const more=button('加载更多',async()=>{more.disabled=true;try{await load(data.next_before);more.remove();}catch(error){more.disabled=false;showToast(error.message,'error');}});root.append(more);}
+    }
+    try{await load();
     }catch(error){if(token===epoch)showToast(error.message,'error');}
-  });
-  $('#viral-remix-form').after(historyButton);
-  async function syncOwner(){const next=currentAccount?.id||null;if(next===owner)return;owner=next;const token=++epoch;current=null;retryCreate=null;lock(false);root.replaceChildren();root.hidden=true;$('#viral-remix-empty').hidden=false;
+  };
+  async function syncOwner(){const next=currentAccount?.id||null;if(next===owner)return;if(owner){resetViralRemixImage();$('#viral-remix-goal').value='';choices.clear();document.querySelectorAll('[data-studio-option]').forEach(el=>el.setAttribute('aria-pressed','false'));}owner=next;const token=++epoch;current=null;retryCreate=null;lock(false);root.replaceChildren();root.hidden=true;$('#viral-remix-empty').hidden=false;
     if(!owner)return;const id=localStorage.getItem(key());if(!id)return;
     try{const data=await api('jobs/'+encodeURIComponent(id));if(token!==epoch)return;lock(true);await track(data.job,token);}catch{}finally{if(token===epoch)lock(false);}
   }
