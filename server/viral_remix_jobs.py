@@ -22,7 +22,7 @@ PROGRESS_STAGES = {'preparing': '正在展开创意', 'generating': '正在出�
 
 def job_key(session_id: str, idea: dict[str, Any]) -> str:
     digest = hashlib.sha256(
-        json.dumps([session_id, idea], sort_keys=True, ensure_ascii=False).encode()
+        json.dumps(['data-impact-type-v3' if idea.get('data_contract') else 'image-v1', session_id, idea], sort_keys=True, ensure_ascii=False).encode()
     ).hexdigest()[:40]
     return 'viral-remix:' + digest
 
