@@ -27,7 +27,7 @@ def test_render_all_styles(tmp_path):
     data=dataset()
     results=[]
     for style in 'ABC':
-        raw=remix_design.render(data,style,remix_design.pages(data)[0])
+        raw=remix_design.render(data,style,remix_design.pages(data)[0],headline=remix_design.plans(data)['ABC'.index(style)]['headline'])
         assert Image.open(io.BytesIO(raw)).size==(1200,1600)
         (tmp_path/f'{style}.png').write_bytes(raw)
         results.append(raw)

@@ -73,22 +73,22 @@ def render(dataset, style, page, headline=None):
         if mode == 'bar':
             y=420+i*78
             text(60,y,str(absolute+1).zfill(2),26,accent,70)
-            text(130,y,row['label'],30,width=220)
+            text(130,y,row['label'],40,width=220)
             value=numbers[absolute]
             if value is not None and maximum > 0:
                 length=round(value/maximum*560)
                 if length: draw.rounded_rectangle((370,y+5,370+length,y+36),radius=6,fill=accent if absolute < 3 else '#5296cf')
-            text(960,y,row['value'],30,width=180)
+            text(960,y,row['value'],40,width=180)
         elif mode == 'editorial':
             y=410+i*78
             text(60,y,f'{absolute+1:02d}',26,accent,75)
-            text(155,y,row['label'],34,width=510)
+            text(155,y,row['label'],40,width=510)
             text(830,y-7,row['value'],48,accent,300)
             draw.line((155,y+65,1140,y+65),fill='#d4c8b5',width=1)
         else:
             col=i%2; line=i//2; x=60+col*550; y=415+line*158
             draw.rounded_rectangle((x,y,x+520,y+140),radius=18,fill='#ffffff' if mode=='cards' else '#e8dfcf')
-            text(x+22,y+15,f'{absolute+1:02d}  {row["label"]}',28,'#152944',470)
+            text(x+22,y+15,f'{absolute+1:02d}  {row["label"]}',36,'#152944',470)
             text(x+22,y+58,row['value'],52,accent,470)
     draw.line((60,1390,1140,1390),fill=accent,width=2)
     text(60,1420,'原图标注来源 · 未独立核实',26)
