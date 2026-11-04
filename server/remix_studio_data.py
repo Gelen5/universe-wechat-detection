@@ -72,6 +72,7 @@ def render(document,options=(),previous=None):
     for index,(row,value) in enumerate(zip(rows,values)):
         col=index//per_column;line=index%per_column;x=55+col*column_width;y=top+line*step
         label=str(row['label']);raw=str(row['value'])
+        uncertain_value=any(label in str(note) for note in source.get('uncertain',[]))
         label_width=max(draw.textlength(str(r['label']),font=ImageFont.truetype(regular,font_size)) for r in rows)+18
         available=column_width-label_width-115-(30 if columns==2 else 0)
         start=x+label_width;length=max(3,available*value/maximum)
@@ -84,16 +85,19 @@ def render(document,options=(),previous=None):
             draw.line((start,y+step/2,start+available,y+step/2),fill=accent,width=2)
             draw.ellipse((start+length-8,y+step/2-8,start+length+8,y+step/2+8),fill=palette[index%len(palette)])
             position=start+length+14
+        elif uncertain_value:
+            draw.rounded_rectangle((start,y+9,start+24,y+step-12),radius=4,outline=palette[index%len(palette)],width=2)
+            position=start+38
         else:
             draw.rounded_rectangle((start,y+9,start+length,y+step-12),radius=4,fill=palette[index%len(palette)])
             position=start+length+12
         draw.text((position,y),raw,font=ImageFont.truetype(bold if index==0 else regular,font_size),fill=ink)
-        if any(label in str(note) for note in source.get('uncertain',[])):
+        if uncertain_value:
             warning_x=position+draw.textlength(raw,font=ImageFont.truetype(regular,font_size))+7
             draw.text((warning_x,y),'*',font=ImageFont.truetype(bold,24),fill=ink)
     footer='原图标注来源（未独立核实）：'+str(source.get('source_text') or '用户提供原图')
-    notes=source.get('uncertain') or []
-    facts=[str(fact) for fact in source.get('facts',[]) if str(fact) not in footer and str(fact) not in subtitle]
+    notes=[str(note) for note in source.get('uncertain',[]) if not ('来源' in str(note) and '未独立核实' in str(note)) and not ('裁切' in str(note) and '裁切' in footer)]
+    facts=[str(fact) for fact in source.get('facts',[]) if any(word in str(fact) for word in ('暂无','不含','范围','口径','缺失')) and not ('港澳台' in str(fact) and '港澳台' in footer)]
     footer_lines=wrap(footer,23,1080)+[line for note in facts+notes for line in wrap(note,23,1080)]
     # Enlarge the one output rather than clipping a source note or deleting a row.
     required=bottom+55+len(footer_lines)*34+45
