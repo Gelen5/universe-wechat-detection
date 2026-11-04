@@ -515,6 +515,8 @@ def build_plan(article: dict[str, Any], progress=None, initial_raw: str = '', sa
         .replace("__BODY__", article["markdown"])
     )
     # 90 秒硬上限（上游为抗抖动调高过）：超时就退回规则拆解，绝不让用户无限等。
+    from .editorial_quality import guidance
+    prompt += guidance()
     # Sonnet-5.5 实测 11 秒，余量足够。
     raw_text = initial_raw
     stored = accounts.provider_settings(include_secrets=True)
