@@ -1152,6 +1152,7 @@ def analyze_viral_remix(payload: ViralRemixAnalyzeRequest, request: Request):
         from . import remix_contract
         ledger = remix_contract.build(result, payload.goal, payload.preservePerson)
         result['content_type'] = ledger['category']
+        result['source_fingerprint'] = ledger['fingerprint']
         if payload.sessionId:
             accounts.save_workbench_session(accounts.require_user(request)['id'], {'id': payload.sessionId, 'conversation_skill': 'viral-remix', 'result': result, 'content_ledger':ledger, 'goal': payload.goal, 'preserve_person': payload.preservePerson, 'person_reference': (payload.imageData[0] if isinstance(payload.imageData, list) else payload.imageData) if payload.preservePerson else None})
         return {"status": "success", "result": result}
@@ -1159,6 +1160,35 @@ def analyze_viral_remix(payload: ViralRemixAnalyzeRequest, request: Request):
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except workbench.ProviderError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+class RemixDataCorrection(BaseModel):
+    dataset: dict[str, Any]
+    fingerprint: str
+
+
+@app.put('/api/viral-remix/sessions/{session_id}/data')
+def correct_remix_data(session_id: str, payload: RemixDataCorrection, request: Request):
+    from . import remix_contract, remix_design
+    user = accounts.require_user(request)
+    session = accounts.load_workbench_session(session_id, user['id'])
+    if not session or session.get('conversation_skill') != 'viral-remix':
+        raise HTTPException(404, '创作记录不存在')
+    prior = session.get('content_ledger')
+    if not prior or prior.get('fingerprint') != payload.fingerprint:
+        raise HTTPException(409, '内容已更新，请重新打开创作记录后确认')
+    if len(json.dumps(payload.dataset,ensure_ascii=False)) > 60000:
+        raise HTTPException(413,'数据过大')
+    try: creator_tools.validate_remix_dataset(payload.dataset)
+    except ValueError as exc: raise HTTPException(422,str(exc)) from exc
+    analysis = {**session['result'], 'data_contract':payload.dataset, 'ideas':remix_design.plans(payload.dataset)}
+    session['ledger_history'] = (session.get('ledger_history',[]) + [prior])[-10:]
+    session['result'] = analysis
+    session['content_ledger'] = remix_contract.build(analysis,session.get('goal') or '',session.get('preserve_person'))
+    analysis['source_fingerprint'] = session['content_ledger']['fingerprint']
+    session['data_confirmed_at'] = accounts.utc_now()
+    accounts.save_workbench_session(user['id'],session)
+    return {'result':analysis,'fingerprint':session['content_ledger']['fingerprint']}
 
 
 @app.post("/api/viral-remix/image", status_code=202)

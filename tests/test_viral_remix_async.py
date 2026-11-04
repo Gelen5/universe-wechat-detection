@@ -52,6 +52,10 @@ def idea(cards: int) -> dict:
 
 
 class TestCardCount:
+    def test_planned_pages_determine_reservation(self):
+        assert jobs.count_cards({'page_count':3}) == 3
+        for count in (0,9,True,'3'):
+            with pytest.raises(ValueError): jobs.count_cards({'page_count':count})
     def test_rejects_empty_and_oversized_plans(self):
         with pytest.raises(ValueError):
             jobs.count_cards({'cards': []})

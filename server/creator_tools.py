@@ -211,7 +211,7 @@ def validate_remix_dataset(dataset):
     if not isinstance(rows, list) or not rows or len(rows) > 96:
         raise ValueError('数据行不完整或过多，请拆分数据图后重试')
     for row in rows:
-        if not isinstance(row, dict) or not str(row.get('label') or '').strip() or not str(row.get('value') or '').strip():
+        if not isinstance(row, dict) or not str(row.get('label') or '').strip() or row.get('value') is None or not str(row['value']).strip():
             raise ValueError('数据图存在缺失的名称或数值，请补充后重试')
 
 
