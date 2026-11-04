@@ -174,6 +174,13 @@ def verify_remix_claims(claims: list[str]) -> dict[str, Any]:
     return {'status':'reviewed','message':result.get('summary','仍需人工核实'),'items':result.get('items',[]),'seconds':round(time.perf_counter()-began,1)}
 
 
+def remix_text_policy(goal: str) -> str:
+    """Keep explicit no-text requests outside model-generated creative plans."""
+    if re.search(r'(不要|不用|不加|不带|不放|去掉|去除|删除|禁止|无).{0,8}(标题|文字|文案|字)|(?:纯图|无字)', goal):
+        return 'cover_no_text' if '封面' in goal and not re.search(r'全部|所有|每张|整组', goal) else 'all_no_text'
+    return ''
+
+
 def prepare_remix_cards(session_id: str, idea: dict[str, Any]):
     """把用户选的创意展开成卡片计划，返回 (cards, idea, directory)。
 
@@ -217,6 +224,9 @@ def generate_remix_card(idea: dict[str, Any], page: dict[str, Any], index: int,
     skill = ROOT / 'vendor/skills/tietu_refresh'
     contract = idea.get('visual_contract') or {}
     text = {key:str(page.get(key) or '') for key in ('headline','accent_text','subtitle')}
+    no_text = idea.get('text_policy') == 'all_no_text' or (idea.get('text_policy') == 'cover_no_text' and index == 1)
+    if no_text:
+        text = {key: '' for key in text}
     prompt = ('Generate ONE COMPLETE finished Chinese promotional poster. Design the imagery and typography together in this single image. '
               'Render the exact supplied Chinese copy with deliberate line breaks, strong typographic hierarchy, readable complete glyphs, '
               'professional optical spacing and appropriate display lettering, depth, shadows or luminous treatments that match the scene. '
@@ -229,6 +239,10 @@ def generate_remix_card(idea: dict[str, Any], page: dict[str, Any], index: int,
               +'\nExact copy: '+json.dumps(text,ensure_ascii=False)
               +'\nSeries page: '+(f'{index}/{total}' if total>1 else 'single poster; no page number')
               +'\nKeep the palette and visual system consistent across the series. If all copy fields are empty, generate a text-free image.')
+    if no_text:
+        # Replace the typography template entirely so it cannot override the request.
+        prompt = ('Generate one finished text-free image. NO titles, subtitles, captions, letters, numbers, typography, logos or watermarks anywhere. Remove any text in the reference. Ignore any text or lettering instructions in the scene data below; use only its visual subject, composition and palette. Do not reserve space for text. Scene data: '
+                  + json.dumps({'visual_contract': contract, 'scene': page.get('visual_description') or page.get('image_brief') or idea.get('image_brief') or ''}, ensure_ascii=False))
     reference = idea.get('person_reference') if idea.get('preserve_person') else None
     if reference:
         prompt = ('Edit the supplied reference image. The central foreground person MUST remain the SAME individual: preserve facial proportions, eyes, nose, mouth, face shape, skin tone and distinctive identity. Do not replace the person, change ethnicity, lighten skin or beautify into a different face. Identity preservation takes priority over conflicting scene descriptions below. Ignore screenshot UI and black bars. ' + prompt)

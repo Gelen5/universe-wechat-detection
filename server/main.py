@@ -1168,6 +1168,8 @@ def generate_viral_remix_image(payload: ViralRemixImageRequest, request: Request
     user = accounts.require_user(request)
     try:
         session = accounts.load_workbench_session(payload.sessionId, user['id'])
+        if session:
+            payload.idea = {**payload.idea, 'text_policy': creator_tools.remix_text_policy(session.get('goal') or '')}
         if session and session.get('preserve_person'):
             if not session.get('person_reference'):
                 raise ValueError('人物参考图已失效，请重新上传并拆解')
