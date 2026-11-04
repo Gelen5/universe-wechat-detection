@@ -95,7 +95,8 @@ def plan(reference,goal,options,previous=None):
         client.trust_env=False
         response=client.post(workbench._api_url('text','/chat/completions'),
             headers=workbench._headers('text'),json={'model':workbench._setting('WECHAT_TEXT_MODEL'),
-            'messages':[{'role':'user','content':content}],'temperature':.5},
+            'messages':[{'role':'user','content':content}],'temperature':.5,
+            **({'reasoning_effort':'low'} if 'gpt' in workbench._setting('WECHAT_TEXT_MODEL').lower() else {})},
             timeout=(10,180),verify=workbench._verify_ssl())
     response.raise_for_status()
     result=workbench._salvage_json(response.json()['choices'][0]['message']['content'])
