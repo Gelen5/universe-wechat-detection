@@ -71,7 +71,7 @@
 <link rel="stylesheet" href="/static/points-notice.css?v=20261103-packages-2" />
 <link rel="stylesheet" href="/static/auth-mint.css?v=20261104-retry-1" />
 <script src="/static/points-notice.js?v=20261103-packages-2" defer></script>
-<link rel="stylesheet" href="/static/viral-remix.css?v=20261104-no-outer-frame-1">
+<link rel="stylesheet" href="/static/viral-remix.css?v=20261104-single-poster">
 <link rel="stylesheet" href="/static/sticker-extract.css?v=20261103-glass-4">
 <link rel="stylesheet" href="/static/xhs-extract.css?v=20261031-workspace-5">
 <link rel="stylesheet" href="/static/article-visual.css?v=20261104-sticker-guidance-1">
@@ -363,33 +363,32 @@
         <div class="skill-shell">
           <div class="skill-form-col">
             <span class="micro-label"><span class="line"></span><span>REFERENCE → ORIGINAL</span></span>
-            <h1>同一个内容，<br><span class="serif">更值得看。</span></h1>
-            <p>上传原图，告诉我们想保留什么、想改变什么，重新设计一张更吸引人的图片。</p>
-            <div class="creation-actions"><button type="button" id="remix-new">新建创作</button><button type="button" id="studio-history-open">创作与修改历史</button></div>
+            <h1>拆结构，<br><span class="serif">不复制</span>画面。</h1>
+            <p>上传一张对标贴图。我们只分析构图、信息层级和钩子，不会把原图或原文案放进你的成品。</p>
+            <div class="creation-actions"><button type="button" id="remix-new">新建创作</button><button type="button" data-creation-history="viral-remix">历史创作</button></div>
             <form id="viral-remix-form" class="skill-form">
               <div class="form-section">
-                <div class="head"><span class="num">01</span><div class="copy"><strong>上传原图</strong><small>支持截图，会自动识别画面与核心内容。</small></div></div>
+                <div class="head"><span class="num">01</span><div class="copy"><strong>放入对标图</strong><small>支持截图；原图只用于本次结构拆解。</small></div></div>
                 <label class="viral-upload" for="viral-remix-image">
-                  <input id="viral-remix-image" name="reference_image" type="file" accept="image/png,image/jpeg,image/webp">
+                  <input id="viral-remix-image" name="reference_image" type="file" accept="image/png,image/jpeg,image/webp" multiple>
                   <span class="viral-upload-icon" aria-hidden="true">+</span>
-                  <strong>选择一张原图</strong><small>最大 10 MB；重新设计并交付一张成图</small>
+                  <strong>选择 1—8 张对标图</strong><small>支持分次添加，每张最大 10 MB</small>
                 </label>
                 <div id="viral-remix-preview" class="viral-preview" hidden><img alt="已选择的对标图预览"><span></span><button type="button" id="viral-remix-clear" class="secondary-action">移除</button></div>
-                <label class="field-wide">补充要求（可留空）<textarea id="viral-remix-goal" name="goal" maxlength="1200" placeholder="例如：数据全部保留，换个更有冲击力的构图；或者只调整背景，人物不要变。"></textarea></label>
-                <div class="studio-guidance" aria-label="快捷创作要求"><span>也可以点选：</span><button type="button" data-studio-option="stronger" aria-pressed="false">更抓眼球</button><button type="button" data-studio-option="premium" aria-pressed="false">更有高级感</button><button type="button" data-studio-option="no_title" aria-pressed="false">封面不放标题</button><button type="button" data-studio-option="person" aria-pressed="false">保留原人物</button><button type="button" data-studio-option="facts" aria-pressed="false">保留全部数据</button></div>
+                <label class="field-wide">你想做的内容（可留空）<textarea id="viral-remix-goal" name="goal" maxlength="300" placeholder="例如：同样讲职场成长，但换成新人第一次做述职的角度"></textarea></label>
               </div>
-              <button id="viral-remix-start" class="skill-primary" type="submit">二创生成一张 →</button>
-              <input type="checkbox" id="viral-preserve-person" hidden>
-              <p class="viral-notice">每次交付一张成图；生成或修改每次预扣 2 积分，未成功交付会退还。完成后可继续用文字修改，人物保真仍可能存在模型偏差。</p>
+              <button id="viral-remix-start" class="skill-primary" type="submit">开始拆解 →</button>
+              <label class="viral-notice"><input type="checkbox" id="viral-preserve-person"> 保留原人物（以第一张图的人物为准）</label>
+              <p class="viral-notice">开启后将第一张原图传给成图模型，优先保留五官、脸型和肤色；生成仍可能有偏差。关闭时仅参考结构，原创生成新画面。</p>
             </form>
-            <button type="button" id="remix-history-open" class="remix-history-open">查看旧版生成记录</button>
+            <button type="button" id="remix-history-open" class="remix-history-open">查看我生成的图片</button>
           </div>
           <div class="skill-output-col" aria-live="polite">
             <div id="viral-remix-empty" class="skill-empty viral-empty">
               <span class="tag">复刻工作流 <span class="tie-status-dot"></span> 准备开始</span>
               <h2>先看懂它为什么让人停下来，<br>再做一张真正属于你的图。</h2>
-              <p>不必先选三份方案。我们会理解原图、重新设计，直接交付一张图片；有想调整的地方，再告诉我们。</p>
-              <ol class="tie-steps" aria-label="爆款贴图复刻流程"><li aria-current="step"><b>01</b><span>上传原图</span></li><li><b>02</b><span>补充要求（可空）</span></li><li><b>03</b><span>二创生成</span></li><li><b>04</b><span>查看与修改</span></li></ol>
+              <p>完整流程会依次产出结构拆解、三种翻新方向、成图与配文方向。</p>
+              <ol class="tie-steps" aria-label="爆款贴图复刻流程"><li aria-current="step"><b>01</b><span>上传对标图</span></li><li><b>02</b><span>拆解结构</span></li><li><b>03</b><span>选择翻新方向</span></li><li><b>04</b><span>生成原创图</span></li></ol>
             </div>
             <div id="viral-remix-result" class="viral-result" hidden></div>
           </div>
@@ -1125,8 +1124,7 @@
     <script src="/static/creation-history.js?v=20261101-1"></script>
     <script src="/static/remix-publication.js?v=20261101-article1"></script>
     <script src="/static/remix-save.js?v=20261101-publication-1"></script>
-    <script src="/static/app.js?v=20261104-guided-studio-1"></script>
-    <script src="/static/remix-studio.js?v=20261104-guided-studio-1"></script>
+    <script src="/static/app.js?v=20261104-single-poster"></script>
     <script src="/static/flow.js?v=20261031-hide-diagnose-1"></script>
     <script src="/static/studio-tools.js?v=20261028-tietu-1"></script>
     <link rel="stylesheet" href="/static/creator-chat.css?v=20260906-conversation-1">
