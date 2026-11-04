@@ -1428,7 +1428,7 @@ function renderViralRemix(result, sessionId) {
       output.hidden = false;
       root.scrollIntoView({block:'start',behavior:'smooth'});
       showToast(`已生成 ${done.images.length} 张，扣 ${done.images.length * 2} 积分；请检查内容和画面后下载。`);
-    } catch (error) { showToast(error.message, 'error'); } finally { stopWaiting(); finish(); }
+    } catch (error) { if(!saved.pendingJob?.id)storeDraft({pending:false,pendingJob:null});showToast(error.message, 'error'); } finally { stopWaiting(); finish(); }
   }));
   const context=document.createElement('section');context.className='viral-result-card';
   context.innerHTML=`<h3>顺序与逐页分析</h3><p>${esc((result.order||[]).join(' → '))} · ${esc(result.order_reason||'单图，无需排序')}</p><p>${esc(JSON.stringify(result.pages||[]))}</p><p>${esc(result.verification?.message||'待核实')}</p><h3>确认创作方向</h3><label>赛道<select name="remix-track">${['情感关系','育儿成长','赚钱职场','生活消费','娱乐搞笑'].map(t=>`<option>${t}</option>`).join('')}</select></label><label>想让读者感到<select name="remix-emotion">${['被理解','被点醒','被教会','被逗笑','有点急'].map(t=>`<option>${t}</option>`).join('')}</select></label><label>画面禁区<select name="remix-boundaries"><option>不出现真人正脸</option><option>不出现品牌和产品</option><option>不出现特定人物或同行</option><option>无额外禁区</option></select></label><p>确认后点选下方 A/B/C 方案。文字与画面由 GPT Image 一体生成，整组保持相同视觉方向。</p>`;

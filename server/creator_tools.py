@@ -332,6 +332,10 @@ def generate_remix_card(idea: dict[str, Any], page: dict[str, Any], index: int,
     if page.get('repair_reference') and not reference:
         reference = page['repair_reference']
         prompt = 'Edit this already generated image. Fix ONLY the listed defects, preserve all correct content, layout and visual identity. ' + prompt
+    if page.get('repair_instruction'):
+        prompt += '\nMANDATORY CORRECTIONS FOR THIS RETRY: ' + str(page['repair_instruction'])
+        if not no_text:
+            prompt += '\nRequired exact visible text: ' + json.dumps(text,ensure_ascii=False)
     if idea.get('data_contract'):
         dataset = idea['data_contract']
         validate_remix_dataset(dataset)
