@@ -118,6 +118,8 @@ JSON字段：content_guess（20字内主题）；has_text；order（上传图序
 A延续构图换实质素材；B换布局但保留视觉层次；C补同目的信息切面，不反转主张。不同参考不要平均成极简。无字图保持无字。海报摄影必须保留图像内容。只返回上述字段，不返回cards、copy_directions、tags。'''
     prompt += '''\n数据图专用规则：如果参考含统计图、排行榜、价目表、参数对比或带数值的表格，必须额外返回data_contract对象：kind="table",title,unit,period,source_text,complete（布尔）,rows（完整逐行数组，每行label与value均为原图字符串）。逐张逐行准确转录所有名称与数值，保留小数、百分号、单位和顺序；模糊处不得猜测，complete=false。source_text只是原图来源声明，不代表已核实。非数据图data_contract=null。换版式必须保留数据，不可删除标签，不可用无标签柱形占位，不得新增数值或暗示已核实。data_contract不受claims最多3条限制。'''
     prompt += '''\n额外返回content_type（data/person_photo/product/tutorial/opinion/poster），以及content_core对象，包含facts（原图明确事实字符串数组）、steps（完整有序步骤）、product_specs（原图明确参数）、uncertain（模糊或缺失内容）。名称、年份、单位、步骤和规格必须原样记录，不能凭空补全。三项ideas的name按内容命名，不固定换素材换版式换角度；每项增加layout（主体/标题/信息区的具体位置）,palette（具体颜色数组）,visual_focus（视觉重点）,preservation（必须保留的内容）,page_count。三个方案必须有不同构图、信息层级与阅读节奏，且均可完整呈现核心内容。不要为追求新角度更换统计指标。'''
+    from .editorial_quality import guidance
+    prompt += guidance()
     body = {
         "model": model,
         "messages": [{"role": "user", "content": [
@@ -291,7 +293,7 @@ def generate_remix_card(idea: dict[str, Any], page: dict[str, Any], index: int,
         from . import remix_design
         dataset = idea['data_contract']
         validate_remix_dataset(dataset)
-        raw = remix_design.render(dataset, idea.get('design_style') or idea.get('id') or 'A', page)
+        raw = remix_design.render(dataset, idea.get('design_style') or idea.get('id') or 'A', page,headline=idea.get('headline'))
         out = directory / f'remix-{index:02d}.jpg'
         with Image.open(io.BytesIO(raw)) as image:
             image.convert('RGB').save(out, quality=95)
@@ -429,6 +431,8 @@ def publication_copy_from_files(files: list[Path]) -> dict[str, Any]:
         '不要提及未成功生成的图片。标题要贴合图片，三个不同角度，每个最多20个字；'
         '正文可直接发布，不简单重复图片文字；标签与图片主题相关。'
         '只返回JSON：{"titles":["标题1","标题2","标题3"],"body":"完整配文","tags":["标签"]}。')
+    from .editorial_quality import guidance
+    prompt += guidance()
     response = requests.post(workbench._api_url('text', '/chat/completions'), headers=workbench._headers('text'),
                              json={'model': workbench._setting('WECHAT_TEXT_MODEL'), 'messages': [{'role': 'user', 'content': [{'type': 'text', 'text': prompt}, *content]}], 'temperature': 0.4},
                              timeout=(15, 240), verify=workbench._verify_ssl())
@@ -443,6 +447,8 @@ def validate_remix_publication_copy(value: dict[str, Any]) -> dict[str, Any]:
     titles, body, tags = value.get('titles'), value.get('body'), value.get('tags')
     if not isinstance(titles, list) or len(titles) != 3 or any(not isinstance(t, str) or not 1 <= len(t.strip()) <= 20 for t in titles):
         raise ValueError('需要3个不超过20字的标题')
+    if len({re.sub(r'[\W_]+','',t) for t in titles}) != 3:
+        raise ValueError('三个候选标题重复，请重新生成不同角度的标题')
     if not isinstance(body, str) or not 1 <= len(body.strip()) <= 3000:
         raise ValueError('请填写不超过3000字的配文')
     if not isinstance(tags, list) or len(tags) > 12 or any(not isinstance(t, str) or not 1 <= len(t.strip()) <= 30 for t in tags):

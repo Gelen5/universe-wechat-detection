@@ -15,12 +15,14 @@ STYLES = {
 
 def plans(dataset):
     count = len(dataset['rows'])
+    topic = re.sub(r'（.*?）|\(.*?\)|\d{4}年?', '', dataset.get('title') or '这份数据').strip()
+    headlines = {'A':f'{topic}，谁在前面？','B':f'读懂{topic}，别只看排名','C':f'{topic}：你关心哪一项？'}
     return [dict(id=key, name=style[0], summary=summary,
                  keep='全部名称、数值、单位与原始顺序', change=style[0],
                  why_original='重新设计信息层级与版式，原始数据不改写',
                  page_count=math.ceil(count / 12), design_style=key,
                  data_contract=dataset, image_brief=summary,
-                 headline=dataset.get('title') or '数据对比')
+                 headline=headlines[key])
             for key, style, summary in ((k, v, s) for (k,v),s in zip(STYLES.items(),
                 ('高对比标题与精确比例条形，完整标明每项数据。',
                  '杂志式大数字与双栏排版，重点鲜明、适合收藏。',
@@ -32,7 +34,7 @@ def pages(dataset):
             for n in range(0, len(dataset['rows']), 12)]
 
 
-def render(dataset, style, page):
+def render(dataset, style, page, headline=None):
     bg, accent, ink, mode = STYLES.get(style, STYLES['A'])[1:]
     image = Image.new('RGB', (1200,1600), bg)
     draw = ImageDraw.Draw(image)
@@ -52,9 +54,12 @@ def render(dataset, style, page):
     start, end = page['row_start'], page['row_end']
     rows = dataset['rows'][start:end]
     draw.rounded_rectangle((60,64,1140,78),radius=7,fill=accent)
-    text(60,112,dataset.get('title') or '数据对比',64)
-    text(60,208,' / '.join(str(dataset.get(k) or '') for k in ('period','unit')),30,accent)
-    text(60,270,f'完整数据 · 第 {start+1}—{end} 项 / 共 {len(dataset["rows"])} 项',26)
+    heading=headline or dataset.get('title') or '数据对比'
+    pieces=re.split('[，：]',heading,maxsplit=1)
+    if len(pieces)==1 and len(heading)>16: pieces=[heading[:14],heading[14:]]
+    for line,value in enumerate(pieces): text(60,100+line*78,value,64)
+    text(60,280,dataset.get('title') or ' / '.join(str(dataset.get(k) or '') for k in ('period','unit')),30,accent)
+    text(60,335,f'完整数据 · 第 {start+1}—{end} 项 / 共 {len(dataset["rows"])} 项',26)
     numbers=[]
     for row in dataset['rows']:
         raw = str(row['value']).replace(',','')
@@ -66,7 +71,7 @@ def render(dataset, style, page):
     for i,row in enumerate(rows):
         absolute=start+i
         if mode == 'bar':
-            y=370+i*83
+            y=420+i*78
             text(60,y,str(absolute+1).zfill(2),26,accent,70)
             text(130,y,row['label'],30,width=220)
             value=numbers[absolute]
@@ -75,13 +80,13 @@ def render(dataset, style, page):
                 if length: draw.rounded_rectangle((370,y+5,370+length,y+36),radius=6,fill=accent if absolute < 3 else '#5296cf')
             text(960,y,row['value'],30,width=180)
         elif mode == 'editorial':
-            y=360+i*83
+            y=410+i*78
             text(60,y,f'{absolute+1:02d}',26,accent,75)
             text(155,y,row['label'],34,width=510)
             text(830,y-7,row['value'],48,accent,300)
             draw.line((155,y+65,1140,y+65),fill='#d4c8b5',width=1)
         else:
-            col=i%2; line=i//2; x=60+col*550; y=365+line*158
+            col=i%2; line=i//2; x=60+col*550; y=415+line*158
             draw.rounded_rectangle((x,y,x+520,y+140),radius=18,fill='#ffffff' if mode=='cards' else '#e8dfcf')
             text(x+22,y+15,f'{absolute+1:02d}  {row["label"]}',28,'#152944',470)
             text(x+22,y+58,row['value'],52,accent,470)

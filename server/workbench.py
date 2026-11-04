@@ -536,6 +536,9 @@ def _salvage_json(text: str) -> dict[str, Any] | None:
 
 def _json_text(prompt: str, *, model: str | None = None,
                base_url: str | None = None) -> dict[str, Any]:
+    if any(word in prompt for word in ('标题','配文','headline','titles','caption')):
+        from .editorial_quality import guidance
+        prompt += guidance()
     for attempt in range(2):
         raw = _text(prompt + ('\n上次返回的JSON语法无效。请重新执行并只返回合法JSON对象；'
                               '键和值必须使用半角引号，不要用中文冒号或中文引号。' if attempt else ''),
