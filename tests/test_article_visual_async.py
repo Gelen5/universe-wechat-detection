@@ -52,6 +52,22 @@ def test_failed_task_refunds(user, monkeypatch):
     assert av.get_plan_task(job['id'], request(user))['job']['status'] == 'failed'
 
 
+def test_sticker_page_failure_refunds_and_does_not_call_model(user, monkeypatch):
+    monkeypatch.setattr(tasks, 'dispatch', lambda job_id: None)
+    class Response:
+        text = "<script>picture_page_info_list: [{cdn_url:'https://mmbiz.qpic.cn/example/0'}]</script>"
+        def raise_for_status(self): pass
+    monkeypatch.setattr(av.requests, 'get', lambda *a, **k: Response())
+    calls = []
+    monkeypatch.setattr(av, 'build_plan', lambda *a, **k: calls.append(True))
+    payload = av.PlanTaskBody(url='https://mp.weixin.qq.com/s/sticker-example', idempotency_key=uuid.uuid4().hex)
+    job = av.start_plan_task(payload, request(user))['job']
+    assert tasks.run.run(job['id'])['status'] == 'failed'
+    assert accounts.wallet_summary(user['id'])['balance'] == 2
+    assert av.get_plan_task(job['id'], request(user))['job']['error'] == av.STICKER_ARTICLE_ERROR
+    assert not calls
+
+
 def test_one_valid_direction_survives_bad_other_direction(monkeypatch):
     article = {'title': '标题', 'account': '账号', 'markdown': '这是一段可以用来验证的完整文章原文。'}
     valid = {'article_type': 'story', 'angle_label': '有效方向', 'slots': [

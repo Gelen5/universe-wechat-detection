@@ -1,8 +1,32 @@
 /* Registration-only Turnstile; a fresh single-use token for each submission. */
 (() => {
   let siteKey = '', widget = null, token = '', currentAction = '', ready;
-  let pendingResolve, pendingReject;
+  let pendingResolve, pendingReject, failure = null, lastReport = '', lastReportAt = 0;
   const host = () => document.querySelector('#auth-challenge');
+  function showFailure(code) {
+    token = '';
+    const safeCode = /^\d{3,8}$/.test(String(code)) ? String(code) : (['script_load', 'timeout', 'expired'].includes(code) ? code : 'unknown');
+    failure = new Error(`安全验证暂时失败${/^\d+$/.test(safeCode) ? `（错误码 ${safeCode}）` : ''}，请点击重新验证；仍失败可更换网络或浏览器。`);
+    const note = host()?.querySelector('.auth-verification-note');
+    if (note) note.textContent = failure.message;
+    const retry = document.querySelector('#auth-challenge-retry');
+    if (retry) retry.hidden = false;
+    const report = `${currentAction}:${safeCode}`;
+    if (report !== lastReport || Date.now() - lastReportAt > 30000) {
+      lastReport = report; lastReportAt = Date.now();
+      fetch('/api/auth/challenge-diagnostic', {method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({code:safeCode, action:currentAction || 'register_email'}), keepalive:true}).catch(() => {});
+    }
+    pendingReject?.(failure); pendingResolve = pendingReject = null;
+    return failure;
+  }
+  function clearFailure() {
+    failure = null;
+    const note = host()?.querySelector('.auth-verification-note');
+    if (note) note.textContent = '验证通过后即可继续';
+    const retry = document.querySelector('#auth-challenge-retry');
+    if (retry) retry.hidden = true;
+  }
   function load() {
     if (ready) return ready;
     ready = new Promise((resolve, reject) => {
@@ -10,7 +34,7 @@
       const script = document.createElement('script');
       script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?onload=universeTurnstileReady&render=explicit';
       script.async = true;
-      script.onerror = () => { ready = null; reject(new Error('人机验证加载失败，请重试')); };
+      script.onerror = () => { ready = null; script.remove(); reject(showFailure('script_load')); };
       document.head.append(script);
     });
     return ready;
@@ -24,9 +48,9 @@
     const widgetHost = document.querySelector('#auth-challenge-widget');
     widget = window.turnstile.render(widgetHost, {
       sitekey: siteKey, action, theme: 'light', language: 'zh-CN', size: widgetHost.clientWidth < 300 ? 'compact' : 'flexible',
-      callback: value => { token = value; pendingResolve?.(value); pendingResolve = pendingReject = null; },
-      'expired-callback': () => { token = ''; },
-      'error-callback': () => { token = ''; pendingReject?.(new Error('人机验证未完成，请重试')); pendingResolve = pendingReject = null; },
+      callback: value => { clearFailure(); token = value; pendingResolve?.(value); pendingResolve = pendingReject = null; },
+      'expired-callback': () => { showFailure('expired'); },
+      'error-callback': code => { showFailure(code); return true; },
     });
   }
   window.AuthChallenge = {
@@ -42,18 +66,28 @@
     async getToken(action) {
       if (!siteKey) return '';
       host().hidden = false;
+      if (failure) throw failure;
       await render(action);
+      if (failure) throw failure;
       if (token) return token;
       return new Promise((resolve, reject) => {
         pendingResolve = resolve; pendingReject = reject;
         setTimeout(() => {
-          if (pendingResolve === resolve) { pendingResolve = pendingReject = null; reject(new Error('请完成人机验证后重试')); }
+          if (pendingResolve === resolve) showFailure('timeout');
         }, 60000);
       });
     },
     reset() {
       token = '';
-      if (widget !== null) window.turnstile.reset(widget);
+      if (widget !== null && !failure) window.turnstile.reset(widget);
     },
   };
+  document.querySelector('#auth-challenge-retry')?.addEventListener('click', async () => {
+    clearFailure();
+    const error = document.querySelector('#auth-error'); if (error) error.hidden = true;
+    try {
+      if (widget !== null) window.turnstile.reset(widget);
+      else await render(currentAction || 'register_email');
+    } catch (error) { if (!failure) showFailure('unknown'); }
+  });
 })();
