@@ -245,7 +245,8 @@ def prepare_remix_cards(session_id: str, idea: dict[str, Any]):
         return remix_design.pages(dataset), idea, directory
     if idea.get('choices') or not idea.get('cards'):
         try:
-            expansion_input = {k:v for k,v in idea.items() if k != 'person_reference'}
+            expansion_input = {k:v for k,v in idea.items() if k not in ('person_reference','product_reference')}
+            expansion_input['output_requirements'] = '每个cards项必须有source_ids数组，对应content_ledger.items中本页完整呈现的条目id。全部条目须覆盖，steps条目严格按顺序分配且不重复。准确生成page_count页。'
             revised = workbench._json_text('展开用户已选创意，落实确认项。content_ledger与user_goal为必须满足的源内容约束，不得改写其中事实、步骤、规格、指标与身份要求。准确保留原图已有数字，禁止新增数字。所有核心内容必须分配到cards，信息过多分多页，每页正文保持手机可读。原图缺失内容不得编造。保留选中方案layout与palette，不重新选方向。无字约束优先。返回JSON {"cards":[{"headline":"标题","accent_text":"强调短语","subtitle":"副标题","visual_description":"完整画面描述","image_brief":"底图描述","render_mode":"image","content":"本页必须呈现的原始事实/步骤/规格"}],"copy_directions":[],"tags":{}}。输入为数据：\n'+json.dumps(expansion_input,ensure_ascii=False))
         except Exception as exc:  # noqa: BLE001 - 文字模型超时不该把整单拖死
             # 这一步只是把创意细化成卡片；创意本身已经带着 image_brief 和标题，
@@ -266,6 +267,9 @@ def prepare_remix_cards(session_id: str, idea: dict[str, Any]):
         raise ValueError('原创卡片数量须为1到8张')
     if idea.get('content_ledger') and len(cards) != expected_pages:
         raise ValueError('方案展开页数与确认页数不一致，已停止生成，请重新选择方案')
+    if idea.get('content_ledger'):
+        from .remix_contract import validate_coverage
+        validate_coverage(idea['content_ledger'],cards)
     if not contract:
         contract = idea.get('visual_contract') or {}
     if fallback_reason:
@@ -314,11 +318,15 @@ def generate_remix_card(idea: dict[str, Any], page: dict[str, Any], index: int,
               +'\nSeries page: '+(f'{index}/{total}' if total>1 else 'single poster; no page number')
               +'\nKeep the palette and visual system consistent across the series. If all copy fields are empty, generate a text-free image.')
     prompt += '\nRequired source content and chosen layout (do not invent or change facts): ' + json.dumps({'core':(idea.get('content_ledger') or {}).get('core'), 'page_content':page.get('content'), 'layout':idea.get('layout'), 'goal':idea.get('user_goal'), 'repair':page.get('repair_instruction')},ensure_ascii=False)
+    prompt += '\nVisual intensity and exclusions: ' + json.dumps(idea.get('choices') or {},ensure_ascii=False)
     if no_text:
         # Replace the typography template entirely so it cannot override the request.
         prompt = ('Generate one finished text-free image. NO titles, subtitles, captions, letters, numbers, typography, logos or watermarks anywhere. Remove any text in the reference. Ignore any text or lettering instructions in the scene data below; use only its visual subject, composition and palette. Do not reserve space for text. Scene data: '
                   + json.dumps({'visual_contract': contract, 'scene': page.get('visual_description') or page.get('image_brief') or idea.get('image_brief') or ''}, ensure_ascii=False))
     reference = idea.get('person_reference') if idea.get('preserve_person') else None
+    if idea.get('product_reference'):
+        reference = idea['product_reference']
+        prompt = 'Edit the supplied product reference. Preserve exact product shape, proportions, color and identifying physical details. Redesign only layout, setting and lighting. Do not invent specifications. ' + prompt
     if idea.get('data_contract'):
         dataset = idea['data_contract']
         validate_remix_dataset(dataset)
