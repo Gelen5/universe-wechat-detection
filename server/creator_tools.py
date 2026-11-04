@@ -6,6 +6,7 @@ import importlib.util
 import io
 import json
 import logging
+import os
 import re
 import uuid
 from pathlib import Path
@@ -56,6 +57,48 @@ def _image_measurement(raw: bytes) -> dict[str, Any]:
         "brightness_mean": round(sum(stat.mean) / 3, 1),
         "contrast_stddev": round(sum(stat.stddev) / 3, 1),
     }
+
+
+def _remix_vision(body: dict[str, Any], *, require_ideas: bool = True, deadline=None):
+    """Bound the primary call and retain the same reference in one fallback."""
+    import time
+    from .observability import event
+    primary=body['model']
+    fallback=os.getenv('WECHAT_REMIX_FALLBACK_MODEL','gpt-6.1-sol').strip()
+    models=list(dict.fromkeys(model for model in (primary,fallback) if model))
+    for index,model in enumerate(models):
+        request={**body,'model':model}
+        if model.lower().startswith('gpt-'):request['reasoning_effort']='low'
+        started=time.perf_counter()
+        read_timeout=65 if index==0 else 80
+        if deadline is not None:
+            remaining=deadline-time.monotonic()-10
+            if remaining<=1:raise workbench.ProviderError('拆解处理超时，请稍后重试；参考图无需重新选择')
+            read_timeout=min(read_timeout,remaining)
+        try:
+            response=requests.post(workbench._api_url('text','/chat/completions'),headers=workbench._headers('text'),
+                json=request,timeout=(10,read_timeout),verify=workbench._verify_ssl())
+            response.raise_for_status()
+            content=response.json()['choices'][0]['message']['content']
+            if not isinstance(content,str):raise ValueError('invalid_content')
+            data=workbench._salvage_json(content)
+            if not isinstance(data,dict):raise ValueError('invalid_json')
+            if require_ideas:
+                ideas=data.get('ideas')
+                if not isinstance(ideas,list) or [idea.get('id') for idea in ideas if isinstance(idea,dict)]!=['A','B','C']:
+                    raise ValueError('incomplete_ideas')
+                if not isinstance(data.get('visual_contract'),dict) or not data['visual_contract'].get('asset_type'):
+                    raise ValueError('missing_visual_contract')
+            event('remix.vision_completed',model=model,fallback=index>0,latency_ms=round((time.perf_counter()-started)*1000))
+            return data,model
+        except (requests.RequestException,KeyError,IndexError,TypeError,ValueError) as exc:
+            status=getattr(getattr(exc,'response',None),'status_code',None)
+            event('remix.vision_failed',model=model,status=status,error_type=type(exc).__name__,attempt=index+1,
+                latency_ms=round((time.perf_counter()-started)*1000))
+            if index+1<len(models):
+                event('remix.vision_fallback',primary=model,fallback=models[index+1])
+                continue
+            raise workbench.ProviderError('主模型和备用视觉服务均未完成拆解，请稍后重试；参考图无需重新选择') from exc
 
 
 def viral_remix_analysis(image_data_url: str | list[str], goal: str = "") -> dict[str, Any]:
@@ -129,23 +172,10 @@ A延续构图换实质素材；B换布局但保留视觉层次；C补同目的�
         "temperature": 0.4,
     }
     vision_started=time.perf_counter()
-    try:
-        response = requests.post(workbench._api_url("text", "/chat/completions"), headers=workbench._headers("text"),
-                                 json=body, timeout=(15,240), verify=workbench._verify_ssl())
-        response.raise_for_status()
-        content = response.json()["choices"][0]["message"]["content"]
-        timings['vision_seconds']=round(time.perf_counter()-vision_started,1)
-    except (requests.RequestException, KeyError, IndexError, TypeError, ValueError) as exc:
-        status = getattr(getattr(exc,'response',None),'status_code',None)
-        from .observability import event
-        event('remix.vision_failed', model=model, status=status, error_type=type(exc).__name__, image_count=len(images))
-        reason = '上游模型响应超时，请重试' if isinstance(exc,requests.Timeout) else f'上游视觉服务返回 {status}' if status else '视觉服务连接或返回格式异常'
-        raise workbench.ProviderError(reason) from exc
-    cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", str(content).strip(), flags=re.I)
-    try:
-        data = json.loads(cleaned[cleaned.find("{"):cleaned.rfind("}") + 1])
-    except (ValueError, json.JSONDecodeError) as exc:
-        raise workbench.ProviderError("视觉模型没有返回可解析的拆解结果，请重试") from exc
+    vision_deadline=time.monotonic()+155
+    data,used_model=_remix_vision(body,deadline=vision_deadline)
+    timings['vision_seconds']=round(time.perf_counter()-vision_started,1)
+    data['vision_model']=used_model
     ideas = data.get("ideas") if isinstance(data, dict) else None
     if not isinstance(ideas, list) or [item.get("id") for item in ideas if isinstance(item, dict)] != ["A", "B", "C"]:
         raise workbench.ProviderError("视觉模型没有返回完整的 A/B/C 翻新方案，请重试")
@@ -157,10 +187,8 @@ A延续构图换实质素材；B换布局但保留视觉层次；C补同目的�
         ocr_body = {**body, 'temperature':0, 'messages':[{'role':'user','content':[
             {'type':'text','text':'仅做数据图转录，不做设计、不核实来源真假。返回JSON对象data_contract的内容：kind=table,title,unit,period,source_text,complete,rows=[{label,value}]。完整转录图中每一行名称及数值，保留顺序与小数。complete只表示文字可读且所有行已转录，不表示数据已证实。可读则true；确实看不清的行标明missing并complete=false。年份、数量与率不可混淆。来源声明照录，不补充。不要输出创意方案。'},
             *[{'type':'image_url','image_url':{'url':source,'detail':'high'}} for source in images]]}]}
-        ocr_response=requests.post(workbench._api_url('text','/chat/completions'),headers=workbench._headers('text'),
-            json=ocr_body,timeout=(10,90),verify=workbench._verify_ssl())
-        ocr_response.raise_for_status()
-        recovered=workbench._salvage_json(ocr_response.json()['choices'][0]['message']['content'])
+        ocr_body['model']=used_model
+        recovered,_=_remix_vision(ocr_body,require_ideas=False,deadline=vision_deadline)
         if isinstance(recovered,dict):
             dataset=recovered.get('data_contract',recovered)
             data['data_contract']=dataset
