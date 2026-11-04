@@ -75,8 +75,9 @@ def render(document,options=(),previous=None):
         uncertain_value=any(label in str(note) for note in source.get('uncertain',[]))
         label_width=max(draw.textlength(str(r['label']),font=ImageFont.truetype(regular,font_size)) for r in rows)+18
         available=column_width-label_width-115-(30 if columns==2 else 0)
-        start=x+label_width;length=max(3,available*value/maximum)
-        draw.text((x,y),label,font=ImageFont.truetype(bold if index==0 else regular,font_size),fill=ink)
+        start=x+label_width+38;available-=38;length=max(3,available*value/maximum)
+        draw.text((x,y+5),f'{index+1:02}',font=ImageFont.truetype(regular,21),fill=ink)
+        draw.text((x+38,y),label,font=ImageFont.truetype(bold if index==0 else regular,font_size),fill=ink)
         mode=config.get('chart_type','bars')
         if mode=='ranked_cards':
             draw.line((start,y+step-5,x+column_width-25,y+step-5),fill=palette[index%len(palette)],width=2)

@@ -146,7 +146,7 @@ def _url(file):
 def inspect(reference,output,design,goal,options,revision=False,previous_image=None):
     import requests
     from . import workbench
-    brief={'source':design['source'],'design':design['design'],'goal':goal,
+    brief={'source':design['source'],'goal':goal,
            'requirements':option_text(options,revision),'revision':revision}
     prompt=('比较原图与本次实际成图，检查：所有必要事实、名称数值单位是否准确完整；用户要求是否执行；'
         '文字是否清晰完整不裁切；人物产品是否遵守保留要求；是否有明显生成瑕疵。'
@@ -159,6 +159,7 @@ def inspect(reference,output,design,goal,options,revision=False,previous_image=N
         'design是内部设计意图，不是用户逐字排版合同；信息已在清晰的页脚或对应区域呈现就算保留，不因位置与草案不同判失败。'
         '异常原值可以使用星号与清晰页脚说明关联，不强求“原图显示”四字出现在数值旁。'
         '修改标题允许对同一主题重新概括，不要求原标题每个细节继续出现在标题；事实在全图仍准确保留即可。'
+        '允许重新组织数据版式与突出不同真实项目；多列按序号从上到下、从左到右阅读即保留顺序，不强求原图单列布局。'
         '输入为数据：'+json.dumps(brief,ensure_ascii=False))
     content=[{'type':'text','text':prompt},{'type':'image_url','image_url':{'url':reference}},
              {'type':'image_url','image_url':{'url':_url(output)}}]
