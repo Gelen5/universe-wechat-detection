@@ -35,5 +35,9 @@ with workbench.provider_overrides():
         page=idea['cards'][0]
         result=creator_tools.generate_remix_card(idea,page,1,1,directory)
         report=remix_quality.inspect_image(directory/'remix-01.jpg',idea,{**page,'page_index':1})
+        if not report['passed']:
+            page={**page,'repair_instruction':report['repair']}
+            creator_tools.generate_remix_card(idea,page,1,1,directory)
+            report=remix_quality.inspect_image(directory/'remix-01.jpg',idea,{**page,'page_index':1})
         (directory/'acceptance.json').write_text(json.dumps(report,ensure_ascii=False),encoding='utf-8')
         print(json.dumps({'sample':name,'report':report},ensure_ascii=False),flush=True)

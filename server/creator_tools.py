@@ -329,6 +329,9 @@ def generate_remix_card(idea: dict[str, Any], page: dict[str, Any], index: int,
     if idea.get('product_reference'):
         reference = idea['product_reference']
         prompt = 'Edit the supplied product reference. Preserve exact product shape, proportions, color and identifying physical details. Redesign only layout, setting and lighting. Do not invent specifications. ' + prompt
+    if page.get('repair_reference') and not reference:
+        reference = page['repair_reference']
+        prompt = 'Edit this already generated image. Fix ONLY the listed defects, preserve all correct content, layout and visual identity. ' + prompt
     if idea.get('data_contract'):
         dataset = idea['data_contract']
         validate_remix_dataset(dataset)

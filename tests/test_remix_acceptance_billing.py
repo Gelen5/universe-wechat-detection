@@ -15,6 +15,7 @@ def test_one_repair_does_not_charge_twice(monkeypatch,tmp_path,accepted):
     calls=[];settlements=[];statuses=[]
     def generate(*args):
         calls.append(args)
+        (args[-1]/'remix-01.jpg').write_bytes(b'test-reference')
         return {'url':'/qa.jpg','index':1}
     monkeypatch.setattr(tasks.creator_tools,'generate_remix_card',generate)
     reports=iter([{'passed':False,'issues':['文字裁切'],'repair':'缩小文字'},
