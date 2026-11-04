@@ -31,3 +31,15 @@ def test_three_previews_and_history_are_readable(ui,width,tmp_path):
     assert captured.value.post_data_json['idea']['choices']['strength']=='克制'
     assert captured.value.post_data_json['idea']['choices']['textMode']=='正常文字'
     page.wait_for_function("JSON.parse(localStorage.getItem('viral-remix-draft:test-user')).pending===false")
+
+def test_image_review_notice_is_visible_as_text(ui):
+    page, state = ui
+    page.goto('http://ui.test/viral-remix')
+    page.evaluate('''() => {
+      currentAccount={id:'test-user'};
+      setActiveView('viral-remix',true);
+      renderViralRemix({analysis:{},ideas:[],pages:[],claims:[]},'review-session');
+      renderRemixJobResult({images:[{url:'/static/test.jpg',index:1,review_notice:'检查发现可能的问题，请核对：年龄可能不一致'}]}, {}, document.querySelector('#remix-output-panel'), {}, null);
+    }''')
+    expect(page.locator('.remix-review-notice')).to_have_text('检查发现可能的问题，请核对：年龄可能不一致')
+    expect(page.locator('.viral-generated img')).to_have_count(1)

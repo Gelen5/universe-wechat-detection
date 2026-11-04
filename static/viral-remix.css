@@ -88,3 +88,5 @@
 #viral-remix .viral-notice:has(#viral-preserve-person){display:flex;align-items:center;gap:10px}#viral-remix #viral-preserve-person{appearance:auto;display:inline-block;flex:0 0 20px;width:20px!important;height:20px!important;min-height:20px;padding:0;margin:0;accent-color:#237d57}
 .remix-layout-preview{background:#e5f1e9;color:#163b2d}.remix-layout-subject{display:flex!important;align-items:center;justify-content:center;flex:1;min-height:100px;padding:20px;border-radius:18px;background:rgba(255,255,255,.7);color:#214d3d;text-align:center;line-height:1.7}.remix-layout-1{background:#f0e8dc;color:#312a22}.remix-layout-1>strong{order:2}.remix-layout-1>small{order:3}.remix-layout-2{background:#e5edfa;color:#243e69}.remix-layout-2 .remix-layout-subject{margin-left:25%;border-radius:50% 12px 12px 50%}
 .remix-save-dialog #remix-save-preview{width:auto!important;height:auto!important;max-width:100%!important;max-height:56dvh!important;aspect-ratio:auto!important;object-fit:contain!important}
+
+#viral-remix .remix-review-notice{margin:0;padding:0 16px 16px;color:#795b24;font-size:13px;line-height:1.6;overflow-wrap:anywhere}

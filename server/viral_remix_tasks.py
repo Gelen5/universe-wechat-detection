@@ -50,23 +50,19 @@ def run(self, job_id: str):
                     image = creator_tools.generate_remix_card(idea, page, index, total, directory)
                     if idea.get('content_ledger') and not idea.get('data_contract'):
                         from . import remix_quality
-                        from pathlib import Path
                         accounts.progress_job(job_id, done=len(images), total=total, stage='validating', images=images)
                         file = directory / f'remix-{index:02d}.jpg'
-                        report = remix_quality.inspect_image(file, idea, {**page,'page_index':index})
-                        if not report['passed']:
-                            accounts.progress_job(job_id, done=len(images), total=total, stage='repairing', images=images)
-                            import base64
-                            repair_reference = 'data:image/jpeg;base64,'+base64.b64encode(file.read_bytes()).decode()
-                            page = {**page,'repair_instruction':report['repair'] or '; '.join(report['issues']),
-                                    'repair_reference':repair_reference}
-                            image = creator_tools.generate_remix_card(idea,page,index,total,directory)
-                            report = remix_quality.inspect_image(file,idea,{**page,'page_index':index})
-                        (directory / f'acceptance-{index:02d}.json').write_text(json.dumps(report,ensure_ascii=False),encoding='utf-8')
-                        if not report['passed']:
-                            raise ValueError('成图检查未通过：'+'；'.join(report['issues']))
-                        image['acceptance'] = report
-                        image['check_passed'] = True
+                        try:
+                            report = remix_quality.inspect_image(file, idea, {**page, 'page_index': index})
+                            image['acceptance'] = report
+                            image['check_passed'] = report['passed']
+                            if not report['passed']:
+                                image['review_notice'] = '检查发现可能的问题，请核对：' + '；'.join(report['issues'])
+                        except Exception:  # 检查服务故障不影响已生成图片交付
+                            logging.getLogger(__name__).exception('remix image review failed: %s', job_id)
+                            image['review_notice'] = '自动检查暂不可用，请自行核对图片中的文字、数字和关键信息。'
+                    else:
+                        image['review_notice'] = '请核对图片中的文字、数字和关键信息。'
             except Exception as exc:  # noqa: BLE001 - 单张失败不该拖垮整单
                 logging.getLogger(__name__).exception('remix card failed: %s', job_id)
                 error = str(exc)[:300] or '出图失败'

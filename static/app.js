@@ -1363,6 +1363,7 @@ function renderRemixJobResult(job, idea, output, result, storeDraft) {
       const card = document.createElement('article');
       card.className = 'viral-generated';
       card.innerHTML = `<span class="tag">步骤 4 · 原创成图${all.length > 1 ? ` · ${ordinal}/${all.length}` : ''}</span><img src="${safeUrl(extra.url)}" alt="${esc(idea.headline || '原创贴图')} ${ordinal}"/><div class="remix-generated-actions"><strong>${esc(idea.headline || '')}</strong></div>`;
+      if (extra.review_notice) { const notice = document.createElement('p'); notice.className = 'remix-review-notice'; notice.textContent = extra.review_notice; card.append(notice); }
       card.querySelector('.remix-generated-actions').append(window.RemixSave.saveButton(extra.url, label));
       gallery.append(card);
     });
