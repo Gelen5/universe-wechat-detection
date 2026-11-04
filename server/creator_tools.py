@@ -148,6 +148,8 @@ A延续构图换实质素材；B换布局但保留视觉层次；C补同目的�
         raise workbench.ProviderError("视觉模型没有返回完整的 A/B/C 翻新方案，请重试")
     data["measurement"] = measured_all
     dataset = data.get('data_contract')
+    if not dataset and remix_requires_dataset(data):
+        raise ValueError('检测到数据图，但未提取到完整数据；请上传清晰原图，不能生成无标签图表')
     if dataset:
         validate_remix_dataset(dataset)
     contract = data.get('visual_contract')
@@ -180,6 +182,11 @@ def verify_remix_claims(claims: list[str]) -> dict[str, Any]:
     return {'status':'reviewed','message':result.get('summary','仍需人工核实'),'items':result.get('items',[]),'seconds':round(time.perf_counter()-began,1)}
 
 
+def remix_requires_dataset(value):
+    content = json.dumps(value, ensure_ascii=False)
+    return bool(re.search(r'柱状|条形|折线|饼图|统计图|数据图|排行榜|排名|数值|数量对比|离婚率|离婚数量|bar chart|infographic', content, re.I))
+
+
 def validate_remix_dataset(dataset):
     if not isinstance(dataset, dict) or dataset.get('complete') is not True:
         raise ValueError('数据图未能完整识别，请上传清晰原图或补充完整数据；不会生成空白图表')
@@ -206,6 +213,8 @@ def prepare_remix_cards(session_id: str, idea: dict[str, Any]):
     """
     contract = idea.get('visual_contract') or {}
     dataset = idea.get('data_contract')
+    if not dataset and remix_requires_dataset(idea):
+        raise ValueError('该方案缺少完整原始数据，请重新上传并拆解；不能生成无数据图表，本次未出图将退分')
     if dataset:
         validate_remix_dataset(dataset)
         if idea.get('text_policy'):
