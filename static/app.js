@@ -1249,12 +1249,14 @@ function resetViralRemixImage() {
 }
 
 window.importStickerReferenceFiles = files => {
+  if (window.RemixStudio && (files.length !== 1 || viralFiles.length)) throw new Error('请先新建创作，每次选择一张原图');
   if (!files.length || viralFiles.length + files.length > 8) throw new Error('参考图最多 8 张，请调整已选图片');
   if (files.some(f => f.size > 10 * 1024 * 1024 || !['image/png','image/jpeg','image/webp'].includes(f.type))) throw new Error('复刻仅支持每张小于 10MB 的 PNG、JPG 或 WebP');
   viralFiles.push(...files); paintViralFiles(); setActiveView('viral-remix', true);
 };
 viralRemixImage?.addEventListener('change', () => {
   const files = [...(viralRemixImage.files || [])];
+  if (window.RemixStudio) viralFiles = [];
   if(viralFiles.length+files.length>8){showToast('最多上传8张参考图','error');viralRemixImage.value='';return;}
   if(files.some(f=>f.size>10*1024*1024 || !['image/png','image/jpeg','image/webp'].includes(f.type))){showToast('请选择每张小于10MB的PNG、JPG或WebP','error');viralRemixImage.value='';return;}
   viralFiles.push(...files);viralRemixImage.value='';paintViralFiles();
@@ -1545,6 +1547,7 @@ function renderViralRemix(result, sessionId) {
   const next=document.createElement('button');next.type='button';next.className='remix-next';next.textContent='查看三种翻新方案 →';next.onclick=()=>{selectPanel(1);root.scrollIntoView({block:'start',behavior:'smooth'});};report.append(next);
 }
 window.addEventListener('account-changed',()=>{
+  if (window.RemixStudio) return;
   const root=document.querySelector('#viral-remix-result');
   if(!root)return;
   window.RemixSave?.setOwner(currentAccount?.id);
@@ -1558,6 +1561,7 @@ window.addEventListener('account-changed',()=>{
 });
 viralRemixForm?.addEventListener('submit', async event => {
   event.preventDefault();
+  if (window.RemixStudio) return window.RemixStudio.submit();
   if (remixHistoryBusy()) { showToast('当前任务进行中，请等待完成后再开始新的创作', 'error'); return; }
   if (!viralFiles.length) {showToast('请先选择1—8张参考图','error');return;}
   const button = document.querySelector('#viral-remix-start');
@@ -1592,6 +1596,7 @@ async function preserveRemixDraft() {
   if (!response.ok || currentAccount?.id !== owner) throw new Error('当前创作尚未保存，请稍后重试');
 }
 document.querySelector('#remix-new')?.addEventListener('click', async () => {
+  if (window.RemixStudio) return window.RemixStudio.reset();
   if (remixHistoryBusy()) { showToast('当前任务进行中，请等待完成后再新建', 'error'); return; }
   try { await preserveRemixDraft(); } catch (error) { showToast(error.message, 'error'); return; }
   if (currentAccount?.id) localStorage.removeItem(`viral-remix-draft:${currentAccount.id}`);

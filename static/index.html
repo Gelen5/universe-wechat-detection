@@ -71,7 +71,7 @@
 <link rel="stylesheet" href="/static/points-notice.css?v=20261103-packages-2" />
 <link rel="stylesheet" href="/static/auth-mint.css?v=20261104-retry-1" />
 <script src="/static/points-notice.js?v=20261103-packages-2" defer></script>
-<link rel="stylesheet" href="/static/viral-remix.css?v=20261104-single-poster">
+<link rel="stylesheet" href="/static/viral-remix.css?v=20261104-guided-studio-1">
 <link rel="stylesheet" href="/static/sticker-extract.css?v=20261103-glass-4">
 <link rel="stylesheet" href="/static/xhs-extract.css?v=20261031-workspace-5">
 <link rel="stylesheet" href="/static/article-visual.css?v=20261104-sticker-guidance-1">
@@ -370,16 +370,16 @@
               <div class="form-section">
                 <div class="head"><span class="num">01</span><div class="copy"><strong>上传原图</strong><small>支持截图，会自动识别画面与核心内容。</small></div></div>
                 <label class="viral-upload" for="viral-remix-image">
-                  <input id="viral-remix-image" name="reference_image" type="file" accept="image/png,image/jpeg,image/webp" multiple>
+                  <input id="viral-remix-image" name="reference_image" type="file" accept="image/png,image/jpeg,image/webp">
                   <span class="viral-upload-icon" aria-hidden="true">+</span>
-                  <strong>选择参考图片</strong><small>第一张为主要参考，每张最大 10 MB；默认只生成一张</small>
+                  <strong>选择一张原图</strong><small>最大 10 MB；重新设计并交付一张成图</small>
                 </label>
                 <div id="viral-remix-preview" class="viral-preview" hidden><img alt="已选择的对标图预览"><span></span><button type="button" id="viral-remix-clear" class="secondary-action">移除</button></div>
                 <label class="field-wide">补充要求（可留空）<textarea id="viral-remix-goal" name="goal" maxlength="1200" placeholder="例如：数据全部保留，换个更有冲击力的构图；或者只调整背景，人物不要变。"></textarea></label>
                 <div class="studio-guidance" aria-label="快捷创作要求"><span>也可以点选：</span><button type="button" data-studio-option="stronger" aria-pressed="false">更抓眼球</button><button type="button" data-studio-option="premium" aria-pressed="false">更有高级感</button><button type="button" data-studio-option="no_title" aria-pressed="false">封面不放标题</button><button type="button" data-studio-option="person" aria-pressed="false">保留原人物</button><button type="button" data-studio-option="facts" aria-pressed="false">保留全部数据</button></div>
               </div>
               <button id="viral-remix-start" class="skill-primary" type="submit">二创生成一张 →</button>
-              <label class="viral-notice"><input type="checkbox" id="viral-preserve-person"> 保留原人物（以第一张图的人物为准）</label>
+              <input type="checkbox" id="viral-preserve-person" hidden>
               <p class="viral-notice">每次交付一张成图；完成后可继续用文字修改。原图明确的数据与核心信息会保留，人物保真仍可能存在模型偏差。</p>
             </form>
             <button type="button" id="remix-history-open" class="remix-history-open">查看我生成的图片</button>
@@ -1125,7 +1125,8 @@
     <script src="/static/creation-history.js?v=20261101-1"></script>
     <script src="/static/remix-publication.js?v=20261101-article1"></script>
     <script src="/static/remix-save.js?v=20261101-publication-1"></script>
-    <script src="/static/app.js?v=20261104-single-poster"></script>
+    <script src="/static/app.js?v=20261104-guided-studio-1"></script>
+    <script src="/static/remix-studio.js?v=20261104-guided-studio-1"></script>
     <script src="/static/flow.js?v=20261031-hide-diagnose-1"></script>
     <script src="/static/studio-tools.js?v=20261028-tietu-1"></script>
     <link rel="stylesheet" href="/static/creator-chat.css?v=20260906-conversation-1">
