@@ -200,8 +200,10 @@ def verify_remix_claims(claims: list[str]) -> dict[str, Any]:
 
 
 def remix_requires_dataset(value):
-    content = json.dumps(value, ensure_ascii=False)
-    return bool(re.search(r'柱状|条形|折线|饼图|统计图|数据图|排行榜|排名|数值|数量对比|离婚率|离婚数量|bar chart|infographic', content, re.I))
+    if value.get('content_type') == 'data' or (value.get('content_ledger') or {}).get('category') == 'data':
+        return True
+    content = json.dumps({k:value.get(k) for k in ('content_guess','visual_contract','image_brief','summary','headline')}, ensure_ascii=False)
+    return bool(re.search(r'柱状图|条形图|折线图|饼图|统计图|数据图|数量对比|离婚率|离婚数量|bar chart', content, re.I))
 
 
 def validate_remix_dataset(dataset):
