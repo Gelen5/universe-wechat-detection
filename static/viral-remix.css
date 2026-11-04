@@ -1,6 +1,6 @@
 ﻿body #viral-remix { padding:36px 40px!important; background:transparent!important; border:0!important; }
 #viral-remix .v3-meta { display:flex!important; margin-bottom:24px; color:#638675; }
-#viral-remix .skill-shell { display:grid!important; grid-template-columns:minmax(340px,420px) minmax(0,1fr)!important; gap:24px!important; align-items:start; }
+#viral-remix .skill-shell { display:grid!important; grid-template-columns:minmax(340px,420px) minmax(0,1fr)!important; gap:24px!important; align-items:start; border:0!important; background:transparent!important; box-shadow:none!important; }
 #viral-remix .skill-form-col,#viral-remix .skill-output-col { padding:30px!important; border:1px solid #ffffff!important; border-radius:24px!important; background:linear-gradient(135deg,#ffffffed,#eff9f2cc)!important; box-shadow:0 14px 40px #29543d09!important; min-width:0; }
 #viral-remix h1 { font-family:inherit!important; font-size:30px!important; line-height:1.35; color:#244b39; margin:16px 0; }
 #viral-remix p { font-size:14px; line-height:1.8; color:#678373; }
