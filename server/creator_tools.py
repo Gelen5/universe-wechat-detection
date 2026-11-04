@@ -149,6 +149,19 @@ A延续构图换实质素材；B换布局但保留视觉层次；C补同目的�
         raise workbench.ProviderError("视觉模型没有返回完整的 A/B/C 翻新方案，请重试")
     data["measurement"] = measured_all
     dataset = data.get('data_contract')
+    if dataset and dataset.get('complete') is not True:
+        # OCR completeness is different from verification of the source claim.
+        # Keep this bounded and focused; do not regenerate all creative plans.
+        ocr_body = {**body, 'temperature':0, 'messages':[{'role':'user','content':[
+            {'type':'text','text':'仅做数据图转录，不做设计、不核实来源真假。返回JSON对象data_contract的内容：kind=table,title,unit,period,source_text,complete,rows=[{label,value}]。完整转录图中每一行名称及数值，保留顺序与小数。complete只表示文字可读且所有行已转录，不表示数据已证实。可读则true；确实看不清的行标明missing并complete=false。年份、数量与率不可混淆。来源声明照录，不补充。不要输出创意方案。'},
+            *[{'type':'image_url','image_url':{'url':source,'detail':'high'}} for source in images]]}]}
+        ocr_response=requests.post(workbench._api_url('text','/chat/completions'),headers=workbench._headers('text'),
+            json=ocr_body,timeout=(10,90),verify=workbench._verify_ssl())
+        ocr_response.raise_for_status()
+        recovered=workbench._salvage_json(ocr_response.json()['choices'][0]['message']['content'])
+        if isinstance(recovered,dict):
+            dataset=recovered.get('data_contract',recovered)
+            data['data_contract']=dataset
     if not dataset and remix_requires_dataset(data):
         raise ValueError('检测到数据图，但未提取到完整数据；请上传清晰原图，不能生成无标签图表')
     if dataset:
