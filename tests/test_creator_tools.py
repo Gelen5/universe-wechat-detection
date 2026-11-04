@@ -121,12 +121,12 @@ class CreatorToolsTests(unittest.TestCase):
         source.save(buf, format='PNG')
 
         def provider(payload):
-            self.assertTrue(payload['preserve_frame'])
+            self.assertTrue(payload['preserve_original'])
+            self.assertIn('宽高比必须为 3:4', payload['prompt'])
             self.assertIn('把在意说清楚', payload['prompt'])
             self.assertIn('从一句真诚的话开始。', payload['prompt'])
             self.assertIn('at least 10% clear margin', payload['prompt'])
-            return image_provider._fit_images({'data': [{'b64_json': base64.b64encode(buf.getvalue()).decode()}]},
-                                              payload['size'], preserve_frame=payload['preserve_frame'])
+            return {'data': [{'b64_json': base64.b64encode(buf.getvalue()).decode()}]}
 
         with tempfile.TemporaryDirectory() as folder, patch.object(creator_tools, 'OUTPUT_DIR', Path(folder)), \
              patch.object(image_provider, 'generate', side_effect=provider):
@@ -134,9 +134,9 @@ class CreatorToolsTests(unittest.TestCase):
                                                'caption': '从一句真诚的话开始。'}, size='768x1024')
             with Image.open(Path(folder) / 'tie-tu' / 'sample' / 'card-01.png') as image:
                 image = image.convert('RGB')
-                self.assertEqual((768, 1024), image.size)
-                self.assertEqual((255, 0, 0), image.getpixel((5, 512)))
-                self.assertEqual((0, 0, 255), image.getpixel((762, 512)))
+                self.assertEqual((400, 200), image.size)
+                self.assertEqual((255, 0, 0), image.getpixel((5, 100)))
+                self.assertEqual((0, 0, 255), image.getpixel((394, 100)))
 
     def test_tie_tu_no_people_is_carried_to_image_prompt(self):
         png = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=")

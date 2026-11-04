@@ -8,6 +8,7 @@ requested pixels because that is the only way this model yields a 3:4 card.
 import unittest
 import base64
 import io
+from unittest.mock import patch
 
 from PIL import Image, ImageDraw
 
@@ -15,6 +16,27 @@ from server import image_provider
 
 
 class RequestSizeTests(unittest.TestCase):
+    def test_original_mode_bypasses_resize_and_returns_provider_response(self):
+        result = {'data': [{'b64_json': 'example'}]}
+        with patch.object(image_provider.accounts, 'provider_settings', return_value={'image_api_key':'test'}), \
+             patch.object(image_provider.workbench, '_setting', return_value='test'), \
+             patch('server.providers.OpenAICompatibleProvider'), \
+             patch('server.providers.ModelService') as service, \
+             patch.object(image_provider, '_fit_images') as fit:
+            service.return_value.generate_image.return_value = result
+            returned = image_provider.generate({'prompt':'test', 'size':'768x1024', 'preserve_original':True})
+        self.assertIs(returned, result)
+        fit.assert_not_called()
+
+    def test_original_jpeg_converts_to_png_without_resize(self):
+        source = Image.new('RGB', (400, 200), 'red')
+        raw = io.BytesIO()
+        source.save(raw, format='JPEG')
+        result = image_provider.ensure_png(raw.getvalue())
+        with Image.open(io.BytesIO(result)) as image:
+            self.assertEqual('PNG', image.format)
+            self.assertEqual((400, 200), image.size)
+
     def test_auto_only_models_are_sent_auto(self):
         for model in ('gpt-image-2.5', 'gpt-image-2', 'gpt-image-1'):
             with self.subTest(model=model):

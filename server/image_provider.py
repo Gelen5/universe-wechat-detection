@@ -73,6 +73,8 @@ def generate(payload: dict[str, Any]) -> dict[str, Any]:
             )
         except ProviderRequestError as exc:
             raise ImageProviderError(f"图片接口请求失败：{exc}") from exc
+        if payload.get("preserve_original") is True:
+            return result
         return _fit_images(result, requested_size, preserve_frame=payload.get("preserve_frame") is True)
 
 
@@ -89,6 +91,20 @@ def _request_size(size: str, model: str) -> str:
 
 _SIZE_PATTERN = re.compile(r"^\s*(\d{2,5})\s*[xX*]\s*(\d{2,5})\s*$")
 _STANDARD_RATIOS = ((1, 1), (3, 4), (4, 3), (2, 3), (3, 2), (9, 16), (16, 9))
+
+
+def ensure_png(raw: bytes) -> bytes:
+    """Validate image and preserve its entire native frame and pixel dimensions."""
+    from PIL import Image
+    with Image.open(io.BytesIO(raw)) as image:
+        image.load()
+        if image.format == 'PNG':
+            return raw
+        if image.mode not in ('RGB', 'RGBA', 'L', 'LA'):
+            image = image.convert('RGBA' if 'transparency' in image.info else 'RGB')
+        output = io.BytesIO()
+        image.save(output, format='PNG')
+        return output.getvalue()
 
 
 def _size_pair(size: str) -> tuple[int, int] | None:

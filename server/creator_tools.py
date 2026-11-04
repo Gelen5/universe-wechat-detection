@@ -510,6 +510,7 @@ def generate_card_image(tool: str, session_id: str, card: dict[str, Any], style:
     if not re.fullmatch(r'\d{3,4}x\d{3,4}', size) or not all(256 <= int(n) <= 4096 and int(n) % 16 == 0 for n in size.split('x')):
         raise ValueError('尺寸须为像素宽x高，宽高256到4096且为16的倍数，例如768x1024（3:4）或720x1280（9:16）')
     safe_tool = "xiaohongshu" if tool == "xiaohongshu" else "tie-tu"
+    from . import image_provider
     index = max(1, int(card.get("index") or 1))
     headline = str(card.get("headline") or card.get("overlay_text") or "").strip()
     caption = str(card.get("caption") or "").strip() if safe_tool == 'tie-tu' else ""
@@ -522,7 +523,15 @@ def generate_card_image(tool: str, session_id: str, card: dict[str, Any], style:
                    "preserve every character and never crop, omit, abbreviate, or cover any requested text. "
                    "Use the full requested headline exactly, with no cut-off strokes."
                    if safe_tool == 'tie-tu' else '')
+    target_width, target_height = (int(part) for part in size.split('x'))
+    target_ratio = image_provider._ratio_label(target_width, target_height)
+    target_shape = '竖版' if target_width < target_height else ('横版' if target_width > target_height else '方形')
+    ratio_instruction = (f"严格生成{target_shape} {target_ratio} 画幅，宽高比必须为 {target_ratio}；整张图片边界就是该比例，"
+                         + ('不能是 2:3 或 9:16，' if target_ratio == '3:4' else '')
+                         + "不要留白边、不要模糊填充；所有文字距四边至少 10%，必要时换行并缩小字号。"
+                         "只显示指定的中文，不添加英文翻译或其他文字。\n" if safe_tool == 'tie-tu' else '')
     prompt = f"""Use case: social media content card
+{ratio_instruction}
 Asset type: complete Chinese content card for {safe_tool}, size {size}
 Primary request: create card {index} as a complete finished image, with the exact Chinese title rendered inside the image.
 Headline (verbatim): "{headline}"
@@ -535,17 +544,17 @@ Art direction: {style or 'clean, bright, polished Chinese creator editorial styl
 Consistency: {consistency}
 Constraints: generate image and accurate Chinese text in this one call; no border, no watermark, no logo, no QR code, no extra text, no fake metrics, no garbled text, no duplicated person, no cropped face or hands.{text_safety}"""
     model = workbench._setting("WECHAT_IMAGE_MODEL", "gpt-image-2")
-    from . import image_provider
     data = image_provider.generate({
         "model": model,
         "prompt": prompt,
         "n": 1,
         "size": size,
-        "preserve_frame": safe_tool == 'tie-tu',
+        "preserve_original": safe_tool == 'tie-tu',
     })
     raw = _decode_image(data)
     from PIL import Image
     try:
+        raw = image_provider.ensure_png(raw)
         with Image.open(io.BytesIO(raw)) as decoded:
             decoded.load()
             dimensions = decoded.size

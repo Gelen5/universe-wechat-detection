@@ -1,7 +1,7 @@
-"""文章配图：贴一条公众号链接，拆解成图位，逐张生成 3:4 配图。
+"""文章配图：贴一条公众号链接，拆解成图位，逐张生成配图。
 
 产品约束（来自需求确认）：
-  * 所有图片固定 3:4（1086x1448），封面也不例外；
+  * 请求生成 3:4，返回非 3:4 时保留原始画面与比例；
   * 先生成封面，用户确认满意后再生成剩余图位；
   * 图内所有文字必须取自文章原文，禁止编造数字与人名；
   * 正文图位只做信息海报（数据卡/时间线/结构拆解/对比/客户版图/金句），
@@ -12,7 +12,6 @@ from __future__ import annotations
 import base64
 import contextvars
 import hashlib
-import io
 import json
 import logging
 import re
@@ -41,7 +40,6 @@ JOBS_DIR = ROOT / "output" / "article-visual"
 _PLAN_POOL = ThreadPoolExecutor(max_workers=3, thread_name_prefix="article-plan")
 JOB_LOCK = threading.RLock()
 
-TARGET_W, TARGET_H = 1086, 1448
 FORMS = ("cover", "data", "timeline", "layers", "compare", "clients", "quote")
 HEADERS = {
     "User-Agent": (
@@ -915,7 +913,9 @@ def build_image_prompt(slot: dict[str, Any], cover_style: str = "compare") -> st
         f"画面必须出现具体视觉主体（{subject}），主体占画面至少一半；"
         "禁止纯色底板只放文字，禁止只有渐变和光效。"
     )
-    return f"{lock}{prompt}"
+    text_safety = ("所有标题、数字、正文和来源文字完整放在画面中央 80% 范围内，四边各保留至少 10% 安全距离；"
+                   "文字较长时缩小字号并合理换行，确保每个字和笔画完整、可读，不得裁切、遮挡、省略或改写。")
+    return f"{lock}{prompt}{text_safety}"
 
 def _image_bytes(result: dict[str, Any]) -> bytes:
     data = result.get("data") or []
@@ -932,29 +932,9 @@ def _image_bytes(result: dict[str, Any]) -> bytes:
     raise RuntimeError("图片接口返回格式无法识别")
 
 
-def _fit_square(raw: bytes) -> bytes:
-    from PIL import Image
-
-    with Image.open(io.BytesIO(raw)) as image:
-        image = image.convert("RGB")
-        width, height = image.size
-        target_ratio = TARGET_W / TARGET_H
-        if width / height > target_ratio:
-            new_width = int(height * target_ratio)
-            left = (width - new_width) // 2
-            image = image.crop((left, 0, left + new_width, height))
-        else:
-            new_height = int(width / target_ratio)
-            top = (height - new_height) // 2
-            image = image.crop((0, top, width, top + new_height))
-        image = image.resize((TARGET_W, TARGET_H), Image.LANCZOS)
-        buffer = io.BytesIO()
-        image.save(buffer, format="PNG", optimize=True)
-        return buffer.getvalue()
-
-
 def generate_slot_image(prompt: str) -> bytes:
     from .providers import ModelService, OpenAICompatibleProvider
+    from .image_provider import ensure_png
 
     last_error: Exception | None = None
     for attempt in range(2):
@@ -976,14 +956,15 @@ def generate_slot_image(prompt: str) -> bytes:
                     image_model=model,
                     verify_ssl=workbench._verify_ssl(),
                 )
-                # gpt-image-2.5 只接受 size=auto，比例靠 prompt 里写死，出图后再裁切
+                # 部分模型只接受 size=auto，明确请求 3:4；返回后保留原图比例。
                 result = ModelService(provider).generate_image(
-                    prompt + "\n\n竖版构图，精确 3:4 比例。",
+                    prompt + "\n\n严格生成竖版 3:4 画幅（宽高比 3:4），整张图片边界就是 3:4；"
+                             "不留白边，不添加模糊填充。文字距四边至少 10%，必要时缩小字号并换行。",
                     size="auto",
                     count=1,
                     timeout=180,
                 )
-            return _fit_square(_image_bytes(result))
+            return ensure_png(_image_bytes(result))
         except Exception as exc:  # noqa: BLE001 - 逐次重试后把最后一次错误抛给前端
             last_error = exc
             if attempt == 0:

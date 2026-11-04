@@ -1,6 +1,28 @@
 from server import article_visual
 
 
+def test_article_visual_keeps_original_frame_and_requests_ratio(monkeypatch):
+    import base64
+    import io
+    from PIL import Image
+    from server import providers
+    from unittest.mock import MagicMock
+
+    source = Image.new('RGB', (400, 200), 'red')
+    data = io.BytesIO()
+    source.save(data, format='PNG')
+    original = data.getvalue()
+    service = MagicMock()
+    service.generate_image.return_value = {'data': [{'b64_json': base64.b64encode(original).decode()}]}
+    monkeypatch.setattr(providers, 'OpenAICompatibleProvider', MagicMock())
+    monkeypatch.setattr(providers, 'ModelService', lambda *args, **kwargs: service)
+    monkeypatch.setattr(article_visual.workbench, '_setting', lambda *args, **kwargs: 'test')
+    result = article_visual.generate_slot_image('测试正文')
+    assert result == original
+    assert Image.open(io.BytesIO(result)).size == (400, 200)
+    assert '宽高比 3:4' in service.generate_image.call_args.args[0]
+
+
 SAMPLE_HTML = """
 <html><head>
 <meta property="og:title" content="身家1270亿，中国新晋女首富诞生" />
