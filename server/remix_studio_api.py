@@ -95,10 +95,17 @@ def revise(job_id:str,payload:Revise,request:Request):
 
 
 @router.get('/history')
-def history(request:Request):
+def history(request:Request,before:str=''):
     user=accounts.require_user(request)
-    return {'jobs':[public(job) for job in accounts.list_jobs(limit=100,user_id=user['id'])
-        if job['type']==jobs.TASK_TYPE and (json.loads(job.get('payload_json') or '{}').get('idea') or {}).get('studio')]}
+    sql='SELECT * FROM jobs WHERE user_id=? AND type=? AND payload_json LIKE ?'
+    params=[user['id'],jobs.TASK_TYPE,'%"studio":%']
+    if before:
+        cursor=own(before,user)
+        sql+=' AND (created_at<? OR (created_at=? AND id<?))'
+        params.extend([cursor['created_at'],cursor['created_at'],cursor['id']])
+    with accounts._connect() as db:
+        rows=[dict(row) for row in db.execute(sql+' ORDER BY created_at DESC,id DESC LIMIT 41',params).fetchall()]
+    return {'jobs':[public(job) for job in rows[:40]],'next_before':rows[39]['id'] if len(rows)>40 else None}
 
 
 @router.get('/jobs/{job_id}')
