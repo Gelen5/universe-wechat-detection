@@ -30,7 +30,10 @@ def job_key(session_id: str, idea: dict[str, Any]) -> str:
 def count_cards(idea: dict[str, Any]) -> int:
     cards = idea.get('cards')
     if cards is None:          # 没给计划时按单张处理（与 creator_tools 一致）
-        cards = [idea]
+        count = idea.get('page_count', 1)
+        if not isinstance(count, int) or isinstance(count, bool) or not 1 <= count <= accounts.VIRAL_REMIX_MAX_CARDS:
+            raise ValueError('方案页数须为1到8张')
+        return count
     if not isinstance(cards, list) or not 1 <= len(cards) <= accounts.VIRAL_REMIX_MAX_CARDS:
         raise ValueError('原创卡片数量须为1到8张')
     return len(cards)
