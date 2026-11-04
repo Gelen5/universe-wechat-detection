@@ -84,8 +84,9 @@ class ImageBoardTests(unittest.TestCase):
             with patch.dict(os.environ, {'VIRAL_INSIGHTS_PAYWALL_ENABLED': '0'}), TestClient(app) as client:
                 data = client.get('/api/image-board').json()
                 self.assertEqual((200, 132, 68), (data['total'], data['primary_count'], data['fallback_count']))
-                self.assertTrue(all(not item['is_fallback'] for item in data['items'][:132]))
-                self.assertTrue(all(item['is_fallback'] for item in data['items'][132:]))
+                self.assertEqual(sorted((item['read_num'] for item in data['items']), reverse=True),
+                                 [item['read_num'] for item in data['items']])
+                self.assertTrue(data['items'][0]['is_fallback'])
                 for sort in ('share', 'time'):
                     ordered = client.get(f'/api/image-board?sort={sort}').json()['items']
                     self.assertTrue(all(not item['is_fallback'] for item in ordered[:132]))
@@ -97,10 +98,10 @@ class ImageBoardTests(unittest.TestCase):
             with patch.dict(os.environ, {'VIRAL_INSIGHTS_PAYWALL_ENABLED': '1'}), TestClient(app) as client:
                 image_board.COVER_CACHE.clear()
                 preview = client.get('/api/image-board').json()['items']
-                self.assertEqual('new 131', preview[0]['title_preview'])
+                self.assertEqual('old 199', preview[0]['title_preview'])
                 with patch.object(image_board, '_cover_fetch', return_value=(b'img', 'image/png')) as fetch:
                     self.assertEqual(200, client.get(preview[0]['cover_url']).status_code)
-                    self.assertTrue(fetch.call_args.args[0].endswith('new-131'))
+                    self.assertTrue(fetch.call_args.args[0].endswith('old-199'))
                 image_board.COVER_CACHE.clear()
         engine.dispose()
 

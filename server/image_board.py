@@ -351,7 +351,7 @@ def _board_pool(session, stat_date: str) -> list[ImageBoardItem]:
 
 
 def _read_rank(row):
-    return (row.read_num >= MIN_READ, row.stat_date, row.read_num, row.share_num, row.sn)
+    return (row.read_num, row.stat_date, row.share_num, row.sn)
 
 
 @router.get("/api/image-board/preview-cover")
