@@ -39,9 +39,12 @@ def validate_reference(source):
     if not match: raise ValueError('请上传PNG、JPEG或WebP图片')
     raw=base64.b64decode(match[2],validate=True)
     if len(raw)>10*1024*1024: raise ValueError('每张图片最大10MB')
-    with Image.open(io.BytesIO(raw)) as image:
-        if image.width*image.height>40_000_000: raise ValueError('图片像素过大，请缩小后上传')
-        image.verify()
+    try:
+        with Image.open(io.BytesIO(raw)) as image:
+            if image.width*image.height>40_000_000: raise ValueError('图片像素过大，请缩小后上传')
+            image.verify()
+    except (OSError,Image.DecompressionBombError) as exc:
+        raise ValueError('图片无法读取，请重新上传完整图片') from exc
     return source
 
 
