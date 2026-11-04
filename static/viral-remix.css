@@ -81,6 +81,7 @@
 .remix-history-card img{object-fit:contain!important}
 .remix-design-preview{box-sizing:border-box;min-height:440px;height:auto;aspect-ratio:auto;overflow:visible;flex-shrink:0}.remix-design-preview>strong{overflow-wrap:anywhere}.remix-design-preview>div{flex-shrink:0}.remix-design-preview>small{display:block;line-height:1.6}
 .viral-idea .remix-design-preview>strong{color:inherit!important}.viral-idea .remix-design-0{color:#ffffff}.viral-idea .remix-design-1{color:#252c35}.viral-idea .remix-design-2{color:#152944}
+.viral-idea .remix-design-0{background:#fff7cb;color:#141414}.remix-design-0>strong{background:#ffe500;padding:10px;border-radius:6px}.remix-design-0 i{background:#168aca}
 .remix-source-review{padding:18px;background:#f1f8f3;border-radius:14px;margin:0 0 20px}.remix-source-review summary{cursor:pointer;font-weight:650;line-height:1.6}.remix-source-review dl{margin:16px 0;max-height:460px;overflow:auto}.remix-source-review dl>div{display:flex;justify-content:space-between;gap:20px;padding:10px 4px;border-bottom:1px solid #d7e8dd}.remix-source-review dd{margin:0;font-variant-numeric:tabular-nums}
 .remix-source-review input{width:48%;min-width:0;padding:9px 10px;border:1px solid #c8dece;background:#fff;border-radius:8px;color:#244b39;font:inherit}
 #viral-remix .viral-notice:has(#viral-preserve-person){display:flex;align-items:center;gap:10px}#viral-remix #viral-preserve-person{appearance:auto;display:inline-block;flex:0 0 20px;width:20px!important;height:20px!important;min-height:20px;padding:0;margin:0;accent-color:#237d57}

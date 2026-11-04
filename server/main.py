@@ -1224,7 +1224,7 @@ def generate_viral_remix_image(payload: ViralRemixImageRequest, request: Request
             if dataset:
                 creator_tools.validate_remix_dataset(dataset)
                 from . import remix_design
-                payload.idea = {**payload.idea, 'data_contract': dataset, 'cards': remix_design.pages(dataset)}
+                payload.idea = {**payload.idea, 'data_contract': dataset, 'cards': remix_design.pages(dataset,payload.idea.get('design_style') or payload.idea.get('id') or 'A')}
             payload.idea = {**payload.idea, 'text_policy': creator_tools.remix_text_policy(session.get('goal') or '')}
             text_mode = (payload.idea.get('choices') or {}).get('textMode')
             if text_mode in ('正常文字','封面不要标题文字','整组无字'):

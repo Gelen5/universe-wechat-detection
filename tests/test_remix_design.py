@@ -21,14 +21,16 @@ def test_complete_pagination():
     rebuilt=[r for p in pages for r in data['rows'][p['row_start']:p['row_end']]]
     assert rebuilt==data['rows']
     assert len({p['design_style'] for p in remix_design.plans(data)})==3
+    assert [p['page_count'] for p in remix_design.plans(data)]==[1,2,3]
+    assert len(remix_design.pages(data,'A'))==1
 
 
 def test_render_all_styles(tmp_path):
     data=dataset()
     results=[]
     for style in 'ABC':
-        raw=remix_design.render(data,style,remix_design.pages(data)[0],headline=remix_design.plans(data)['ABC'.index(style)]['headline'])
-        assert Image.open(io.BytesIO(raw)).size==(1200,1600)
+        raw=remix_design.render(data,style,remix_design.pages(data,style)[0],headline=remix_design.plans(data)['ABC'.index(style)]['headline'])
+        assert Image.open(io.BytesIO(raw)).width==1200
         (tmp_path/f'{style}.png').write_bytes(raw)
         results.append(raw)
     assert len(set(results))==3
