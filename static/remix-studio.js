@@ -4,7 +4,7 @@
   const $ = s => document.querySelector(s);
   const root = $('#viral-remix-result');
   if (!root) return;
-  let owner = null, epoch = 0, busy = false, current = null;
+  let owner = null, epoch = 0, busy = false, current = null, retryCreate = null;
   const choices = new Set();
   const requestId = () => crypto.randomUUID ? crypto.randomUUID() : Array.from(crypto.getRandomValues(new Uint8Array(20)),value=>value.toString(16).padStart(2,'0')).join('');
   const active = job => ['queued', 'running'].includes(job.status);
@@ -35,11 +35,14 @@
       const chip=button(label,()=>{selected.has(id)?selected.delete(id):selected.add(id);chip.setAttribute('aria-pressed',String(selected.has(id)));});chip.setAttribute('aria-pressed','false');chips.append(chip);
     }
     const field=node('label','补充修改要求'), input=node('textarea');input.maxLength=1200;input.placeholder='例如：标题放大，突出第一名；其他数据和配色保留。';field.append(input);
+    let retryRevision=null;
     const send=button('按要求修改这张图 →',async()=>{
       if(busy)return;
       if(!input.value.trim()&&!selected.size){input.focus();return;}
       const token=epoch;lock(true);send.disabled=true;
-      try{const data=await api(encodeURIComponent(job.id)+'/revise',{goal:input.value.trim(),options:[...selected],requestId:requestId()});if(token!==epoch)return;await track(data.job,token);}
+      const content={goal:input.value.trim(),options:[...selected]};
+      if(!retryRevision||retryRevision.signature!==JSON.stringify(content))retryRevision={signature:JSON.stringify(content),id:requestId()};
+      try{const data=await api(encodeURIComponent(job.id)+'/revise',{...content,requestId:retryRevision.id});if(token!==epoch)return;await track(data.job,token);}
       catch(error){if(token===epoch){showToast(error.message,'error');send.disabled=false;}}
       finally{if(token===epoch)lock(false);}
     });
@@ -61,7 +64,11 @@
     try{
       const imageData=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(new Error('图片读取失败'));reader.readAsDataURL(viralFiles[0]);});
       if(token!==epoch)return;
-      const data=await api('create',{imageData,goal:$('#viral-remix-goal').value.trim(),options:[...choices],requestId:requestId()});
+      const content={imageData,goal:$('#viral-remix-goal').value.trim(),options:[...choices]};
+      const signature=JSON.stringify(content);
+      if(!retryCreate||retryCreate.signature!==signature)retryCreate={signature,id:requestId()};
+      const data=await api('create',{...content,requestId:retryCreate.id});
+      retryCreate=null;
       if(token===epoch)await track(data.job,token);
     }catch(error){if(token===epoch)showToast(error.message,'error');}finally{if(token===epoch)lock(false);}
   }
@@ -75,7 +82,7 @@
     }catch(error){if(token===epoch)showToast(error.message,'error');}
   });
   $('#viral-remix-form').after(historyButton);
-  async function syncOwner(){const next=currentAccount?.id||null;if(next===owner)return;owner=next;const token=++epoch;current=null;lock(false);root.replaceChildren();root.hidden=true;$('#viral-remix-empty').hidden=false;
+  async function syncOwner(){const next=currentAccount?.id||null;if(next===owner)return;owner=next;const token=++epoch;current=null;retryCreate=null;lock(false);root.replaceChildren();root.hidden=true;$('#viral-remix-empty').hidden=false;
     if(!owner)return;const id=localStorage.getItem(key());if(!id)return;
     try{const data=await api('jobs/'+encodeURIComponent(id));if(token!==epoch)return;lock(true);await track(data.job,token);}catch{}finally{if(token===epoch)lock(false);}
   }
