@@ -69,7 +69,7 @@
 <link rel="stylesheet" href="/static/brand-galaxy.css?v=20261025-galaxy-1" />
 <link rel="stylesheet" href="/static/mobile-creator.css?v=20261104-inspiration-1" />
 <link rel="stylesheet" href="/static/points-notice.css?v=20261103-packages-2" />
-<link rel="stylesheet" href="/static/auth-mint.css?v=20261104-welcome-1" />
+<link rel="stylesheet" href="/static/auth-mint.css?v=20261104-retry-1" />
 <script src="/static/points-notice.js?v=20261103-packages-2" defer></script>
 <link rel="stylesheet" href="/static/viral-remix.css?v=20261103-full-frame-1">
 <link rel="stylesheet" href="/static/sticker-extract.css?v=20261103-glass-4">
@@ -200,7 +200,7 @@
             </div>
             <label for="auth-password">密码</label>
             <div class="auth-password-wrap"><input id="auth-password" type="password" minlength="8" maxlength="128" autocomplete="current-password" placeholder="至少 8 位" required><button id="auth-password-toggle" type="button" aria-label="显示密码" aria-pressed="false" aria-controls="auth-password">显示</button></div>
-            <div id="auth-challenge" hidden><div class="auth-verification-head"><span>安全验证</span><small class="auth-verification-note">验证通过后即可继续</small></div><div id="auth-challenge-widget"></div></div>
+            <div id="auth-challenge" hidden><div class="auth-verification-head"><span>安全验证</span><small class="auth-verification-note" role="status" aria-live="polite">验证通过后即可继续</small></div><div id="auth-challenge-widget"></div><button id="auth-challenge-retry" type="button" hidden>重新验证</button></div>
             <div id="auth-email-code-field" hidden><label for="auth-email-code">邮箱验证码</label><div><input id="auth-email-code" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="6 位验证码"><button id="auth-send-code" type="button">发送验证码</button></div><small id="auth-code-status" role="status" aria-live="polite"></small></div>
             <details id="auth-optional" class="auth-optional" hidden><summary>昵称与邀请码 <span>选填</span></summary><div class="auth-optional-content"><label id="display-name-field" hidden>昵称（选填）<input id="auth-display-name" type="text" maxlength="40" autocomplete="name" placeholder="怎么称呼你"></label><div id="invite-code-field" hidden><label for="auth-invite-code">邀请码（选填）</label><input id="auth-invite-code" type="text" maxlength="16" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="输入好友邀请码"><small class="invite-hint">邀请奖励以活动实际规则为准。</small></div></div></details>
             <p id="auth-error" class="auth-error" role="alert" hidden></p>
@@ -1116,7 +1116,7 @@
 
     <script src="/static/vendor/lucide.min.js"></script>
     <script src="/static/market.js?v=20261026-loading-1" defer></script>
-    <script src="/static/auth-challenge.js?v=20261031-glass-2"></script>
+    <script src="/static/auth-challenge.js?v=20261104-retry-1"></script>
     <script src="/static/wechat-plus.js?v=20261104-guest-input-1"></script>
     <dialog id="creation-history-dialog" class="remix-history-dialog"><div class="remix-history-header"><div><h2>历史创作</h2><p>选择一条记录继续查看。</p></div><button type="button" id="creation-history-close" aria-label="关闭">×</button></div><div data-history-content aria-live="polite"></div></dialog>
     <script src="/static/creation-history.js?v=20261101-1"></script>

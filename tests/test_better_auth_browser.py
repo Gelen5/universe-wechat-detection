@@ -51,6 +51,34 @@ def test_backup_link_loads_registration_without_exposing_otp_or_auto_creating_ac
     assert '/api/auth/register' not in state['requests']
 
 
+def test_turnstile_failure_before_submit_shows_retry_and_recovers(ui):
+    page, _ = ui
+    reports, sent = [], []
+    page.route('**/api/auth/me', lambda r:r.fulfill(status=401,json={'detail':'请登录'}))
+    page.route('**/api/auth/config', lambda r:r.fulfill(json={'email_verification_required':True,'turnstile_site_key':'synthetic'}))
+    page.route('https://challenges.cloudflare.com/turnstile/**', lambda r:r.fulfill(content_type='application/javascript',body='''
+      window.turnstile={render:(host,options)=>{window.widgetOptions=options;setTimeout(()=>options['error-callback']('600010'),0);return 'widget';},
+        remove:()=>{},reset:()=>setTimeout(()=>window.widgetOptions.callback('recovered-token'),0)};
+      window.universeTurnstileReady();
+    '''))
+    page.route('**/api/auth/challenge-diagnostic',lambda r:(reports.append(r.request.post_data_json),r.fulfill(status=204,body='')))
+    page.route('**/api/auth/email-code',lambda r:(sent.append(r.request.post_data_json),r.fulfill(json={'status':'success'})))
+    page.goto('http://ui.test/?register=1')
+    page.locator('#auth-email').fill('private@example.test')
+    expect(page.locator('#auth-challenge-retry')).to_be_visible()
+    expect(page.locator('.auth-verification-note')).to_contain_text('600010')
+    page.locator('#auth-send-code').click()
+    expect(page.locator('#auth-error')).to_contain_text('重新验证')
+    assert not sent
+    assert reports == [{'code':'600010','action':'register_email'}]
+    page.locator('#auth-challenge-retry').click()
+    expect(page.locator('#auth-challenge-retry')).to_be_hidden()
+    page.locator('#auth-send-code').click()
+    expect(page.locator('#auth-send-code')).to_contain_text('秒后重发')
+    assert sent[0]['turnstile_token'] == 'recovered-token'
+    assert page.locator('#auth-email').input_value() == 'private@example.test'
+
+
 @pytest.mark.parametrize('width',[320,390,1440])
 def test_registration_controls_fit_glass_panel(ui,width):
     page,_=ui
