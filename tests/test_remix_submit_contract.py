@@ -24,7 +24,7 @@ def test_submission_uses_server_dataset_and_exact_reservation_pages(monkeypatch)
     monkeypatch.setattr(viral_remix_tasks,'dispatch',lambda *args:None)
     main.generate_viral_remix_image(main.ViralRemixImageRequest(sessionId='valid-session',idea={'id':'A','data_contract':{'rows':[]}}),SimpleNamespace())
     assert len(captured[0]['data_contract']['rows'])==31
-    assert len(captured[0]['cards'])==3
+    assert len(captured[0]['cards'])==1
     assert captured[0]['source_fingerprint']
 
 

@@ -1472,7 +1472,7 @@ function renderViralRemix(result, sessionId) {
         if (i === 0) { const values=(result.data_contract.rows || []).map(r=>Number(String(r.value).replaceAll(',',''))); const value=values[n], maximum=Math.max(...values.filter(Number.isFinite)); if(Number.isFinite(value)&&maximum>0){const bar=document.createElement('i');bar.style.width=`${Math.max(0,value/maximum*100)}%`;line.append(bar);} }
         preview.append(line);
       });
-      const note = document.createElement('small'); note.textContent = `布局示意 · 完整 ${result.data_contract.rows.length} 项 · ${Math.ceil(result.data_contract.rows.length / 12)} 张`;
+      const note = document.createElement('small'); note.textContent = `布局示意 · 完整 ${result.data_contract.rows.length} 项 · ${(result.ideas||[])[i]?.page_count||1} 张`;
       preview.append(note); card.prepend(preview);
     });
   }

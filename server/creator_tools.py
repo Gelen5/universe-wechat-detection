@@ -181,6 +181,9 @@ A延续构图换实质素材；B换布局但保留视觉层次；C补同目的�
     if dataset:
         from . import remix_design
         data['ideas'] = remix_design.plans(dataset)
+    elif len(images)==1:
+        data['ideas'][0]['page_count']=1
+        data['ideas'][0]['summary']='单张完整呈现；'+str(data['ideas'][0].get('summary') or '')
     data['verification'] = {'status': 'not_needed', 'message': '这组没有需要核实的数字'}
     if data.get('claims'):
         data['verification'] = {'status':'pending','message':'参考图含待核实声明，核实单独执行，不阻塞方案选择；生成默认不使用这些数字。'}
@@ -246,7 +249,7 @@ def prepare_remix_cards(session_id: str, idea: dict[str, Any]):
         from . import remix_design
         directory = OUTPUT_DIR / 'tie-tu' / re.sub(r'[^a-zA-Z0-9_-]', '', session_id)[:64]
         directory.mkdir(parents=True, exist_ok=True)
-        return remix_design.pages(dataset), idea, directory
+        return remix_design.pages(dataset,idea.get('design_style') or idea.get('id') or 'A'), idea, directory
     if idea.get('choices') or not idea.get('cards'):
         try:
             expansion_input = {k:v for k,v in idea.items() if k not in ('person_reference','product_reference')}
@@ -301,8 +304,9 @@ def generate_remix_card(idea: dict[str, Any], page: dict[str, Any], index: int,
                  'row_start':page['row_start'],'row_end':page['row_end'],
                  'style':idea.get('design_style') or idea.get('id'), 'check_passed':True}
         (directory / f'case-{index:02d}.json').write_text(json.dumps(audit,ensure_ascii=False),encoding='utf-8')
+        with Image.open(out) as finished: actual_width,actual_height=finished.size
         return {'index':index,'url':f'/api/creator-tools/assets/tie-tu/{directory.name}/{out.name}',
-                'width':1200,'height':1600,'check_passed':True,'text_rendering':'exact-data',
+                'width':actual_width,'height':actual_height,'check_passed':True,'text_rendering':'exact-data',
                 'check':f'完整绘制第 {page["row_start"]+1}—{page["row_end"]} 项；名称、数值与原始底稿一致'}
     contract = idea.get('visual_contract') or {}
     text = {key:str(page.get(key) or '') for key in ('headline','accent_text','subtitle')}
