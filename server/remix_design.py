@@ -62,13 +62,26 @@ def render(dataset, style, page, headline=None):
     start, end = page['row_start'], page['row_end']
     rows = dataset['rows'][start:end]
     draw.rounded_rectangle((60,64,1140,78),radius=7,fill=accent)
-    if style=='A': draw.rounded_rectangle((40,70,1160,265),radius=12,fill=accent)
+    if style=='A': draw.rectangle((40,50,1160,240),fill=accent)
     heading=headline or dataset.get('title') or '数据对比'
     pieces=re.split('[，：]',heading,maxsplit=1)
     if len(pieces)==1 and len(heading)>16: pieces=[heading[:14],heading[14:]]
-    for line,value in enumerate(pieces): text(60,100+line*78,value,64)
+    if style=='A':
+        # Headline is a display mark, not body text: heavy, compressed and optically fitted.
+        title=re.sub('[，：\\s]','',heading)
+        title_font=ImageFont.truetype(bold_path,160)
+        mask=Image.new('L',(max(2400,len(title)*180),240),0)
+        mark=ImageDraw.Draw(mask)
+        mark.text((10,0),title,font=title_font,fill=255,stroke_width=2)
+        bounds=mask.getbbox()
+        if not bounds: raise ValueError('标题为空，无法绘制')
+        mark_image=mask.crop(bounds).resize((1020,128),Image.Resampling.LANCZOS)
+        skewed=mark_image.transform((1050,128),Image.Transform.AFFINE,(1,.15,-19,0,1,0),resample=Image.Resampling.BICUBIC)
+        image.paste(ink,(70,80),skewed)
+    else:
+        for line,value in enumerate(pieces): text(60,100+line*78,value,64)
     text(60,280,dataset.get('title') or ' / '.join(str(dataset.get(k) or '') for k in ('period','unit')),30,ink)
-    text(60,335,f'完整数据 · 第 {start+1}—{end} 项 / 共 {len(dataset["rows"])} 项',26)
+    if style!='A': text(60,335,f'完整数据 · 第 {start+1}—{end} 项 / 共 {len(dataset["rows"])} 项',26)
     numbers=[]
     for row in dataset['rows']:
         raw = str(row['value']).replace(',','')
@@ -80,17 +93,16 @@ def render(dataset, style, page, headline=None):
     for i,row in enumerate(rows):
         absolute=start+i
         if mode == 'bar':
-            step=(height-620)/max(1,len(rows))
-            y=420+i*step
-            text(60,y,str(absolute+1).zfill(2),26,ink,70)
-            text(130,y,row['label'],36,width=220)
+            step=(height-560)/max(1,len(rows))
+            y=350+i*step
+            text(60,y,row['label'],36,width=190)
             value=numbers[absolute]
             if value is not None and maximum > 0:
-                length=round(value/maximum*640)
+                length=round(value/maximum*710)
                 colors=['#1463b5','#168aca','#1cb4c1','#50b87b','#e2bd20','#e58a29','#c65a80','#8d55ad']
-                if length: draw.rounded_rectangle((350,y+5,350+length,y+34),radius=4,fill=colors[absolute%len(colors)])
+                if length: draw.rounded_rectangle((260,y+5,260+length,y+36),radius=3,fill=colors[absolute%len(colors)])
             else: length=0
-            text(370+length,y,row['value'],36,width=180)
+            text(280+length,y,row['value'],36,width=180)
         elif mode == 'editorial':
             y=410+i*((height-600)/max(1,len(rows)))
             text(60,y,f'{absolute+1:02d}',26,accent,75)
