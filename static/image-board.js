@@ -36,9 +36,6 @@
              data-fallback="${esc((item.title || '图').slice(0, 2))}">`
       : `<span class="ib-fallback">${esc((item.title || '图').slice(0, 2))}</span>`;
     const low = item.lowfans;
-    const boost = low && low.boost_ratio
-      ? `<span class="ib-boost">低粉 ${Number(low.boost_ratio).toFixed(1).replace(/\.0$/, '')}×</span>`
-      : '';
     const canExtract = /^https:\/\/mp\.weixin\.qq\.com\/s(?:\/|\?)/i.test(item.art_url || '');
     const facts = [
       `<em>${item.image_num || 0} 图</em>`,
@@ -55,7 +52,7 @@
         <span class="ib-kind">${item.image_first ? '图为主' : '图文'}</span>
         <div class="ib-onimg">
           <span class="ib-read">${fmt(item.read_num)}<small>阅读</small></span>
-          <span class="ib-share">${fmt(item.share_num)} 分享${boost ? ' ' + boost : ''}</span>
+          <span class="ib-share">${fmt(item.share_num)} 分享</span>
         </div>
       </div>
       <div class="ib-body">
@@ -67,7 +64,6 @@
           <a class="ib-act" href="${esc(item.art_url)}" target="_blank"
              rel="noopener noreferrer">看原文</a>
           ${canExtract ? `<button type="button" class="ib-act ib-extract" data-ib-extract="${esc(item.art_url)}">一键提取并复刻 →</button>` : ''}
-          ${low ? '<a class="ib-act is-primary ib-similar" href="/lowfans">看同榜</a>' : ''}
         </div>
       </div>
     </article>`;
