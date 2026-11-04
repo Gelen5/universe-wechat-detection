@@ -14,17 +14,15 @@ def test_three_previews_and_history_are_readable(ui,width,tmp_path):
             'data_contract':dataset(),'pages':[],'claims':[]}
     page.evaluate('''result=>{currentAccount={id:'test-user'};setActiveView('viral-remix',true);renderViralRemix(result,'qa-session-v2');}''',result)
     page.get_by_role('tab',name='02 翻新方案').click()
-    expect(page.locator('.remix-design-preview')).to_have_count(3)
-    expect(page.locator('.remix-design-preview').first).to_contain_text('29.3')
+    expect(page.locator('.viral-idea')).to_have_count(3)
+    expect(page.locator('.remix-design-preview')).to_have_count(0)
     assert page.locator('[name=remix-boundaries]').input_value()=='无额外禁区'
     assert page.evaluate('document.documentElement.scrollWidth<=innerWidth+1')
-    for preview in page.locator('.remix-design-preview').all():
-        assert preview.evaluate('(e)=>e.scrollHeight<=e.clientHeight+1')
     page.screenshot(path=str(tmp_path/f'previews-{width}.png'),full_page=True)
     # Saved source data remains intact when re-opening history.
     page.evaluate('''result=>renderViralRemix(result,'qa-session-v2')''',result)
     page.get_by_role('tab',name='02 翻新方案').click()
-    expect(page.locator('.remix-design-preview')).to_have_count(3)
+    expect(page.locator('.viral-idea')).to_have_count(3)
     page.locator('[name=remix-strength]').select_option('克制')
     page.locator('[name=remix-textMode]').select_option('正常文字')
     page.route('**/api/viral-remix/image',lambda route:route.fulfill(status=422,json={'detail':'验收请求已收到'}))

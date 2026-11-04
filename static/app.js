@@ -1461,31 +1461,7 @@ function renderViralRemix(result, sessionId) {
   if (instructions) instructions.textContent = '选择方案后生成。数据图按原始底稿精确排版；人物保留模式使用原图参考。';
   if (result.data_contract) {
     root.querySelector('.result-section-title span').textContent = '保留完整数据，选择不同视觉方向';
-    root.querySelectorAll('.viral-idea').forEach((card, i) => {
-      const preview = document.createElement('div'); preview.className = `remix-design-preview remix-design-${i}`;
-      const title = document.createElement('strong'); title.textContent = (result.ideas||[])[i]?.headline || result.data_contract.title || '数据对比'; preview.append(title);
-      (result.data_contract.rows || []).slice(0, 5).forEach((row, n) => {
-        const line = document.createElement('div');
-        const label = document.createElement('span'); label.textContent = row.label;
-        const value = document.createElement('b'); value.textContent = row.value;
-        line.append(label, value);
-        if (i === 0) { const values=(result.data_contract.rows || []).map(r=>Number(String(r.value).replaceAll(',',''))); const value=values[n], maximum=Math.max(...values.filter(Number.isFinite)); if(Number.isFinite(value)&&maximum>0){const bar=document.createElement('i');bar.style.width=`${Math.max(0,value/maximum*100)}%`;line.append(bar);} }
-        preview.append(line);
-      });
-      const note = document.createElement('small'); note.textContent = `布局示意 · 完整 ${result.data_contract.rows.length} 项 · ${(result.ideas||[])[i]?.page_count||1} 张`;
-      preview.append(note); card.prepend(preview);
-    });
   }
-  if (!result.data_contract) root.querySelectorAll('.viral-idea').forEach((card,i)=>{
-    const idea=(result.ideas||[])[i]||{}, preview=document.createElement('div');
-    preview.className=`remix-design-preview remix-layout-preview remix-layout-${i}`;
-    const palette=Array.isArray(idea.palette)?idea.palette.filter(c=>/^#[0-9a-f]{6}$/i.test(c)):[];
-    if(palette[0])preview.style.background=palette[0];
-    const title=document.createElement('strong');title.textContent=idea.headline||idea.name||'视觉方案';
-    const subject=document.createElement('div');subject.className='remix-layout-subject';subject.textContent=idea.visual_focus||'主体画面';
-    const note=document.createElement('small');note.textContent=`布局示意 · ${idea.page_count||1} 张 · ${idea.layout||idea.summary||'按方案设计'}`;
-    preview.append(title,subject,note);card.prepend(preview);
-  });
   if(result.content_core){
     const details=document.createElement('details');details.className='remix-source-review';
     const summary=document.createElement('summary');summary.textContent='本次保留的事实、步骤与规格';details.append(summary);
