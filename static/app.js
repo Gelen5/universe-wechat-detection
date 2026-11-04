@@ -1438,9 +1438,16 @@ function renderViralRemix(result, sessionId) {
     const summary=document.createElement('summary');summary.textContent=`核对原图数据：${result.data_contract.rows.length} 项（未独立核实）`;
     details.append(summary);
     const list=document.createElement('dl');
-    result.data_contract.rows.forEach(row=>{const entry=document.createElement('div'),label=document.createElement('dt'),value=document.createElement('dd');label.textContent=row.label;value.textContent=row.value;entry.append(label,value);list.append(entry);});
+    result.data_contract.rows.forEach(row=>{const entry=document.createElement('div'),label=document.createElement('input'),value=document.createElement('input');label.value=row.label;label.setAttribute('aria-label','名称');label.dataset.dataLabel='';value.value=row.value;value.setAttribute('aria-label','数值');value.dataset.dataValue='';entry.append(label,value);list.append(entry);});
     details.append(list);context.prepend(details);
-    const explanation=document.createElement('p');explanation.textContent='请先核对拆解报告中的全部数据。生成会沿用原图数据并标注未独立核实；若有识别错误，请换清晰图片重新拆解。';
+    const confirm=document.createElement('button');confirm.type='button';confirm.className='remix-next';confirm.textContent='确认 / 修正以上数据';
+    confirm.onclick=async()=>{confirm.disabled=true;try{
+      const rows=[...list.children].map(entry=>({label:entry.querySelector('[data-data-label]').value.trim(),value:entry.querySelector('[data-data-value]').value.trim()}));
+      const response=await fetch(`/api/viral-remix/sessions/${encodeURIComponent(sessionId)}/data`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({dataset:{...result.data_contract,rows},fingerprint:result.source_fingerprint})});
+      const data=await readApiResponse(response);storeDraft({generated:[],pending:false,selectedIdea:null});renderViralRemix(data.result,sessionId);showToast('数据已保存，旧成图仍在历史记录中，请按新数据生成。');
+    }catch(error){showToast(error.message,'error');}finally{confirm.disabled=false;}};
+    details.append(confirm);
+    const explanation=document.createElement('p');explanation.textContent='请先核对拆解报告中的全部数据，可直接修正识别错误。生成沿用确认的原图数据，并标注未独立核实。';
     root.querySelector('.viral-ideas .result-section-title').after(explanation);
   }
   const boundary = context.querySelector('[name=remix-boundaries]');

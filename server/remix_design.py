@@ -60,6 +60,9 @@ def render(dataset, style, page):
         raw = str(row['value']).replace(',','')
         numbers.append(float(raw) if re.fullmatch(r'\d+(?:\.\d+)?', raw) else None)
     maximum = max((v for v in numbers if v is not None),default=0)
+    if mode == 'bar' and (any(v is None for v in numbers) or maximum <= 0):
+        # Ranges, signed numbers and mixed units are not comparable bar lengths.
+        mode = 'editorial'
     for i,row in enumerate(rows):
         absolute=start+i
         if mode == 'bar':
