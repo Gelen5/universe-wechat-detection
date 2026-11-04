@@ -54,3 +54,15 @@ def test_empty_revision_and_unreadable_source_fail_before_charge(actor):
     with pytest.raises(HTTPException) as exc: api.create(request,SimpleNamespace())
     assert exc.value.status_code==422
     assert accounts.wallet_summary(actor['id'])['balance']==before
+
+
+def test_dispatch_failure_refunds_and_returns_terminal_job(actor,monkeypatch):
+    def fail(job_id): raise RuntimeError('broker unavailable')
+    monkeypatch.setattr(api.tasks,'dispatch',fail)
+    before=accounts.wallet_summary(actor['id'])['balance']
+    request=payload()
+    first=api.create(request,SimpleNamespace())['job']
+    assert first['status']=='failed'
+    assert accounts.wallet_summary(actor['id'])['balance']==before
+    assert api.create(request,SimpleNamespace())['job']['id']==first['id']
+    assert accounts.wallet_summary(actor['id'])['balance']==before
