@@ -35,14 +35,11 @@
       ? `<img src="${esc(item.cover_url)}" alt="" loading="lazy" decoding="async"
              data-fallback="${esc((item.title || '图').slice(0, 2))}">`
       : `<span class="ib-fallback">${esc((item.title || '图').slice(0, 2))}</span>`;
-    const low = item.lowfans;
     const canExtract = /^https:\/\/mp\.weixin\.qq\.com\/s(?:\/|\?)/i.test(item.art_url || '');
     const facts = [
       `<em>${item.image_num || 0} 图</em>`,
       `<em>${item.word_num || 0} 字</em>`,
-      item.is_fallback ? `<em>补充 · ${esc(item.stat_date)}</em>` : '',
       item.wx_type ? `<em>${esc(item.wx_type)}</em>` : '',
-      low ? `<em class="is-warm">${esc(low.wx_name || '')}</em>` : '',
     ].filter(Boolean).join('');
 
     return `<article class="ib-card">
