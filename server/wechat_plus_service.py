@@ -165,9 +165,13 @@ def _execute(state, message, generate, *, output_dir, progress,
     if isinstance(index, int) and not isinstance(index, bool):
         choices = state.get('choices', [])
         if index < 0 or index >= len(choices):
-            raise ValueError('所选选题不存在，请重新选择')
-        choice = choices[index]
-        select_topic(state, choice['title'], choice.get('angle') or choice.get('focus') or choice['title'])
+            selected = state.get('selected_topic') or {}
+            explicit_topic = decision.get('explicit_topic')
+            if choices or not isinstance(explicit_topic, str) or not explicit_topic.strip() or explicit_topic.strip() != str(selected.get('title') or '').strip():
+                raise ValueError('所选选题不存在，请重新选择')
+        else:
+            choice = choices[index]
+            select_topic(state, choice['title'], choice.get('angle') or choice.get('focus') or choice['title'])
     explicit = None if action == 'format' and existing_article.get('draft') else decision.get('explicit_topic')
     if isinstance(explicit, str) and explicit.strip():
         if article.get('topic') != explicit[:500]:

@@ -43,6 +43,21 @@ class NativeConversationTests(unittest.TestCase):
         self.assertEqual(state['preferences']['style'], '口语')
         self.assertEqual(state['choices'], [])
 
+    def test_stale_index_keeps_confirmed_topic_only_when_title_matches(self):
+        state = self.run_turn({}, '给普通人推荐 AI 选题', [
+            {'action':'topics','audience':'普通人','goal':'实用建议'},
+            {'topic':'AI 办公','angle':'整理资料','title_candidates':[
+                {'title':'整理材料','angle':'归类'}, {'title':'整理记录','angle':'核对'}]},
+        ])
+        state = self.run_turn(state, '选第二个', [
+            {'action':'answer','selected_topic_index':1,'reply':'已选。'}])
+        result = self.run_turn(state, '继续', [
+            {'action':'answer','selected_topic_index':1,'explicit_topic':'整理记录','reply':'继续。'}])
+        self.assertEqual(result['selected_topic']['title'], '整理记录')
+        with self.assertRaisesRegex(ValueError, '所选选题不存在'):
+            self.run_turn(state, '继续', [
+                {'action':'answer','selected_topic_index':1,'explicit_topic':'其他题目','reply':'继续。'}])
+
     def test_missing_intent_fields_are_repaired_before_recommending_topics(self):
         message = '我想写一篇关于普通人使用 AI 提高工作效率的公众号文章，先帮我推荐几个选题。'
         state = self.run_turn({}, message, [
