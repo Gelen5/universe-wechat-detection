@@ -39,6 +39,7 @@
     const boost = low && low.boost_ratio
       ? `<span class="ib-boost">低粉 ${Number(low.boost_ratio).toFixed(1).replace(/\.0$/, '')}×</span>`
       : '';
+    const canExtract = /^https:\/\/mp\.weixin\.qq\.com\/s(?:\/|\?)/i.test(item.art_url || '');
     const facts = [
       `<em>${item.image_num || 0} 图</em>`,
       `<em>${item.word_num || 0} 字</em>`,
@@ -65,7 +66,8 @@
         <div class="ib-actions">
           <a class="ib-act" href="${esc(item.art_url)}" target="_blank"
              rel="noopener noreferrer">看原文</a>
-          ${low ? '<a class="ib-act is-primary" href="/lowfans">看同榜</a>' : ''}
+          ${canExtract ? `<button type="button" class="ib-act ib-extract" data-ib-extract="${esc(item.art_url)}">一键提取并复刻 →</button>` : ''}
+          ${low ? '<a class="ib-act is-primary ib-similar" href="/lowfans">看同榜</a>' : ''}
         </div>
       </div>
     </article>`;
@@ -184,6 +186,16 @@
       if (state.reloadPending) { state.reloadPending = false; load(); }
     }
   }
+
+  $('#ib-grid').addEventListener('click', (event) => {
+    const button = event.target.closest('[data-ib-extract]');
+    if (!button) return;
+    if (!window.StickerExtract?.startFromArticle) {
+      if (typeof showToast === 'function') showToast('提取功能暂不可用，请稍后重试', 'error');
+      return;
+    }
+    window.StickerExtract.startFromArticle(button.dataset.ibExtract);
+  });
 
   /* ---------------------------------------------------------------- 事件 */
   $('#ib-tracks').addEventListener('click', (event) => {

@@ -541,3 +541,11 @@ body.atelier.image-board-body #image-board.ib-page {
   #image-board .ib-tail { width: 100%; margin-left: 0; }
   #image-board .ib-select { flex: 1 1 auto; }
 }
+
+#image-board .ib-act.ib-extract { flex: 2; padding: 6px 4px; background: #21744c; border-color: #21744c; color: #fff; font-weight: 600; text-align: center; line-height: 1.3; }
+#image-board .ib-act.ib-extract:hover { background: #195f3d; color: #fff; }
+@media (max-width: 640px) { #image-board .ib-actions { display: flex; } #image-board .ib-actions .ib-act:not(.ib-extract) { display: none; } #image-board .ib-act.ib-extract { min-height: 40px; font-size: 12px; } }
+
+#image-board .ib-actions { flex-wrap: wrap; }
+#image-board .ib-act.ib-extract { flex: 1 0 100%; order: 3; }
+@media (max-width: 640px) { #image-board .ib-actions .ib-act:not(.ib-extract) { display: inline-flex; } #image-board .ib-actions .ib-act.ib-similar { display: inline-flex; } }

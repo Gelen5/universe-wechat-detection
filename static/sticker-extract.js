@@ -73,5 +73,15 @@
     } catch (err) {if (sequence === epoch) {error.textContent = err.message || '提取失败，请稍后重试'; error.hidden = false;}}
     finally {busy = false; progress.hidden = true; input.readOnly = false; button.disabled = false; button.textContent = '开始提取 →';}
   });
+  window.StickerExtract = {
+    startFromArticle(url) {
+      window.AppNav?.setActiveView('sticker-extract', true);
+      if (busy) { toast('当前提取正在进行，请完成后再试', 'error'); return; }
+      input.value = url;
+      images = []; selected = new Set(); index = 0; result.replaceChildren(); result.hidden = true; empty.hidden = false;
+      error.hidden = true;
+      input.focus();
+    }
+  };
   window.addEventListener('account-changed', syncOwner); syncOwner();
 })();
