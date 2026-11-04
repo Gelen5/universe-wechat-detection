@@ -38,6 +38,9 @@ const logoutButton = document.querySelector('#logout-button');
 let currentAccount = null;
 let emailVerificationRequired = false;
 let authDismissed = false;
+let initialAccountChecked = false;
+const welcomeSeenKey = 'universe.guest-welcome-seen';
+function rememberWelcome() { try { localStorage.setItem(welcomeSeenKey, '1'); } catch {} }
 let registrationToken = '';
 const linkMatch = location.hash.match(/^#register=([a-f0-9]{64})$/);
 if (linkMatch) { registrationToken = linkMatch[1]; history.replaceState(null, '', location.pathname + location.search); }
@@ -328,10 +331,12 @@ document.querySelector('#auth-email')?.addEventListener('input', () => { documen
 
 function dismissAuth() {
   authDismissed = true;
+  rememberWelcome();
   hideAuth();
   document.querySelector('#logout-button')?.focus({preventScroll:true});
 }
 document.querySelector('#auth-close')?.addEventListener('click', dismissAuth);
+document.querySelector('#auth-browse')?.addEventListener('click', dismissAuth);
 // A later deliberate action in the workbench may require signing in again.
 // The close button's own bubbling event must not undo the dismissal.
 document.addEventListener('click', event => {
@@ -414,6 +419,7 @@ document.querySelector('#auth-form')?.addEventListener('submit', async event => 
     });
     const data = await readApiResponse(response);
     currentAccount = data.user;
+    rememberWelcome();
     window.dispatchEvent(new Event('account-changed'));
     syncAdminVisibility();
     renderWallet(data.wallet);
@@ -673,18 +679,24 @@ async function loadAccount() {
   try {
     const response = await fetch('/api/auth/me', { cache: 'no-store' });
     if (sequence !== accountReadSequence) return;
+    const firstCheck = !initialAccountChecked;
+    initialAccountChecked = true;
     if (!response.ok) {
       if (response.status === 401) {
         currentAccount = null;
         window.dispatchEvent(new Event('account-changed'));
         syncAdminVisibility();
         renderWallet({ balance: 0, trial: 0, bonus: 0, paid: 0 });
+        let seen = false;
+        try { seen = localStorage.getItem(welcomeSeenKey) === '1'; } catch {}
+        if (firstCheck && !seen && !registrationToken) showAuth();
       }
       return;
     }
     const data = await readApiResponse(response);
     if (sequence !== accountReadSequence) return;
     currentAccount = data.user;
+    rememberWelcome();
     window.dispatchEvent(new Event('account-changed'));
     syncAdminVisibility();
     renderWallet(data.wallet);

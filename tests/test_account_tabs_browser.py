@@ -111,8 +111,12 @@ def test_guest_can_browse_and_open_and_close_login(ui):
     page, _ = ui
     page.route('**/api/auth/me', lambda route: route.fulfill(status=401, json={'detail': '请先登录'}))
     page.goto('http://ui.test/workbench', wait_until='networkidle')
+    expect(page.locator('#auth-modal')).to_be_visible()
+    page.get_by_role('button', name='先逛逛，暂不登录').click()
     expect(page.locator('#auth-modal')).to_be_hidden()
     assert page.evaluate('currentAccount') is None
+    page.reload(wait_until='networkidle')
+    expect(page.locator('#auth-modal')).to_be_hidden()
     page.evaluate('openWallet()')
     expect(page.locator('#auth-modal')).to_be_visible()
     page.locator('#auth-close').click()

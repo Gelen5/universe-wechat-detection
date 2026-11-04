@@ -15,6 +15,7 @@ def test_guest_can_enter_input_and_action_opens_login(ui, view, input_selector, 
     page, state = ui
     page.route('**/api/auth/me', lambda route: route.fulfill(status=401, json={'detail': '请先登录'}))
     page.goto('http://ui.test/' + view, wait_until='networkidle')
+    page.get_by_role('button', name='先逛逛，暂不登录').click()
     page.evaluate('(view) => setActiveView(view)', view)
     field = page.locator(input_selector)
     expect(field).to_be_enabled()
@@ -37,6 +38,7 @@ def test_guest_input_survives_sign_in(ui, view, selector, value):
     page.route('**/api/auth/me', lambda route: route.fulfill(status=401, json={'detail': '请先登录'}))
     page.route('**/api/wechat-plus/sessions', lambda route: route.fulfill(json={'sessions': []}))
     page.goto('http://ui.test/' + view, wait_until='networkidle')
+    page.get_by_role('button', name='先逛逛，暂不登录').click()
     page.evaluate('(view) => setActiveView(view)', view)
     page.locator(selector).fill(value)
     page.evaluate("currentAccount = {id:'new-user', role:'user', display_name:'测试', email:'test@example.test'}; window.dispatchEvent(new Event('account-changed'))")
