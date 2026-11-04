@@ -117,11 +117,10 @@ def render(dataset, style, page, headline=None):
             text(x+22,y+58,row['value'],52,accent,470)
     footer=height-170
     draw.line((60,footer,1140,footer),fill=accent,width=2)
-    text(60,footer+25,'原图标注来源 · 未独立核实',26)
-    source=str(dataset.get('source_text') or '原图未标注来源')
+    source=str(dataset.get('source_text') or '')
     # Source notes wrap; they must never be silently truncated.
     chunks=[source[i:i+36] for i in range(0,len(source),36)]
     if len(chunks)>2: raise ValueError('来源说明过长，请精简后重试')
-    for i,chunk in enumerate(chunks): text(60,footer+65+i*36,chunk,24)
+    for i,chunk in enumerate(chunks): text(60,footer+25+i*36,chunk,24)
     output=io.BytesIO(); image.save(output,format='PNG')
     return output.getvalue()
