@@ -1,3 +1,4 @@
+import pytest
 from server import article_visual
 
 
@@ -237,3 +238,23 @@ def test_switch_angle_preserves_existing_images(tmp_path, monkeypatch):
     assert result["slots"][0]["headline"] == "1"
     assert original["images"]["cover"]["file"] == "cover.png"
     assert (tmp_path / result["id"] / "article.md").read_text(encoding="utf-8") == "original content"
+
+
+def test_sticker_page_reports_correct_format_instead_of_missing_article():
+    html = """<html><script>var picture_page_info_list: [
+      {cdn_url: 'https://mmbiz.qpic.cn/example/0'}];</script></html>"""
+    with pytest.raises(ValueError, match='这是贴图号图文'):
+        article_visual.parse_article_html(html)
+    with pytest.raises(ValueError, match='暂时无法读取文章正文'):
+        article_visual.parse_article_html('<html><script>picture_page_info_list: []</script></html>')
+
+
+def test_sticker_format_is_not_fetched_twice(monkeypatch):
+    class Response:
+        text = "<script>picture_page_info_list: [{cdn_url:'https://mmbiz.qpic.cn/example/0'}]</script>"
+        def raise_for_status(self): pass
+    calls = []
+    monkeypatch.setattr(article_visual.requests, 'get', lambda *a, **k: (calls.append(True), Response())[1])
+    with pytest.raises(ValueError, match='这是贴图号图文'):
+        article_visual.extract_article('https://mp.weixin.qq.com/s/sticker-example')
+    assert len(calls) == 1
