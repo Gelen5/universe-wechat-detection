@@ -1149,8 +1149,11 @@ def analyze_viral_remix(payload: ViralRemixAnalyzeRequest, request: Request):
     try:
         with workbench.provider_overrides():
             result = creator_tools.viral_remix_analysis(payload.imageData, payload.goal)
+        from . import remix_contract
+        ledger = remix_contract.build(result, payload.goal, payload.preservePerson)
+        result['content_type'] = ledger['category']
         if payload.sessionId:
-            accounts.save_workbench_session(accounts.require_user(request)['id'], {'id': payload.sessionId, 'conversation_skill': 'viral-remix', 'result': result, 'goal': payload.goal, 'preserve_person': payload.preservePerson, 'person_reference': (payload.imageData[0] if isinstance(payload.imageData, list) else payload.imageData) if payload.preservePerson else None})
+            accounts.save_workbench_session(accounts.require_user(request)['id'], {'id': payload.sessionId, 'conversation_skill': 'viral-remix', 'result': result, 'content_ledger':ledger, 'goal': payload.goal, 'preserve_person': payload.preservePerson, 'person_reference': (payload.imageData[0] if isinstance(payload.imageData, list) else payload.imageData) if payload.preservePerson else None})
         return {"status": "success", "result": result}
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
@@ -1168,6 +1171,10 @@ def generate_viral_remix_image(payload: ViralRemixImageRequest, request: Request
     user = accounts.require_user(request)
     try:
         session = accounts.load_workbench_session(payload.sessionId, user['id'])
+        if not session or session.get('conversation_skill') != 'viral-remix':
+            raise ValueError('创作记录不存在，请重新上传拆解')
+        from . import remix_contract
+        payload.idea = remix_contract.select(session, payload.idea)
         if session:
             analysis = session.get('result') or {}
             dataset = analysis.get('data_contract')
