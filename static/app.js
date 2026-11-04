@@ -1463,7 +1463,7 @@ function renderViralRemix(result, sessionId) {
     root.querySelector('.result-section-title span').textContent = '保留完整数据，选择不同视觉方向';
     root.querySelectorAll('.viral-idea').forEach((card, i) => {
       const preview = document.createElement('div'); preview.className = `remix-design-preview remix-design-${i}`;
-      const title = document.createElement('strong'); title.textContent = result.data_contract.title || '数据对比'; preview.append(title);
+      const title = document.createElement('strong'); title.textContent = (result.ideas||[])[i]?.headline || result.data_contract.title || '数据对比'; preview.append(title);
       (result.data_contract.rows || []).slice(0, 5).forEach((row, n) => {
         const line = document.createElement('div');
         const label = document.createElement('span'); label.textContent = row.label;
@@ -1486,6 +1486,15 @@ function renderViralRemix(result, sessionId) {
     const note=document.createElement('small');note.textContent=`布局示意 · ${idea.page_count||1} 张 · ${idea.layout||idea.summary||'按方案设计'}`;
     preview.append(title,subject,note);card.prepend(preview);
   });
+  if(result.content_core){
+    const details=document.createElement('details');details.className='remix-source-review';
+    const summary=document.createElement('summary');summary.textContent='本次保留的事实、步骤与规格';details.append(summary);
+    for(const [key,label] of [['facts','事实'],['steps','步骤'],['product_specs','规格'],['uncertain','待确认']]){
+      const values=result.content_core[key];if(!Array.isArray(values)||!values.length)continue;
+      const heading=document.createElement('h4');heading.textContent=label;details.append(heading);
+      values.forEach(value=>{const line=document.createElement('p');line.textContent=String(value);details.append(line);});
+    }context.prepend(details);
+  }
   if(result.claims?.length){const verify=document.createElement('button');verify.type='button';verify.className='remix-next';verify.textContent='单独核实参考图中的数字';const info=document.createElement('p');info.textContent=result.verification?.message||'数字待核实';context.append(info,verify);verify.onclick=async()=>{const finish=beginButton(verify,'正在核实数字…');try{const state=await postCreator('/api/viral-remix/verify',{claims:result.claims.slice(0,3).map(c=>typeof c==='string'?c:JSON.stringify(c))});info.textContent=`${state.message} · 用时${state.seconds}秒`;result.verification=state;storeDraft({});}catch(e){info.textContent=`核实未完成：${e.message}；生成仍会避开这些数字。`;}finally{finish();}};}
   const rawPages=context.querySelectorAll(':scope > p')[1];
   if(rawPages){const pages=document.createElement('div');pages.className='remix-page-list';(result.pages||[]).forEach((page,index)=>{const item=document.createElement('article');item.innerHTML=`<span class="tag">参考图 ${esc(page.page||index+1)}</span><h4>${esc(page.role||'内容页')}</h4><p>信息密度：${esc(page.density||'待判断')}</p><p>${esc(page.missing||'未发现明显缺口')}</p>`;pages.append(item);});rawPages.replaceWith(pages);}
