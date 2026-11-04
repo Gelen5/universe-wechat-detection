@@ -958,18 +958,58 @@ def active_job_count(user_id: str) -> int:
         return int(connection.execute("SELECT COUNT(*) FROM jobs WHERE user_id=? AND status IN ('queued','running')", (user_id,)).fetchone()[0])
 
 
-def recover_interrupted_jobs() -> int:
-    """Refund only jobs that were actually running when the worker stopped.
+# 只有这些类型由 Web 进程内线程池执行，重启后会随进程一起消失。
+# article_visual.plan、viral_remix.image 由 Celery 托管，不在本进程里跑。
+# 用白名单而非排除列表，将来新增 Celery 类型也不会被误判成中断。
+IN_PROCESS_JOB_TYPES = (
+    "creator_chat", "diagnose", "xiaohongshu", "tie_tu",
+    "hit_detect", "hit_rewrite", "creator_image", "morning_image",
+    "workbench_step",
+)
+RECOVERY_GRACE_SECONDS_ENV = "CREATOR_JOB_RECOVERY_GRACE_SECONDS"
+RECOVERY_DEFAULT_GRACE_SECONDS = 900
 
-    Queued jobs remain durable and will be picked up after the worker restarts.
+
+def recovery_grace_seconds() -> int:
+    try:
+        return max(60, int(os.getenv(RECOVERY_GRACE_SECONDS_ENV,
+                                    str(RECOVERY_DEFAULT_GRACE_SECONDS))))
+    except ValueError:
+        return RECOVERY_DEFAULT_GRACE_SECONDS
+
+
+def recover_interrupted_jobs(grace_seconds: int | None = None) -> int:
+    """回收 Web 重启后遗留的进程内任务，退还预扣积分。
+
+    三个条件同时满足才处理：类型属于进程内线程池、状态仍是 queued 或 running、
+    启动或创建时间早于时间栅栏。发布切换时新旧 Web 可能短暂并存，栅栏用来避免
+    新进程把旧进程里正在执行的活任务扫进去。每条处理前复查当前状态，写入全部
+    依赖条件更新，重复执行幂等，不会覆盖已完成、已取消或已结算的任务。
     """
+    grace = recovery_grace_seconds() if grace_seconds is None else max(0, int(grace_seconds))
+    cutoff = (datetime.now(timezone.utc) - timedelta(seconds=grace)).isoformat()
+    marks = ",".join("?" for _ in IN_PROCESS_JOB_TYPES)
     with DB_LOCK, _connect() as connection:
-        rows = connection.execute("SELECT id,usage_id FROM jobs WHERE status='running' AND type<>'article_visual.plan'").fetchall()
+        rows = connection.execute(
+            f"""SELECT id,usage_id FROM jobs
+                WHERE status IN ('queued','running')
+                  AND type IN ({marks})
+                  AND COALESCE(started_at,created_at) < ?""",
+            (*IN_PROCESS_JOB_TYPES, cutoff),
+        ).fetchall()
+
+    recovered = 0
     for row in rows:
+        current = job(row["id"])
+        if not current or current["status"] not in ("queued", "running"):
+            continue
         if row["usage_id"]:
             refund_usage(row["usage_id"], 503, 0)
-        fail_job(row["id"], "Worker 重启，任务已中止，积分已自动退还")
-    return len(rows)
+        fail_job(row["id"], "服务重启，任务已中止，积分已自动退还")
+        recovered += 1
+    if recovered:
+        logging.getLogger(__name__).info("recovered interrupted creator jobs: %s", recovered)
+    return recovered
 
 
 def settle_usage(request_id: str, http_status: int, duration_ms: int) -> None:

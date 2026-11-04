@@ -120,6 +120,24 @@ async def _start_alipay_reconciler() -> None:
         pass
 
 
+@app.on_event("startup")
+async def _recover_interrupted_creator_jobs() -> None:
+    """Web 重启后回收进程内任务的挂起单并退还预扣积分。
+
+    仅回收超过时间栅栏、且属于进程内线程池的 queued/running 单；Celery 托管
+    任务与新旧 Web 切换窗口里正在执行的活任务都不在回收范围内。
+    """
+    if os.getenv("CREATOR_JOB_RECOVERY_ENABLED", "1") != "1":
+        return
+    try:
+        import asyncio
+        recovered = await asyncio.to_thread(accounts.recover_interrupted_jobs)
+        if recovered:
+            log_event("creator.jobs.recovered", count=recovered)
+    except Exception as exc:  # noqa: BLE001 - 恢复失败不能阻止服务启动
+        log_event("creator.jobs.recovery_failed", error=type(exc).__name__)
+
+
 async def request_observability(request: Request, call_next):
     request_id = request.headers.get("X-Request-ID", "").strip()[:128] or uuid.uuid4().hex
     request.state.request_id = request_id
