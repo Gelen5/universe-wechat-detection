@@ -1,7 +1,8 @@
 """文章配图：贴一条公众号链接，拆解成图位，逐张生成配图。
 
 产品约束（来自需求确认）：
-  * 请求生成 3:4，返回非 3:4 时保留原始画面与比例；
+  * 图位固定 3:4：显式请求 1024x1365，回图后再复核一次比例；
+    上游仍回非 3:4 时补成 3:4 画布（模糊填充），不裁掉标题文字；
   * 先生成封面，用户确认满意后再生成剩余图位；
   * 图内所有文字必须取自文章原文，禁止编造数字与人名；
   * 正文图位只做信息海报（数据卡/时间线/结构拆解/对比/客户版图/金句），
@@ -1007,10 +1008,24 @@ def _image_bytes(result: dict[str, Any]) -> bytes:
     raise RuntimeError("图片接口返回格式无法识别")
 
 
-def generate_slot_image(prompt: str) -> bytes:
-    from .providers import ModelService, OpenAICompatibleProvider
-    from .image_provider import ensure_png
+SLOT_SIZE = "1024x1365"  # 3:4 竖图；显式传给上游，回图后再复核
+_SLOT_RATIO_HINT = (
+    "\n\n严格生成竖版 3:4 画幅（宽高比 3:4），整张图片边界就是 3:4；"
+    "不留白边，不添加模糊填充。文字距四边至少 10%，必要时缩小字号并换行。"
+)
 
+
+def generate_slot_image(prompt: str) -> bytes:
+    """生成一个 3:4 图位。
+
+    `size=auto` 会让 gpt-image-2.5 自己挑画幅（2026-11-05 起直接回 1024x1024），
+    所以这里显式要 1024x1365；回图后再复核比例，不对就重试一次，仍不对时补成
+    3:4 画布——补画布会保住标题文字，居中裁切会切掉两侧的字。
+    """
+    from .providers import ModelService, OpenAICompatibleProvider
+    from .image_provider import ensure_png, fit_png, fits_size, image_size
+
+    request_size = SLOT_SIZE
     last_error: Exception | None = None
     for attempt in range(2):
         try:
@@ -1031,17 +1046,30 @@ def generate_slot_image(prompt: str) -> bytes:
                     image_model=model,
                     verify_ssl=workbench._verify_ssl(),
                 )
-                # 部分模型只接受 size=auto，明确请求 3:4；返回后保留原图比例。
                 result = ModelService(provider).generate_image(
-                    prompt + "\n\n严格生成竖版 3:4 画幅（宽高比 3:4），整张图片边界就是 3:4；"
-                             "不留白边，不添加模糊填充。文字距四边至少 10%，必要时缩小字号并换行。",
-                    size="auto",
+                    prompt + _SLOT_RATIO_HINT,
+                    size=request_size,
                     count=1,
                     timeout=180,
                 )
-            return ensure_png(_image_bytes(result))
+            raw = ensure_png(_image_bytes(result))
+            if fits_size(raw, SLOT_SIZE):
+                return raw
+            actual = image_size(raw) or (0, 0)
+            log_event("article_visual.image_off_ratio", requested=request_size,
+                      width=actual[0], height=actual[1], attempt=attempt + 1)
+            if attempt == 0:
+                last_error = RuntimeError(f"图片服务返回 {actual[0]}x{actual[1]}，不是 3:4")
+                time.sleep(2)
+                continue
+            log_event("article_visual.image_reframed", width=actual[0], height=actual[1], target=SLOT_SIZE)
+            return fit_png(raw, SLOT_SIZE, preserve_frame=True)
         except Exception as exc:  # noqa: BLE001 - 逐次重试后把最后一次错误抛给前端
             last_error = exc
+            # 上游若按模型白名单拒收显式尺寸，退回 auto，下一轮靠补画布兜底。
+            if attempt == 0 and request_size != "auto" and "size" in str(exc).lower():
+                request_size = "auto"
+                continue
             if attempt == 0:
                 time.sleep(2)
     raise RuntimeError(str(last_error) if last_error else "生成失败")
@@ -1528,12 +1556,18 @@ def generate_one(payload: GenerateBody, request: Request):
         raise HTTPException(status_code=502, detail=detail) from exc
     filename = f"{slot['id']}.png"
     path = _job_dir(job_id) / filename
+    from .image_provider import image_size
+    dimensions = image_size(raw)
     with JOB_LOCK:
         path.write_bytes(raw)
         job = _read_job(job_id)
         if slot["form"] == "cover":
             job["cover_confirmed"] = False
-        job["images"][slot["id"]] = {"file": filename, "prompt": prompt}
+        entry = {"file": filename, "prompt": prompt}
+        if dimensions:
+            # 落盘尺寸留痕：以后再看 job 就能立刻发现上游回错了画幅。
+            entry["size"] = f"{dimensions[0]}x{dimensions[1]}"
+        job["images"][slot["id"]] = entry
         job.pop("publication", None)
         for item in job["plan"]["slots"]:
             if item["id"] == slot["id"]:

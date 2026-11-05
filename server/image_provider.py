@@ -252,6 +252,45 @@ def _fit_images(result: dict[str, Any], size: str, *, preserve_frame: bool = Fal
     return result
 
 
+def image_size(raw: bytes) -> tuple[int, int] | None:
+    """Pixel size of an encoded image, or None when it cannot be decoded."""
+    try:
+        from PIL import Image
+        with Image.open(io.BytesIO(raw)) as image:
+            image.load()
+            return image.size
+    except Exception:  # noqa: BLE001 - callers treat "unknown" as "leave it alone"
+        return None
+
+
+def fits_size(raw: bytes, size: str, tolerance: float = 0.01) -> bool:
+    """True when the image already matches the requested frame.
+
+    Ratio is compared, not exact pixels: a native 1086x1448 is a fine 3:4 card
+    and should not be resampled. Only real drift (square, 4:5, 2:3) fails.
+    """
+    pair = _size_pair(size)
+    actual = image_size(raw)
+    if not pair or not actual or not actual[1]:
+        return True
+    if actual == pair:
+        return True
+    return abs(actual[0] / actual[1] - pair[0] / pair[1]) <= tolerance
+
+
+def fit_png(raw: bytes, size: str, *, preserve_frame: bool = True) -> bytes:
+    """Force one PNG to the exact requested pixels, reusing the batch fitter."""
+    if not _size_pair(size):
+        return raw
+    payload = {"data": [{"b64_json": base64.b64encode(raw).decode("ascii")}]}
+    fitted = _fit_images(payload, size, preserve_frame=preserve_frame)
+    try:
+        encoded = (fitted.get("data") or [{}])[0].get("b64_json")
+        return base64.b64decode(encoded) if encoded else raw
+    except Exception:  # noqa: BLE001 - never fail a paid generation here
+        return raw
+
+
 def _image_api_url(base_url: str) -> str:
     base = base_url.strip().rstrip("/")
     return f"{base if base.endswith('/v1') else base + '/v1'}/images/generations"

@@ -2,28 +2,57 @@ import pytest
 from server import article_visual
 
 
-def test_article_visual_keeps_original_frame_and_requests_ratio(monkeypatch):
+def _fake_slot_service(monkeypatch, *frames):
+    """回放给定画幅的假图片服务；返回 mock 以便断言请求参数。"""
     import base64
     import io
-    from PIL import Image
-    from server import providers
+    from contextlib import nullcontext
     from unittest.mock import MagicMock
 
-    source = Image.new('RGB', (400, 200), 'red')
-    data = io.BytesIO()
-    source.save(data, format='PNG')
-    original = data.getvalue()
+    from PIL import Image
+
+    from server import providers
+
+    payloads = []
+    for frame in frames:
+        buffer = io.BytesIO()
+        Image.new('RGB', frame, 'red').save(buffer, format='PNG')
+        payloads.append({'data': [{'b64_json': base64.b64encode(buffer.getvalue()).decode()}]})
     service = MagicMock()
-    service.generate_image.return_value = {'data': [{'b64_json': base64.b64encode(original).decode()}]}
+    service.generate_image.side_effect = payloads
     monkeypatch.setattr(providers, 'OpenAICompatibleProvider', MagicMock())
     monkeypatch.setattr(providers, 'ModelService', lambda *args, **kwargs: service)
     monkeypatch.setattr(article_visual.workbench, '_setting', lambda *args, **kwargs: 'test')
-    from contextlib import nullcontext
     monkeypatch.setattr(article_visual.workbench, 'provider_overrides', lambda **kwargs: nullcontext())
+    monkeypatch.setattr(article_visual.time, 'sleep', lambda *_: None)
+    return service
+
+
+def test_article_visual_requests_an_explicit_3_4_size(monkeypatch):
+    import io
+
+    from PIL import Image
+
+    service = _fake_slot_service(monkeypatch, (1086, 1448))
     result = article_visual.generate_slot_image('测试正文')
-    assert result == original
-    assert Image.open(io.BytesIO(result)).size == (400, 200)
+    # 原生 3:4 原样返回：不重采样、不补边
+    assert Image.open(io.BytesIO(result)).size == (1086, 1448)
+    assert service.generate_image.call_count == 1
+    assert service.generate_image.call_args.kwargs['size'] == '1024x1365'
     assert '宽高比 3:4' in service.generate_image.call_args.args[0]
+
+
+def test_article_visual_reframes_a_square_result(monkeypatch):
+    import io
+
+    from PIL import Image
+
+    service = _fake_slot_service(monkeypatch, (1024, 1024), (1024, 1024))
+    result = article_visual.generate_slot_image('测试正文')
+    # 上游两次都回方图：最后一次兜底补成 3:4 画布，而不是把方图发给前端
+    assert Image.open(io.BytesIO(result)).size == (1024, 1365)
+    assert service.generate_image.call_count == 2
+    assert service.generate_image.call_args.kwargs['size'] == '1024x1365'
 
 
 SAMPLE_HTML = """

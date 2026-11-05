@@ -79,5 +79,47 @@ class RequestSizeTests(unittest.TestCase):
         self.assertEqual(result, image_provider._fit_images(result, '768x1024'))
 
 
+class FrameGuardTests(unittest.TestCase):
+    """The slot route enumerates the frame itself: square must never pass as 3:4."""
+
+    def _png(self, size, fill='white'):
+        buffer = io.BytesIO()
+        Image.new('RGB', size, fill).save(buffer, format='PNG')
+        return buffer.getvalue()
+
+    def test_square_result_does_not_fit_a_3_4_frame(self):
+        self.assertFalse(image_provider.fits_size(self._png((1024, 1024)), '1024x1365'))
+
+    def test_native_3_4_result_is_accepted_without_resampling(self):
+        self.assertTrue(image_provider.fits_size(self._png((1086, 1448)), '1024x1365'))
+
+    def test_other_ratios_are_rejected(self):
+        for size in ((1024, 1280), (1024, 1536), (1365, 1024)):
+            with self.subTest(size=size):
+                self.assertFalse(image_provider.fits_size(self._png(size), '1024x1365'))
+
+    def test_fit_png_pads_instead_of_cropping_the_poster(self):
+        # A square poster keeps its left edge strip only when padded, not cropped:
+        # centre-cropping 1024 -> 768 wide would delete the first 128 px.
+        source = Image.new('RGB', (1024, 1024), 'white')
+        draw = ImageDraw.Draw(source)
+        draw.rectangle((0, 0, 15, 1023), fill='blue')
+        buffer = io.BytesIO()
+        source.save(buffer, format='PNG')
+        fitted = image_provider.fit_png(buffer.getvalue(), '1024x1365', preserve_frame=True)
+        image = Image.open(io.BytesIO(fitted)).convert('RGB')
+        self.assertEqual((1024, 1365), image.size)
+        self.assertEqual((0, 0, 255), image.getpixel((5, 680)))   # 原始左边缘还在
+        self.assertNotEqual((0, 0, 255), image.getpixel((5, 5)))  # 顶部是延长出去的画布
+
+    def test_fit_png_leaves_a_matching_image_alone(self):
+        raw = self._png((1024, 1365))
+        self.assertEqual(raw, image_provider.fit_png(raw, '1024x1365', preserve_frame=True))
+
+    def test_fit_png_passes_through_unparseable_size(self):
+        raw = self._png((30, 30))
+        self.assertIs(raw, image_provider.fit_png(raw, 'auto'))
+
+
 if __name__ == '__main__':
     unittest.main()
