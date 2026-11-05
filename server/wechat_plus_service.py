@@ -95,6 +95,30 @@ def select_topic(state, title, angle):
     reset_from(article, 'topic')
 
 
+def _outline_reply(article):
+    """Show the Skill's outline so the structure can be approved before writing."""
+    outline = article.get('outline') or []
+    lines = []
+    for index, item in enumerate(outline, 1):
+        if isinstance(item, dict):
+            heading = str(item.get('heading') or item.get('title') or item.get('name') or '').strip()
+            points = item.get('points') or item.get('bullets') or item.get('subsections')
+            detail = ''
+            if isinstance(points, list) and points:
+                detail = '；'.join(str(point).strip() for point in points if str(point).strip())
+            if not detail:
+                detail = str(item.get('summary') or item.get('purpose') or item.get('note') or '').strip()
+        else:
+            heading, detail = str(item).strip(), ''
+        if not heading:
+            continue
+        lines.append(f'{index}. {heading}' + (f'\n   {detail}' if detail else ''))
+    if not lines:
+        return '结构已确定，下一步生成初稿。'
+    return ('结构已确定，先过一眼：\n' + '\n'.join(lines[:12])
+            + '\n\n确认后说「继续」生成初稿；想调整就说「换一个结构」。')
+
+
 def execute(state, message, generate, *, output_dir: Path, progress=lambda _: None,
             check_cancelled=lambda: None, search=workbench_research.search):
     original_state = state
@@ -131,9 +155,9 @@ REVISE_POINTS = 4
 NODE_LABELS = {'intent': '整理写作需求', 'topic': '推荐具体选题', 'research': '检索并整理证据',
                'strategy': '设计文章结构', 'draft': '撰写文章',
                'review': '复核并局部修订', 'delivery': '生成排版预览'}
-# 这些节点跑完就停：选题给出候选、正文/复核/排版都有可见产出。
-# 其余节点（整理需求、检索、结构）没有可见产出，在同一轮里接着跑。
-STOP_NODES = {'topic', 'draft', 'review', 'delivery'}
+# 这些节点跑完就停：选题给候选、结构要过目、正文/复核/排版都有可见产出。
+# 其余节点（整理需求、检索）没有可见产出，在同一轮里接着跑。
+STOP_NODES = {'topic', 'strategy', 'draft', 'review', 'delivery'}
 REDO_PATTERN = re.compile(
     r'(?:重做|重新|换一个|换个|换一种|再来一次|再来一遍).{0,8}'
     r'(选题|标题|结构|正文|复核|排版|预览)')
@@ -299,7 +323,7 @@ def _execute_step(state, message, generate, *, output_dir, progress,
     elif node == 'research':
         reply = '证据已整理，下一步设计结构。'
     elif node == 'strategy':
-        reply = '结构已确定，下一步生成初稿。'
+        reply = _outline_reply(article)
     elif node == 'draft':
         check_cancelled()
         progress('正在做诊断评分')
@@ -349,6 +373,8 @@ def _execute_step(state, message, generate, *, output_dir, progress,
     state['next_node'] = remaining[0] if remaining else ''
     if node == 'topic':
         state['reply_options'] = [item['title'] for item in state['choices']] or ['继续']
+    elif node == 'strategy':
+        state['reply_options'] = ['确认结构，生成初稿', '换一个结构']
     elif node == 'draft':
         state['reply_options'] = ['继续复核', '改一下正文']
     elif node == 'review':

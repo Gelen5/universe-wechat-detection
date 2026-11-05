@@ -44,6 +44,20 @@ DEFAULT_PLAN = {
     'source': 'default',
 }
 
+# The installed Skill ships no themes/ directory, so a bare theme *name* always
+# resolved to "default" — every style looked identical.  These palettes are the
+# only values Plus passes; the Skill's own theme engine still applies them.
+STYLE_THEMES = {
+    'ink_gold': {'name': '墨金质感', 'primary_color': '#2f2a23', 'secondary_color': '#5b554a',
+                 'accent_color': '#9a7133', 'background_color': '#fffdf8'},
+    'signal_green': {'name': '信号绿', 'primary_color': '#1f2f26', 'secondary_color': '#4c6355',
+                     'accent_color': '#2f7f60', 'background_color': '#f8fcf9'},
+    'navy_gold': {'name': '深蓝金', 'primary_color': '#1f2d44', 'secondary_color': '#4a5770',
+                  'accent_color': '#8a6d2f', 'background_color': '#f8fafc'},
+    'warm_ink': {'name': '暖墨米', 'primary_color': '#3a3128', 'secondary_color': '#6b5f52',
+                 'accent_color': '#a8663f', 'background_color': '#faf5ee'},
+}
+
 
 def layout_plan(draft: str, theme: dict, generate, *,
                 check_cancelled=None, passthrough=()) -> dict:
@@ -97,10 +111,14 @@ def to_markdown(draft: str, plan: dict, theme: dict, title: str = '') -> tuple[s
     """Wrap at most two existing blocks in the Skill's DSL; never edit a word.
 
     ``emphasis`` matching a block turns it into ``:::quote``; the first prose
-    block becomes ``:::callout``.  Everything else is passed through untouched,
-    so the converter receives the manuscript itself.
+    block becomes ``:::callout`` only when the layout decision asked for one,
+    so a manuscript is not forced into the same tinted box every time.
+    Everything else is passed through untouched, so the converter receives the
+    manuscript itself.
     """
     emphasis = str(plan.get('emphasis') or '').strip()
+    components = {str(name).strip().lower() for name in (plan.get('components') or [])}
+    want_callout = 'callout' in components
     blocks: list[str] = []
     first_body = True
     for block in draft.split('\n\n'):
@@ -113,7 +131,7 @@ def to_markdown(draft: str, plan: dict, theme: dict, title: str = '') -> tuple[s
                                       or clean.lstrip('>').strip() == emphasis)
         if matched:
             blocks.extend([':::quote', clean, ':::'])
-        elif first_body and not clean.startswith(('#', '<')):
+        elif want_callout and first_body and not clean.startswith(('#', '<')):
             blocks.extend([':::callout', clean, ':::'])
         else:
             blocks.append(clean)
@@ -131,7 +149,8 @@ def to_markdown(draft: str, plan: dict, theme: dict, title: str = '') -> tuple[s
 
 
 def run_preview(markdown_path: Path, theme_name: str, *,
-                faithful: bool = True, timeout: int = 120) -> tuple[str, dict]:
+                faithful: bool = True, timeout: int = 120,
+                theme_file: Path | None = None) -> tuple[str, dict]:
     """Run the Skill's own preview renderer and return the article fragment."""
     markdown_path = Path(markdown_path).resolve()
     script = Path(__file__).resolve().parent / 'skill_preview.py'
@@ -139,6 +158,8 @@ def run_preview(markdown_path: Path, theme_name: str, *,
                str(Path(workbench.SKILL_DIR).resolve()), str(markdown_path), theme_name]
     if faithful:
         command.append('--faithful')
+    if theme_file is not None:
+        command += ['--theme-file', str(Path(theme_file).resolve())]
     try:
         result = subprocess.run(command, capture_output=True, text=True,
                                 encoding='utf-8', errors='replace',
@@ -322,7 +343,12 @@ def render_native(draft: str, theme: dict, *, generate=None,
         directory.mkdir(parents=True, exist_ok=True)
         markdown_path = directory / 'article.md'
         markdown_path.write_text(markdown, encoding='utf-8')
-        fragment, render_info = run_preview(markdown_path, theme_name)
+        palette = STYLE_THEMES.get(str(theme.get('style') or ''))
+        theme_file = None
+        if palette:
+            theme_file = directory / 'theme.json'
+            theme_file.write_text(json.dumps(palette, ensure_ascii=False), encoding='utf-8')
+        fragment, render_info = run_preview(markdown_path, theme_name, theme_file=theme_file)
         _verify_fidelity(fragment, draft)
         gates = run_gates(fragment, directory, source=draft)
     finally:
@@ -339,6 +365,7 @@ def render_native(draft: str, theme: dict, *, generate=None,
             'renderer': render_info.get('renderer'),
             'content_gate_blocked': bool(render_info.get('quality_gate_blocked')),
             'theme_name': theme_name,
+            'palette': (palette or {}).get('name') or '',
             'gates': {name: {'returncode': info['returncode'],
                              'passed': info['passed'],
                              'accepted': info.get('accepted') or []}

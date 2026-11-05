@@ -6,13 +6,30 @@ actual renderer and modules auditable from the workbench session.
 """
 import html
 import json
+import re
 import sys
 from pathlib import Path
+
+
+def _tint(color: str, ratio: float = 0.9) -> str:
+    """Mix a hex colour towards white; used for the module accent background."""
+    digits = color.lstrip('#')
+    values = [int(digits[index:index + 2], 16) for index in (0, 2, 4)]
+    mixed = [round(value + (255 - value) * ratio) for value in values]
+    return '#' + ''.join(f'{value:02x}' for value in mixed)
 
 
 def main():
     root, source, theme_name = sys.argv[1:4]
     faithful = len(sys.argv) > 4 and sys.argv[4].lower() in {'--faithful', 'faithful', '1', 'true'}
+    # Optional explicit palette: Plus ships named styles as JSON because the
+    # installed Skill has no themes/ directory, and a theme name alone would
+    # silently fall back to "default" (which is why switching styles did nothing).
+    theme_file = ''
+    args = sys.argv[4:]
+    for index, value in enumerate(args):
+        if value == '--theme-file' and index + 1 < len(args):
+            theme_file = args[index + 1]
     sys.path.insert(0, root)
     sys.path.insert(0, str(Path(root) / 'scripts'))
     from toolkit.converter import MarkdownConverter
@@ -41,9 +58,20 @@ def main():
             content = parts[2]
     # Pass the Skill theme so the faithful link override can read accent_color;
     # the stock converter behaves exactly as before with the same defaults.
-    converter = converter_class(load_theme(theme_name))
+    theme = load_theme(theme_name)
+    if theme_file:
+        try:
+            theme = json.loads(Path(theme_file).read_text(encoding='utf-8'))
+        except (OSError, ValueError) as exc:
+            raise SystemExit(f'主题文件读取失败：{exc}')
+    converter = converter_class(theme)
     rendered = converter.convert(content)
-    rendered = apply_theme(rendered, load_theme(theme_name))
+    rendered = apply_theme(rendered, theme)
+    # 模块自带的橙色强调块不在这四个映射色里，所以每种风格看起来都一样；
+    # 让它跟随主题强调色，风格切换才有意义。
+    accent = str(theme.get('accent_color') or '').strip()
+    if re.fullmatch(r'#[0-9a-fA-F]{6}', accent):
+        rendered = rendered.replace('#ff9800', accent).replace('#fff3e0', _tint(accent))
     # The latest Skill's compliance contract requires every CJK text node to
     # have a leaf wrapper. Reuse its official fixer on the rendered fragment.
     leaf_wrapper = LeafWrapper()
@@ -66,6 +94,7 @@ def main():
         "leaf_wrapper": "scripts.leaf_autofix.LeafWrapper",
         "faithful_text": faithful,
         "theme": theme_name,
+        "theme_palette": theme.get('name') or theme_name,
         "modules": modules,
         "quality_gate": "toolkit.recommendation_quality.check_article_file",
         "quality_gate_blocked": bool(report.get("blocked")),

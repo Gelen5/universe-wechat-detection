@@ -481,26 +481,27 @@ class StepModeTests(unittest.TestCase):
         assert state['step_mode'] is True
 
         state = self.run_turn(state, '继续')
-        # 选完选题就一路把检索、结构、正文跑完，停在有正文可读的地方。
-        assert state['last_node'] == 'draft'
-        assert state['next_node'] == 'review'
-        assert state['reply_options'] == ['继续复核', '改一下正文']
-        assert state['billing_points'] == 9
-        assert state['article_state']['draft']
+        # 检索与结构一起跑完，停在结构上等人过目。
+        assert state['last_node'] == 'strategy'
+        assert state['next_node'] == 'draft'
+        assert state['reply_options'] == ['确认结构，生成初稿', '换一个结构']
+        assert state['billing_points'] == 0
+        assert '结构已确定' in state['messages'][-1]['content']
 
     def test_full_flow_points_options_and_draft_rerun(self):
         state, points, options = {}, [], []
-        for message in ('给职场人写一篇关于会议记录的文章', '继续', '继续', '继续'):
+        for message in ('给职场人写一篇关于会议记录的文章', '继续', '继续', '继续', '继续'):
             state = self.run_turn(state, message)
             points.append(state['billing_points'])
             options.append(state['reply_options'])
-        assert points == [2, 9, 3, 2]
+        assert points == [2, 0, 9, 3, 2]
         assert sum(points) == 16
         assert options[0] == ['把会议记录写成能执行的待办',
                               '会议纪要为什么漏掉行动']
-        assert options[1] == ['继续复核', '改一下正文']
-        assert options[2] == ['生成排版预览', '按建议修改']
-        assert options[3] == ['复制排版', '换个模块组合']
+        assert options[1] == ['确认结构，生成初稿', '换一个结构']
+        assert options[2] == ['继续复核', '改一下正文']
+        assert options[3] == ['生成排版预览', '按建议修改']
+        assert options[4] == ['复制排版', '换个模块组合']
         assert state['next_node'] == ''
         assert state['article_state']['nodes']['delivery']['status'] == 'passed'
         assert state['article_state']['formatted_output']
@@ -539,8 +540,8 @@ class StepModeTests(unittest.TestCase):
 
     def run_to_draft(self):
         state = {}
-        # 第一轮给出选题，第二轮选完就直接产出正文。
-        for message in ('给职场人写一篇关于会议记录的文章', '继续'):
+        # 选题 → 结构确认 → 正文
+        for message in ('给职场人写一篇关于会议记录的文章', '继续', '继续'):
             state = self.run_turn(state, message)
         return state
 
