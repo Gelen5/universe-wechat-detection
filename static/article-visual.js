@@ -172,6 +172,29 @@
     if (tab === "gallery") renderGallery();
   }
 
+  let directionTimer = null, directionWatchJob = null, directionWatchStarted = 0;
+  function watchMoreDirections() {
+    if (!state.job || state.job.plan?.background_status !== 'pending' || directionTimer) return;
+    const jobId = state.job.id;
+    if (directionWatchJob !== jobId) { directionWatchJob = jobId; directionWatchStarted = Date.now(); }
+    if (Date.now() - directionWatchStarted > 5 * 60 * 1000) { renderAngles(); return; }
+    directionTimer = setTimeout(async () => {
+      directionTimer = null;
+      if (!state.job || state.job.id !== jobId) return;
+      if (state.busy) { watchMoreDirections(); return; }
+      const previous = state.job;
+      try {
+        const refreshed = await api(`/api/article-visual/${encodeURIComponent(jobId)}`);
+        if (state.job !== previous || state.busy) { watchMoreDirections(); return; }
+        state.job.plan.alternatives = refreshed.plan?.alternatives || state.job.plan.alternatives;
+        state.job.plan.background_status = refreshed.plan?.background_status;
+        state.job.plan.background_notice = refreshed.plan?.background_notice;
+        renderAngles();
+        watchMoreDirections();
+      } catch { watchMoreDirections(); }
+    }, 4000);
+  }
+
   function render() {
     if (!state.job) return;
     const slots = state.job.slots;
@@ -192,6 +215,7 @@
     els.plan.hidden = false;
 
     renderAngles();
+    watchMoreDirections();
     els.list.innerHTML = "";
     slots.forEach((slot) => {
       const card = document.createElement("button");
@@ -251,7 +275,11 @@
     const title = document.createElement("h2");
     title.textContent = selected == null ? "选择传播角度" : "已选传播角度";
     const help = document.createElement("p");
-    help.textContent = "先确定封面方向，图位会围绕这个方向展开。";
+    help.textContent = plan.background_status === 'pending'
+      ? (directionWatchJob === state.job.id && Date.now() - directionWatchStarted > 5 * 60 * 1000 ? '其他方向暂未完成，可先使用已有方向；稍后刷新可查看是否有新结果。' : '首个方向已可选择，其他方向正在后台核对；现在选择也可以继续创作。')
+      : plan.background_status === 'unavailable'
+        ? (plan.background_notice || '其他方向未能完成核对，可以先使用已提供的方向。')
+        : '先确定封面方向，图位会围绕这个方向展开。';
     els.angles.append(title, help);
     const list = document.createElement("div");
     list.className = "av-angle-list";

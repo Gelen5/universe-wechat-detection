@@ -535,7 +535,7 @@ class PlanReviewUnavailable(ValueError):
     pass
 
 
-def build_plan(article: dict[str, Any], progress=None, initial_raw: str = '', save_checkpoint=None, trace_id: str | None = None) -> dict[str, Any]:
+def build_plan(article: dict[str, Any], progress=None, initial_raw: str = '', save_checkpoint=None, trace_id: str | None = None, first_only: bool = False, skip_indices: tuple[int, ...] = ()) -> dict[str, Any]:
     trace_id = trace_id or uuid.uuid4().hex
     pipeline_started = time.monotonic()
     repair_count = 0
@@ -598,10 +598,13 @@ def build_plan(article: dict[str, Any], progress=None, initial_raw: str = '', sa
         if save_checkpoint:
             save_checkpoint(json.dumps(result, ensure_ascii=False))
         verified = []
+        verified_indices = []
         failure_codes = set()
         review_details = []
         review_unavailable = False
         for index, candidate in enumerate(candidates[:3]):
+            if index in skip_indices:
+                continue
             if verified and time.monotonic() - pipeline_started > 120:
                 log_event('article_visual.remaining_skipped', trace_id=trace_id, reason='time_budget', verified=len(verified))
                 break
@@ -703,6 +706,9 @@ def build_plan(article: dict[str, Any], progress=None, initial_raw: str = '', sa
                 if review_notice:
                     candidate['_review_notice'] = review_notice
                 verified.append(candidate)
+                verified_indices.append(index)
+                if first_only:
+                    break
         if not verified:
             if review_unavailable:
                 raise PlanReviewUnavailable('事实复核暂不可用，已保留方案，可稍后继续复核；本次积分已退回')
@@ -728,6 +734,9 @@ def build_plan(article: dict[str, Any], progress=None, initial_raw: str = '', sa
     for normalized, candidate in zip(plan['alternatives'], verified):
         normalized['review_notice'] = candidate.get('_review_notice', '')
     plan['available_directions'] = len(verified)
+    if first_only:
+        plan['first_candidate_index'] = verified_indices[0]
+        plan['background_status'] = 'pending' if len(candidates[:3]) > 1 else 'complete'
     log_event('article_visual.plan_complete', trace_id=trace_id, candidates=min(3, len(candidates)), verified=sum(not x.get('_review_notice') for x in verified), review_pending=sum(bool(x.get('_review_notice')) for x in verified), repair_attempts=repair_count)
     return plan
 
@@ -1092,8 +1101,21 @@ def _refund_stale_reservations(max_age_minutes: int = 15) -> int:
 def _write_job(job: dict[str, Any]) -> None:
     _ensure_schema()
     now = datetime.now(timezone.utc).isoformat()
-    payload = json.dumps(job, ensure_ascii=False)
     with database.session_scope() as session:
+        lock_query = 'SELECT payload FROM article_visual_jobs WHERE id=:id'
+        if database.ENGINE.dialect.name != 'sqlite':
+            lock_query += ' FOR UPDATE'
+        existing = session.execute(text(lock_query), {'id': job['id']}).fetchone()
+        if existing:
+            previous = json.loads(existing[0])
+            old_plan, current_plan = previous.get('plan') or {}, job.get('plan') or {}
+            if (previous.get('article_digest') == job.get('article_digest')
+                    and old_plan.get('background_status') in ('complete', 'unavailable')
+                    and current_plan.get('background_status') == 'pending'):
+                current_plan['alternatives'] = old_plan.get('alternatives') or current_plan.get('alternatives') or []
+                current_plan['background_status'] = old_plan['background_status']
+                current_plan['background_notice'] = old_plan.get('background_notice', '')
+        payload = json.dumps(job, ensure_ascii=False)
         session.execute(
             text(
                 "INSERT INTO article_visual_jobs (id, user_id, payload, updated_at) "
@@ -1128,7 +1150,7 @@ def _public_job(job: dict[str, Any]) -> dict[str, Any]:
     payload = dict(job)
     payload.pop("user_id", None)
     payload["slots"] = job["plan"]["slots"]
-    payload["plan"] = {k: job["plan"].get(k) for k in ("thesis", "source", "article_type", "angle_label", "angle_reason", "alternatives", "selected_angle") }
+    payload["plan"] = {k: job["plan"].get(k) for k in ("thesis", "source", "article_type", "angle_label", "angle_reason", "alternatives", "selected_angle", "background_status", "background_notice") }
     return payload
 
 
@@ -1376,7 +1398,7 @@ def create_plan_for_user(url: str, user_id: str, progress=None, job_id: str | No
     try:
         if progress:
             progress('planning')
-            plan = build_plan(article, progress=progress, initial_raw=checkpoint.get('raw', '') if checkpoint else '', save_checkpoint=save_checkpoint, trace_id=job_id)
+            plan = build_plan(article, progress=progress, initial_raw=checkpoint.get('raw', '') if checkpoint else '', save_checkpoint=save_checkpoint, trace_id=job_id, first_only=bool(job_id))
         else:
             plan = build_plan(article)
     except PlanReviewUnavailable as exc:

@@ -309,3 +309,78 @@ def test_wechat_extraction_rejects_offsite_redirect(monkeypatch):
     with pytest.raises(ValueError, match='跳转到了不支持的地址'):
         av.extract_article('https://mp.weixin.qq.com/s/redirect-test')
     assert all(url.startswith('https://mp.weixin.qq.com/') for url in calls)
+
+
+def test_first_direction_returns_without_waiting_for_other_reviews(monkeypatch):
+    article = {'title':'标题','account':'','markdown':'这是一段可以用来验证的完整文章原文。'}
+    candidates = [{'article_type':'story','angle_label':f'方向{i}','slots':[{'id':'cover' if j==0 else f'body-{j}', 'form':'cover' if j==0 else 'quote', 'headline':'真实内容','source_quote':article['markdown']} for j in range(4)]} for i in range(3)]
+    monkeypatch.setattr(accounts, 'provider_settings', lambda include_secrets=True: {})
+    monkeypatch.setattr(workbench, 'provider_overrides', lambda **kwargs: nullcontext())
+    monkeypatch.setattr(av, '_text_with_deadline', lambda *args, **kwargs: json.dumps({'plans':candidates},ensure_ascii=False))
+    checked = []
+    monkeypatch.setattr(av, 'verify_plan_semantics', lambda raw, article: checked.append(raw))
+    result = av.build_plan(article, first_only=True)
+    assert len(checked) == 1 and len(result['alternatives']) == 1
+    assert result['background_status'] == 'pending' and result['first_candidate_index'] == 0
+
+
+def test_background_direction_merge_never_overwrites_user_choice(user, monkeypatch, tmp_path):
+    monkeypatch.setattr(av, 'JOBS_DIR', tmp_path)
+    ident = uuid.uuid4().hex
+    first = {'angle_label':'第一版','slots':[]}
+    job = {'id':ident, 'user_id':user['id'], 'plan':{'alternatives':[first], 'background_status':'pending', 'selected_angle':None}, 'images':{}}
+    av._write_job(job)
+    stale = av._read_job(ident)
+    assert tasks._merge_more_directions(ident, [{'angle_label':'第二版','slots':[]}], 'complete')
+    assert len(av._read_job(ident)['plan']['alternatives']) == 2
+    stale['plan']['selected_angle'] = 0
+    stale['images'] = {'cover':{'file':'cover.png'}}; av._write_job(stale)
+    saved = av._read_job(ident)
+    assert saved['plan']['selected_angle'] == 0 and saved['images']['cover']['file'] == 'cover.png'
+    assert len(saved['plan']['alternatives']) == 2 and saved['plan']['background_status'] == 'complete'
+
+
+def test_first_direction_delivers_then_background_adds_without_new_charge(user, monkeypatch, tmp_path):
+    monkeypatch.setattr(tasks, 'dispatch', lambda job_id: None)
+    sent = []
+    monkeypatch.setattr(tasks, 'dispatch_more_directions', lambda job_id: sent.append(job_id))
+    monkeypatch.setattr(av, 'JOBS_DIR', tmp_path)
+    monkeypatch.setattr(accounts, 'provider_settings', lambda include_secrets=True: {})
+    monkeypatch.setattr(workbench, 'provider_overrides', lambda **kwargs: nullcontext())
+    url = 'https://mp.weixin.qq.com/s/three-directions'
+    article = {'url':url,'title':'标题','account':'','markdown':'这是一段可以用来验证的完整文章原文。','chars':20,'images':[]}
+    monkeypatch.setattr(av, 'extract_article', lambda value: article)
+    candidates = [{'article_type':'story','angle_label':f'方向{i}','slots':[{'id':'cover' if j==0 else f'body-{j}', 'form':'cover' if j==0 else 'quote','headline':'真实内容','source_quote':article['markdown']} for j in range(4)]} for i in range(3)]
+    monkeypatch.setattr(av, '_text_with_deadline', lambda *args, **kwargs: json.dumps({'plans':candidates},ensure_ascii=False))
+    reviews = []
+    monkeypatch.setattr(av, 'verify_plan_semantics', lambda raw, article: reviews.append(raw))
+    task = av.start_plan_task(av.PlanTaskBody(url=url,idempotency_key=uuid.uuid4().hex),request(user))['job']
+    assert tasks.run.run(task['id'])['status'] == 'succeeded'
+    result = av.get_plan_task(task['id'], request(user))['job']['result']
+    assert len(result['plan']['alternatives']) == 1 and len(reviews) == 1
+    assert result['plan']['background_status'] == 'pending' and sent == [task['id']]
+    assert accounts.wallet_summary(user['id'])['balance'] == 0
+    saved = av._read_job(task['id']); saved['plan']['selected_angle'] = 0
+    saved['images'] = {'cover':{'file':'cover.png'}}; av._write_job(saved)
+    assert tasks.more_directions.run(task['id'])['status'] == 'completed'
+    saved = av._read_job(task['id'])
+    assert len(saved['plan']['alternatives']) == 3
+    assert saved['plan']['selected_angle'] == 0 and saved['images']['cover']['file'] == 'cover.png'
+    assert accounts.wallet_summary(user['id'])['balance'] == 0
+
+
+def test_background_failure_keeps_first_direction_and_does_not_change_wallet(user, monkeypatch, tmp_path):
+    monkeypatch.setattr(av, 'JOBS_DIR', tmp_path)
+    ident = uuid.uuid4().hex
+    article = {'url':'https://mp.weixin.qq.com/s/test','title':'标题','markdown':'这里是一段可核对的原文。'}
+    first = {'angle_label':'第一版','slots':[]}
+    job = {'id':ident,'user_id':user['id'],'article_digest':av.article_digest(article),'plan':{'alternatives':[first], 'background_status':'pending', 'first_candidate_index':0, 'selected_angle':None},'images':{}}
+    av._write_job(job)
+    (tmp_path / ident / 'plan-checkpoint.json').write_text(json.dumps({'user_id':user['id'],'article':article,'raw':'{}'},ensure_ascii=False),encoding='utf-8')
+    def fail(*args, **kwargs): raise ValueError('辅助方向复核未通过')
+    monkeypatch.setattr(av, 'build_plan', fail)
+    before = accounts.wallet_summary(user['id'])['balance']
+    assert tasks.more_directions.run(ident)['status'] == 'unavailable'
+    saved = av._read_job(ident)
+    assert saved['plan']['alternatives'] == [first] and saved['plan']['background_status'] == 'unavailable'
+    assert accounts.wallet_summary(user['id'])['balance'] == before

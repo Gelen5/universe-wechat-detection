@@ -135,3 +135,39 @@ def test_manual_submission_recovers_lost_response_without_duplicate_charge(ui):
     expect(page.locator('#av-article-title')).to_have_text('恢复文章', timeout=10000)
     assert '/api/article-visual/tasks/start' not in observed['requests']
     assert not observed['errors']
+
+
+def test_first_direction_is_selectable_while_other_directions_are_checked(ui):
+    page, observed = ui
+    choice = {'angle_label':'首个方向','slots':[{'id':'cover','form':'cover','headline':'封面','status':'pending'}]}
+    job = {'id':'abc123','article':{'title':'文章','chars':50},'plan':{'alternatives':[choice],'background_status':'pending','selected_angle':None},'slots':choice['slots'],'images':{}}
+    page.route('**/api/article-visual/preflight', lambda r: r.fulfill(json={'preflight_id':'a'*32}))
+    page.route('**/api/article-visual/tasks/start', lambda r: r.fulfill(json={'job':{'id':'task1','status':'queued'}}))
+    page.route('**/api/article-visual/tasks/task1', lambda r: r.fulfill(json={'job':{'id':'task1','status':'succeeded','result':job}}))
+    page.goto('http://ui.test/article-visual')
+    page.locator('#av-url').fill('https://mp.weixin.qq.com/s/example')
+    page.locator('#av-analyze').click()
+    expect(page.locator('.av-angle-option')).to_have_count(1)
+    expect(page.locator('.av-angle-option').first).to_be_enabled()
+    expect(page.locator('#av-angles')).to_contain_text('其他方向正在后台核对')
+    assert not observed['errors']
+
+
+def test_background_directions_appear_without_resetting_user_selection(ui):
+    page, observed = ui
+    slot = {'id':'cover','form':'cover','headline':'封面','status':'pending'}
+    choice = {'angle_label':'首个方向','slots':[slot]}
+    extra = {'angle_label':'补充方向','slots':[slot]}
+    job = {'id':'abc123','article':{'title':'文章','chars':50},'plan':{'alternatives':[choice],'background_status':'pending','selected_angle':None},'slots':[slot],'images':{}}
+    updated = {'id':'abc123','article':{'title':'文章','chars':50},'plan':{'alternatives':[choice,extra],'background_status':'complete','selected_angle':None},'slots':[slot],'images':{}}
+    page.route('**/api/article-visual/preflight', lambda r: r.fulfill(json={'preflight_id':'a'*32}))
+    page.route('**/api/article-visual/tasks/start', lambda r: r.fulfill(json={'job':{'id':'task1','status':'queued'}}))
+    page.route('**/api/article-visual/tasks/task1', lambda r: r.fulfill(json={'job':{'id':'task1','status':'succeeded','result':job}}))
+    page.route('**/api/article-visual/abc123', lambda r: r.fulfill(json=updated))
+    page.goto('http://ui.test/article-visual')
+    page.locator('#av-url').fill('https://mp.weixin.qq.com/s/example')
+    page.locator('#av-analyze').click()
+    expect(page.locator('.av-angle-option')).to_have_count(1)
+    expect(page.locator('.av-angle-option')).to_have_count(2, timeout=10000)
+    expect(page.locator('#av-angles')).to_contain_text('补充方向')
+    assert not observed['errors']

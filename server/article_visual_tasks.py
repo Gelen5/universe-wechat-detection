@@ -83,7 +83,65 @@ def run(self, job_id):
             accounts.settle_usage(job['usage_id'], 200, int((time.monotonic() - started) * 1000))
         except Exception:
             logging.getLogger(__name__).warning('article_visual settlement_pending job_id=%s', job_id)
+    if (result.get('plan') or {}).get('background_status') == 'pending':
+        try:
+            dispatch_more_directions(job_id)
+        except Exception:
+            logging.getLogger(__name__).warning('article_visual additional directions dispatch failed job_id=%s', job_id)
+            _merge_more_directions(job_id, [], 'unavailable', '后台补充任务提交失败，已有方向可以继续使用。')
     return {'status': 'succeeded'}
+
+
+def dispatch_more_directions(job_id):
+    return more_directions.apply_async(args=[job_id], queue=LANE)
+
+
+def _merge_more_directions(job_id, additional, status, notice=""):
+    # Compare-and-swap protects user choices and images from being overwritten by
+    # the background task, including concurrent requests on another process.
+    from sqlalchemy import text
+    from . import database
+    for _ in range(3):
+        with database.session_scope() as session:
+            row = session.execute(text('SELECT payload FROM article_visual_jobs WHERE id=:id'), {'id': job_id}).fetchone()
+            if not row:
+                return False
+            previous = row[0]
+            job = json.loads(previous)
+            plan = job.get('plan') or {}
+            if plan.get('background_status') != 'pending':
+                return False
+            plan['alternatives'] = (plan.get('alternatives') or []) + additional[:2]
+            plan['background_status'] = status
+            plan['background_notice'] = notice[:300]
+            updated = json.dumps(job, ensure_ascii=False)
+            result = session.execute(text('UPDATE article_visual_jobs SET payload=:new, updated_at=:now WHERE id=:id AND payload=:old'),
+                {'new': updated, 'now': accounts.utc_now(), 'id': job_id, 'old': previous})
+            if result.rowcount:
+                return True
+    return False
+
+
+@celery_app.task(name='article_visual.more_directions', acks_late=True, reject_on_worker_lost=True, soft_time_limit=600, time_limit=630)
+def more_directions(job_id):
+    try:
+        job = article_visual._read_job(job_id)
+        plan = job.get('plan') or {}
+        if plan.get('background_status') != 'pending':
+            return {'status': 'skipped'}
+        checkpoint = json.loads((article_visual._job_dir(job_id) / 'plan-checkpoint.json').read_text(encoding='utf-8'))
+        if checkpoint.get('user_id') != job.get('user_id') or article_visual.article_digest(checkpoint['article']) != job.get('article_digest'):
+            raise ValueError('checkpoint mismatch')
+        result = article_visual.build_plan(checkpoint['article'], initial_raw=checkpoint['raw'], trace_id=job_id,
+            skip_indices=(int(plan['first_candidate_index']),))
+        merged = _merge_more_directions(job_id, result.get('alternatives') or [], 'complete')
+        return {'status': 'completed' if merged else 'skipped'}
+    except Exception as exc:
+        logging.getLogger(__name__).exception('article_visual additional directions failed job_id=%s', job_id)
+        detail = str(exc) if isinstance(exc, ValueError) and str(exc).startswith('文章正文已读取，但方案检查未通过：') else ''
+        notice = ('其他方向未完成：' + detail[:200]) if detail else '其他方向未完成，可能是复核、模型服务或网络异常，暂无法确定具体原因。已有方向可以继续使用。'
+        _merge_more_directions(job_id, [], 'unavailable', notice)
+        return {'status': 'unavailable'}
 
 
 @celery_app.task(name='article_visual.recover')
