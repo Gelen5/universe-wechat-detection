@@ -138,3 +138,12 @@ body.atelier #tie-tu .generation-progress > div:first-child { flex-wrap:wrap; ga
 .card-image-lightbox > img { display:block; max-width:90vw; max-height:80dvh; width:auto; height:auto; margin:auto; object-fit:contain; }
 .card-image-lightbox > div { display:flex; justify-content:flex-end; gap:18px; align-items:center; padding-top:12px; }
 .card-image-lightbox button,.card-image-lightbox a { padding:8px 14px; cursor:pointer; }
+
+/* A compact publication action stays visible above the potentially long card list. */
+body.atelier #tie-tu .tie-publication { margin:18px 0 22px; padding:22px 24px; border:1px solid #b8dcca; border-radius:18px; background:linear-gradient(125deg,#f1fbf4,#e4f5eb); box-shadow:0 10px 28px rgba(34,103,66,.08); }
+body.atelier #tie-tu .tie-publication h3 { color:#173f2a; font-size:20px; line-height:1.3; }
+body.atelier #tie-tu .tie-publication > p:not([role=status]) { max-width:60ch; margin:6px 0 14px; color:#476b55; font-size:14px; }
+body.atelier #tie-tu .tie-publication > p[role=status]:empty { display:none; }
+body.atelier #tie-tu .tie-publication .remix-copy-actions button:last-child { min-height:44px; padding:11px 20px; border-color:#176d40; background:#176d40; color:#fff; }
+body.atelier #tie-tu .tie-publication button:focus-visible { outline:3px solid #79b895; outline-offset:3px; }
+@media(max-width:600px) { body.atelier #tie-tu .tie-publication { padding:18px; margin:16px 0 20px; } body.atelier #tie-tu .tie-publication .remix-copy-actions button { width:100%; min-height:44px; white-space:normal; } }

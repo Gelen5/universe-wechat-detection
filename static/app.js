@@ -1076,7 +1076,7 @@ function renderTiePlan(plan) {
     ${plan.visual_fallback_notice ? `<p class="tie-mode-hint" role="status">${esc(plan.visual_fallback_notice)}</p>` : ''}
     <div class="plan-summary"><div><span>画幅</span><strong>${esc(plan.ratio)}</strong></div><div><span>图片</span><strong>${cards.length} 张</strong></div><div><span>人物一致性</span><strong>${plan.portrait_enabled ? '已启用' : '未启用'}</strong></div></div>
     <section class="result-section"><div class="result-section-title"><strong>卡片计划</strong><span>先检查标题和画面，再确认生成</span></div><div class="creator-card-grid">${cards.map((card, position) => `<article class="creator-output-card" data-card-index="${Number(card.index)}"><div class="card-image-slot"><span>${String(card.index).padStart(2, '0')}</span><small>${position === 0 ? '首张试图 · 等待生成' : '等待生成'}</small></div><div class="creator-card-copy"><span>${position === 0 ? '封面 · 首张试图' : `内容卡片 ${String(card.index).padStart(2, '0')}`}</span><strong>${esc(card.overlay_text)}</strong><p><b>画面</b> ${esc(card.visual_subject)}</p><small>${esc([card.card_brief?.scene, card.card_brief?.action].filter(Boolean).join(' · '))}</small></div></article>`).join('')}</div></section>
-    <section class="result-section"><div class="result-section-title"><strong>配套文案</strong><button class="copy-result" data-copy-target="tie-copy" type="button"><i data-lucide="copy"></i>复制</button></div><textarea id="tie-copy" class="result-editor compact">${esc(plan.copy || '')}</textarea><p class="cta-line">${esc(plan.cta || '')}</p></section>`;
+    `;
   root.querySelector('#tie-images').hidden = cards.length === 0 || remaining().length === 0;
   root.querySelector('.plan-summary').hidden = cards.length === 0;
   root.querySelector('.creator-card-grid').closest('.result-section').hidden = cards.length === 0;
@@ -1105,7 +1105,9 @@ function renderTiePlan(plan) {
   renderConversationImages(root, plan.images);
   if (window.RemixPublication) {
     const context = JSON.stringify({title: plan.title, angle: plan.angle, copy: plan.copy, cards: cards.map(c => ({text:c.overlay_text, visual:c.visual_subject}))}).slice(0, 12000);
-    root.append(window.RemixPublication.render({id: plan.session_id || 'current'}, {endpoint: '/api/tie-tu/publication', context}));
+    const publication = window.RemixPublication.render({id: plan.session_id || 'current'}, {endpoint: '/api/tie-tu/publication', context});
+    publication.classList.add('tie-publication');
+    root.querySelector('.plan-summary').after(publication);
   }
   bindCopyButtons(root);
   window.lucide?.createIcons();

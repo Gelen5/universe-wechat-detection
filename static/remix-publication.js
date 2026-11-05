@@ -11,9 +11,9 @@
     const endpoint = options.endpoint || `/api/viral-remix/image/${encodeURIComponent(job.id)}/publication`;
     function paint() {
       panel.replaceChildren();
-      const head = document.createElement('h3'); head.textContent = '发布文案'; panel.append(head);
-      const tip = document.createElement('p'); tip.textContent = options.context ? '根据当前卡片计划生成，结果可编辑和复制；离开页面前请保存内容。' : '根据这组图片生成，可编辑后保存。'; panel.append(tip);
-      if (!data) { const empty = document.createElement('p'); empty.textContent = '这组图片还没有发布文案，可点击下方按钮生成。'; panel.append(empty); }
+      const head = document.createElement('h3'); head.textContent = options.context ? '标题与配文' : '发布文案'; panel.append(head);
+      const tip = document.createElement('p'); tip.textContent = options.context ? '根据卡片计划生成 3 个标题、配文和标签，可编辑复制。离开页面前请保存内容。' : '根据这组图片生成，可编辑后保存。'; panel.append(tip);
+      if (!data && !options.context) { const empty = document.createElement('p'); empty.textContent = '这组图片还没有发布文案，可点击下方按钮生成。'; panel.append(empty); }
       let titles = [], body, tags;
       if (data) {
         const label = document.createElement('strong'); label.textContent = '标题备选 · 每条最多20字'; panel.append(label);

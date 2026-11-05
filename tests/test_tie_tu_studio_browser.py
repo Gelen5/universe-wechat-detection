@@ -43,6 +43,9 @@ def test_tie_tu_studio_renders_plan_and_responsive_layout(ui, width):
     expect(page.locator('#tie-empty')).to_be_hidden()
     expect(page.locator('#tie-images')).to_have_text('确认计划并生成第 1 张试图')
     expect(page.locator('#tie-result .creator-output-card')).to_have_count(2)
+    expect(page.locator('#tie-copy')).to_have_count(0)
+    expect(page.locator('#tie-result .tie-publication')).to_contain_text('生成标题和配文 · 1积分')
+    assert page.locator('#tie-result .tie-publication').bounding_box()['y'] < page.locator('#tie-result .creator-card-grid').bounding_box()['y']
     if os.getenv('TIE_TU_SCREENSHOT_DIR'):
         page.screenshot(path=str(Path(os.environ['TIE_TU_SCREENSHOT_DIR']) / f'tie-tu-plan-{width}.png'), full_page=True)
     page.evaluate('''() => renderTiePlan({title:'测试计划', ratio:'3:4', content_type_label:'清单',
