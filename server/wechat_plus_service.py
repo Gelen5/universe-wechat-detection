@@ -131,6 +131,9 @@ REVISE_POINTS = 4
 NODE_LABELS = {'intent': '整理写作需求', 'topic': '推荐具体选题', 'research': '检索并整理证据',
                'strategy': '设计文章结构', 'draft': '撰写文章',
                'review': '复核并局部修订', 'delivery': '生成排版预览'}
+# 这些节点跑完就停：选题给出候选、正文/复核/排版都有可见产出。
+# 其余节点（整理需求、检索、结构）没有可见产出，在同一轮里接着跑。
+STOP_NODES = {'topic', 'draft', 'review', 'delivery'}
 REDO_PATTERN = re.compile(
     r'(?:重做|重新|换一个|换个|换一种|再来一次|再来一遍).{0,8}'
     r'(选题|标题|结构|正文|复核|排版|预览)')
@@ -230,43 +233,54 @@ def _execute_step(state, message, generate, *, output_dir, progress,
             article['user_request'] = (text + '\n用户补充：' + message)[-40000:]
     if node == 'draft' and rerun_draft:
         article['draft'] = ''
-    if node == 'research' and not state.get('imported'):
-        article['evidence_pack'] = states.ArticleState().to_dict()['evidence_pack']
-        progress(NODE_LABELS['research'])
-        check_cancelled()
-        raw = search(article.get('topic') or '', fetch=True, max_sources=10,
-                     max_fetch=3, timeout=10)
-        state['research'] = workbench_research.compact(raw, excerpt_chars=2500)
 
-    progress(NODE_LABELS[node])
-    check_cancelled()
-    diagnostics = (state.get('humanness_report') or {}).get('repair_plan') or []
-    guard = {}
-    article = runtime.step(article, node, generate,
-                           evidence=state.get('research'),
-                           output_dir=output_dir,
-                           note='' if node == 'intent' else message,
-                           diagnostics=diagnostics if node == 'review' else None,
-                           guard_out=guard)
-    state['article_state'] = article
-    status = article['nodes'][node]['status']
-    if status == 'awaiting_host':
-        state['next_node'] = node
-        raise ValueError('本次生成结果未完整返回，请重试；已保存的内容不会丢失。')
-    preview_only = False
-    if status != 'passed':
-        if node == 'delivery':
-            findings = (article.get('quality_report') or {}).get('hard_gate', {}).get('findings', [])
-            revisions = [item.get('code') for item in findings if item.get('level') != 'note']
-            if revisions == ['no_information_anchor']:
-                # Editorial gaps must not prevent a faithful layout preview.
-                preview_only = True
+    # 一轮跑到“有东西给你看”为止：整理需求、检索、结构都没有可见产出，
+    # 继续让用户点「继续」只会换来一句“下一步…”。它们在同一轮里连着跑完。
+    points_total = 0
+    while True:
+        if node == 'research' and not state.get('imported'):
+            article['evidence_pack'] = states.ArticleState().to_dict()['evidence_pack']
+            progress(NODE_LABELS['research'])
+            check_cancelled()
+            raw = search(article.get('topic') or '', fetch=True, max_sources=10,
+                         max_fetch=3, timeout=10)
+            state['research'] = workbench_research.compact(raw, excerpt_chars=2500)
+        progress(NODE_LABELS[node])
+        check_cancelled()
+        diagnostics = (state.get('humanness_report') or {}).get('repair_plan') or []
+        guard = {}
+        article = runtime.step(article, node, generate,
+                               evidence=state.get('research'),
+                               output_dir=output_dir,
+                               note='' if node == 'intent' else message,
+                               diagnostics=diagnostics if node == 'review' else None,
+                               guard_out=guard)
+        state['article_state'] = article
+        status = article['nodes'][node]['status']
+        if status == 'awaiting_host':
+            state['next_node'] = node
+            raise ValueError('本次生成结果未完整返回，请重试；已保存的内容不会丢失。')
+        preview_only = False
+        if status != 'passed':
+            if node == 'delivery':
+                findings = (article.get('quality_report') or {}).get('hard_gate', {}).get('findings', [])
+                revisions = [item.get('code') for item in findings if item.get('level') != 'note']
+                if revisions == ['no_information_anchor']:
+                    # Editorial gaps must not prevent a faithful layout preview.
+                    preview_only = True
+                else:
+                    state['next_node'] = node
+                    raise Blocked(state, article['nodes'][node].get('message') or 'Skill节点尚未通过', node)
             else:
                 state['next_node'] = node
                 raise Blocked(state, article['nodes'][node].get('message') or 'Skill节点尚未通过', node)
-        else:
-            state['next_node'] = node
-            raise Blocked(state, article['nodes'][node].get('message') or 'Skill节点尚未通过', node)
+        points_total += (REVISE_POINTS if (node == 'draft' and rerun_draft)
+                         else NODE_POINTS[node])
+        upcoming = next((name for name in order
+                         if article['nodes'][name]['status'] != 'passed'), '')
+        if node in STOP_NODES or not upcoming:
+            break
+        node = upcoming
 
     state['choices'] = []
     reply = ''
@@ -324,9 +338,9 @@ def _execute_step(state, message, generate, *, output_dir, progress,
                                     preview_only=preview_only)
 
     action = NODE_ACTIONS[node]
-    points = NODE_POINTS[node]
+    points = points_total
     if node == 'draft' and rerun_draft:
-        action, points = 'revise', REVISE_POINTS
+        action = 'revise'
     state['last_action'] = action
     state['billing_action'] = action
     state['billing_points'] = points

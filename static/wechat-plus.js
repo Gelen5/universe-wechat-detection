@@ -252,7 +252,10 @@
     // 不是排版风格；把它们伪装成风格选项会让左侧提示与右侧文档状态对不上。
     // 旧会话没有 step_mode 字段，用 next_node（只有分步模式会写）兜底识别。
     const stepMode = state.step_mode === undefined ? Boolean(state.next_node) : Boolean(state.step_mode);
-    const layoutOptions = !stepMode && ['write', 'format'].includes(state.last_action) && (state.reply_options || []).length;
+    // 选题那一轮 reply_options 与候选标题逐条重复，已经渲染成选题卡片，不再重复出按钮。
+    const choiceTitles = new Set((state.choices || []).map(choice => choice.title));
+    const replyOptions = (state.reply_options || []).filter(option => !choiceTitles.has(option));
+    const layoutOptions = !stepMode && ['write', 'format'].includes(state.last_action) && replyOptions.length;
     $('options').classList.toggle('wp-layout-options', Boolean(layoutOptions));
     if (layoutOptions) $('options').append(text('span', state.last_action === 'write' ? '选择排版风格，或在下方描述你的想法' : '继续调整排版', 'wp-layout-options-label'));
     const previewEmpty = $('preview-empty');
@@ -262,7 +265,7 @@
           : '正文生成后，完成复核并生成排版，这里会显示成稿预览。')
         : '成稿后，告诉我“排版看看”，即可生成预览。';
     }
-    (state.reply_options || []).forEach(option => {
+    replyOptions.forEach(option => {
       const button = text('button', option); button.type = 'button'; button.onclick = () => send(option); $('options').append(button);
     });
     if (lastTurn?.status === 'failed') {

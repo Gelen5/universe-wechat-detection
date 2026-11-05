@@ -466,41 +466,41 @@ class StepModeTests(unittest.TestCase):
             search=lambda *args, **kwargs: {'status': 'unavailable', 'sources': [],
                                             'fetched': [], 'queries': []})
 
-    def test_one_message_advances_exactly_one_node(self):
+    def test_first_turn_returns_topics_without_an_extra_click(self):
         state = self.run_turn({}, '给职场人写一篇关于会议记录的文章')
-        assert state['last_node'] == 'intent'
-        assert state['next_node'] == 'topic'
+        # 整理需求不产出任何可见内容，必须与推荐选题在同一轮内跑完。
+        assert state['last_node'] == 'topic'
+        assert state['next_node'] == 'research'
         passed = [name for name, item in state['article_state']['nodes'].items()
                   if item['status'] == 'passed']
-        assert passed == ['intent']
-        assert state['reply_options'] == ['继续']
+        assert passed == ['intent', 'topic']
+        assert state['reply_options'] == ['把会议记录写成能执行的待办',
+                                          '会议纪要为什么漏掉行动']
+        assert state['billing_points'] == 2
         # The browser renders reply_options as node actions, not layout styles.
         assert state['step_mode'] is True
 
         state = self.run_turn(state, '继续')
-        assert state['last_node'] == 'topic'
-        assert state['next_node'] == 'research'
-        assert state['reply_options'] == ['把会议记录写成能执行的待办',
-                                          '会议纪要为什么漏掉行动']
-        assert state['article_state']['nodes']['research']['status'] == 'pending'
-
-        state = self.run_turn(state, '继续')
-        assert state['last_node'] == 'research'
-        assert state['next_node'] == 'strategy'
-        assert state['reply_options'] == ['继续']
+        # 选完选题就一路把检索、结构、正文跑完，停在有正文可读的地方。
+        assert state['last_node'] == 'draft'
+        assert state['next_node'] == 'review'
+        assert state['reply_options'] == ['继续复核', '改一下正文']
+        assert state['billing_points'] == 9
+        assert state['article_state']['draft']
 
     def test_full_flow_points_options_and_draft_rerun(self):
         state, points, options = {}, [], []
-        for message in ('给职场人写一篇关于会议记录的文章', '继续', '继续', '继续',
-                        '继续', '继续', '继续'):
+        for message in ('给职场人写一篇关于会议记录的文章', '继续', '继续', '继续'):
             state = self.run_turn(state, message)
             points.append(state['billing_points'])
             options.append(state['reply_options'])
-        assert points == [0, 2, 0, 0, 9, 3, 2]
+        assert points == [2, 9, 3, 2]
         assert sum(points) == 16
-        assert options[4] == ['继续复核', '改一下正文']
-        assert options[5] == ['生成排版预览', '按建议修改']
-        assert options[6] == ['复制排版', '换个模块组合']
+        assert options[0] == ['把会议记录写成能执行的待办',
+                              '会议纪要为什么漏掉行动']
+        assert options[1] == ['继续复核', '改一下正文']
+        assert options[2] == ['生成排版预览', '按建议修改']
+        assert options[3] == ['复制排版', '换个模块组合']
         assert state['next_node'] == ''
         assert state['article_state']['nodes']['delivery']['status'] == 'passed'
         assert state['article_state']['formatted_output']
@@ -539,7 +539,8 @@ class StepModeTests(unittest.TestCase):
 
     def run_to_draft(self):
         state = {}
-        for message in ('给职场人写一篇关于会议记录的文章', '继续', '继续', '继续', '继续'):
+        # 第一轮给出选题，第二轮选完就直接产出正文。
+        for message in ('给职场人写一篇关于会议记录的文章', '继续'):
             state = self.run_turn(state, message)
         return state
 
