@@ -487,6 +487,9 @@ class StepModeTests(unittest.TestCase):
         assert state['reply_options'] == ['确认结构，生成初稿', '换一个结构']
         assert state['billing_points'] == 0
         assert '结构已确定' in state['messages'][-1]['content']
+        # 大纲必须真的出现在对话里，否则用户看不到可确认的结构。
+        assert '先区分讨论与决定' in state['messages'][-1]['content']
+        assert '把讨论压成决定' in state['messages'][-1]['content']
 
     def test_full_flow_points_options_and_draft_rerun(self):
         state, points, options = {}, [], []

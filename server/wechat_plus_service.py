@@ -96,18 +96,28 @@ def select_topic(state, title, angle):
 
 
 def _outline_reply(article):
-    """Show the Skill's outline so the structure can be approved before writing."""
+    """Show the Skill's outline so the structure can be approved before writing.
+
+    The Skill's strategy node returns ``[{section, purpose, key_point}]``; other
+    hosts have used heading/title/section_title, so every known shape is accepted
+    rather than silently rendering an empty list and falling back to a generic
+    sentence.
+    """
     outline = article.get('outline') or []
     lines = []
     for index, item in enumerate(outline, 1):
         if isinstance(item, dict):
-            heading = str(item.get('heading') or item.get('title') or item.get('name') or '').strip()
+            heading = str(item.get('section') or item.get('section_title')
+                          or item.get('heading') or item.get('title')
+                          or item.get('name') or '').strip()
             points = item.get('points') or item.get('bullets') or item.get('subsections')
             detail = ''
             if isinstance(points, list) and points:
                 detail = '；'.join(str(point).strip() for point in points if str(point).strip())
             if not detail:
-                detail = str(item.get('summary') or item.get('purpose') or item.get('note') or '').strip()
+                detail = str(item.get('key_point') or item.get('content_plan')
+                             or item.get('summary') or item.get('purpose')
+                             or item.get('note') or '').strip()
         else:
             heading, detail = str(item).strip(), ''
         if not heading:
