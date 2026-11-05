@@ -251,8 +251,14 @@
       evidence.textContent = slot.source_quote ? `原文依据：${slot.source_quote}` : "";
       info.append(cap, h3, p, chips, evidence);
       card.append(thumb, info);
-      card.addEventListener("click", () => {
+      card.addEventListener("click", async () => {
         if (state.busy) return;
+        if (state.job.plan?.alternatives?.length && state.job.plan.selected_angle == null) {
+          state.busy = true;
+          try { state.job = await api(`/api/article-visual/${state.job.id}/angle`, {method:"POST", body:JSON.stringify({index:0})}); }
+          catch (error) { toast(error.message, 4000); return; }
+          finally { state.busy = false; }
+        }
         state.activeId = slot.id;
         render();
         setTab("cover");
@@ -270,16 +276,16 @@
     const choices = plan.alternatives || [];
     const selected = plan.selected_angle;
     els.angles.innerHTML = "";
-    els.planContent.hidden = choices.length > 0 && selected == null;
+    els.planContent.hidden = false;
     if (!choices.length) return;
     const title = document.createElement("h2");
-    title.textContent = selected == null ? "选择传播角度" : "已选传播角度";
+    title.textContent = selected == null ? "推荐传播角度" : "当前传播角度";
     const help = document.createElement("p");
     help.textContent = plan.background_status === 'pending'
       ? (directionWatchJob === state.job.id && Date.now() - directionWatchStarted > 5 * 60 * 1000 ? '其他方向暂未完成，可先使用已有方向；稍后刷新可查看是否有新结果。' : '首个方向已可选择，其他方向正在后台核对；现在选择也可以继续创作。')
       : plan.background_status === 'unavailable'
         ? (plan.background_notice || '其他方向未能完成核对，可以先使用已提供的方向。')
-        : '先确定封面方向，图位会围绕这个方向展开。';
+        : '已为你展开推荐图位，点击下方图卡查看并选择；也可以切换传播方向。';
     els.angles.append(title, help);
     const list = document.createElement("div");
     list.className = "av-angle-list";
@@ -495,7 +501,7 @@
       render();
       setTab("plan");
       const cost = job.elapsed_ms ? seconds(job.elapsed_ms) : "";
-      els.hint.textContent = `拆解完成${cost ? `，用时 ${cost}` : ""}。可选择方向：${job.plan?.alternatives?.length || 0} 个，请留意各方向的核对提示，请选择传播角度。`;
+      els.hint.textContent = `拆解完成${cost ? `，用时 ${cost}` : ""}。推荐图位已展开，点击图卡查看；请留意核对提示。`;
     } catch (error) {
       els.hint.classList.add("is-error");
       els.hint.textContent = error.message;

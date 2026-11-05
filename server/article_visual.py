@@ -748,6 +748,7 @@ def build_plan(article: dict[str, Any], progress=None, initial_raw: str = '', sa
     plan["source"] = "model"
     plan["article_digest"] = article_digest(article)
     plan["alternatives"] = [_normalize_plan(candidate, article) for candidate in verified]
+    plan["selected_angle"] = 0
     for normalized, candidate in zip(plan['alternatives'], verified):
         normalized['review_notice'] = candidate.get('_review_notice', '')
     plan['available_directions'] = len(verified)
