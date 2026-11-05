@@ -123,3 +123,15 @@ def test_failure_with_pending_refund_does_not_claim_it_is_complete(ui):
     expect(page.locator('#av-hint')).to_contain_text('退款处理中')
     expect(page.locator('#av-hint')).not_to_contain_text('积分已退回')
     assert not observed['errors']
+
+
+def test_manual_submission_recovers_lost_response_without_duplicate_charge(ui):
+    page, observed = ui
+    job = {'id':'result1','article':{'title':'恢复文章','chars':50}, 'plan':{'alternatives':[],'selected_angle':None},'slots':[{'id':'cover','form':'cover','headline':'标题','status':'pending'}],'images':{}}
+    page.add_init_script("try { if (window === window.top) localStorage.setItem('article-visual-pending:test-user', JSON.stringify({url:'',key:'manual-key-123',owner:'test-user',manual:true})); } catch (e) {}")
+    page.route('**/api/article-visual/tasks/recent', lambda r: r.fulfill(json={'jobs':[{'id':'task1','status':'succeeded','client_key':'manual-key-123','manual_source':True,'url':''}]}))
+    page.route('**/api/article-visual/tasks/task1', lambda r: r.fulfill(json={'job':{'id':'task1','status':'succeeded','result':job}}))
+    page.goto('http://ui.test/article-visual')
+    expect(page.locator('#av-article-title')).to_have_text('恢复文章', timeout=10000)
+    assert '/api/article-visual/tasks/start' not in observed['requests']
+    assert not observed['errors']

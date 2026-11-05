@@ -1273,8 +1273,9 @@ def recent_plan_tasks(request: Request):
         public = article_visual_tasks.public(job)
         public['url'] = payload.get('url', '')
         public['manual_source'] = bool(payload.get('source_text'))
+        public['client_key'] = str(job.get('idempotency_key') or '').removeprefix('article-plan:')
         entries.append(public)
-    return {'jobs': [job for job in entries if job['id'] not in superseded and (job['status'] in ('queued', 'running') or job['resume_available'])]}
+    return {'jobs': [job for job in entries if job['id'] not in superseded and (job['status'] in ('queued', 'running', 'succeeded') or job['resume_available'])]}
 
 
 @router.get('/tasks/{task_id}')

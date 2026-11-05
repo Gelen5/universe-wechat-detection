@@ -457,7 +457,7 @@
       if (!owner) throw new Error('请先登录');
       let record = null; try { record = JSON.parse(localStorage.getItem(`article-visual-pending:${owner}`) || 'null'); } catch {}
       if (record && record.url !== url) throw new Error('上一项拆解仍待确认，请先等待或刷新页面恢复');
-      record = record || {url, key:newIdempotencyKey(), owner};
+      record = record || {url, key:newIdempotencyKey(), owner, manual:!!sourceText};
       localStorage.setItem(`article-visual-pending:${owner}`, JSON.stringify(record));
       const job = await waitForPlan(record, {sourceText, sourceTitle});
       state.job = job;
@@ -529,6 +529,20 @@
     const owner = currentAccount?.id; if (!owner || state.busy) return;
     try { $('av-resume-review').hidden = !JSON.parse(localStorage.getItem(`article-visual-review:${owner}`) || 'null'); } catch { $('av-resume-review').hidden = true; }
     let record; try { record = JSON.parse(localStorage.getItem(`article-visual-pending:${owner}`) || 'null'); } catch { return; }
+    if (record && !record.id && record.manual && !record.resumeFrom) {
+      try {
+        const recent = await api('/api/article-visual/tasks/recent');
+        if (currentAccount?.id !== owner) return;
+        const existing = (recent.jobs || []).find(job => job.client_key === record.key);
+        if (existing) { record.id = existing.id; localStorage.setItem(`article-visual-pending:${owner}`, JSON.stringify(record)); }
+        else {
+          localStorage.removeItem(`article-visual-pending:${owner}`);
+          els.hint.textContent = '未找到上次手动正文的任务，请重新粘贴正文后提交；已提交的任务可在历史记录中查看。';
+          $('av-text-entry').open = true;
+          return;
+        }
+      } catch { els.hint.textContent = '暂时无法确认上次任务状态，请稍后刷新重试，避免重复提交。'; return; }
+    }
     if (!record) {
       try {
         const recent = await api('/api/article-visual/tasks/recent');
