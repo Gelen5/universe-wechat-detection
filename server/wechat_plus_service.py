@@ -127,6 +127,13 @@ def _execute(state, message, generate, *, output_dir, progress,
     history = state.setdefault('messages', [])
     history.append({'role': 'user', 'content': message})
     history[:] = history[-60:]
+    # Explicit sticker requests belong in the dedicated visual workflow.
+    if re.search(r'贴图号|贴图文案|贴图内容|贴图图文|图文贴图|微信贴图|(?:做|写|生成|制作|创作).{0,12}贴图', message):
+        history.append({'role': 'assistant', 'content': '贴图内容请前往「贴图号」创作，那里可以生成卡片、标题和配文。'})
+        state['last_action'] = 'answer'
+        state['reply_options'] = []
+        state['choices'] = []
+        return state
     article = state.get('article_state')
     context = {'messages': history[-14:], 'choices': state.get('choices', []),
         'preferences': state.get('preferences', {}),

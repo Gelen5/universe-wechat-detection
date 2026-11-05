@@ -1327,6 +1327,27 @@ def _save_remix_publication(job_id: str, user_id: str, publication: dict):
     return publication
 
 
+class StickerPublicationRequest(BaseModel):
+    context: str = Field(min_length=1, max_length=12000)
+
+
+@app.post('/api/tie-tu/publication')
+def generate_sticker_publication(payload: StickerPublicationRequest, request: Request):
+    user = accounts.require_user(request)
+    if not payload.context.strip():
+        raise HTTPException(status_code=422, detail='请先填写创作主题或生成卡片计划')
+    usage_id = accounts.reserve_points(user['id'], {'points': 1, 'feature': '贴图号标题与配文生成'}, 'POST', '/api/tie-tu/publication')
+    started = time.perf_counter()
+    try:
+        with workbench.provider_overrides():
+            publication = creator_tools.sticker_publication_copy({'plan': payload.context})
+        accounts.settle_usage(usage_id, 200, int((time.perf_counter() - started) * 1000))
+    except Exception as exc:
+        accounts.refund_usage(usage_id, 502, int((time.perf_counter() - started) * 1000))
+        raise HTTPException(status_code=502, detail='标题和配文生成失败，积分已退回，请稍后重试') from exc
+    return {'publication': publication, 'points_charged': 1}
+
+
 @app.post('/api/viral-remix/image/{job_id}/publication')
 def regenerate_remix_publication(job_id: str, request: Request):
     user, job = _remix_publication_job(job_id, request)

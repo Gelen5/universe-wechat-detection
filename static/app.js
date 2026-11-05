@@ -1103,6 +1103,10 @@ function renderTiePlan(plan) {
     }
   });
   renderConversationImages(root, plan.images);
+  if (window.RemixPublication) {
+    const context = JSON.stringify({title: plan.title, angle: plan.angle, copy: plan.copy, cards: cards.map(c => ({text:c.overlay_text, visual:c.visual_subject}))}).slice(0, 12000);
+    root.append(window.RemixPublication.render({id: plan.session_id || 'current'}, {endpoint: '/api/tie-tu/publication', context}));
+  }
   bindCopyButtons(root);
   window.lucide?.createIcons();
 }

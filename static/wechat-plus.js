@@ -99,6 +99,7 @@
     if (!messages.length) messageRoot.append(text('p', '你好，把想写的方向或已有文章发给我。我们先找到值得讲的角度，再一起把它写清楚。', 'wp-message'));
     messages.forEach(message => {
       const node = text('p', message.content, 'wp-message'); node.dataset.role = message.role; messageRoot.append(node);
+      if (message.role === 'assistant' && message.content.includes('贴图内容请前往「贴图号」')) { const link = text('a', '前往贴图号 →'); link.href = '/tie-tu'; node.append(' ', link); }
     });
     active = session?.turns?.find(turn => ['queued', 'running'].includes(turn.status)) || null;
     const lastTurn = session?.turns?.[0];
