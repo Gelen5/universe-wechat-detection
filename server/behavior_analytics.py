@@ -46,6 +46,18 @@ def observe(payload: Observation, request: Request):
     except Exception:
         logging.getLogger(__name__).warning('Behavior observation unavailable')
 
+def record_registration(visitor: str, user: dict) -> None:
+    """Record a server-confirmed signup tied to its browser-tab session."""
+    if not visitor or not user or user.get('role') == 'admin' or user.get('impersonation'):
+        return
+    try:
+        with database.ENGINE.begin() as db:
+            db.execute(events.insert().values(id=uuid.uuid4().hex, visitor=visitor,
+                user_id=user['id'], page='home', event='signup_confirmed',
+                seconds=0, device='desktop', created_at=accounts.utc_now()))
+    except Exception:
+        logging.getLogger(__name__).exception('Signup attribution unavailable')
+
 @router.get('/owner-behavior', include_in_schema=False)
 def behavior_page(request: Request):
     require_owner(request)
@@ -76,5 +88,12 @@ def behavior_report(request: Request, days: int = 7):
             func.count(func.distinct(events.c.user_id)).label('users'))
             .where(events.c.created_at >= since, events.c.event.not_in(['active_time','page_view']))
             .group_by(events.c.page,events.c.event).order_by(func.count().desc()).limit(80)).mappings().all()
+        cohort = select(events.c.visitor.label('visitor'), func.min(events.c.created_at).label('first_guest')).where(
+            events.c.user_id.is_(None), events.c.created_at >= since).group_by(events.c.visitor).subquery()
+        signup = events.alias('signup')
+        converted = db.execute(select(func.count(func.distinct(cohort.c.visitor))).select_from(
+            cohort.join(signup, signup.c.visitor == cohort.c.visitor)).where(
+            signup.c.event == 'signup_confirmed', signup.c.created_at >= cohort.c.first_guest,
+            signup.c.created_at >= since)).scalar() or 0
         earliest = db.execute(select(func.min(events.c.created_at))).scalar()
-    return {'days':days,'since':since,'started_at':earliest,'summary':dict(summary), 'pages':[dict(x) for x in pages], 'actions':[dict(x) for x in actions]}
+    return {'days':days,'since':since,'started_at':earliest,'summary':dict(summary), 'conversion': {'guest_sessions': summary['guest_sessions'], 'registered_sessions': converted, 'rate_percent': round(100 * converted / summary['guest_sessions'], 1) if summary['guest_sessions'] else None}, 'pages':[dict(x) for x in pages], 'actions':[dict(x) for x in actions]}

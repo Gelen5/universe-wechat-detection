@@ -42,6 +42,25 @@ class BehaviorTests(unittest.TestCase):
   self.assertGreaterEqual(report['summary']['guest_sessions'],1)
   self.assertTrue(any(row['page']=='image-board' and row['guest_sessions'] >= 1 for row in report['pages']))
   self.assertTrue(any(row['event']=='sticker_extract' and row['guest_sessions'] >= 1 for row in report['actions']))
+ def test_signup_attribution_counts_guest_session_once_and_not_login(self):
+  visitor=uuid.uuid4().hex
+  payload={'visitor':visitor,'page':'home','event':'page_view','seconds':0,'device':'mobile'}
+  self.assertEqual(self.client.post('/api/behavior',json=payload).status_code,204)
+  email=f'{uuid.uuid4().hex}@example.com'
+  response=self.client.post('/api/auth/register',json={'email':email,'password':'testing-pass-123','display_name':'test','behavior_visitor':visitor})
+  self.assertEqual(response.status_code,200)
+  user=response.json()['user']
+  analytics.record_registration(visitor,user)
+  with patch.object(accounts,'require_admin',return_value={'email':'gelen5@163.com','role':'admin'}):
+   data=self.client.get('/api/owner-behavior?days=1').json()
+  self.assertEqual(data['conversion']['registered_sessions'],1)
+  self.assertGreaterEqual(data['conversion']['guest_sessions'],1)
+  with analytics.database.ENGINE.connect() as db:
+   before=db.execute(select(func.count()).select_from(analytics.events).where(analytics.events.c.event=='signup_confirmed')).scalar()
+  self.client.post('/api/auth/login',json={'email':email,'password':'testing-pass-123'})
+  with analytics.database.ENGINE.connect() as db:
+   after=db.execute(select(func.count()).select_from(analytics.events).where(analytics.events.c.event=='signup_confirmed')).scalar()
+  self.assertEqual(before,after)
  def test_report_and_html_are_owner_only(self):
   self.assertIn(self.client.get('/owner-behavior').status_code,(401,403))
   self.assertIn(self.client.get('/api/owner-behavior').status_code,(401,403))

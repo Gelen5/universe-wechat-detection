@@ -46,3 +46,7 @@ $('#share-registration').onclick=()=>{
 $('#close-share').onclick=()=>$('#registration-share').close();
 
 $('#registration-share').addEventListener('close',()=>document.body.classList.remove('registration-sharing'));
+
+let conversionDays=1;
+async function loadConversion(){try{const d=await api('/api/owner-behavior?days='+conversionDays);const c=d.conversion;$('#conversion-summary').innerHTML=[['游客会话',c.guest_sessions],['注册会话',c.registered_sessions],['注册转化率',c.rate_percent==null?'—':c.rate_percent+'%']].map(([name,n])=>`<div class="metric"><span>${name}</span><strong>${n}</strong></div>`).join('');}catch(e){$('#conversion-summary').textContent=e.message;}}
+$('#conversion-ranges').addEventListener('click',e=>{const b=e.target.closest('[data-conversion-days]');if(!b)return;conversionDays=Number(b.dataset.conversionDays);loadConversion();});$('#refresh').addEventListener('click',loadConversion);loadConversion();

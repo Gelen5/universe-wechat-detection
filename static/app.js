@@ -413,7 +413,7 @@ document.querySelector('#auth-form')?.addEventListener('submit', async event => 
         email: document.querySelector('#auth-email').value.trim(),
         password: document.querySelector('#auth-password').value,
         display_name: document.querySelector('#auth-display-name').value.trim(),
-        ...(mode === 'register' ? {ref: document.querySelector('#auth-invite-code').value.trim(), email_code: document.querySelector('#auth-email-code').value.trim(), ...(registrationToken ? {registration_token: registrationToken} : {})} : {}),
+        ...(mode === 'register' ? {behavior_visitor: (() => { try { return sessionStorage.getItem('behavior-visitor') || ''; } catch { return ''; } })(), ref: document.querySelector('#auth-invite-code').value.trim(), email_code: document.querySelector('#auth-email-code').value.trim(), ...(registrationToken ? {registration_token: registrationToken} : {})} : {}),
         ...(challenge ? {turnstile_token: challenge} : {}),
       }),
     });

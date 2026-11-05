@@ -350,6 +350,7 @@ class RegisterRequest(AuthRequest):
     turnstile_token: str = Field(default="", max_length=2048)
     registration_token: str = Field(default="", max_length=64)
     ref: str = Field(default="", max_length=16)
+    behavior_visitor: str = Field(default="", pattern=r"^([a-f0-9]{32})?$")
 
 
 class EmailCodeRequest(BaseModel):
@@ -743,6 +744,7 @@ def register_account(payload: RegisterRequest, response: Response, request: Requ
         result = better_auth_bridge.call('register', payload.model_dump() | {'ip': ip})
         user = better_auth_bridge.business_user(result['user'], rollback_password=payload.password)
         admin_activity.record(user, 'login')
+        behavior_analytics.record_registration(payload.behavior_visitor, user)
         better_auth_bridge.copy_cookies(response, result)
         referral = referrals.bind_signup(user['id'], payload.ref, ip)
         return {'status': 'success', 'user': user, 'wallet': accounts.wallet_summary(user['id']),
@@ -759,6 +761,7 @@ def register_account(payload: RegisterRequest, response: Response, request: Requ
     referral = referrals.bind_signup(user["id"], payload.ref, ip)
     accounts.create_session(user["id"], response)
     admin_activity.record(user, "login")
+    behavior_analytics.record_registration(payload.behavior_visitor, user)
     return {"status": "success", "user": user, "wallet": accounts.wallet_summary(user["id"]),
             "referral": referral}
 
