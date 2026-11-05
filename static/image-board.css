@@ -488,6 +488,12 @@
 body.atelier.image-board-body #image-board.ib-page {
   background: transparent !important;
 }
+@media (max-width: 1100px) {
+  body.atelier.image-board-body {
+    background: radial-gradient(ellipse at 30% 10%, #b4dec5 0, transparent 65%), linear-gradient(135deg, #c5e3d0, #e0ecdc) !important;
+    background-attachment: fixed !important;
+  }
+}
 
 /* ---------------------------------------------------------------- 窄屏 */
 @media (min-width: 1101px) {
