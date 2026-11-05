@@ -48,6 +48,7 @@
     node.querySelector('[data-vi-login]')?.addEventListener('click', () => {
       node.hidden = true;
       if (typeof showAuth === 'function') { showAuth(true); setAuthMode('login'); }
+      else if (window.parent !== window) window.top.location.href = '/?register=1';
       else location.href = '/?register=1';
     });
     node.querySelectorAll('[data-vi-trial]').forEach(b => b.onclick = async () => {
@@ -67,7 +68,7 @@
     const r = await fetch('/api/viral-insights/orders', {method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({package_id:packageId})});
     const data = await r.json();
     if (!r.ok) { alert(data.detail || '暂时无法创建订单'); return; }
-    const holder = document.createElement('div'); holder.innerHTML = data.form_html; document.body.appendChild(holder); holder.querySelector('form')?.submit();
+    const holder = document.createElement('div'); holder.innerHTML = data.form_html; document.body.appendChild(holder); const form = holder.querySelector('form'); if (form && window.parent !== window) form.target = '_top'; form?.submit();
     } catch { alert('网络异常，请稍后重试'); } finally { state.buying = false; }
   }
   window.ViralInsightsMembership = { status, open, promptPreview() { if (sessionStorage.getItem('vi-intro-seen')) return; sessionStorage.setItem('vi-intro-seen', '1'); open(); } };

@@ -1615,6 +1615,7 @@ const viewMap = {
   market: document.querySelector('#market'),
   bookshelf: document.querySelector('#bookshelf'),
   hotspots: document.querySelector('#hotspots'),
+  'topic-library': document.querySelector('#topic-library'),
   lowfans: document.querySelector('#lowfans'),
   'image-board': document.querySelector('#image-board'),
 };
@@ -1635,6 +1636,7 @@ const viewTitles = {
   market: 'AI 超市',
   bookshelf: 'AI 书架',
   hotspots: '热点广场',
+  'topic-library': '选题灵感库',
   lowfans: '低粉爆文',
   'image-board': '低粉爆图',
 };
@@ -1664,6 +1666,10 @@ function setActiveView(view, updateHash = false) {
     if(frame && !frame.hasAttribute('src'))frame.src='/bookshelf?embed=1';
   }
   if (view === 'hotspots') window.HotspotsView?.ensureLoaded?.();
+  if (view === 'topic-library') {
+    const frame = document.querySelector('#topic-library-frame');
+    if (frame && !frame.hasAttribute('src')) frame.src = '/topic-library-frame?embed=1';
+  }
   if (view === 'lowfans') window.LowfansView?.ensureLoaded?.();
   if (view === 'image-board') window.ImageBoardView?.ensureLoaded?.();
   if (downloadButton) downloadButton.hidden = view !== 'report';

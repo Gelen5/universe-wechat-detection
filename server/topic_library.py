@@ -29,6 +29,10 @@ def collection():
 
 @router.get('/topic-library', include_in_schema=False)
 def page():
+    return FileResponse(Path(__file__).parent.parent / 'static' / 'index.html', headers={'Cache-Control': 'no-cache'})
+
+@router.get('/topic-library-frame', include_in_schema=False)
+def frame():
     return FileResponse(Path(__file__).parent.parent / 'static' / 'topic-library.html', headers={'Cache-Control': 'no-cache'})
 
 @router.get('/api/topic-library/categories')
