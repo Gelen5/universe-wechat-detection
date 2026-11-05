@@ -55,7 +55,7 @@ class PricingStyleTests(unittest.TestCase):
                 self.assertEqual(200, self.client.get(path).status_code)
 
     def test_packages_and_checkout_use_same_price_and_credits(self):
-        expected = {'starter': ('19.90', 199), 'pro': ('49.90', 499),
+        expected = {'starter': ('19.90', 159), 'pro': ('49.90', 499),
                     'master': ('99.90', 999)}
         packages = self.client.get('/api/pay/packages').json()['packages']
         self.assertEqual({p['id']: (p['price'], p['credits']) for p in packages}, expected)
@@ -72,8 +72,10 @@ class PricingStyleTests(unittest.TestCase):
 
     def test_pricing_displays_image_estimates_and_caveat(self):
         html = self._page('/pricing')
-        for count in ('99', '249', '499'):
+        for count in ('79', '249', '499'):
             self.assertIn(f'<strong>{count}<small> 张</small></strong>', html)
+        self.assertIn('159 积分', html)
+        self.assertNotIn('所有套餐均按 1 元 = 10 积分到账', html)
         self.assertIn('不同图片功能消耗可能不同', html)
         self.assertIn('拆解、策划和文案', html)
 
@@ -81,11 +83,11 @@ class PricingStyleTests(unittest.TestCase):
         order_id = uuid.uuid4().hex
         with alipay_pay.ENGINE.begin() as db:
             db.execute(insert(alipay_pay.alipay_recharges).values(out_trade_no=order_id,
-                user_id='existing-user', package_id='pro', credits=300, amount='29.00',
+                user_id='existing-user', package_id='starter', credits=199, amount='19.90',
                 status='PENDING', created_at=alipay_pay._now()))
         with patch.object(alipay_pay.accounts, 'credit_alipay_recharge', return_value={'credited': True}) as credit:
             alipay_pay._credit_recharge(order_id)
-            self.assertEqual(credit.call_args.args[1], 300)
+            self.assertEqual(credit.call_args.args[1], 199)
             alipay_pay._credit_recharge(order_id)
             credit.assert_called_once()
 

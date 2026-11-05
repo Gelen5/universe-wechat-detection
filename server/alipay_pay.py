@@ -642,7 +642,7 @@ def _result_url(request: Request) -> str:
 
 # ------------------------------------------------------------------ 接口
 _PACKAGES = (
-    {"id": "starter", "name": "体验包", "credits": 199, "price": "19.90", "blurb": "从第一张作品开始"},
+    {"id": "starter", "name": "体验包", "credits": 159, "price": "19.90", "blurb": "从第一张作品开始"},
     {"id": "pro", "name": "创作者包", "credits": 499, "price": "49.90", "blurb": "适合持续创作", "recommended": True},
     {"id": "master", "name": "高产包", "credits": 999, "price": "99.90", "blurb": "适合高频创作"},
 )
@@ -878,8 +878,8 @@ def pricing_page() -> HTMLResponse:
         '<header class="pricing-intro"><div><div class="pricing-kicker"><span></span> CREATOR OS · 积分套餐</div>'
         '<h1>让灵感，<br><em>变成一张张作品。</em></h1>'
         '<p>从第一张图片，到持续创作。选择适合自己的积分，按需使用。</p></div>'
-        '<div class="pricing-rate"><span>简单透明</span><strong>¥1 <i>=</i> 10 积分</strong><small>积分统一使用，按功能消耗</small></div></header>'
-        '<section aria-label="选择积分套餐"><div class="pricing-section"><div><span>CHOOSE YOUR PLAN</span><h2>为创作，选一个刚好的开始</h2></div><p>所有套餐均按 1 元 = 10 积分到账</p></div>'
+        '<div class="pricing-rate"><span>简单透明</span><strong>按需购买</strong><small>积分统一使用，按功能消耗</small></div></header>'
+        '<section aria-label="选择积分套餐"><div class="pricing-section"><div><span>CHOOSE YOUR PLAN</span><h2>为创作，选一个刚好的开始</h2></div><p>按所选套餐的积分数量到账</p></div>'
         '<div class="plans">' + ''.join(cards) + '</div></section>'
         f'<div class="pricing-details"><strong>关于图片数量</strong><p>按爆款贴图复刻原创图片 {image_points} 积分 / 张估算，实际张数向下取整。不同图片功能消耗可能不同；拆解、策划和文案等步骤如需积分，将分别计费，具体以功能页面为准。</p>'
         '<p>付款成功后积分自动记入当前账号。任务失败按对应功能规则退还积分。</p></div>'
