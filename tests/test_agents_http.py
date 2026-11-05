@@ -31,8 +31,10 @@ class AgentHttpTests(unittest.TestCase):
         client=TestClient(app);email,agent=self.register(client,'agent')
         self.assertEqual(client.get('/api/admin/agents').status_code,403)
         self.assertEqual(client.get('/api/agent/me').status_code,403)
+        self.assertEqual(client.get('/api/agent/orders').status_code,403)
         r=self.admin.post('/api/admin/agents',json={'email':email});self.assertEqual(r.status_code,200,r.text)
         code=client.get('/api/agent/me').json()['code']
+        self.assertEqual(client.get('/api/agent/orders').status_code,200)
         buyer=TestClient(app);_,customer=self.register(buyer,'buyer',agent=code)
         self.assertEqual(buyer.get('/api/admin/agents').status_code,403)
         with accounts._connect() as c:

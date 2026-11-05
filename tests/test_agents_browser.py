@@ -17,6 +17,8 @@ def test_agent_admin_page(browser,width):
         path=urlparse(route.request.url).path
         if path=='/api/admin/agents':
             route.fulfill(json={'agents':[{'user_id':'a','email':'agent@example.com','customers':2,'active':True}]})
+        elif path=='/api/admin/agents/a/estimate':
+            route.fulfill(json={'day':'2026-11-05','orders':1,'order_cents':1990,'refunded_cents':0,'estimate_cents':796})
         elif path=='/api/admin/agents/a/orders':
             route.fulfill(json={'orders':[{'email':'buyer@example.com','out_trade_no':'order1','total_amount':'20.00','refunded_amount':'2.00','status':'PARTIAL_REFUNDED','paid_at':'2026-11-05'}],'page':1,'total':1,'paid_customers':1,'order_total':'20.00','refunded_total':'2.00'})
         else:
@@ -28,6 +30,9 @@ def test_agent_admin_page(browser,width):
     page.get_by_role('button',name='查看充值').click()
     expect(page.locator('#orders')).to_contain_text('buyer@example.com')
     expect(page.locator('#summary')).to_contain_text('累计退款 ¥2.00')
+    page.locator('#settlement-day').fill('2026-11-05')
+    page.get_by_role('button',name='计算',exact=True).click()
+    expect(page.locator('#estimate-result')).to_contain_text('预估应结 ¥7.96')
     assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
     assert not errors
     page.close()
@@ -40,12 +45,15 @@ def test_agent_link_page(browser):
         path=urlparse(route.request.url).path
         if path=='/api/agent/me':
             route.fulfill(json={'code':'ABCDEF0123456789ABCDEF01','active':True})
+        elif path=='/api/agent/orders':
+            route.fulfill(json={'orders':[{'email':'b***@example.com','out_trade_no':'paid','total_amount':'19.90','refunded_amount':'0.00','status':'PAID','paid_at':'2026-11-05'}],'total':1,'paid_customers':1,'order_total':'19.90','refunded_total':'0.00'})
         else:
             file=ROOT/'static'/('agent.html' if path=='/agent' else Path(path).name)
             route.fulfill(body=file.read_bytes(),content_type=mimetypes.guess_type(str(file))[0] or 'text/plain')
     page.route('**/*',serve)
     page.goto('http://ui.test/agent')
     expect(page.locator('#link')).to_have_value('http://ui.test/?agent=ABCDEF0123456789ABCDEF01')
+    expect(page.locator('#orders')).to_contain_text('b***@example.com')
     page.get_by_role('button',name='复制链接').click()
     expect(page.locator('#status')).not_to_be_empty()
     assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
