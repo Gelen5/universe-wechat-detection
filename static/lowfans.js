@@ -244,10 +244,10 @@
       state.statDate = data.stat_date || '';
       state.degraded = !!data.degraded;
       state.preview = !!data.preview;
-      [el.search, el.sort, el.date].forEach(node => { if (node) node.disabled = state.preview; });
+      [el.search, el.sort, el.date].forEach(node => { if (node) node.disabled = false; });
       renderStats();
       renderTracks();
-      el.tracks?.querySelectorAll('button').forEach(node => { node.disabled = state.preview; });
+      if (state.preview) window.ViralInsightsMembership?.promptPreview();
       renderDates();
       renderList();
       renderNote();
@@ -267,6 +267,8 @@
 
   /* ---------------------------------------------------------------- 事件 */
   let searchTimer = 0;
+  [el.search, el.sort, el.date].forEach(node => node?.addEventListener('pointerdown', event => { if (state.preview) { event.preventDefault(); window.ViralInsightsMembership?.open('filter'); } }));
+  [el.search, el.sort, el.date].forEach(node => node?.addEventListener('keydown', event => { if (state.preview && !['Tab', 'Escape', 'Shift'].includes(event.key)) { event.preventDefault(); window.ViralInsightsMembership?.open('filter'); } }));
   el.search?.addEventListener('input', () => {
     clearTimeout(searchTimer);
     searchTimer = setTimeout(() => {
@@ -301,6 +303,7 @@
   el.tracks?.addEventListener('click', (event) => {
     const chip = event.target.closest('[data-track]');
     if (!chip) return;
+    if (state.preview) { window.ViralInsightsMembership?.open('filter'); return; }
     const next = chip.dataset.track || '';
     state.wx_type = state.wx_type === next ? '' : next;
     state.page = 1;

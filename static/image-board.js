@@ -157,10 +157,11 @@
       const response = await fetch('/api/image-board?' + params.toString(), { credentials: 'same-origin' });
       if (!response.ok) throw new Error('HTTP ' + response.status);
       const data = await response.json();
-      root.querySelectorAll('#ib-search, #ib-sort, #ib-date').forEach(el => { el.disabled = !!data.preview; });
+      state.preview = !!data.preview;
+      root.querySelectorAll('#ib-search, #ib-sort, #ib-date').forEach(el => { el.disabled = false; });
       renderMeta(data);
       renderList(data);
-      root.querySelectorAll('#ib-tracks button').forEach(el => { el.disabled = !!data.preview; });
+      if (state.preview) window.ViralInsightsMembership?.promptPreview();
       state.loaded = true;
       if (data.degraded) {
         const age = data.freshness?.last_success_at
@@ -194,10 +195,13 @@
   $('#ib-tracks').addEventListener('click', (event) => {
     const button = event.target.closest('[data-type]');
     if (!button) return;
+    if (state.preview) { window.ViralInsightsMembership?.open('filter'); return; }
     state.type = button.dataset.type;
     load();
   });
 
+  root.querySelectorAll('#ib-search, #ib-sort, #ib-date').forEach(node => node.addEventListener('pointerdown', event => { if (state.preview) { event.preventDefault(); window.ViralInsightsMembership?.open('filter'); } }));
+  root.querySelectorAll('#ib-search, #ib-sort, #ib-date').forEach(node => node?.addEventListener('keydown', event => { if (state.preview && !['Tab', 'Escape', 'Shift'].includes(event.key)) { event.preventDefault(); window.ViralInsightsMembership?.open('filter'); } }));
   $('#ib-sort').addEventListener('change', (event) => {
     state.sort = event.target.value;
     load();
