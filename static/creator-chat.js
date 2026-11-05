@@ -79,6 +79,7 @@
     const label = document.createElement('label'); label.textContent = skill === 'tie-tu' ? '用对话提要求' : '告诉我你想做什么';
     const input = document.createElement('textarea'); input.required = true; input.maxLength = 4000; input.rows = 3; label.append(input);
     if (skill === 'tie-tu') input.placeholder = '例如：做 3 张关于下班后放松的图文，风格温暖清晰';
+    if (skill === 'xiaohongshu') input.placeholder = '例如：写一篇关于用 AI 整理会议记录的图文，面向职场新人';
     const button = document.createElement('button'); button.type = 'submit'; button.className = 'primary-action'; button.textContent = '发送';
     const cancel = document.createElement('button'); cancel.type = 'button'; cancel.className = 'secondary-action'; cancel.textContent = '取消'; cancel.hidden = true; cancel.onclick = () => controller?.abort();
     const reset = document.createElement('button'); reset.type = 'button'; reset.className = 'secondary-action'; reset.textContent = '新对话';

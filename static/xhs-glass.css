@@ -1,0 +1,101 @@
+/* Xiaohongshu: a quiet green glass workspace, scoped to this page. */
+body.atelier #xiaohongshu {
+  --xhs-ink: #183d2b;
+  --xhs-muted: #557465;
+  --xhs-line: rgba(59, 130, 89, .17);
+  --xhs-glass: rgba(250, 255, 251, .68);
+  color: var(--xhs-ink);
+}
+body.atelier #xiaohongshu [hidden] { display: none !important; }
+body.atelier #xiaohongshu .tool-heading h1 { color: #193b2b !important; }
+body.atelier #xiaohongshu .tool-heading p { color: #5b7968 !important; }
+body.atelier #xiaohongshu .skill-shell {
+  gap: 16px !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+}
+body.atelier #xiaohongshu .skill-form-col,
+body.atelier #xiaohongshu .skill-output-col {
+  border: 1px solid rgba(255,255,255,.88) !important;
+  border-radius: 22px !important;
+  background: var(--xhs-glass) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 18px 45px rgba(49,98,66,.08) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(135%);
+  backdrop-filter: blur(22px) saturate(135%);
+}
+body.atelier #xiaohongshu .skill-form-col { padding: 23px !important; }
+body.atelier #xiaohongshu .skill-form-col::before { color: #305d45 !important; font-weight: 700 !important; }
+body.atelier #xiaohongshu .creator-conversation { margin: 18px 0 0 !important; }
+body.atelier #xiaohongshu .creator-conversation label,
+body.atelier #xiaohongshu .skill-form label { color: #315746 !important; font-size: 13px !important; font-weight: 650; }
+body.atelier #xiaohongshu :is(textarea,input,select) {
+  box-sizing: border-box;
+  border: 1px solid rgba(63,130,89,.22) !important;
+  border-radius: 13px !important;
+  background: rgba(255,255,255,.76) !important;
+  color: #244736 !important;
+  box-shadow: inset 0 1px 4px rgba(36,85,54,.035) !important;
+}
+body.atelier #xiaohongshu textarea::placeholder, body.atelier #xiaohongshu input::placeholder { color: #789187; }
+body.atelier #xiaohongshu .creator-conversation textarea { min-height: 132px; padding: 14px !important; line-height: 1.65; }
+body.atelier #xiaohongshu :is(textarea,input,select,button,summary):focus-visible { outline: 3px solid rgba(48,143,93,.43) !important; outline-offset: 2px; }
+body.atelier #xiaohongshu .creator-conversation > button,
+body.atelier #xiaohongshu .skill-primary { min-height: 44px; border-radius: 12px !important; }
+body.atelier #xiaohongshu .creator-conversation > button[type=submit],
+body.atelier #xiaohongshu .skill-primary {
+  background: linear-gradient(140deg,#359a68,#1d724a) !important;
+  border: 1px solid #27845a !important; color: white !important;
+  box-shadow: 0 8px 18px rgba(31,119,72,.2), inset 0 1px rgba(255,255,255,.25) !important;
+}
+body.atelier #xiaohongshu .creator-form-mode { border-top: 1px solid var(--xhs-line) !important; margin-top: 20px; }
+body.atelier #xiaohongshu .creator-form-mode > summary { color: #426b53; min-height: 44px; display: flex; align-items: center; cursor: pointer; }
+body.atelier #xiaohongshu .creator-form-mode > summary::before { content: '+'; font-size: 20px; margin-right: 9px; color: #40845c; }
+body.atelier #xiaohongshu .creator-form-mode[open] > summary::before { content: '−'; }
+body.atelier #xiaohongshu .skill-output-col { min-width: 0; padding: 25px !important; }
+body.atelier #xiaohongshu #xhs-empty {
+  min-height: 540px !important; padding: 32px !important;
+  border: 1px solid rgba(255,255,255,.8) !important; border-radius: 18px !important;
+  background: radial-gradient(circle at 82% 12%,rgba(198,239,210,.5),transparent 40%), linear-gradient(145deg,rgba(255,255,255,.78),rgba(237,250,241,.6)) !important;
+  display: flex !important; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+}
+body.atelier #xiaohongshu #xhs-empty[hidden] { display:none !important; }
+body.atelier #xiaohongshu #xhs-empty h2 { margin: 0 0 10px !important; color: #244d36 !important; font-size: 22px !important; font-weight: 700 !important; }
+body.atelier #xiaohongshu #xhs-empty > p { max-width: 410px; margin: 0; color: #678676 !important; font-size: 14px; line-height: 1.8; }
+body.atelier #xiaohongshu .xhs-glass-guide { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); width: min(100%,600px); gap: 10px; margin-top: 32px; text-align: left; }
+body.atelier #xiaohongshu .xhs-glass-guide-item { padding: 16px; min-width: 0; border: 1px solid rgba(255,255,255,.9); border-radius: 16px; background: rgba(255,255,255,.52); box-shadow: 0 8px 22px rgba(39,111,65,.045); }
+body.atelier #xiaohongshu .xhs-glass-guide-item > span { display: block; margin-bottom: 15px; color: #5da178; font-size: 11px; font-weight: 700; letter-spacing: .1em; }
+body.atelier #xiaohongshu .xhs-glass-guide-item strong, body.atelier #xiaohongshu .xhs-glass-guide-item small { display: block; }
+body.atelier #xiaohongshu .xhs-glass-guide-item strong { color: #254d37; font-size: 14px; }
+body.atelier #xiaohongshu .xhs-glass-guide-item small { margin-top: 6px; color: #71907d; font-size: 12px; line-height: 1.5; }
+body.atelier #xiaohongshu #xhs-result { min-width: 0; color: var(--xhs-ink); }
+body.atelier #xiaohongshu #xhs-result .output-head { display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:16px; padding-bottom: 20px; }
+body.atelier #xiaohongshu #xhs-result .output-head h2 { color:#214d35 !important; font-size:clamp(22px,2vw,30px) !important; line-height:1.35; }
+body.atelier #xiaohongshu #xhs-result .output-head p { color:var(--xhs-muted); line-height:1.65; }
+body.atelier #xiaohongshu #xhs-result .result-section { margin-top: 22px; padding-top: 22px; border-top:1px solid var(--xhs-line); }
+body.atelier #xiaohongshu #xhs-result .result-section-title strong { color:#2a5a3d !important; font-size:15px; }
+body.atelier #xiaohongshu #xhs-result :is(.title-option,.creator-output-card,.result-meta-grid > div) { border:1px solid rgba(104,170,124,.2) !important; border-radius:14px !important; background:rgba(255,255,255,.62) !important; }
+body.atelier #xiaohongshu #xhs-result .title-option.selected { border-color:#76bd91 !important; background:rgba(222,246,228,.68) !important; }
+body.atelier #xiaohongshu #xhs-result .card-image-slot { background:linear-gradient(145deg,#e9f7ed,#f6fbf7) !important; }
+body.atelier #xiaohongshu #xhs-result :is(.secondary-action,.copy-result) { min-height: 40px; border-radius: 11px; color:#246741; border-color:#a9d5b8; background:rgba(246,255,248,.8); }
+@media (max-width: 760px) {
+  body.atelier #xiaohongshu .skill-shell { gap: 12px !important; }
+  body.atelier #xiaohongshu .skill-form-col, body.atelier #xiaohongshu .skill-output-col { padding: 18px !important; border-radius: 18px !important; }
+  body.atelier #xiaohongshu #xhs-empty { min-height: 300px !important; padding: 24px 16px !important; }
+  body.atelier #xiaohongshu #xhs-empty h2 { font-size: 19px !important; }
+  body.atelier #xiaohongshu .xhs-glass-guide { grid-template-columns: 1fr; gap:8px; margin-top:20px; }
+  body.atelier #xiaohongshu .xhs-glass-guide-item { display:flex; align-items:center; gap:14px; padding:11px 13px; }
+  body.atelier #xiaohongshu .xhs-glass-guide-item > span { margin:0; }
+  body.atelier #xiaohongshu .xhs-glass-guide-item small { margin-top:2px; }
+  body.atelier #xiaohongshu .creator-conversation textarea { min-height:110px; }
+}
+@media (prefers-reduced-motion: reduce) { body.atelier #xiaohongshu * { scroll-behavior: auto !important; } }
+body.atelier #xiaohongshu #xhs-result .result-section { border-top: 0 !important; }
+body.atelier #xiaohongshu #xhs-result .title-options { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr)); gap:10px; }
+body.atelier #xiaohongshu #xhs-result .creator-card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr)); gap:12px; }
+@media(max-width:760px) {
+  body.atelier #xiaohongshu #xhs-result .title-options,
+  body.atelier #xiaohongshu #xhs-result .creator-card-grid { grid-template-columns:repeat(2,minmax(0,1fr)) !important; }
+  body.atelier #xiaohongshu #xhs-result .title-option { min-width:0; overflow-wrap:anywhere; }
+}

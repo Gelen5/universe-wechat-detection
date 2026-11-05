@@ -19,6 +19,17 @@
       const h2 = document.createElement('h2'); h2.textContent = outTitle;
       const description = document.createElement('p'); description.textContent = hint;
       empty.append(h2,description);
+      if (id === 'xiaohongshu') {
+        const guide = document.createElement('div'); guide.className = 'xhs-glass-guide';
+        guide.setAttribute('aria-label', '内容包包含的内容');
+        for (const [number, label, detail] of [['01','标题灵感','多个角度，找到合适的表达'], ['02','图文结构','封面与内容页，一起规划'], ['03','发布文案','正文、评论和发布前检查']]) {
+          const item = document.createElement('div'); item.className = 'xhs-glass-guide-item';
+          const n = document.createElement('span'); n.textContent = number;
+          const copy = document.createElement('div'); const strong = document.createElement('strong'); strong.textContent = label;
+          const small = document.createElement('small'); small.textContent = detail; copy.append(strong, small); item.append(n, copy); guide.append(item);
+        }
+        empty.append(guide);
+      }
     }
     const output = page.querySelector('.skill-output-col');
     const result = document.getElementById(prefix+'-result');
