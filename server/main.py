@@ -15,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from . import accounts, diagnosis_service, image_provider, email_verification
-from . import creator_tools, creator_conversation, community
+from . import creator_tools, creator_conversation, community, topic_library
 from . import workbench
 from . import legacy_routes
 from . import conversation_repository, database
@@ -69,7 +69,9 @@ lowfans_sync.init_schema()
 image_board.init_schema()
 viral_insights_membership.init_schema()
 community.init_schema()
+topic_library.init_schema()
 app.include_router(community.router)
+app.include_router(topic_library.router)
 from . import admin_activity
 admin_activity.init_db()
 app.include_router(admin_activity.router)
@@ -210,7 +212,8 @@ async def account_and_points_gate(request: Request, call_next):
         path == "/api/lowfans" or path == "/api/lowfans/meta"
         or (path.startswith("/api/lowfans/") and path != "/api/lowfans/export")
         or path == "/api/image-board" or path == "/api/image-board/cover"
-        or path == "/api/image-board/preview-cover")
+        or path == "/api/image-board/preview-cover"
+        or path in {"/api/topic-library", "/api/topic-library/categories"})
     public_refresh = request.method == "POST" and path == "/api/hotspots/refresh"
     insights_action = request.method == "POST" and path in {"/api/lowfans/export", "/api/lowfans/refresh"}
     # 支付宝收银接口按协议对外：异步通知由支付宝服务器直连 POST，下单/查询/退款

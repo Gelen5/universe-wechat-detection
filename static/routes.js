@@ -27,6 +27,8 @@ window.APP_NAV = (() => {
     {group: '选题灵感', href: '/hotspots', view: 'hotspots', label: '热点广场', short: '热点',
      fallback: true,
      icon: svg('<path d="M3 17l5-5 4 3 5-7 4 5"/><path d="M3 21h18"/>')},
+    {group: '选题灵感', href: '/topic-library', label: '选题灵感库', page: true, fallback: true,
+     icon: svg('<path d="M9 18h6M10 22h4M8 15a7 7 0 1 1 8 0c-.8.6-1.2 1.2-1.2 2H9.2c0-.8-.4-1.4-1.2-2z"/>')},
     // 低粉爆文：小体量账号的高爆发文章榜，是选题的上游入口。
     {group: '选题灵感', href: '/lowfans', view: 'lowfans', label: '低粉爆文',
      fallback: true,

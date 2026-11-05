@@ -31,7 +31,7 @@
     const body = node.querySelector('[data-vi-modal-body]');
     const d = state.data || {};
     body.innerHTML = d.status === 'owner_permanent'
-      ? '<p>管理员账号已拥有低粉爆文和低粉爆图永久查看权益。导出和实时刷新仍按积分计费。</p>'
+      ? '<p>管理员账号已拥有低粉爆文、低粉爆图和选题灵感库永久查看权益。导出和实时刷新仍按积分计费。</p>'
       : d.status === 'logged_out'
       ? '<p>登录后可选择开启一次 5 小时免费试用；不点击不会开始计时，也不会自动扣费。</p><button class="vi-primary" data-vi-login>登录 / 注册</button>'
       : `${d.pending_order ? `<p class="vi-pending">已有订单待支付；支付成功后会员才会生效。</p>` : ''}
@@ -56,7 +56,7 @@
       const r = await fetch('/api/viral-insights/trial/activate', {method:'POST', credentials:'same-origin'});
       if (!r.ok) { const p = await r.json().catch(() => ({})); alert(p.detail || '试用激活失败'); b.disabled = false; return; }
       window.trackWorkbenchBehavior?.('trial_success'); await status(); node.hidden = true;
-      window.LowfansView?.reload?.(); window.ImageBoardView?.reload?.();
+      window.LowfansView?.reload?.(); window.ImageBoardView?.reload?.(); window.TopicLibraryView?.reload?.();
       } catch { alert('网络异常，请稍后重试'); b.disabled = false; }
     });
   }
@@ -75,6 +75,6 @@
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && modal() && !modal().hidden) modal().hidden = true; });
   document.addEventListener('DOMContentLoaded', () => { status().catch(() => {}); });
   window.addEventListener('account-changed', () => status().then(() => {
-    window.LowfansView?.reload?.(); window.ImageBoardView?.reload?.();
+    window.LowfansView?.reload?.(); window.ImageBoardView?.reload?.(); window.TopicLibraryView?.reload?.();
   }).catch(() => {}));
 })();
