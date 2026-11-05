@@ -23,6 +23,7 @@ from concurrent.futures import TimeoutError as FutureTimeoutError
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+from urllib.parse import urljoin, urlsplit
 
 import requests
 from fastapi import APIRouter, HTTPException, Request
@@ -90,7 +91,20 @@ def extract_article(url: str) -> dict[str, Any]:
     last_error: Exception | None = None
     for headers in (HEADERS, MOBILE_HEADERS):
         try:
-            response = requests.get(link, headers=headers, timeout=(5, 12))
+            target = link
+            for _ in range(4):
+                parsed = urlsplit(target)
+                if parsed.scheme not in ('http', 'https') or parsed.hostname != 'mp.weixin.qq.com' or parsed.username or parsed.password or parsed.port not in (None, 80, 443):
+                    raise ValueError('文章链接跳转到了不支持的地址，已停止读取。请重新复制公众号链接，或粘贴正文。')
+                response = requests.get(target, headers=headers, timeout=(5, 12), allow_redirects=False)
+                if getattr(response, 'status_code', 200) not in (301, 302, 303, 307, 308):
+                    break
+                location = response.headers.get('Location', '')
+                if not location:
+                    raise ValueError('文章链接重定向未提供目标地址，请重新复制链接或粘贴正文。')
+                target = urljoin(target, location)
+            else:
+                raise ValueError('文章链接重定向次数过多，请重新复制链接或粘贴正文。')
             response.raise_for_status()
             article = parse_article_html(response.text, link)
             _ARTICLE_CACHE[link] = (time.time(), article)
@@ -187,6 +201,8 @@ def parse_article_html(html: str, url: str = "") -> dict[str, Any]:
         publish = (stamp.astimezone().strftime("%Y-%m-%d %H:%M"))
 
     body = "\n\n".join(blocks)
+    if not body.strip() and images:
+        raise ValueError(STICKER_ARTICLE_ERROR)
     if not body.strip():
         raise ValueError('文章页面已打开，但未提取到文字正文；页面可能以图片为主或内容尚未返回。可粘贴正文重试。')
     return {
@@ -1130,6 +1146,57 @@ class PlanBody(BaseModel):
 class PlanTaskBody(PlanBody):
     idempotency_key: str = Field(min_length=8, max_length=120)
     resume_task_id: str | None = Field(default=None, pattern=r'^[a-f0-9]{32}$')
+    preflight_id: str | None = Field(default=None, pattern=r'^[a-f0-9]{32}$')
+
+
+def _read_preflight(preflight_id: str, user_id: str, url: str, *, check_expiry: bool = True) -> dict[str, Any]:
+    if not re.fullmatch(r'[a-f0-9]{32}', preflight_id):
+        raise HTTPException(status_code=409, detail='文章预检查编号无效，请重新检查链接；本次未扣积分。')
+    path = JOBS_DIR / '_preflight' / (preflight_id + '.json')
+    try:
+        if check_expiry and time.time() - path.stat().st_mtime > 600:
+            raise ValueError('expired')
+        value = json.loads(path.read_text(encoding='utf-8'))
+        if value.get('user_id') != user_id or value.get('url') != url or article_digest(value['article']) != value['digest']:
+            raise ValueError('mismatch')
+        return value['article']
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        detail = '文章预检查已过期或内容不匹配，请重新检查链接。'
+        if check_expiry:
+            detail += '本次未扣积分。'
+        raise HTTPException(status_code=409, detail=detail) from exc
+
+
+@router.post('/preflight')
+def preflight_article(payload: PlanBody, request: Request):
+    user = accounts.require_user(request)
+    try:
+        article = extract_article(payload.url)
+    except ValueError as exc:
+        reason = str(exc).replace('本次失败积分将自动退回。', '').strip()
+        raise HTTPException(status_code=400, detail=reason + ' 本次未扣积分。') from exc
+    except requests.Timeout as exc:
+        raise HTTPException(status_code=504, detail='读取文章时连接超时，可能是网络或微信访问受限，暂无法确定具体原因。可稍后重试或粘贴正文；本次未扣积分。') from exc
+    except requests.RequestException as exc:
+        raise HTTPException(status_code=502, detail='读取文章时网络请求失败，暂无法确定具体原因。可稍后重试或粘贴正文；本次未扣积分。') from exc
+    if len(article.get('markdown', '')) > 100000:
+        raise HTTPException(status_code=400, detail='文章正文超过 10 万字，暂无法完整拆解；请提供较短的文章或精简正文。本次未扣积分。')
+    ident = uuid.uuid4().hex
+    directory = JOBS_DIR / '_preflight'
+    directory.mkdir(parents=True, exist_ok=True)
+    # A queued task may still need the snapshot after the 10-minute submission
+    # window. Keep it for a day, then remove only old preflight files.
+    if int(time.time()) % 32 == 0:
+        for old in directory.glob('*.json'):
+            try:
+                if time.time() - old.stat().st_mtime > 86400:
+                    old.unlink()
+            except OSError:
+                logger.warning('article_visual preflight cleanup failed')
+    temp = directory / (ident + '.tmp')
+    temp.write_text(json.dumps({'user_id': user['id'], 'url': payload.url, 'article': article, 'digest': article_digest(article)}, ensure_ascii=False), encoding='utf-8')
+    temp.replace(directory / (ident + '.json'))
+    return {'preflight_id': ident}
 
 
 @router.post('/tasks/start', status_code=202)
@@ -1150,7 +1217,7 @@ def _start_plan_task(payload: PlanTaskBody, user: dict[str, Any], article_visual
     if row:
         job = dict(row)
         prior = json.loads(job['payload_json'] or '{}')
-        if job['type'] != 'article_visual.plan' or prior.get('url') != payload.url or prior.get('resume_task_id') != payload.resume_task_id or prior.get('source_text', '') != payload.source_text or prior.get('source_title', '') != payload.source_title:
+        if job['type'] != 'article_visual.plan' or prior.get('url') != payload.url or prior.get('resume_task_id') != payload.resume_task_id or prior.get('source_text', '') != payload.source_text or prior.get('source_title', '') != payload.source_title or prior.get('preflight_id') != payload.preflight_id:
             raise HTTPException(status_code=409, detail='任务编号与文章不匹配')
         if job['status'] == 'queued':
             try: article_visual_tasks.dispatch(job['id'])
@@ -1166,12 +1233,14 @@ def _start_plan_task(payload: PlanTaskBody, user: dict[str, Any], article_visual
         raise HTTPException(status_code=400, detail='链接格式不正确，请填写完整的公众号文章链接，或粘贴正文。')
     if payload.source_text and len(payload.source_text.strip()) < 40:
         raise HTTPException(status_code=400, detail='粘贴的正文少于40字，无法准确拆解；请补充完整正文。')
+    if payload.preflight_id and not payload.resume_task_id and not payload.source_text.strip():
+        _read_preflight(payload.preflight_id, user['id'], payload.url)
     rule = accounts.pricing_rule('POST', '/api/article-visual/plan')
     if not rule:
         raise HTTPException(status_code=503, detail='拆解服务暂不可用')
     usage_id = accounts.reserve_points(user['id'], rule, 'POST', '/api/article-visual/tasks/start')
     try:
-        job = accounts.create_job(user['id'], 'article_visual.plan', 'text', key, usage_id, {'url': payload.url, 'source_text': payload.source_text, 'source_title': payload.source_title, 'resume_task_id': payload.resume_task_id})
+        job = accounts.create_job(user['id'], 'article_visual.plan', 'text', key, usage_id, {'url': payload.url, 'source_text': payload.source_text, 'source_title': payload.source_title, 'resume_task_id': payload.resume_task_id, 'preflight_id': payload.preflight_id})
     except Exception:
         accounts.refund_usage(usage_id, 500, 0)
         raise
@@ -1254,7 +1323,7 @@ def create_plan(payload: PlanBody, request: Request):
     return create_plan_for_user(payload.url, accounts.require_user(request)['id'], source_text=payload.source_text, source_title=payload.source_title)
 
 
-def create_plan_for_user(url: str, user_id: str, progress=None, job_id: str | None = None, resume_id: str | None = None, source_text: str = '', source_title: str = ''):
+def create_plan_for_user(url: str, user_id: str, progress=None, job_id: str | None = None, resume_id: str | None = None, source_text: str = '', source_title: str = '', preflight_id: str | None = None):
     started = time.perf_counter()
     if progress:
         progress('extracting')
@@ -1272,6 +1341,8 @@ def create_plan_for_user(url: str, user_id: str, progress=None, job_id: str | No
     try:
         if checkpoint:
             article = checkpoint['article']
+        elif preflight_id:
+            article = _read_preflight(preflight_id, user_id, url, check_expiry=False)
         elif source_text.strip():
             body = source_text.strip()
             article = {'url': url, 'title': source_title.strip() or body.splitlines()[0][:100],

@@ -56,6 +56,8 @@ def run(self, job_id):
         options = {'progress': progress, 'job_id': job_id}
         if payload.get('resume_task_id'):
             options['resume_id'] = payload['resume_task_id']
+        if payload.get('preflight_id'):
+            options['preflight_id'] = payload['preflight_id']
         if payload.get('source_text'):
             options['source_text'] = payload['source_text']
             options['source_title'] = payload.get('source_title', '')

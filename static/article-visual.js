@@ -490,8 +490,18 @@
   async function waitForPlan(record, source = {}) {
     const storageKey = `article-visual-pending:${record.owner}`;
     if (!record.id) {
+      if (!record.resumeFrom && !source.sourceText && !record.preflightId) {
+        els.hint.textContent = '正在检查文章链接与内容类型，本步骤不扣积分…';
+        try {
+          const checked = await api('/api/article-visual/preflight', {method:'POST', body:JSON.stringify({url:record.url})});
+          if (!checked.preflight_id) throw new Error('文章预检查未返回有效结果，本次未扣积分。');
+          if (currentAccount?.id !== record.owner) throw new Error('账号已切换，请返回后重新检查文章。');
+          record.preflightId = checked.preflight_id;
+          localStorage.setItem(storageKey, JSON.stringify(record));
+        } catch (error) { localStorage.removeItem(storageKey); throw error; }
+      }
       let created;
-      try { created = await api('/api/article-visual/tasks/start', {method:'POST',body:JSON.stringify({url:record.url,idempotency_key:record.key,resume_task_id:record.resumeFrom || null,source_text:source.sourceText || '',source_title:source.sourceTitle || ''})}); }
+      try { created = await api('/api/article-visual/tasks/start', {method:'POST',body:JSON.stringify({url:record.url,idempotency_key:record.key,resume_task_id:record.resumeFrom || null,preflight_id:record.preflightId || null,source_text:source.sourceText || '',source_title:source.sourceTitle || ''})}); }
       catch (error) { if (error.status >= 400 && error.status < 500 && error.status !== 429) localStorage.removeItem(storageKey); throw error; }
       if (currentAccount?.id !== record.owner) throw new Error('账号已切换，任务仍在后台执行');
       record.id = created.job.id; localStorage.setItem(storageKey, JSON.stringify(record));

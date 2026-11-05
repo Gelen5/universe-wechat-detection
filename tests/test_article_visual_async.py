@@ -245,3 +245,67 @@ def test_http_access_failure_explains_observed_status_without_claiming_cause(mon
     monkeypatch.setattr(av.requests, 'get', fail)
     with pytest.raises(ValueError, match='HTTP 403.*无法确定'):
         av.extract_article('https://mp.weixin.qq.com/s/access-test-403')
+
+
+def test_free_preflight_and_reuse_snapshot_without_second_fetch(user, monkeypatch, tmp_path):
+    monkeypatch.setattr(tasks, 'dispatch', lambda job_id: None)
+    monkeypatch.setattr(av, 'JOBS_DIR', tmp_path)
+    url = 'https://mp.weixin.qq.com/s/preflight-example'
+    article = {'url':url, 'title':'标题', 'account':'', 'markdown':'这是一段可以用来验证的完整文章原文。'}
+    calls = []
+    monkeypatch.setattr(av, 'extract_article', lambda value: (calls.append(value) or article))
+    pre = av.preflight_article(av.PlanBody(url=url), request(user))['preflight_id']
+    assert accounts.wallet_summary(user['id'])['balance'] == 2
+    payload = av.PlanTaskBody(url=url, preflight_id=pre, idempotency_key=uuid.uuid4().hex)
+    job = av.start_plan_task(payload, request(user))['job']
+    def planning(value, **kwargs):
+        assert value == article
+        raise ValueError('模拟策划失败')
+    monkeypatch.setattr(av, 'build_plan', planning)
+    assert tasks.run.run(job['id'])['status'] == 'failed'
+    assert calls == [url]
+    assert accounts.wallet_summary(user['id'])['balance'] == 2
+    assert av.get_plan_task(job['id'], request(user))['job']['resume_available']
+    with pytest.raises(HTTPException):
+        av._read_preflight(pre, 'different-user', url)
+    with pytest.raises(HTTPException):
+        av._read_preflight(pre, user['id'], url + 'changed')
+
+
+def test_preflight_sticker_detected_before_reservation(user, monkeypatch):
+    def sticker(url): raise ValueError(av.STICKER_ARTICLE_ERROR)
+    monkeypatch.setattr(av, 'extract_article', sticker)
+    with pytest.raises(HTTPException) as exc:
+        av.preflight_article(av.PlanBody(url='https://mp.weixin.qq.com/s/sticker'), request(user))
+    assert '未扣积分' in exc.value.detail
+    assert accounts.wallet_summary(user['id'])['balance'] == 2
+
+
+def test_preflight_rejects_expired_snapshot_before_reservation(user, monkeypatch, tmp_path):
+    import os, time
+    monkeypatch.setattr(tasks, 'dispatch', lambda job_id: None)
+    monkeypatch.setattr(av, 'JOBS_DIR', tmp_path)
+    url = 'https://mp.weixin.qq.com/s/expired'
+    monkeypatch.setattr(av, 'extract_article', lambda value: {'url':url, 'title':'标题', 'markdown':'文章正文内容'})
+    ident = av.preflight_article(av.PlanBody(url=url), request(user))['preflight_id']
+    path = tmp_path / '_preflight' / (ident + '.json')
+    os.utime(path, (time.time() - 601, time.time() - 601))
+    with pytest.raises(HTTPException) as exc:
+        av.start_plan_task(av.PlanTaskBody(url=url, preflight_id=ident, idempotency_key=uuid.uuid4().hex), request(user))
+    assert exc.value.status_code == 409 and '未扣积分' in exc.value.detail
+    assert accounts.wallet_summary(user['id'])['balance'] == 2
+
+
+def test_wechat_extraction_rejects_offsite_redirect(monkeypatch):
+    class Response:
+        status_code = 302
+        headers = {'Location':'http://127.0.0.1/private'}
+    calls = []
+    def fetch(url, **kwargs):
+        calls.append(url)
+        assert kwargs['allow_redirects'] is False
+        return Response()
+    monkeypatch.setattr(av.requests, 'get', fetch)
+    with pytest.raises(ValueError, match='跳转到了不支持的地址'):
+        av.extract_article('https://mp.weixin.qq.com/s/redirect-test')
+    assert all(url.startswith('https://mp.weixin.qq.com/') for url in calls)
