@@ -18,6 +18,8 @@ def test_admin_navigation_filter_drawer(browser,width):
         if parsed.path=='/api/admin/activity':
             q=parse_qs(parsed.query)
             route.fulfill(json={'summary':{'registered_total':196,'new':1,'active':1,'creators':1,'tasks':1,'failed':1,'total':1},'trend':[{'date':'2026-10-31','new':1,'active':1}],'features':{'贴图创作':1},'rows':[task if q.get('view')==['tasks'] else user],'total':1,'page':1,'page_size':25,'updated_at':'2026-10-31T02:00:00Z','activity_started':'2026-10-31T00:00:00Z'})
+        elif parsed.path=='/api/owner-behavior':
+            route.fulfill(json={'summary':{'views':1146,'sessions':228,'guest_sessions':164,'users':38},'pages':[],'actions':[],'action_totals':{},'conversion':{'guest_sessions':100,'registered_sessions':7,'rate_percent':7,'since':'2026-11-05T00:00:00Z'},'started_at':'2026-11-03T00:00:00Z','since':'2026-11-05T00:00:00Z','until':'2026-11-05T12:00:00Z'})
         elif parsed.path.startswith('/api/admin/activity/users/'):
             route.fulfill(json={**user,'usage':{'completed':1},'activity':[{'kind':'login','created_at':user['last_login_at']}],'transactions':[{'amount':-5,'kind':'consume','balance_before':11,'balance_after':6,'note':'生成贴图','created_at':user['last_login_at']}]})
         else:
@@ -25,8 +27,16 @@ def test_admin_navigation_filter_drawer(browser,width):
             route.fulfill(body=file.read_bytes(),content_type=mimetypes.guess_type(str(file))[0] or 'text/plain')
     page.route('**/*',serve)
     page.goto('http://ui.test/admin/users')
-    expect(page.locator('script[src*="admin-activity.js"]')).to_have_attribute('src', '/static/admin-activity.js?v=20261103-action-status')
+    expect(page.locator('script[src*="admin-activity.js"]')).to_have_attribute('src', '/static/admin-activity.js?v=20261105-glass-dashboard')
     expect(page.locator('#rows')).to_contain_text('demo@example.test')
+    expect(page.locator('#overview-pv')).to_have_text('1146')
+    expect(page.locator('#overview-new')).to_have_text('1')
+    expect(page.locator('#overview-active')).to_have_text('1')
+    expect(page.locator('#overview-total')).to_have_text('196')
+    page.locator('.analytics-detail > summary').click()
+    expect(page.locator('#traffic-period')).not_to_contain_text('滚动窗口会随时间减少')
+    page.locator('[data-traffic-days="1"]').click()
+    expect(page.locator('#traffic-period')).to_contain_text('滚动窗口会随时间减少')
     assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
     page.get_by_role('button',name='查看详情',exact=True).click()
     expect(page.locator('#drawer')).to_be_visible()
