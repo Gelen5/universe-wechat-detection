@@ -15,6 +15,7 @@ import subprocess
 import sys
 import uuid
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import markdown
 from bs4 import BeautifulSoup, Comment
@@ -47,7 +48,39 @@ def visible_text(fragment: str) -> str:
     return re.sub(r'\s+', ' ', ''.join(pieces)).strip()
 
 
-def validate_image_source(src: str) -> None:
+def safe_remote_image(src: str) -> bool:
+    """Accept an ordinary http(s) image URL, never an executable/local scheme.
+
+    Opt-in only: the original copy-for-WeChat workflow still requires inlined
+    base64 PNG/JPEG.  Plus drafts routinely carry CDN images, and the preview
+    CSP already limits ``img-src`` to ``https: data:``.  This check replaces the
+    *format* restriction with a strict *scheme/host* restriction; it never
+    skips the text, link, image-order or attribute checks in validate_fragment.
+    """
+    if not isinstance(src, str) or not src or len(src) > 2048:
+        return False
+    if re.search(r'[\s<>"\'\\\x00-\x1f]', src):
+        return False
+    try:
+        parts = urlsplit(src)
+        host = parts.hostname or ''
+        port = parts.port
+    except ValueError:
+        return False
+    if parts.scheme.lower() not in {'http', 'https'} or not parts.netloc:
+        return False
+    if parts.username or parts.password or not host or len(host) > 253:
+        return False
+    if not re.fullmatch(r'[a-z0-9.-]+', host, re.I) or '.' not in host:
+        return False
+    if port is not None and not 1 <= port <= 65535:
+        return False
+    return True
+
+
+def validate_image_source(src: str, *, allow_remote_images: bool = False) -> None:
+    if allow_remote_images and safe_remote_image(src):
+        return
     match = re.fullmatch(r'data:image/(png|jpeg);base64,([A-Za-z0-9+/=]+)', src)
     if not match:
         raise ValueError('复制版图片必须为内嵌 PNG/JPEG')
@@ -66,7 +99,7 @@ def validate_image_source(src: str) -> None:
         raise ValueError('复制版图片损坏，无法安全复制') from exc
 
 
-def validate_fragment(fragment: str, source: str) -> str:
+def validate_fragment(fragment: str, source: str, *, allow_remote_images: bool = False) -> str:
     soup = BeautifulSoup(fragment, 'html.parser')
     for comment in soup.find_all(string=lambda value: isinstance(value, Comment)):
         comment.extract()
@@ -92,7 +125,7 @@ def validate_fragment(fragment: str, source: str) -> str:
     if [tag.get('src') for tag in images] != [tag.get('src') for tag in expected.find_all('img')]:
         raise ValueError('排版图片缺失或顺序改变')
     for image in images:
-        validate_image_source(image.get('src', ''))
+        validate_image_source(image.get('src', ''), allow_remote_images=allow_remote_images)
     if '\ufffd' in str(soup) and '\ufffd' not in source:
         raise ValueError('排版出现字符解码异常')
     # Follow the Skill's 20px cover-title token. Oversized model headings

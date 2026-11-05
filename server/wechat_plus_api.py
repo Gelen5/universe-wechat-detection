@@ -1,5 +1,6 @@
 """Owner-scoped endpoints; existing workbench routes are deliberately untouched."""
 from copy import deepcopy
+import logging
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request
@@ -16,6 +17,62 @@ from .rate_limit import check_agent_submission
 from .auth_rate_limit import client_ip
 
 router = APIRouter(prefix='/api/wechat-plus', tags=['wechat-plus'])
+LOG = logging.getLogger(__name__)
+
+ARTICLE_START = '<!-- ========== ARTICLE HTML START ========== -->'
+ARTICLE_END = '<!-- ========== ARTICLE HTML END ========== -->'
+# Shared by both response shapes: a pure fragment (FileResponse) and a
+# normalised legacy document (HTMLResponse) must carry identical headers.
+PREVIEW_HEADERS = {
+    'Content-Security-Policy': "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data: https:; font-src 'none'",
+    'Cache-Control': 'private, no-store',
+    'X-Content-Type-Options': 'nosniff',
+}
+
+
+def _looks_like_document(prefix: str) -> bool:
+    """Detect a legacy full HTML page, tolerating a leading variant comment."""
+    probe = prefix.lstrip('\ufeff \t\r\n')
+    while probe.startswith('<!--') or probe.startswith('<?xml'):
+        is_comment = probe.startswith('<!--')
+        close = probe.find('-->', 4) if is_comment else probe.find('?>', 5)
+        if close < 0:
+            break
+        probe = probe[close + (3 if is_comment else 2):].lstrip()
+    head = probe[:16].lower()
+    return head.startswith('<!doctype') or head.startswith('<html')
+
+
+def _article_body(document: str) -> str | None:
+    """Strip a legacy preview page down to its inline-styled article section.
+
+    Historical ``formatted_output`` files can still be complete HTML pages with
+    a grey background, a 420px phone frame, a fixed toolbar and scripts.  The
+    file on disk and the state field are never rewritten: this is read-time
+    normalisation only.  Return ``None`` when no trustworthy body can be found
+    so the caller can ask the user to re-run the layout.
+    """
+    start = document.find(ARTICLE_START)
+    if start != -1:
+        body_start = start + len(ARTICLE_START)
+        end = document.find(ARTICLE_END, body_start)
+        if end != -1:
+            body = document[body_start:end].strip()
+            if body:
+                return body
+    try:
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(document, 'html.parser')
+        container = (soup.select_one('#articleContent')
+                     or soup.select_one('#article-content')
+                     or soup.select_one('[data-wp-article]'))
+        if container is not None:
+            body = container.decode_contents().strip()
+            if body:
+                return body
+    except Exception:
+        LOG.warning('plus preview normalisation failed', exc_info=True)
+    return None
 
 
 def owner(request):
@@ -213,8 +270,11 @@ def retry(session_id: str, turn_id: str, request: Request):
     return {'turn': {key: value for key, value in turn.items() if key != 'cache'}}
 
 
+CHROME_OPEN = '<section style="padding:0 18px;box-sizing:border-box">'
+
+
 @router.get('/sessions/{session_id}/preview')
-def preview(session_id: str, request: Request):
+def preview(session_id: str, request: Request, chrome: bool = False):
     row = get(session_id, request)
     article = row['state'].get('article_state') or {}
     name = article.get('formatted_output')
@@ -224,5 +284,39 @@ def preview(session_id: str, request: Request):
     base = (workbench.OUTPUT_DIR / 'wechat-plus' / session_id).resolve()
     if not path.is_relative_to(base) or not path.is_file():
         raise HTTPException(404, '预览暂不可用，请重新排版')
-    return FileResponse(path, media_type='text/html', headers={
-        'Content-Security-Policy': "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src https: data:; font-src 'none'"})
+    # Detect on a byte prefix so a pure fragment keeps the byte-for-byte
+    # FileResponse behaviour; only legacy full pages are decoded and stripped.
+    try:
+        prefix = path.read_bytes()[:2048]
+    except OSError as exc:
+        raise HTTPException(404, '预览暂不可用，请重新排版') from exc
+    is_document = _looks_like_document(prefix.decode('ascii', 'ignore'))
+    if chrome:
+        # iframe rendering: normalise a legacy page first, then add exactly one
+        # padding wrapper.  The wrapper is visual only and never reaches the
+        # copy path (which uses the default mode).
+        try:
+            document = path.read_text(encoding='utf-8')
+        except (OSError, UnicodeError) as exc:
+            raise HTTPException(404, '预览暂不可用，请重新排版') from exc
+        if is_document:
+            body = _article_body(document)
+            if body is None:
+                raise HTTPException(404, '预览暂不可用，请重新排版')
+        else:
+            body = document
+        return HTMLResponse(CHROME_OPEN + body + '</section>',
+                            media_type='text/html; charset=utf-8',
+                            headers=dict(PREVIEW_HEADERS))
+    if not is_document:
+        return FileResponse(path, media_type='text/html; charset=utf-8',
+                            headers=dict(PREVIEW_HEADERS))
+    try:
+        document = path.read_text(encoding='utf-8')
+    except (OSError, UnicodeError) as exc:
+        raise HTTPException(404, '预览暂不可用，请重新排版') from exc
+    body = _article_body(document)
+    if body is None:
+        raise HTTPException(404, '预览暂不可用，请重新排版')
+    return HTMLResponse(body, media_type='text/html; charset=utf-8',
+                        headers=dict(PREVIEW_HEADERS))

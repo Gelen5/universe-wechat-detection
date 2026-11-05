@@ -14,6 +14,107 @@
     if (className) node.className = className;
     return node;
   };
+  const ARTICLE_START = '<!-- ========== ARTICLE HTML START ========== -->';
+  const ARTICLE_END = '<!-- ========== ARTICLE HTML END ========== -->';
+  const isDocument = /^\s*(?:<!doctype|<html[\s>])/i;
+  /* 正式产物是纯正文片段（ARTICLE START/END + 全行内样式 section），直接交给
+   * PublisherCopy.copyHtml，绝不走 DOMParser 往返：序列化会重写属性引号、自闭合
+   * 标签、实体和注释。完整 HTML 文档只在兜存量会话的旧预览时才解析：删可执行节点、
+   * 剥掉工具栏/手机框外壳、只留文章节点，并把 <head><style> 里的文章规则交给
+   * PublisherCopy 压平成行内样式。 */
+  function articleMarkup(source) {
+    // 纯片段：严格空操作，原字符串直出，零序列化。
+    if (!isDocument.test(source)) return source;
+
+    const doc = new DOMParser().parseFromString(source, 'text/html');
+    doc.querySelectorAll('script,iframe,object,embed').forEach(node => node.remove());
+    // 完整文档的组件规则写在 <head><style>；页面级 reset 与预览外壳规则要剔除，
+    // 否则压平后会把文章组件间距清掉。
+    const css = [...doc.querySelectorAll('head style')].map(node => node.textContent || '').join('\n')
+      .replace(/\/\*[\s\S]*?\*\//g, '');
+    const rules = [];
+    const re = /([^{}@]+)\{([^{}]*)\}/g;
+    let match;
+    while ((match = re.exec(css))) {
+      const selector = match[1].trim(), body = match[2].trim();
+      if (!selector || !body || selector.startsWith('@') || /::?|@/.test(selector)) continue;
+      if (/^\s*(?:\*|html\b|body\b|:root\b)/i.test(selector)) continue;
+      if (/\b(?:toolbar|phone-frame|back-to-top|toast|article-content|copy-article)\b/i.test(selector)) continue;
+      rules.push(`${selector}{${body}}`);
+    }
+
+    // 存量完整页按可靠度依次剥壳：1) Skill 模板的正文边界注释（旧预览也带）；
+    // 2) 已知正文容器 id；3) 都没有时删控件 + 拆掉手机框包装，只留正文节点。
+    // 不猜「哪个 section 是手机框」，避免误删真实文章。
+    let article = '';
+    const fullBody = doc.body.innerHTML;
+    const start = fullBody.indexOf(ARTICLE_START);
+    const end = start < 0 ? -1 : fullBody.indexOf(ARTICLE_END, start + ARTICLE_START.length);
+    if (start >= 0 && end > start) {
+      article = fullBody.slice(start + ARTICLE_START.length, end).trim();
+    } else {
+      const container = doc.querySelector('#articleContent, #article-content, [data-wp-article]');
+      if (container) {
+        article = container.innerHTML;
+      } else {
+        doc.body.querySelectorAll('.toolbar, .toast, .back-to-top, #toast, #copyStatus, button')
+          .forEach(node => node.remove());
+        doc.body.querySelectorAll('.phone-frame, .article-content').forEach(wrapper => {
+          const parent = wrapper.parentNode;
+          if (!parent) return;  // 外壳可能已被上一步删除
+          while (wrapper.firstChild) parent.insertBefore(wrapper.firstChild, wrapper);
+          wrapper.remove();
+        });
+        article = doc.body.innerHTML;
+      }
+    }
+    return (rules.length ? `<style>${rules.join('')}</style>` : '') + article;
+  }
+  // layout_capability.mode 的取值域：主路径 + 两次降级。
+  // 必须显式映射：降级态仍可能带 module_count > 0，走 fallback 会被误标成「组件模式」，
+  // 用户就看不出排版已经降级了。仲裁枚举是 skill-components / converter-pipeline /
+  // legacy-template；服务端 render_trace 目前写的是短值 pipeline / legacy，两套都收。
+  const MODE_LABELS = {
+    'skill-native-dsl':'原生排版',
+    'skill-components':'组件模式', 'converter-pipeline':'管线模式', 'legacy-template':'模板模式',
+    pipeline:'管线模式', legacy:'模板模式',
+    native:'组件模式', skill:'组件模式', 'skill-native':'组件模式', component:'组件模式',
+    components:'组件模式', md2wechat:'组件模式',
+    template:'模板模式', parameterized:'模板模式', fallback:'模板模式',
+    fragment:'片段模式', snippet:'片段模式', inline:'片段模式',
+    document:'完整页模式', full:'完整页模式',
+  };
+  const MODE_NOTES = {
+    'skill-native-dsl':'（Skill 原生转换器渲染）',
+    'converter-pipeline':'（组件主路径降级到 16 步 converter）',
+    pipeline:'（组件主路径降级到 16 步 converter）',
+    'legacy-template':'（二次降级到旧参数模板）',
+    legacy:'（二次降级到旧参数模板）',
+  };
+  const modeKey = capability => String(capability?.mode || '').trim().toLowerCase();
+  // 用 hasOwnProperty 取键：__proto__ / constructor 之类的未知值不能命中原型链，
+  // 否则会把对象塞进标签里显示成 [object Object]。未知值一律走可读兜底。
+  const lookup = (table, raw) => Object.prototype.hasOwnProperty.call(table, raw) ? table[raw] : '';
+  const layoutMode = capability => {
+    const label = lookup(MODE_LABELS, modeKey(capability));
+    return label || ((Number(capability?.module_count) > 0 || Number(capability?.library_size) > 0)
+      ? '组件模式' : '模板模式');
+  };
+  const modeNote = capability => lookup(MODE_NOTES, modeKey(capability));
+  /* 模式 / 风格 / 组件能力放在主标签的兄弟节点：to_have_text 读的是主标签的
+   * textContent，把详情做成子节点会把既有断言读成更长的字符串。 */
+  let capabilityChipEl = null;
+  function capabilityChip(themeLabel) {
+    if (capabilityChipEl?.isConnected) return capabilityChipEl;
+    const chip = document.createElement('span');
+    chip.setAttribute('data-wp-layout-capability', '');
+    chip.hidden = true;
+    // 主标签是 white-space:nowrap，长文本会把窄屏工具栏顶出横向滚动；芯片允许换行。
+    chip.style.cssText = 'display:none;font-size:10px;color:#537967;line-height:1.4;white-space:normal;max-width:100%;';
+    themeLabel.after(chip);
+    capabilityChipEl = chip;
+    return chip;
+  }
   const reportError = error => { $('error').textContent = error?.message || String(error); $('error').hidden = false; };
   async function api(path, options = {}) {
     const response = await fetch('/api/wechat-plus' + path, {
@@ -150,7 +251,9 @@
     const nextPreview = article.formatted_output ? `${session.id}:${session.version}:current` : legacyPreview ? `${session.id}:${session.version}:legacy` : '';
     if (nextPreview !== previewKey) {
       previewKey = nextPreview;
-      if (nextPreview) $('preview').src = `/api/wechat-plus/sessions/${session.id}/${article.formatted_output ? 'preview' : 'legacy-preview'}?v=${session.version}`;
+      // chrome=1 只在 iframe 渲染时补 18px 横向留白；复制链路另行 fetch 不带该参数，
+      // 保证粘进公众号的是逐字纯片段，不会多出一层内边距。
+      if (nextPreview) $('preview').src = `/api/wechat-plus/sessions/${session.id}/${article.formatted_output ? 'preview' : 'legacy-preview'}?v=${session.version}&chrome=1`;
       else $('preview').removeAttribute('src');
     }
     $('preview').hidden = !nextPreview;
@@ -160,19 +263,44 @@
     if (themeLabel) {
       const theme = state.layout_theme || {};
       const capability = state.layout_capability || {};
-      const modules = (theme.modules || []).map(item => item.name || item);
+      const capabilityExists = Object.keys(capability).length > 0;
+      const modules = (Array.isArray(theme.modules) ? theme.modules : []).map(item => item?.name || item);
+      const moduleCount = Number.isFinite(capability.module_count) ? capability.module_count
+        : Array.isArray(capability.modules) ? capability.modules.length : modules.length;
+      const library = Number(capability.library_size) || 0;
+      const styleOptions = Array.isArray(capability.style_options) ? capability.style_options : [];
       const styleName = capability.style || theme.style_name || theme.name || '';
-      themeLabel.hidden = !nextPreview || (!theme.name && !legacyPreview);
+      const mode = layoutMode(capability);
+      // 兼容旧 state / 既有浏览器测试：没有 layout_capability 时，标签文字必须逐字
+      // 保持「排版 · 简约清爽」，不追加后缀、不追加子节点。
+      themeLabel.hidden = !nextPreview || (!theme.name && !styleName && !legacyPreview);
       themeLabel.textContent = styleName
-        ? `排版 · ${styleName}${modules.length ? ` · ${modules.length} 模块` : ''}`
+        ? `排版 · ${styleName}${moduleCount ? ` · ${moduleCount} 模块` : ''}`
         : legacyPreview ? '历史排版' : '';
-      const human = state.humanizer_report || {};
       themeLabel.title = [
         theme.name ? `基础主题 · ${theme.name}` : '',
-        capability.library_size ? `模块库 · ${capability.library_size} 个` : '',
+        mode ? `排版模式 · ${mode}${modeNote(capability)}` : '',
+        capability.style ? `视觉风格 · ${capability.style}` : '',
+        styleOptions.length ? `可选风格 · ${styleOptions.join(' / ')}` : '',
+        library ? `组件库 · ${library} 个` : '',
         modules.length ? `本版模块 · ${modules.join(' · ')}` : '',
-        human.summary ? `活人感 · ${human.summary}` : '',
+        capability.variant ? `方案编号 · ${capability.variant}` : '',
+        state.humanizer_report?.summary ? `活人感 · ${state.humanizer_report.summary}` : '',
       ].filter(Boolean).join('\n');
+      const chip = capabilityExists ? capabilityChip(themeLabel) : null;
+      if (chip) {
+        const shown = Boolean(nextPreview);
+        chip.hidden = !shown;
+        chip.style.display = shown ? '' : 'none';
+        chip.textContent = [
+          mode,
+          styleName ? `风格 · ${styleName}` : '',
+          (moduleCount || library) ? `组件能力 · ${moduleCount} 模块${library ? ` / ${library} 组件库` : ''}` : '',
+        ].filter(Boolean).join(' · ');
+        chip.title = themeLabel.title;
+      } else if (capabilityChipEl) {
+        capabilityChipEl.hidden = true; capabilityChipEl.style.display = 'none';
+      }
     }
     $('input').placeholder = article.draft ? '告诉我排版风格，例如：蓝色科技感、标题醒目…' : '想写的方向、已有素材，或者直接粘贴文章…';
     updateBusy();
@@ -352,11 +480,12 @@
       await window.AccountLifecycle?.checkResponse(response);
       if (!response.ok || !response.headers.get('content-type')?.includes('text/html')) throw new Error('读取排版未完成，请稍后重试。');
       const html = await response.text();
-      const document = new DOMParser().parseFromString(html, 'text/html');
-      document.querySelectorAll('script,iframe,object,embed').forEach(node => node.remove());
+      // 正式产物是「纯正文片段」（全行内样式、ARTICLE START/END 边界）：
+      // articleMarkup 原样返回字符串，不做 DOMParser 往返。兼容层只处理存量旧文件 /
+      // 未来变体回退到的完整 HTML 文档：删可执行节点、剥工具栏与手机框、压平 <style>。
       // 统一走 PublisherCopy.copyHtml：压平行内样式 → 写入 → 回读校验 → 失败降级。
       // 公众号后台只认行内 style，<style> 块和 class 一点都不留。
-      const report = await window.PublisherCopy.copyHtml(document.body.innerHTML);
+      const report = await window.PublisherCopy.copyHtml(articleMarkup(html));
       $('save-state').textContent = report?.inlined
         ? '排版已复制（已转为行内样式），可粘贴到公众号编辑器'
         : `排版已复制（${report?.styleCount || 0} 处样式），可粘贴到公众号编辑器`;

@@ -354,7 +354,14 @@ def _execute(state, message, generate, *, output_dir, progress,
                         auto_request = preference_message.strip() in {'排版','排版看看','开始排版','帮我排版','生成排版'} or any(word in preference_message for word in ('帮我选','自动','换一种'))
                         request = preference_message if (quick_layout or layout_adjustment or auto_request) else preference_message + ' ' + str(decision.get('layout_request') or '')
                         theme = layout.choose(request, state.get('layout_theme') or state.get('layout_previous_theme'), fresh=not bool(state.get('layout_theme')), content=original_draft)
-                        formatted = layout.render(original_draft, theme)
+                        # A formatting turn must never rewrite prose. The layout
+                        # host only receives a design-only hint generator (off by
+                        # default); cancellation still bubbles through passthrough.
+                        render_trace = {}
+                        formatted = layout.render(original_draft, theme,
+                            trace=render_trace, generate=generate,
+                            check_cancelled=check_cancelled, passthrough=(Cancelled,),
+                            work_dir=output_dir)
                         warnings = layout.check(formatted)
                         if preview_only:
                             output_dir.mkdir(parents=True, exist_ok=True)
@@ -370,6 +377,13 @@ def _execute(state, message, generate, *, output_dir, progress,
                             'modules': [item['name'] for item in theme.get('modules') or []],
                             'library_size': layout.MODULE_COUNT,
                             'variant': theme.get('variant', ''),
+                            'mode': render_trace.get('mode', 'skill-native-dsl'),
+                            # What the Skill's own render record actually shows,
+                            # plus the two gate return codes, for the UI panel.
+                            'native_modules': render_trace.get('modules') or [],
+                            'components': render_trace.get('components') or [],
+                            'decoration_budget': render_trace.get('decoration_budget', 0),
+                            'gates': render_trace.get('gates') or {},
                         }
                         state['reply_options'] = ['换一种排版', *layout.STYLE_OPTIONS]
                         capability = state['layout_capability']

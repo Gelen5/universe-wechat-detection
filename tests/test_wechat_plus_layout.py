@@ -6,6 +6,10 @@ import pytest
 from server import wechat_plus_layout as layout, wechat_plus_service as service, workbench
 from tests import test_wechat_plus_service as plus_tests
 
+LAYOUT_PLAN = {'first_screen': '标题与首段', 'components': ['callout'],
+               'decoration_budget': 3, 'emphasis': '',
+               'image_evidence': '', 'line_break_risks': ''}
+
 DRAFT = '''# 如何整理会议记录
 
 这里是正文，包含 [参考资料](https://example.com/guide?a=1&b=2) 和图片。
@@ -21,17 +25,27 @@ if x < 2:
     print("a & b")
 ```'''
 
-def test_distinct_themes_keep_text_links_images_and_code():
+def test_native_render_keeps_text_links_images_and_code():
+    # The Skill's converter owns the HTML now; the four local THEMES no longer
+    # produce four different designs (the Skill's themes/ dir is empty), so the
+    # contract is fidelity + a real native render, not colour variation.
     with patch.object(workbench, 'SKILL_DIR', Path(__file__).resolve().parents[1] / 'vendor/skills/weChat-autoCreate'):
-        outputs = [layout.render(DRAFT, dict(theme,id=key)) for key,theme in layout.THEMES.items()]
-    assert len(set(outputs)) == len(layout.THEMES)
-    soups = [BeautifulSoup(item, 'html.parser') for item in outputs]
-    for soup in soups:
-        assert soup.find('a')['href'] == 'https://example.com/guide?a=1&b=2'
-        assert soup.find('img')['src'] == 'https://example.com/picture.png'
-        assert '    print("a & b")' in soup.find('pre').get_text()
-        assert '这里是正文' in soup.get_text()
-    assert len({s.find('h2')['style'] for s in soups}) == len(layout.THEMES)
+        trace = {}
+        html = layout.render(DRAFT, dict(layout.THEMES['clean'], id='clean'), trace=trace)
+    assert trace['mode'] == 'skill-native-dsl'
+    assert trace['renderer'] == 'toolkit.converter.MarkdownConverter'
+    assert trace['gates']['layout']['returncode'] == 0
+    # CDN images are an accepted finding, not a hard failure; the raw return
+    # code stays visible and layout.check still warns the user.
+    assert trace['gates']['compliance']['passed'] is True
+    assert 'image_host_not_wechat' in trace['gates']['compliance']['accepted']
+    soup = BeautifulSoup(html, 'html.parser')
+    assert soup.find('a')['href'] == 'https://example.com/guide?a=1&b=2'
+    assert soup.find('img')['src'] == 'https://example.com/picture.png'
+    assert '    print("a & b")' in soup.find('pre').get_text()
+    assert '这里是正文' in soup.get_text()
+    # The faithful converter keeps the link inline instead of appending footnotes.
+    assert '参考链接' not in soup.get_text()
 
 def test_auto_never_repeats_previous_and_refinements_keep_color():
     previous={'id':'tech','accent_color':'#346fac','heading_align':'center'}
@@ -69,22 +83,28 @@ def test_format_preserves_draft_even_if_review_proposes_edits(tmp_path):
 发出纪要前逐条核对讨论原文，删除没有依据的任务和承诺。涉及客户或公司敏感信息时，先按公司的资料处理要求选择工具，再决定是否上传。'''
         state=case.run_turn({}, '请用蓝色科技感排版：\n'+draft, [
             {'action':'format','existing_draft':draft,'layout_request':'蓝色科技感'},
-            {'reader_simulation':[{'role':'读者','feedback':'清晰'}], 'revision_plan':[], 'revised_draft':'不应覆盖的内容'}])
+            {'reader_simulation':[{'role':'读者','feedback':'清晰'}], 'revision_plan':[], 'revised_draft':'不应覆盖的内容'},
+            LAYOUT_PLAN])
         assert state['article_state']['draft']==draft
         assert state['layout_theme']['id']=='tech'
         assert '换一种排版' in state['reply_options']
         preview=Path(state['article_state']['formatted_output']).read_text(encoding='utf-8')
         assert '不应覆盖的内容' not in preview and '先区分讨论与决定' in preview
         # Follow-up wording is a formatting action even if the planner mistakes it for chat.
-        state2=case.run_turn(state, '换成绿色，标题居中，不要改正文', [{'action':'answer','reply':'好的','selected_topic_index':999,'explicit_topic':'不应替换的标题'}])
+        state2=case.run_turn(state, '换成绿色，标题居中，不要改正文', [
+            {'action':'answer','reply':'好的','selected_topic_index':999,'explicit_topic':'不应替换的标题'},
+            LAYOUT_PLAN])
         assert state2['last_action']=='format' and state2['article_state']['draft']==draft
         assert state2['layout_theme']['id']=='tech'
         assert state2['article_state']['selected_title']==state['article_state']['selected_title']
         assert state2['layout_theme']['accent_color']=='#39845d'
         assert state2['layout_theme']['heading_align']=='center'
-        assert 'text-align:center' in Path(state2['article_state']['formatted_output']).read_text(encoding='utf-8')
+        # The Skill owns typography now; Plus records the request but does not
+        # inject its own text-align into the Skill-rendered fragment.
+        assert state2['layout_capability']['mode'] == 'skill-native-dsl'
+        assert '先区分讨论与决定' in Path(state2['article_state']['formatted_output']).read_text(encoding='utf-8')
         state2['last_action']='review'
-        state3=case.run_turn(state2, '沉稳编辑', [{'action':'answer','reply':'好的'}])
+        state3=case.run_turn(state2, '沉稳编辑', [{'action':'answer','reply':'好的'}, LAYOUT_PLAN])
         assert state3['last_action']=='format' and state3['layout_theme']['id']=='editorial'
         assert state3['article_state']['draft']==draft
     finally: case.tearDown()

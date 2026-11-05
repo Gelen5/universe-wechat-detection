@@ -12,6 +12,7 @@ from pathlib import Path
 
 def main():
     root, source, theme_name = sys.argv[1:4]
+    faithful = len(sys.argv) > 4 and sys.argv[4].lower() in {'--faithful', 'faithful', '1', 'true'}
     sys.path.insert(0, root)
     sys.path.insert(0, str(Path(root) / 'scripts'))
     from toolkit.converter import MarkdownConverter
@@ -19,6 +20,14 @@ def main():
     from toolkit.recommendation_quality import check_article_file
     from leaf_autofix import LeafWrapper
     import yaml
+
+    # Plus passes --faithful so the Skill's text-mutating steps stay off; the
+    # default (old workbench / CLI) keeps the upstream behaviour byte-for-byte.
+    converter_class = MarkdownConverter
+    if faithful:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from skill_faithful_converter import faithful_converter_class
+        converter_class = faithful_converter_class(MarkdownConverter)
 
     path = Path(source)
     report = check_article_file(str(path), strict=True)
@@ -30,7 +39,7 @@ def main():
         if len(parts) == 3:
             metadata = yaml.safe_load(parts[1]) or {}
             content = parts[2]
-    converter = MarkdownConverter()
+    converter = converter_class()
     rendered = converter.convert(content)
     rendered = apply_theme(rendered, load_theme(theme_name))
     # The latest Skill's compliance contract requires every CJK text node to
@@ -53,6 +62,7 @@ def main():
         "theme_engine": "toolkit.theme.load_theme+apply_theme",
         "source": "Markdown + :::module DSL",
         "leaf_wrapper": "scripts.leaf_autofix.LeafWrapper",
+        "faithful_text": faithful,
         "theme": theme_name,
         "modules": modules,
         "quality_gate": "toolkit.recommendation_quality.check_article_file",

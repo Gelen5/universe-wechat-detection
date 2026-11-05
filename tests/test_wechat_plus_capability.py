@@ -42,30 +42,33 @@ def _skill(monkeypatch):
     monkeypatch.setattr(workbench, 'SKILL_DIR', PUBLISHER)
 
 
-def _container_styles(html):
-    soup = BeautifulSoup(html, 'html.parser')
-    return [str(tag.get('style') or '') for tag in soup.find_all('div')
-            if any(token in str(tag.get('style') or '')
-                   for token in ('border-bottom:1px solid', 'border-left:', 'border-radius:10px',
-                                 'border-top:1px solid'))]
+LAYOUT_PLAN = {'first_screen': '标题与首段', 'components': ['callout', 'quote'],
+               'decoration_budget': 3,
+               'emphasis': '有人说纪要就是复述，其实纪要要留下谁在什么时候答应了什么。',
+               'image_evidence': '', 'line_break_risks': ''}
 
 
-def test_full_pipeline_runs_and_modules_are_visibly_distinct():
+def test_native_dsl_runs_and_keeps_the_manuscript():
     theme = layout.choose('帮我选', None, fresh=True, content=RICH_DRAFT)
-    html = layout.render(RICH_DRAFT, theme)
-    assert 'plus-layout:' in html, 'pipeline silently fell back to the legacy template'
-    styles = _container_styles(html)
-    assert len(styles) >= 4
-    assert len(set(styles)) >= 4, 'every module still looks like the same card'
+    trace = {}
+    html = layout.render(RICH_DRAFT, theme, trace=trace)
+    assert trace['mode'] == 'skill-native-dsl'
+    assert trace['renderer'] == 'toolkit.converter.MarkdownConverter'
+    assert trace['gates']['layout']['returncode'] == 0
+    assert trace['gates']['compliance']['returncode'] == 0
+    # At most two DSL containers: one callout for the first prose block and
+    # one quote only when the plan names an emphasis sentence.
+    assert trace['metrics']['containers'] <= 2
     soup = BeautifulSoup(html, 'html.parser')
     assert '会议结束后' in soup.get_text()
     assert '有人说纪要就是复述' in soup.get_text()
 
 
-def test_code_block_is_never_rewritten_by_the_full_pipeline():
+def test_code_block_is_never_rewritten_by_the_native_converter():
     theme = layout.choose('帮我选', None, fresh=True, content=DRAFT)
-    html = layout.render(DRAFT, theme)
-    assert 'plus-layout:' in html, 'code blocks made the pipeline fall back'
+    trace = {}
+    html = layout.render(DRAFT, theme, trace=trace)
+    assert trace['renderer'] == 'toolkit.converter.MarkdownConverter'
     soup = BeautifulSoup(html, 'html.parser')
     assert '    print("a & b")' in soup.find('pre').get_text()
     assert soup.find('a')['href'] == 'https://example.com/guide?a=1&b=2'
@@ -96,10 +99,13 @@ def test_module_library_and_style_keywords_are_exposed():
     assert refined['heading_align'] == 'center'
 
 
-def test_bare_legacy_theme_still_uses_the_original_template():
-    html = layout.render(DRAFT, dict(layout.THEMES['clean'], id='clean'))
-    assert 'plus-layout:' not in html
+def test_direct_theme_call_uses_the_native_converter():
+    trace = {}
+    html = layout.render(DRAFT, dict(layout.THEMES['clean'], id='clean'), trace=trace)
+    assert trace['mode'] == 'skill-native-dsl'
+    assert trace['renderer'] == 'toolkit.converter.MarkdownConverter'
     assert '<section' in html
+    assert '这里是正文' in BeautifulSoup(html, 'html.parser').get_text()
 
 
 def test_format_turn_exposes_the_capability_panel():
@@ -109,17 +115,24 @@ def test_format_turn_exposes_the_capability_panel():
         state = case.run_turn({}, '请排版下面的原稿：\n' + RICH_DRAFT, [
             {'action': 'format', 'existing_draft': RICH_DRAFT},
             {'reader_simulation': [{'role': '读者', 'feedback': '清晰'}],
-             'revision_plan': []}])
+             'revision_plan': []},
+            LAYOUT_PLAN])
         capability = state['layout_capability']
         assert capability['library_size'] == 29
         assert capability['module_count'] >= 1
         assert capability['style'] in layout.STYLE_OPTIONS
         assert len(capability['modules']) == capability['module_count']
+        assert capability['mode'] == 'skill-native-dsl'
+        assert set(capability['native_modules']) == {'callout', 'quote'}
+        assert capability['decoration_budget'] == 3
+        assert capability['gates']['layout']['passed'] is True
+        assert capability['gates']['compliance']['passed'] is True
         assert '墨金质感' in state['reply_options']
         assert '排版模块' in state['messages'][-1]['content']
         assert state['article_state']['draft'] == RICH_DRAFT
         preview = Path(state['article_state']['formatted_output']).read_text(encoding='utf-8')
-        assert 'plus-layout:' in preview
+        assert '先区分讨论与决定' in preview
+        assert '参考链接' not in preview
     finally:
         case.tearDown()
 
@@ -131,8 +144,10 @@ def test_named_style_shortcut_forces_a_formatting_turn():
         state = case.run_turn({}, '请排版下面的原稿：\n' + RICH_DRAFT, [
             {'action': 'format', 'existing_draft': RICH_DRAFT},
             {'reader_simulation': [{'role': '读者', 'feedback': '清晰'}],
-             'revision_plan': []}])
-        followup = case.run_turn(state, '深蓝金', [{'action': 'answer', 'reply': '好的'}])
+             'revision_plan': []},
+            LAYOUT_PLAN])
+        followup = case.run_turn(state, '深蓝金', [
+            {'action': 'answer', 'reply': '好的'}, LAYOUT_PLAN])
         assert followup['last_action'] == 'format'
         assert followup['layout_theme']['style'] == 'navy_gold'
         assert followup['layout_theme']['style_name'] == '深蓝金'

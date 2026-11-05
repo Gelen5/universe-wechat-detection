@@ -193,7 +193,9 @@ class NativeConversationTests(unittest.TestCase):
 发出纪要前逐条核对讨论原文，删除没有依据的任务和承诺。涉及客户或公司敏感信息时，先按公司的资料处理要求选择工具，再决定是否上传。'''
         state = self.run_turn({}, '请直接排版下面的原稿：\n' + draft, [
             {'action':'format','existing_draft':draft},
-            {'reader_simulation':[{'role':'目标读者','feedback':'步骤可以执行'}], 'revision_plan':[]}])
+            {'reader_simulation':[{'role':'目标读者','feedback':'步骤可以执行'}], 'revision_plan':[]},
+            {'first_screen':'标题与首段','components':['callout'],'decoration_budget':3,
+             'emphasis':'','image_evidence':'','line_break_risks':''}])
         article = state['article_state']
         self.assertEqual(article['nodes']['delivery']['status'], 'passed')
         self.assertTrue(Path(article['formatted_output']).is_file())
@@ -212,7 +214,9 @@ class NativeConversationTests(unittest.TestCase):
     def test_layout_preview_for_missing_information_anchor_keeps_review_warning(self):
         draft = ('# 关于陪伴的思考\n\n' + ('陪伴需要尊重每个人的想法，也需要认真倾听。每个人都有自己的选择，关心应当从理解开始。\n\n' * 20)).strip()
         state = self.run_turn({}, '请用温暖故事风格排版：\n' + draft, [
-            {'action':'format','existing_draft':draft}])
+            {'action':'format','existing_draft':draft},
+            {'first_screen':'标题与首段','components':['callout'],'decoration_budget':3,
+             'emphasis':'','image_evidence':'','line_break_risks':''}])
         article = state['article_state']
         self.assertEqual(article['draft'], draft)
         self.assertEqual(article['nodes']['review']['status'], 'blocked')

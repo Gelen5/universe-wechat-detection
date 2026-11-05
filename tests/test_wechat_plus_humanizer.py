@@ -205,7 +205,10 @@ def test_formatting_turn_never_invokes_the_humanizer():
             state = case.run_turn({}, '请排版下面的原稿：\n' + AI_DRAFT, [
                 {'action': 'format', 'existing_draft': AI_DRAFT},
                 {'reader_simulation': [{'role': '读者', 'feedback': '清晰'}],
-                 'revision_plan': []}])
+                 'revision_plan': []},
+                {'first_screen': '标题与首段', 'components': ['callout'],
+                 'decoration_budget': 3, 'emphasis': '',
+                 'image_evidence': '', 'line_break_risks': ''}])
         human.assert_not_called()
         assert state['article_state']['draft'] == AI_DRAFT
     finally:
