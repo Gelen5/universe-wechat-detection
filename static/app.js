@@ -431,7 +431,7 @@ document.querySelector('#auth-form')?.addEventListener('submit', async event => 
     rememberInviteCode('');
     showToast(inviteToast(mode, data.referral));
     // 新注册的人是活动最强的传播源：当场把邀请码摆到他面前，而不是等他去翻设置。
-    if (mode === 'register') guideToInvite();
+    if (mode === 'register') { window.trackWorkbenchBehavior?.('register_success'); guideToInvite(); }
   } catch (exception) {
     error.textContent = exception instanceof TypeError ? '网络连接异常，请检查网络后重试。' : exception.message;
     error.hidden = false;

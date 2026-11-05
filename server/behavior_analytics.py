@@ -21,7 +21,7 @@ events = Table('behavior_events', meta,
     Column('device', String(12), nullable=False), Column('created_at', String(40), nullable=False))
 Index('ix_behavior_time', events.c.created_at)
 PAGES = {'home','workbench','wechat-plus','one-click-writing','qihaoshou','hotspots','lowfans','image-board','xiaohongshu','tie-tu','viral-remix','article-visual','sticker-extract','xhs-extract','douyin-extract','bookshelf','market','pricing','pay','wallet'}
-EVENTS = {'page_view','active_time','open_pricing','choose_starter','choose_pro','choose_master','checkout_submit','remix_analyze','remix_generate','remix_save','article_analyze','article_download','sticker_extract','xhs_extract','douyin_extract','plus_send','plus_copy','welcome_browse','auth_login','auth_register'}
+EVENTS = {'page_view','active_time','open_pricing','choose_starter','choose_pro','choose_master','checkout_submit','remix_analyze','remix_generate','remix_save','article_analyze','article_download','sticker_extract','xhs_extract','douyin_extract','plus_send','plus_copy','welcome_browse','auth_login','auth_register','register_success','membership_view','membership_filter','membership_week','membership_month','membership_year','trial_click','trial_success','membership_order'}
 class Observation(BaseModel):
     visitor: str = Field(pattern=r'^[a-f0-9]{32}$')
     page: str = Field(max_length=40)
@@ -68,9 +68,12 @@ def behavior_report(request: Request, days: int = 7):
     require_owner(request)
     if days not in (1,7,30): raise HTTPException(422, 'invalid period')
     since = (datetime.now(timezone.utc)-timedelta(days=days)).isoformat()
+    # Earlier sessions have no confirmed-signup event and cannot form a valid denominator.
+    conversion_since = max(since, '2026-11-05T05:14:20+00:00')
     guest = case((events.c.user_id.is_(None), events.c.visitor), else_=None)
     with database.ENGINE.connect() as db:
         summary = db.execute(select(
+            func.count(func.distinct(events.c.visitor)).label('sessions'),
             func.count(func.distinct(guest)).label('guest_sessions'),
             func.count(func.distinct(events.c.user_id)).label('users'),
             func.sum((events.c.event == 'page_view').cast(Integer)).label('views'))
@@ -89,11 +92,12 @@ def behavior_report(request: Request, days: int = 7):
             .where(events.c.created_at >= since, events.c.event.not_in(['active_time','page_view']))
             .group_by(events.c.page,events.c.event).order_by(func.count().desc()).limit(80)).mappings().all()
         cohort = select(events.c.visitor.label('visitor'), func.min(events.c.created_at).label('first_guest')).where(
-            events.c.user_id.is_(None), events.c.created_at >= since).group_by(events.c.visitor).subquery()
+            events.c.user_id.is_(None), events.c.created_at >= conversion_since).group_by(events.c.visitor).subquery()
+        cohort_count = db.execute(select(func.count()).select_from(cohort)).scalar() or 0
         signup = events.alias('signup')
         converted = db.execute(select(func.count(func.distinct(cohort.c.visitor))).select_from(
             cohort.join(signup, signup.c.visitor == cohort.c.visitor)).where(
             signup.c.event == 'signup_confirmed', signup.c.created_at >= cohort.c.first_guest,
             signup.c.created_at >= since)).scalar() or 0
         earliest = db.execute(select(func.min(events.c.created_at))).scalar()
-    return {'days':days,'since':since,'started_at':earliest,'summary':dict(summary), 'conversion': {'guest_sessions': summary['guest_sessions'], 'registered_sessions': converted, 'rate_percent': round(100 * converted / summary['guest_sessions'], 1) if summary['guest_sessions'] else None}, 'pages':[dict(x) for x in pages], 'actions':[dict(x) for x in actions]}
+    return {'days':days,'since':since,'started_at':earliest,'summary':dict(summary), 'conversion': {'guest_sessions': cohort_count, 'registered_sessions': converted, 'since': conversion_since, 'rate_percent': round(100 * converted / cohort_count, 1) if cohort_count else None}, 'pages':[dict(x) for x in pages], 'actions':[dict(x) for x in actions]}

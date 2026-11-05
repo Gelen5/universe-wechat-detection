@@ -27,7 +27,7 @@
   async function open(reason = '') {
     try { await status(); } catch { alert('会员状态读取失败，请检查网络后重试'); return; }
     const node = modal(); if (!node) return;
-    node.hidden = false; node.querySelector('[data-vi-modal-title]').textContent = ['member_active','owner_permanent','trial_active'].includes(state.data?.status) ? text(state.data.status, state.data) : (reason ? '开通会员，解锁分类筛选' : '开通会员，解锁爆款榜单');
+    node.hidden = false; window.trackWorkbenchBehavior?.(reason ? 'membership_filter' : 'membership_view'); node.querySelector('[data-vi-modal-title]').textContent = ['member_active','owner_permanent','trial_active'].includes(state.data?.status) ? text(state.data.status, state.data) : (reason ? '开通会员，解锁分类筛选' : '开通会员，解锁爆款榜单');
     const body = node.querySelector('[data-vi-modal-body]');
     const d = state.data || {};
     body.innerHTML = d.status === 'owner_permanent'
@@ -42,7 +42,7 @@
     const packageButtons = [...node.querySelectorAll('[data-vi-package]')];
     let selected = packageButtons.find(b => /月/.test(b.textContent) || /month/i.test(b.dataset.viPackage)) || packageButtons[0];
     const selectPackage = b => { selected = b; packageButtons.forEach(x => x.setAttribute('aria-pressed', String(x === b))); const buyButton = node.querySelector('[data-vi-buy]'); if (buyButton) { buyButton.disabled = !b; buyButton.textContent = b ? '开通' + b.querySelector('b').textContent : '暂无可用套餐'; } };
-    packageButtons.forEach(b => b.onclick = () => selectPackage(b));
+    packageButtons.forEach(b => b.onclick = () => { selectPackage(b); if (['week','month','year'].includes(b.dataset.viPackage)) window.trackWorkbenchBehavior?.('membership_' + b.dataset.viPackage); });
     selectPackage(selected);
     node.querySelector('[data-vi-buy]')?.addEventListener('click', () => selected && buy(selected.dataset.viPackage));
     node.querySelector('[data-vi-login]')?.addEventListener('click', () => {
@@ -51,18 +51,18 @@
       else location.href = '/?register=1';
     });
     node.querySelectorAll('[data-vi-trial]').forEach(b => b.onclick = async () => {
-      b.disabled = true;
+      b.disabled = true; window.trackWorkbenchBehavior?.('trial_click');
       try {
       const r = await fetch('/api/viral-insights/trial/activate', {method:'POST', credentials:'same-origin'});
       if (!r.ok) { const p = await r.json().catch(() => ({})); alert(p.detail || '试用激活失败'); b.disabled = false; return; }
-      await status(); node.hidden = true;
+      window.trackWorkbenchBehavior?.('trial_success'); await status(); node.hidden = true;
       window.LowfansView?.reload?.(); window.ImageBoardView?.reload?.();
       } catch { alert('网络异常，请稍后重试'); b.disabled = false; }
     });
   }
   async function buy(packageId) {
     if (state.buying) return;
-    state.buying = true;
+    state.buying = true; window.trackWorkbenchBehavior?.('membership_order');
     try {
     const r = await fetch('/api/viral-insights/orders', {method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({package_id:packageId})});
     const data = await r.json();

@@ -11,6 +11,7 @@
     const data = JSON.stringify({visitor, page:which, event, seconds, device:matchMedia('(max-width: 767px)').matches?'mobile':'desktop'});
     fetch('/api/behavior', {method:'POST',headers:{'Content-Type':'application/json'},body:data,credentials:'same-origin',keepalive:true}).catch(()=>{});
   }
+  window.trackWorkbenchBehavior = (event) => send(event);
   function flush() {
     const now = Date.now();
     if (document.visibilityState === 'visible' && now - interaction < 60000) {
