@@ -39,7 +39,9 @@ def main():
         if len(parts) == 3:
             metadata = yaml.safe_load(parts[1]) or {}
             content = parts[2]
-    converter = converter_class()
+    # Pass the Skill theme so the faithful link override can read accent_color;
+    # the stock converter behaves exactly as before with the same defaults.
+    converter = converter_class(load_theme(theme_name))
     rendered = converter.convert(content)
     rendered = apply_theme(rendered, load_theme(theme_name))
     # The latest Skill's compliance contract requires every CJK text node to

@@ -56,9 +56,10 @@ def test_native_dsl_runs_and_keeps_the_manuscript():
     assert trace['renderer'] == 'toolkit.converter.MarkdownConverter'
     assert trace['gates']['layout']['returncode'] == 0
     assert trace['gates']['compliance']['returncode'] == 0
-    # At most two DSL containers: one callout for the first prose block and
-    # one quote only when the plan names an emphasis sentence.
-    assert trace['metrics']['containers'] <= 2
+    # Stock Skill visuals: the list survives as <ul>, and no "•" text was
+    # injected by step7 (variant B keeps only the fidelity overrides).
+    assert trace['metrics']['uls'] >= 1
+    assert trace['metrics']['bullets'] == 0
     soup = BeautifulSoup(html, 'html.parser')
     assert '会议结束后' in soup.get_text()
     assert '有人说纪要就是复述' in soup.get_text()

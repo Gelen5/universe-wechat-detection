@@ -13,7 +13,16 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class NativeConversationTests(unittest.TestCase):
+    """Legacy action-routing contract, kept as the rollback path coverage.
+
+    The default interaction is now ``article step``.  These cases encode the
+    old ACTION semantics (clarify/topics/write/revise/review/format), so they
+    are pinned to ``WECHAT_PLUS_STEP_MODE=0``; step mode has its own class below.
+    """
+
     def setUp(self):
+        self.step_mode = patch.dict(os.environ, {'WECHAT_PLUS_STEP_MODE': '0'})
+        self.step_mode.start()
         self.skill = patch.object(workbench, 'SKILL_DIR', ROOT / 'vendor/skills/weChat-autoCreate')
         self.skill.start()
         self.directory = tempfile.TemporaryDirectory()
@@ -22,6 +31,7 @@ class NativeConversationTests(unittest.TestCase):
     def tearDown(self):
         self.directory.cleanup()
         self.skill.stop()
+        self.step_mode.stop()
 
     def run_turn(self, state, message, replies):
         responses = iter(replies)
@@ -352,3 +362,244 @@ def test_plus_api_worker_refunds_incomplete_topic_without_internal_prompt(tmp_pa
         assert accounts.wallet_summary('owner')['balance'] == 100
     finally:
         case.tearDown()
+
+
+STEP_DRAFT = '''# 把会议记录写成能执行的待办
+
+会议结束，文档里留下的是讨论，而不是行动。真正的纪要要回答三个问题：谁、在什么时候、答应了什么。把原始讨论直接压成摘要，往往保留了话题，却丢掉后续行动。
+
+## 先区分讨论与决定
+
+把记录分成已经确认的决定、尚未确定的问题和需要跟进的任务。有人说可以改按钮颜色，这只是建议；只有团队确认采用，才把它列为决定。缺少结论时写明待确认，不用猜测补齐。
+
+## 再核对负责人
+
+让工具输出原始发言、任务内容和负责人。找不到明确负责人，就保留空缺并在会后询问相关同事。整理的作用是暴露遗漏，不能把完整表格当成事实已经齐全。
+
+## 最后回到原始材料
+
+发出纪要前逐条核对讨论原文，删除没有依据的任务和承诺。涉及客户或公司敏感信息时，先按公司的资料处理要求选择工具，再决定是否上传。'''
+
+
+def step_generate(prompt):
+    """Deterministic JSON for each Skill node, keyed by its output contract."""
+    if '只生成排版决策' in prompt:
+        return {'first_screen': '标题 + 首段', 'components': ['callout'],
+                'decoration_budget': 3, 'emphasis': '',
+                'image_evidence': '', 'line_break_risks': ''}
+    if '"intent": "object' in prompt:
+        return {'intent': {'goal': '整理会议记录'},
+                'audience': {'description': '职场读者'},
+                'topic': '会议记录', 'assumptions': []}
+    if '"title_candidates": "array<object>"' in prompt:
+        return {'topic': '把会议记录写成能执行的待办', 'angle': '从讨论到行动',
+                'title_candidates': [
+                    {'title': '把会议记录写成能执行的待办', 'angle': '从讨论到行动'},
+                    {'title': '会议纪要为什么漏掉行动', 'angle': '从讨论到待办'}]}
+    if '"evidence_pack": "object with sources' in prompt:
+        return {'evidence_pack': {'sources': {'records': [
+                    {'source_id': 'S1', 'kind': 'user', 'title': '用户材料',
+                     'evidence': '会议记录整理经验', 'status': 'unverified'}]},
+                'claims': [], 'research_status': 'partial',
+                'limitations': ['仅基于用户材料']}}
+    if '"outline": "array<object>"' in prompt:
+        return {'outline': [{'section_title': '先区分讨论与决定',
+                             'content_plan': '把讨论压成决定'}],
+                'writing_strategy': {'mode': 'draft'},
+                'selected_title': '把会议记录写成能执行的待办'}
+    if '"draft": "markdown string"' in prompt:
+        return {'draft': STEP_DRAFT,
+                'selected_title': '把会议记录写成能执行的待办',
+                'used_claim_ids': []}
+    if '"reader_simulation": "array<object>"' in prompt:
+        return {'reader_simulation': [{'role': '读者', 'feedback': '清晰'}],
+                'revision_plan': []}
+    raise AssertionError('unexpected Skill prompt: ' + prompt[-300:])
+
+
+def step_generate_with_revision(revised):
+    """Same node answers, but the review node returns a revised draft."""
+    def generate(prompt):
+        result = step_generate(prompt)
+        if '"reader_simulation": "array<object>"' in prompt and revised is not None:
+            result = dict(result)
+            result['revised_draft'] = revised
+        return result
+    return generate
+
+
+REWRITE_DRAFT = '''# 换一个完全不同的主题
+
+这是一篇与会议记录无关的文章。它讨论的是城市里的慢跑路线、清晨的空气、路边的树，以及人们为什么愿意早起。整篇内容都换了，段落结构和句子也完全不同。
+
+## 第一条路线
+
+沿河的道路适合慢跑，路面平整，早上人少。有人喜欢在桥下折返，也有人一直跑到公园门口。每个人都有自己的节奏，不必比较速度。
+
+## 第二条路线
+
+穿过老城区的巷子更安静，但路面不平，雨天要小心。早起的人会看到早餐摊刚刚支起来，热气从锅里冒出来。
+
+## 收束
+
+慢跑的意义不在距离，而在每天留出一段只属于自己的时间。'''
+
+
+
+class StepModeTests(unittest.TestCase):
+    """Default interaction: one message advances exactly one Skill node."""
+
+    def setUp(self):
+        self.skill = patch.object(workbench, 'SKILL_DIR',
+                                  ROOT / 'vendor/skills/weChat-autoCreate')
+        self.skill.start()
+        self.directory = tempfile.TemporaryDirectory()
+        self.output = Path(self.directory.name)
+
+    def tearDown(self):
+        self.directory.cleanup()
+        self.skill.stop()
+
+    def run_turn(self, state, message, generate=step_generate):
+        return service.execute(
+            state, message, generate, output_dir=self.output,
+            search=lambda *args, **kwargs: {'status': 'unavailable', 'sources': [],
+                                            'fetched': [], 'queries': []})
+
+    def test_one_message_advances_exactly_one_node(self):
+        state = self.run_turn({}, '给职场人写一篇关于会议记录的文章')
+        assert state['last_node'] == 'intent'
+        assert state['next_node'] == 'topic'
+        passed = [name for name, item in state['article_state']['nodes'].items()
+                  if item['status'] == 'passed']
+        assert passed == ['intent']
+        assert state['reply_options'] == ['继续']
+
+        state = self.run_turn(state, '继续')
+        assert state['last_node'] == 'topic'
+        assert state['next_node'] == 'research'
+        assert state['reply_options'] == ['把会议记录写成能执行的待办',
+                                          '会议纪要为什么漏掉行动']
+        assert state['article_state']['nodes']['research']['status'] == 'pending'
+
+        state = self.run_turn(state, '继续')
+        assert state['last_node'] == 'research'
+        assert state['next_node'] == 'strategy'
+        assert state['reply_options'] == ['继续']
+
+    def test_full_flow_points_options_and_draft_rerun(self):
+        state, points, options = {}, [], []
+        for message in ('给职场人写一篇关于会议记录的文章', '继续', '继续', '继续',
+                        '继续', '继续', '继续'):
+            state = self.run_turn(state, message)
+            points.append(state['billing_points'])
+            options.append(state['reply_options'])
+        assert points == [0, 2, 0, 0, 9, 3, 2]
+        assert sum(points) == 16
+        assert options[4] == ['继续复核', '改一下正文']
+        assert options[5] == ['生成排版预览', '按建议修改']
+        assert options[6] == ['复制排版', '换个模块组合']
+        assert state['next_node'] == ''
+        assert state['article_state']['nodes']['delivery']['status'] == 'passed'
+        assert state['article_state']['formatted_output']
+
+        rerun = self.run_turn(state, '重做正文')
+        assert rerun['last_node'] == 'draft'
+        assert rerun['billing_action'] == 'revise'
+        assert rerun['billing_points'] == 4
+        assert rerun['next_node'] == 'review'
+
+    def test_sticker_route_is_untouched(self):
+        state = service.execute(
+            {}, '帮我做个贴图号',
+            lambda prompt: (_ for _ in ()).throw(AssertionError('no model call')),
+            output_dir=self.output,
+            search=lambda *args, **kwargs: {'status': 'unavailable', 'sources': [],
+                                            'fetched': [], 'queries': []})
+        assert '请前往「贴图号」' in state['messages'][-1]['content']
+        assert state['billing_points'] == 0
+
+    def test_legacy_action_path_remains_available_with_switch_off(self):
+        replies = [
+            {'action': 'topics', 'audience': '普通人', 'goal': '实用建议'},
+            {'topic': 'AI 办公', 'angle': '整理资料', 'title_candidates': [
+                {'title': '整理材料', 'angle': '归类'},
+                {'title': '整理记录', 'angle': '核对'}]},
+        ]
+        with patch.dict(os.environ, {'WECHAT_PLUS_STEP_MODE': '0'}):
+            state = service.execute(
+                {}, '给普通人推荐 AI 选题', lambda prompt: replies.pop(0),
+                output_dir=self.output,
+                search=lambda *args, **kwargs: {'status': 'unavailable', 'sources': [],
+                                                'fetched': [], 'queries': []})
+        assert state['last_action'] == 'topics'
+        assert [item['title'] for item in state['choices']] == ['整理材料', '整理记录']
+
+    def run_to_draft(self):
+        state = {}
+        for message in ('给职场人写一篇关于会议记录的文章', '继续', '继续', '继续', '继续'):
+            state = self.run_turn(state, message)
+        return state
+
+    def test_draft_publishes_humanness_report(self):
+        state = self.run_to_draft()
+        report = state['humanness_report']
+        assert report['available'] is True
+        assert isinstance(report['score'], (int, float))
+        assert {'statistical', 'pattern', 'llm'} <= set(report['layers'])
+        assert isinstance(report['repair_plan'], list)
+
+    def test_review_rejects_full_rewrite(self):
+        state = self.run_to_draft()
+        state = self.run_turn(state, '继续', step_generate_with_revision(REWRITE_DRAFT))
+        assert state['last_node'] == 'review'
+        assert state['article_state']['draft'] == STEP_DRAFT
+        assert state['humanness_report']['revised_draft_rejected'] == 'too_much_rewrite'
+        assert state['humanness_report']['applied'] is False
+        assert '改动过大' in state['messages'][-1]['content']
+
+    def test_review_accepts_local_revision(self):
+        paragraphs = STEP_DRAFT.split('\n\n')
+        revised = list(paragraphs)
+        revised[2] = revised[2] + ' 这一段补一个具体动作。'
+        revised[4] = revised[4] + ' 这一段补一句判断。'
+        revised_text = '\n\n'.join(revised)
+        state = self.run_to_draft()
+        state = self.run_turn(state, '继续', step_generate_with_revision(revised_text))
+        assert state['humanness_report']['applied'] is True
+        assert state['humanness_report']['revision_similarity'] >= 0.85
+        assert state['article_state']['draft'] == revised_text
+        current = state['article_state']['draft'].split('\n\n')
+        for index in (0, 1, 3, 5, 6):
+            assert current[index] == paragraphs[index]
+
+    def test_draft_survives_scorer_unavailable(self):
+        with patch.object(service.humanness, 'diagnose',
+                          return_value={'available': False, 'reason': 'mock'}):
+            state = self.run_to_draft()
+        assert state['article_state']['nodes']['draft']['status'] == 'passed'
+        assert state['humanness_report']['available'] is False
+        assert '暂不可用' in state['messages'][-1]['content']
+
+
+def test_worker_honours_step_billing_points(tmp_path):
+    from copy import deepcopy
+    from server import accounts as wallet, wechat_plus_tasks as tasks
+    turn = {'id': 'turn', 'session_id': 'session', 'user_id': 'owner',
+            'input_version': 1, 'message': '继续'}
+    session = {'id': 'session', 'version': 1, 'state': {'article_state': {'draft': '正文'}}}
+    result_state = {'article_state': {'draft': '正文'}, 'last_action': 'format',
+                    'billing_action': 'delivery', 'billing_points': 2}
+    with patch.object(tasks.repo, 'claim', return_value=turn), \
+         patch.object(tasks.repo, 'get', return_value=deepcopy(session)), \
+         patch.object(tasks.repo, 'commit_turn', return_value=True), \
+         patch.object(tasks.repo, 'recent_layout_theme', return_value=None), \
+         patch.object(tasks.service, 'execute', return_value=result_state), \
+         patch.object(tasks.billing, 'usage_for', return_value='usage'), \
+         patch.object(tasks.billing, 'record') as record, \
+         patch.object(wallet, 'refund_usage') as refund, \
+         patch.object(wallet, 'settle_usage_with_points') as settle:
+        result = tasks.execute_turn.apply(args=['turn'], task_id='worker', throw=True).get()
+    assert result['status'] == 'completed'
+    assert settle.call_args.args[-1] == 2
+    assert record.call_args.args[1:] == ('delivery', 2)

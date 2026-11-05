@@ -1,3 +1,4 @@
+import os
 import unittest
 from unittest.mock import patch
 
@@ -16,6 +17,10 @@ from server.rate_limit import LimitResult
 
 class PlusAPITests(unittest.TestCase):
     def setUp(self):
+        # API/worker cases in this module exercise the legacy action contract;
+        # step mode is covered by StepModeTests in test_wechat_plus_service.py.
+        self.step_mode = patch.dict(os.environ, {'WECHAT_PLUS_STEP_MODE': '0'})
+        self.step_mode.start()
         self.engine = create_engine('sqlite://', connect_args={'check_same_thread':False}, poolclass=StaticPool)
         self.patches = [patch.object(database, 'ENGINE', self.engine),
             patch.object(api.tasks, 'dispatch', return_value='task'),
@@ -50,6 +55,7 @@ class PlusAPITests(unittest.TestCase):
         for item in reversed(self.patches):
             item.stop()
         self.engine.dispose()
+        self.step_mode.stop()
 
     def test_owner_scope_refresh_idempotency_and_cancel(self):
         self.assertEqual(self.client.get('/api/wechat-plus/sessions').status_code, 401)

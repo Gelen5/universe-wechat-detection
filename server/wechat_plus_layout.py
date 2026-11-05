@@ -33,22 +33,13 @@ COLORS = {'蓝':'#346fac','绿':'#39845d','橙':'#b87540','紫':'#775aa0','粉':
 KEYWORDS = {'clean':('简约','清爽','清新','极简','简洁'), 'tech':('科技','专业','商务'), 'warm':('温暖','故事','暖色'), 'editorial':('沉稳','编辑','杂志','黑白')}
 OPTIONS = ['简约清爽','专业科技','温暖故事','沉稳编辑','帮我选']
 
-# Color tokens lifted from the Skill's four visual-style references.  Kept for
-# the capability panel and user-facing style names; the native converter owns
-# the actual rendering.
-STYLES = {
-    'ink_gold': {'name':'墨金质感', 'primary_color':'#1D1D1F', 'body_color':'#4A4A4F',
-                 'accent_color':'#C9A962', 'background':'#F7F7F5', 'soft':'#FBF8F1',
-                 'line':'#E5E5E5', 'heading':'line'},
-    'signal_green': {'name':'信号绿', 'primary_color':'#0A0A0A', 'body_color':'#3A3A3A',
-                     'accent_color':'#059669', 'background':'#F5F5F5', 'soft':'#ECFDF5',
-                     'line':'#CCCCCC', 'heading':'bar'},
-    'navy_gold': {'name':'深蓝金', 'primary_color':'#0C2340', 'body_color':'#334155',
-                  'accent_color':'#D4A017', 'background':'#E2E8F0', 'soft':'#FFFBEB',
-                  'line':'#CBD5E1', 'heading':'bar'},
-    'warm_ink': {'name':'暖墨米', 'primary_color':'#2C2420', 'body_color':'#5C4A3E',
-                 'accent_color':'#B8860B', 'background':'#FAF6F1', 'soft':'#F0EBE3',
-                 'line':'#DDD3C8', 'heading':'soft'},
+# User-facing style identifiers only.  The Skill's own default theme owns every
+# rendered colour; these identifiers pick the :::module recipe and the label.
+STYLE_NAMES = {
+    'ink_gold': '墨金质感',
+    'signal_green': '信号绿',
+    'navy_gold': '深蓝金',
+    'warm_ink': '暖墨米',
 }
 STYLE_KEYWORDS = {'墨金质感': 'ink_gold', '信号绿': 'signal_green',
                   '深蓝金': 'navy_gold', '暖墨米': 'warm_ink'}
@@ -131,16 +122,11 @@ def choose(request: str, previous: dict | None = None, *, fresh: bool = False, c
     requested_style = next((key for name, key in STYLE_KEYWORDS.items() if name in request), None)
     if change or fresh or requested_style:
         seed = uuid.uuid4().hex
-        candidates = [key for key in STYLES if key != previous.get('style')] or list(STYLES)
+        candidates = [key for key in STYLE_NAMES if key != previous.get('style')] or list(STYLE_NAMES)
         style = requested_style or candidates[int(hashlib.sha256(seed.encode()).hexdigest()[:2], 16) % len(candidates)]
-        palette = STYLES[style]
-        theme['primary_color'] = palette['primary_color']
-        theme['background'] = palette['background']
-        theme['heading'] = palette['heading']
-        if not explicit_color:
-            theme['accent_color'] = palette['accent_color']
         theme.update({'variant': seed[:12], 'style': style,
-                      'style_name': palette['name'], 'modules': _recipe(seed, style),
+                      'style_name': STYLE_NAMES[style],
+                      'modules': _recipe(seed, style),
                       'previous_variant': previous.get('variant') or ''})
     elif previous.get('variant'):
         for key in ('variant', 'style', 'style_name', 'modules'):

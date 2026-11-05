@@ -114,11 +114,15 @@ def execute_turn(self, turn_id):
             progress=lambda text: repo.heartbeat(turn_id, self.request.id, text), search=search)
         committed = repo.commit_turn(turn_id, self.request.id, session['version'], state)
         if committed:
-            action = str(state.get('last_action') or '')
+            action = str(state.get('billing_action') or state.get('last_action') or '')
             if state.get('_blocked'):
                 refund('blocked')
             else:
-                settle_completed(action, accounts.plus_points_for(action))
+                # Step mode charges the node it actually advanced; the legacy
+                # action path keeps using the action price table unchanged.
+                points = state.get('billing_points')
+                settle_completed(action, accounts.plus_points_for(action)
+                                 if points is None else int(points))
         else:
             refund('cancelled')
         return {'status': 'completed' if committed else 'cancelled'}

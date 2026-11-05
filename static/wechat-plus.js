@@ -149,7 +149,7 @@
     } else if (pending || submitting) $('progress-text').textContent = '正在提交…';
     $('cancel').hidden = !active;
   }
-  function drawReview(article) {
+  function drawReview(article, state) {
     const panel = root.querySelector('[data-wp-panel="review"]'); panel.replaceChildren();
     panel.append(text('h3', '复核与来源'));
     const report = article.quality_report || {};
@@ -162,6 +162,36 @@
         panel.append(text('h4', item.role || item.reader || '读者视角'));
         panel.append(text('p', item.feedback || item.finding || item.suggestion || Object.values(item).filter(x => typeof x === 'string').join('；')));
       });
+    }
+    const humanness = state?.humanness_report;
+    if (humanness) {
+      panel.append(text('h4', '人味评分'));
+      if (humanness.available === false) {
+        panel.append(text('p', '评分暂不可用，复核仍可继续。'));
+      } else {
+        const score = Number.isFinite(humanness.score) ? `${humanness.score}/100` : '暂无';
+        const applied = humanness.applied ? '已按建议局部修订' : '仅给出修订建议';
+        panel.append(text('p', `综合 ${score} · ${applied}`));
+        const layers = humanness.layers || {};
+        const layerText = [
+          ['统计层', layers.statistical?.score],
+          ['模式层', layers.pattern?.score],
+          ['语义层', layers.llm?.score],
+        ].filter(([, value]) => Number.isFinite(value))
+          .map(([name, value]) => `${name} ${value}`).join(' · ');
+        if (layerText) panel.append(text('p', layerText));
+      }
+      const plan = Array.isArray(humanness.repair_plan) ? humanness.repair_plan : [];
+      if (plan.length) {
+        panel.append(text('h4', '修订建议'));
+        plan.forEach(item => panel.append(text('p',
+          `${item.action || '修订'}${item.reason ? `：${item.reason}` : ''}`)));
+      }
+      if (humanness.revised_draft_rejected === 'too_much_rewrite') {
+        panel.append(text('p', '模型改动过大，已保留原文，仅给出修订建议。'));
+      } else if (humanness.revised_draft_rejected) {
+        panel.append(text('p', '修订稿丢失了原文的数字、引用或链接，已保留原文。'));
+      }
     }
     const pack = article.evidence_pack || {};
     panel.append(text('h4', '来源与限制'));
@@ -246,7 +276,7 @@
     [...versions].reverse().forEach(version => $('versions').append(new Option(`v${version.number} · ${version.reason}`, String(version.number))));
     $('versions').value = shownVersion;
     $('save-state').textContent = shownVersion ? '历史版本 · 只读' : dirty ? '有未保存修改' : article.draft ? '已保存' : '';
-    drawReview(article);
+    drawReview(article, state);
     const legacyPreview = Boolean(state.legacy_preview_html && article.draft === state.legacy_original_draft && !dirty);
     const nextPreview = article.formatted_output ? `${session.id}:${session.version}:current` : legacyPreview ? `${session.id}:${session.version}:legacy` : '';
     if (nextPreview !== previewKey) {
@@ -285,7 +315,8 @@
         library ? `组件库 · ${library} 个` : '',
         modules.length ? `本版模块 · ${modules.join(' · ')}` : '',
         capability.variant ? `方案编号 · ${capability.variant}` : '',
-        state.humanizer_report?.summary ? `活人感 · ${state.humanizer_report.summary}` : '',
+        Number.isFinite(state.humanness_report?.score)
+          ? `人味 · ${state.humanness_report.score}/100` : '',
       ].filter(Boolean).join('\n');
       const chip = capabilityExists ? capabilityChip(themeLabel) : null;
       if (chip) {

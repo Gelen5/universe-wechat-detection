@@ -123,7 +123,9 @@ def to_markdown(draft: str, plan: dict, theme: dict, title: str = '') -> tuple[s
     heading = re.search(r'^\s*#\s+([^\n]+)', draft)
     resolved = (title or (heading.group(1).strip() if heading else '')
                 or theme.get('name') or '未命名').replace("'", '')
-    theme_name = str(theme.get('skill_theme') or 'default')
+    # The Skill's own default theme owns every rendered colour; Plus never
+    # injects an application palette.
+    theme_name = 'default'
     markdown = f"---\ntitle: '{resolved}'\ntheme: {theme_name}\n---\n{body}"
     return markdown, theme_name
 
@@ -254,52 +256,51 @@ def _verify_fidelity(fragment: str, draft: str) -> None:
         raise ValueError('排版图片与原文不一致，已保留原正文和预览')
 
 
-def decor_metrics(fragment: str, accent: str = '#1a73e8') -> dict:
-    """Measure the visible decoration grammar of a delivered fragment."""
+def decor_metrics(fragment: str) -> dict:
+    """Measure the fragment against the stock Skill output (no design targets)."""
     soup = BeautifulSoup(fragment, 'html.parser')
     styles = [str(tag.get('style') or '') for tag in soup.find_all(True)]
-    backgrounds = 0
-    horizontal = len(soup.find_all('hr'))
-    vertical = 0
-    vertical_widths: list[int] = []
-    for style in styles:
-        for value in re.findall(r'background(?:-color)?\s*:\s*([^;]+)', style, re.I):
-            if value.strip().lower() not in {'transparent', 'none', 'inherit', 'initial'}:
-                backgrounds += 1
-        for value in re.findall(r'border-(?:top|bottom)\s*:\s*([^;]+)', style, re.I):
-            if not re.match(r'\s*(?:0|none)', value, re.I):
-                horizontal += 1
-        for value in re.findall(r'border-left\s*:\s*([^;]+)', style, re.I):
-            match = re.match(r'\s*(\d+(?:\.\d+)?)px', value)
-            if match and float(match[1]) > 0:
-                vertical += 1
-                vertical_widths.append(int(float(match[1])))
-        if re.search(r'height\s*:\s*[123]px', style, re.I) and 'background' in style.lower():
-            horizontal += 1
+
+    def declarations(prop: str) -> int:
+        return sum(style.lower().count(prop) for style in styles)
+
+    def rgb(value: str) -> tuple[int, int, int]:
+        digits = value.lstrip('#')
+        if len(digits) == 3:
+            digits = ''.join(char * 2 for char in digits)
+        return tuple(int(digits[index:index + 2], 16) for index in (0, 2, 4))
+
+    colors: dict[str, int] = {}
+    for value in re.findall(r'#[0-9a-fA-F]{3,8}', fragment):
+        key = value.upper()
+        colors[key] = colors.get(key, 0) + 1
+
+    def chromatic(value: str) -> bool:
+        try:
+            red, green, blue = rgb(value)
+        except ValueError:
+            return False
+        return max(red, green, blue) - min(red, green, blue) > 8
 
     def depth(tag) -> int:
-        count = 0
-        node = tag
+        count, node = 0, tag
         while node is not None:
-            if getattr(node, 'name', None) == 'section':
+            if getattr(node, 'name', None) in {'section', 'div'}:
                 count += 1
             node = node.parent
         return count
 
-    colors = {}
-    for value in re.findall(r'#[0-9a-fA-F]{3,8}', fragment):
-        key = value.upper()
-        colors[key] = colors.get(key, 0) + 1
     return {
-        'containers': len(soup.find_all('div')),
-        'background_blocks': backgrounds,
-        'horizontal_lines': horizontal,
-        'vertical_lines': vertical,
-        'vertical_widths': sorted(set(vertical_widths)),
-        'max_section_depth': max((depth(tag) for tag in soup.find_all('section')), default=0),
-        'sections': len(soup.find_all('section')),
-        'accent': accent,
-        'accent_count': len(re.findall(re.escape(accent), fragment, re.I)),
+        'chromatic_kinds': sorted(value for value in colors if chromatic(value)),
+        'border_left': declarations('border-left'),
+        'border_top': declarations('border-top'),
+        'border_bottom': declarations('border-bottom'),
+        'border_radius': declarations('border-radius'),
+        'max_nesting': max((depth(tag) for tag in soup.find_all(['section', 'div'])),
+                           default=0),
+        'links': len(soup.find_all('a')),
+        'uls': len(soup.find_all('ul')),
+        'bullets': fragment.count('•'),
         'colors': dict(sorted(colors.items(), key=lambda item: (-item[1], item[0]))),
     }
 
