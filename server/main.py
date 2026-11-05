@@ -39,6 +39,7 @@ from .bill_page import router as bill_page_router
 from .owner_revenue import router as owner_revenue_router
 from .wechat_plus_api import router as wechat_plus_router
 from .seo import router as seo_router
+from . import agents
 from . import wechat_plus_repository
 from . import wechat_plus_billing
 from .workflow_events import redis_ready
@@ -70,6 +71,7 @@ image_board.init_schema()
 viral_insights_membership.init_schema()
 community.init_schema()
 topic_library.init_schema()
+app.include_router(agents.router)
 app.include_router(community.router)
 app.include_router(topic_library.router)
 from . import admin_activity
@@ -354,6 +356,7 @@ class RegisterRequest(AuthRequest):
     registration_token: str = Field(default="", max_length=64)
     ref: str = Field(default="", max_length=16)
     behavior_visitor: str = Field(default="", pattern=r"^([a-f0-9]{32})?$")
+    agent: str = Field(default="", max_length=32)
 
 
 class EmailCodeRequest(BaseModel):
@@ -749,9 +752,10 @@ def register_account(payload: RegisterRequest, response: Response, request: Requ
         admin_activity.record(user, 'login')
         behavior_analytics.record_registration(payload.behavior_visitor, user)
         better_auth_bridge.copy_cookies(response, result)
+        agent_status = agents.bind_signup(user['id'], payload.agent)
         referral = referrals.bind_signup(user['id'], payload.ref, ip)
         return {'status': 'success', 'user': user, 'wallet': accounts.wallet_summary(user['id']),
-                'referral': referral}
+                'referral': referral, 'agent_attribution': agent_status}
     if email_verification.required():
         email_verification.verify_code(payload.email, payload.email_code)
     try:
@@ -761,12 +765,13 @@ def register_account(payload: RegisterRequest, response: Response, request: Requ
         raise
     record_auth_result('register', payload.email, ip, True)
     # 邀请码失效、超额、命中防刷都只降级成一句提示，注册本身必须成功。
+    agent_status = agents.bind_signup(user["id"], payload.agent)
     referral = referrals.bind_signup(user["id"], payload.ref, ip)
     accounts.create_session(user["id"], response)
     admin_activity.record(user, "login")
     behavior_analytics.record_registration(payload.behavior_visitor, user)
     return {"status": "success", "user": user, "wallet": accounts.wallet_summary(user["id"]),
-            "referral": referral}
+            "referral": referral, "agent_attribution": agent_status}
 
 
 @app.get("/api/auth/config")
