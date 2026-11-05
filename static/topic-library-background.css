@@ -1,0 +1,5 @@
+html, body, body.embedded {
+  min-height: 100%;
+  background: linear-gradient(120deg, #bfe1cb, #dcebdc);
+  background-attachment: fixed;
+}
