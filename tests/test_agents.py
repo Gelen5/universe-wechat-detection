@@ -134,18 +134,19 @@ class AgentTests(unittest.TestCase):
             c.executescript("""INSERT INTO alipay_orders VALUES
               ('month','29.90','5.00','PARTIAL_REFUNDED','2026-11-05 10:00:00','2026-11-05'),
               ('pending','29.90','0.00','CREATED',NULL,'2026-11-05'),
-              ('week','9.90','0.00','PAID','2026-11-05 10:00:00','2026-11-05');
+              ('week','9.90','0.00','PAID','2026-11-05 10:00:00','2026-11-05'),
+              ('year','199.00','199.00','REFUNDED','2026-11-05 10:00:00','2026-11-05');
               INSERT INTO viral_insights_membership_orders VALUES
-              ('month','b','month','REFUNDED'),('pending','b','month','PENDING_PAYMENT'),('week','b','week','PAID');
+              ('month','b','month','REFUNDED'),('pending','b','month','PENDING_PAYMENT'),('week','b','week','PAID'),('year','b','year','REFUNDED');
               INSERT INTO alipay_recharges VALUES('month','b','CREDITED');""")
             c.commit()
         with patch.object(agents,'require_owner'):
             result=agents.agent_orders('a',None)
             estimate=agents.settlement_estimate('a',None,'2026-11-05',4000)
-        self.assertEqual(result['total'],1)
-        self.assertEqual(result['orders'][0]['order_type'],'月卡')
-        self.assertEqual(estimate['estimate_cents'],996)
+        self.assertEqual(result['total'],3)
+        self.assertEqual({row['order_type'] for row in result['orders']},{'月卡','周卡','年卡'})
+        self.assertEqual(estimate['estimate_cents'],1392)
         with patch.object(agents.accounts,'require_user',return_value={'id':'a'}):
-            self.assertEqual(agents.my_balance(None)['pending_cents'],996)
+            self.assertEqual(agents.my_balance(None)['pending_cents'],1392)
 
 if __name__ == '__main__': unittest.main()

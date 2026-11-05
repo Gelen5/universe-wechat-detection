@@ -1,6 +1,6 @@
 html, body, body.embedded {
   min-height: 100%;
-  background: linear-gradient(120deg, #bfe1cb, #dcebdc);
+  background: radial-gradient(ellipse at 30% 10%, #b4dec5 0, transparent 65%), linear-gradient(135deg, #c5e3d0, #e0ecdc);
   background-attachment: fixed;
 }
 html { scrollbar-color: #8bb39b #dcebdc; }

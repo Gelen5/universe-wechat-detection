@@ -23,7 +23,7 @@ STATIC = Path(__file__).resolve().parent.parent / 'static'
 ORDER_BASE = '''FROM agent_customers a JOIN users u ON u.id=a.customer_id
     JOIN alipay_orders o ON (
         EXISTS (SELECT 1 FROM alipay_recharges r WHERE r.out_trade_no=o.out_trade_no AND r.user_id=a.customer_id AND r.status='CREDITED')
-        OR EXISTS (SELECT 1 FROM viral_insights_membership_orders m WHERE m.out_trade_no=o.out_trade_no AND m.user_id=a.customer_id AND m.package_id='month' AND m.status IN ('PAID','REFUNDED'))
+        OR EXISTS (SELECT 1 FROM viral_insights_membership_orders m WHERE m.out_trade_no=o.out_trade_no AND m.user_id=a.customer_id AND m.package_id IN ('week','month','year') AND m.status IN ('PAID','REFUNDED'))
     ) WHERE a.agent_id=? AND o.status IN ('PAID','PARTIAL_REFUNDED','REFUNDED')'''
 
 class AgentPayload(BaseModel):
@@ -139,7 +139,7 @@ def _orders(user_id: str, page: int, mask_email: bool):
         summary_rows = c.execute('SELECT o.total_amount,o.refunded_amount,a.customer_id AS user_id ' + ORDER_BASE, (user_id,)).fetchall()
         total = c.execute('SELECT COUNT(*) ' + ORDER_BASE, (user_id,)).fetchone()[0]
         rows = c.execute('''SELECT o.out_trade_no,o.total_amount,o.refunded_amount,o.status,o.paid_at,u.email,
-            CASE WHEN EXISTS (SELECT 1 FROM viral_insights_membership_orders m WHERE m.out_trade_no=o.out_trade_no AND m.user_id=a.customer_id AND m.package_id='month') THEN '月卡' ELSE '积分充值' END AS order_type ''' + ORDER_BASE + ' ORDER BY o.created_at DESC LIMIT ? OFFSET ?', (user_id, 50, (page-1)*50)).fetchall()
+            COALESCE((SELECT CASE m.package_id WHEN 'week' THEN '周卡' WHEN 'month' THEN '月卡' WHEN 'year' THEN '年卡' END FROM viral_insights_membership_orders m WHERE m.out_trade_no=o.out_trade_no AND m.user_id=a.customer_id AND m.package_id IN ('week','month','year') AND m.status IN ('PAID','REFUNDED')), '积分充值') AS order_type ''' + ORDER_BASE + ' ORDER BY o.created_at DESC LIMIT ? OFFSET ?', (user_id, 50, (page-1)*50)).fetchall()
     gross = sum((Decimal(row['total_amount']) for row in summary_rows), Decimal('0'))
     refunded = sum((Decimal(row['refunded_amount']) for row in summary_rows), Decimal('0'))
     orders = [dict(r) for r in rows]
