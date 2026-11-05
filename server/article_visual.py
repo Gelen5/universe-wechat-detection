@@ -470,7 +470,7 @@ class PlanValidationError(ValueError):
         self.slot_index = slot_index
 
 
-def validate_plan(raw: dict[str, Any], article: dict[str, Any]) -> None:
+def validate_plan(raw: dict[str, Any], article: dict[str, Any], *, check_evidence: bool = True) -> None:
     """Check binding and evidence; literal checks cannot prove semantic entailment."""
     if not isinstance(raw, dict):
         raise PlanValidationError('图位方案不完整，请重新拆解')
@@ -487,14 +487,16 @@ def validate_plan(raw: dict[str, Any], article: dict[str, Any]) -> None:
         if not re.fullmatch(r"[a-z0-9-]{1,40}", ident) or ident in ids:
             raise PlanValidationError("图位编号异常，请重新拆解", index)
         ids.add(ident)
-        if not 8 <= len(quote) <= 100 or quote not in source or not str(slot.get("headline") or "").strip():
+        if not str(slot.get("headline") or "").strip():
+            raise PlanValidationError("图位结构异常，请重新拆解", index)
+        if check_evidence and (not 8 <= len(quote) <= 100 or quote not in source):
             raise PlanValidationError("拆解内容与当前文章的原文依据不匹配，请重新拆解", index)
         # Numbers must be traceable to the article. Semantic meaning is checked separately.
         claims = json.dumps({key: slot.get(key) for key in ("headline", "detail", "facts", "items")}, ensure_ascii=False)
         numbers = re.findall(r"(?<![A-Za-z0-9])\d+(?:[.,]\d+)*(?:%|万|亿|元|年|月|日)?", claims)
         available = re.sub(r"\s+", "", article.get("title", "") + article.get("markdown", ""))
         for number in numbers:
-            if number not in available:
+            if check_evidence and number not in available:
                 raise PlanValidationError("图位数字未在文章中找到，请重新拆解", index)
 
 
@@ -624,12 +626,21 @@ def build_plan(article: dict[str, Any], progress=None, initial_raw: str = '', sa
                         slot['id'] = ident
                     seen.add(ident)
             structurally_valid = False
+            evidence_notice = ''
             for repair_attempt in range(1 if verified else 3):
                 try:
                     validate_plan(candidate, article)
                     structurally_valid = True
                     break
                 except (ValueError, TypeError, KeyError) as failure:
+                    if _plan_error_code(failure) in ('source_quote', 'unsupported_number'):
+                        try:
+                            validate_plan(candidate, article, check_evidence=False)
+                            structurally_valid = True
+                            evidence_notice = '部分原文引用或数字未能匹配，请对照原文核实后使用。'
+                            break
+                        except (ValueError, TypeError, KeyError):
+                            pass
                     failure_codes.add(_plan_error_code(failure))
                     logger.warning('article_visual candidate_invalid stage=structure index=%d code=%s', index, _plan_error_code(failure))
                     if verified or repair_attempt >= 2:
@@ -664,7 +675,7 @@ def build_plan(article: dict[str, Any], progress=None, initial_raw: str = '', sa
             if not structurally_valid:
                 continue
             accepted = False
-            review_notice = ''
+            review_notice = evidence_notice
             for attempt in range(1 if verified else 2):
                 try:
                     if progress:
@@ -675,13 +686,18 @@ def build_plan(article: dict[str, Any], progress=None, initial_raw: str = '', sa
                     break
                 except (ValueError, TypeError, KeyError) as review_error:
                     code = _plan_error_code(review_error)
+                    if code == 'review_rejected':
+                        detail = str(review_error).split('：', 1)[1][:160] if '：' in str(review_error) else '部分内容缺少原文支持'
+                        review_notice = (evidence_notice + ' ' if evidence_notice else '') + '事实复核提示：' + detail + '。请对照原文核实。'
+                        accepted = True
+                        break
                     failure_codes.add(code)
                     if code == 'review_rejected' and '：' in str(review_error):
                         review_details.append(str(review_error).split('：', 1)[1][:160])
                     if code == 'review_unavailable':
                         review_unavailable = True
                         log_event('article_visual.stage_failed', trace_id=trace_id, stage='review', code='review_unavailable', candidate=index + 1, attempt=attempt + 1)
-                        review_notice = '事实复核服务暂不可用：原文引用和数字已作基础检查，但内容含义尚未核实。请逐条对照原文后再选择。'
+                        review_notice = (evidence_notice + ' ' if evidence_notice else '') + '事实复核服务暂不可用，内容含义尚未核实，请逐条对照原文后再选择。'
                         accepted = True
                         break
                     logger.warning('article_visual candidate_rejected stage=review index=%d code=%s attempt=%d', index, code, attempt + 1)
