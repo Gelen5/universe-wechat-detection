@@ -58,6 +58,35 @@ class AgentTests(unittest.TestCase):
             agent_schema.install(c)
             self.assertEqual(c.execute(text('SELECT version_num FROM alembic_version')).scalar(), '20261025_0009')
         engine.dispose()
+    def test_agent_orders_are_scoped_and_masked(self):
+        agents.bind_signup('b','ABC')
+        with closing(sqlite3.connect(accounts.DB_PATH)) as c:
+            c.executescript("""INSERT INTO alipay_orders VALUES('paid','19.90','0.00','PAID','2026-11-05 23:59:59','2026-11-05');
+            INSERT INTO alipay_recharges VALUES('paid','b','CREDITED');""")
+            c.commit()
+        with patch.object(agents.accounts, 'require_user', return_value={'id':'a'}):
+            data=agents.my_orders(None)
+        self.assertEqual(data['orders'][0]['email'], 'b***@example.com')
+        with patch.object(agents.accounts, 'require_user', return_value={'id':'x'}):
+            self.assertEqual(agents.my_orders(None)['total'], 0)
+        with patch.object(agents.accounts, 'require_user', return_value={'id':'b'}):
+            with self.assertRaises(agents.HTTPException): agents.my_orders(None)
+    def test_daily_estimate_rate_and_boundaries(self):
+        agents.bind_signup('b','ABC')
+        with closing(sqlite3.connect(accounts.DB_PATH)) as c:
+            c.executescript("""INSERT INTO alipay_orders VALUES
+            ('one','19.90','0.00','PAID','2026-11-05 23:59:59','2026-11-05'),
+            ('two','10.00','2.00','PARTIAL_REFUNDED','2026-11-05 00:00:00','2026-11-05'),
+            ('other','50.00','0.00','PAID','2026-11-06 00:00:00','2026-11-06');
+            INSERT INTO alipay_recharges VALUES('one','b','CREDITED'),('two','b','CREDITED'),('other','b','CREDITED');""")
+            c.commit()
+        with patch.object(agents, 'require_owner'):
+            d=agents.settlement_estimate('a',None,'2026-11-05',4000)
+            self.assertEqual((d['orders'],d['order_cents'],d['refunded_cents'],d['estimate_cents']),(2,2990,200,1116))
+            d2=agents.settlement_estimate('a',None,'2026-11-06',4000)
+            self.assertEqual(d2['estimate_cents'],2000)
+            with self.assertRaises(agents.HTTPException): agents.settlement_estimate('a',None,'2026-11-05',10001)
+            with self.assertRaises(agents.HTTPException): agents.settlement_estimate('a',None,'2026-99-01',4000)
     def test_admin_permission_is_required(self):
         with patch.object(agents, 'require_owner', side_effect=agents.HTTPException(403)):
             with self.assertRaises(agents.HTTPException): agents.list_agents(None)

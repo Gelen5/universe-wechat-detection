@@ -3,6 +3,7 @@ import logging
 import secrets
 import sqlite3
 from decimal import Decimal
+from datetime import date, timedelta
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request
@@ -106,11 +107,21 @@ def list_agents(request: Request):
 @router.get('/api/admin/agents/{user_id}/orders')
 def agent_orders(user_id: str, request: Request, page: int = 1):
     require_owner(request)
+    return _orders(user_id, page, mask_email=False)
+
+
+@router.get('/api/agent/orders')
+def my_orders(request: Request, page: int = 1):
+    user = accounts.require_user(request)
+    return _orders(user['id'], page, mask_email=True)
+
+
+def _orders(user_id: str, page: int, mask_email: bool):
     page = max(1, page)
     with accounts._connect() as c:
         profile = c.execute('SELECT user_id FROM agent_profiles WHERE user_id=?', (user_id,)).fetchone()
         if not profile:
-            raise HTTPException(404, '代理不存在')
+            raise HTTPException(403 if mask_email else 404, '仅代理可访问' if mask_email else '代理不存在')
         summary_rows = c.execute("""SELECT o.total_amount,o.refunded_amount,r.user_id FROM agent_customers a JOIN alipay_recharges r ON r.user_id=a.customer_id JOIN alipay_orders o ON o.out_trade_no=r.out_trade_no WHERE a.agent_id=? AND o.status IN ('PAID','PARTIAL_REFUNDED','REFUNDED') AND r.status='CREDITED'""", (user_id,)).fetchall()
         total = c.execute('''SELECT COUNT(*) FROM agent_customers a JOIN alipay_recharges r ON r.user_id=a.customer_id
             JOIN alipay_orders o ON o.out_trade_no=r.out_trade_no
@@ -123,6 +134,55 @@ def agent_orders(user_id: str, request: Request, page: int = 1):
             ORDER BY o.created_at DESC LIMIT ? OFFSET ?''', (user_id, 50, (page-1)*50)).fetchall()
     gross = sum((Decimal(row['total_amount']) for row in summary_rows), Decimal('0'))
     refunded = sum((Decimal(row['refunded_amount']) for row in summary_rows), Decimal('0'))
-    return {'orders': [dict(r) for r in rows], 'page': page, 'total': total,
+    orders = [dict(r) for r in rows]
+    if mask_email:
+        for order in orders:
+            local, _, domain = order['email'].partition('@')
+            order['email'] = (local[:1] + '***@' + domain) if domain else '***'
+    return {'orders': orders, 'page': page, 'total': total,
             'paid_customers': len({row['user_id'] for row in summary_rows}),
             'order_total': str(gross), 'refunded_total': str(refunded)}
+
+
+@router.get('/api/admin/agents/{user_id}/estimate')
+def settlement_estimate(user_id: str, request: Request, day: str, rate_bps: int):
+    require_owner(request)
+    try:
+        selected = date.fromisoformat(day)
+        if selected.isoformat() != day:
+            raise ValueError()
+        following = selected + timedelta(days=1)
+    except (ValueError, OverflowError):
+        raise HTTPException(422, '日期格式应为 YYYY-MM-DD')
+    if not 0 <= rate_bps <= 10000:
+        raise HTTPException(422, '分成比例应在 0% 至 100% 之间')
+    start = selected.isoformat() + ' 00:00:00'
+    end = following.isoformat() + ' 00:00:00'
+    with accounts._connect() as c:
+        if not c.execute('SELECT user_id FROM agent_profiles WHERE user_id=?', (user_id,)).fetchone():
+            raise HTTPException(404, '代理不存在')
+        rows = c.execute('''SELECT o.total_amount,o.refunded_amount FROM agent_customers a
+            JOIN alipay_recharges r ON r.user_id=a.customer_id
+            JOIN alipay_orders o ON o.out_trade_no=r.out_trade_no
+            WHERE a.agent_id=? AND r.status='CREDITED'
+              AND o.status IN ('PAID','PARTIAL_REFUNDED','REFUNDED')
+              AND o.paid_at>=? AND o.paid_at<?''', (user_id, start, end)).fetchall()
+        missing_time = c.execute('''SELECT COUNT(*) FROM agent_customers a
+            JOIN alipay_recharges r ON r.user_id=a.customer_id
+            JOIN alipay_orders o ON o.out_trade_no=r.out_trade_no
+            WHERE a.agent_id=? AND r.status='CREDITED'
+              AND o.status IN ('PAID','PARTIAL_REFUNDED','REFUNDED')
+              AND (o.paid_at IS NULL OR o.paid_at='')''', (user_id,)).fetchone()[0]
+    def cents(value):
+        amount = Decimal(str(value or '0')) * 100
+        if amount != amount.to_integral_value() or amount < 0:
+            raise HTTPException(500, '订单金额异常，请人工核对')
+        return int(amount)
+    gross = sum(cents(row['total_amount']) for row in rows)
+    refunded = sum(cents(row['refunded_amount']) for row in rows)
+    net = gross - refunded
+    if net < 0:
+        raise HTTPException(500, '订单退款金额异常，请人工核对')
+    estimate = (net * rate_bps + 5000) // 10000
+    return {'day': day, 'rate_bps': rate_bps, 'orders': len(rows), 'missing_paid_time': missing_time, 'order_cents': gross,
+            'refunded_cents': refunded, 'net_cents': net, 'estimate_cents': estimate}
