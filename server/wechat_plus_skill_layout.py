@@ -326,6 +326,43 @@ def decor_metrics(fragment: str) -> dict:
     }
 
 
+def render_fine(draft: str, theme: dict, *, generate, check_cancelled=None,
+                work_dir=None, trace: dict | None = None) -> str:
+    """Run the publisher Skill's component-based Mode A and its real gates."""
+    from . import skill_runtime
+    if generate is None:
+        raise ValueError('精排版服务不可用，原正文与预览已保留。')
+    instructions, _ = skill_runtime.context(workbench.SKILL_DIR, (
+        'references/components.md', 'references/article-template.html',
+        'references/mobile-layout-quality.md', 'references/wechat-html-spec.md'))
+    session = {'allow_remote_images': True, 'brief': str(theme.get('user_request') or ''),
+               'theme': theme.get('style_name') or theme.get('name') or ''}
+    def generate_html(prompt):
+        if check_cancelled:
+            check_cancelled()
+        result = generate(prompt + '\n视觉方向：像成熟公众号编辑精排的观点文章，以清晰层级和留白为主。首屏标题约 20px、字重清晰，正文 16px、行高 1.8–1.9；小标题与正文拉开层级，章节间有呼吸感。选择一个和文章气质相符的克制强调色，只对确有信息价值的原文作一处强调。不得默认首段色块，不要标题下横线、连续左侧竖线、满屏卡片，不要为了装饰而使用组件。原文段落及图片完整保留。\n返回合法 JSON 对象 {"html":"完整文章 HTML 片段"}，不要输出其他字段。')
+        if not isinstance(result, dict) or not isinstance(result.get('html'), str) or not result['html'].strip():
+            raise ValueError('Skill 精排版未返回完整 HTML，原正文和预览已保留。')
+        if check_cancelled:
+            check_cancelled()
+        return result['html']
+    temporary = tempfile.TemporaryDirectory() if work_dir is None else None
+    try:
+        directory = Path(temporary.name if temporary else work_dir)
+        fragment = skill_fine_layout.render(session, skill_root=workbench.SKILL_DIR,
+            output_dir=directory, source_markdown=draft, instructions=instructions,
+            generate=generate_html)
+        _verify_fidelity(fragment, draft)
+        if trace is not None:
+            trace.update({'mode':'skill-components-a', 'renderer':'wechat-publisher-ultimate:A-components',
+                          'components': [], 'modules': [], 'decoration_budget':0,
+                          'gates': {'layout':{'passed':True}, 'compliance':{'passed':True}}})
+        return fragment
+    finally:
+        if temporary:
+            temporary.cleanup()
+
+
 def render_native(draft: str, theme: dict, *, generate=None,
                   check_cancelled=None, passthrough=(), work_dir=None,
                   trace: dict | None = None) -> str:

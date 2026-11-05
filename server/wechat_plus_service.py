@@ -216,9 +216,74 @@ def _execute_step(state, message, generate, *, output_dir, progress,
         state['article_state'] = article
     state.setdefault('choices', [])
 
+    # Resolve the chosen candidate before research; the Skill topic node can
+    # otherwise leave a broad planning topic in article.topic.
+    if (article.get('nodes', {}).get('topic', {}).get('status') == 'passed'
+            and article.get('nodes', {}).get('research', {}).get('status') != 'passed'
+            and state.get('choices')):
+        choices = state['choices']
+        choice = next((item for item in choices if item.get('title') and item['title'] in message), None)
+        match = re.search(r'(?:选|第)\s*([1-9一二三四五六七八九])\s*(?:个|项|条|题|选题)?', message)
+        if not choice and match:
+            token = match.group(1)
+            index = int(token) - 1 if token.isdigit() else '一二三四五六七八九'.index(token)
+            if 0 <= index < len(choices):
+                choice = choices[index]
+        if choice:
+            title = str(choice.get('title') or '').strip()
+            if title:
+                article['topic'] = title
+                article['selected_title'] = title
+                article['angle'] = str(choice.get('angle') or article.get('angle') or '')
+                state['selected_topic'] = {'title': title, 'angle': article['angle']}
+
+    # An explicit edit always wins over the next pending workflow node. Never
+    # turn a revision request into a paid formatting or full-redraft action.
+    edit_request = bool(re.search(r'按(?:照)?建议(?:修改|改|调整)|^(?:帮我)?(?:修改一下|改一下|改改|修改|润色|优化)[。！! ]*$|(?:修改|改写|调整|润色|优化|改一下|改改).{0,20}(?:正文|文章|段落|开头|结尾|措辞|内容)|(?:正文|文章|段落|开头|结尾).{0,12}(?:修改|改写|调整|润色|优化)', message))
+    layout_request = bool(re.search(r'排版|样式|版式|字体|字号|颜色|配色|模块组合', message))
+    if article.get('draft') and edit_request and not layout_request:
+        progress('根据你的要求修改正文')
+        instructions, _ = runtime.skill_runtime.context(workbench.SKILL_DIR,
+            ('references/writing-protocol.md', 'references/quality-protocol.md'))
+        suggestions = {'quality_report': article.get('quality_report') or {},
+                       'reader_simulation': article.get('reader_simulation') or [],
+                       'diagnostics': state.get('humanness_report') or {}}
+        old_draft = str(article['draft'])
+        result = generate(instructions + '\n按用户要求和已有复核建议局部修改正文；只处理能根据现有材料完成的建议。'
+            '无证据的事实、作者经历和来源不得编造；不能完成的建议在说明中指出。'
+            '保留未要求修改的段落，返回JSON {"draft":"完整Markdown正文", "summary":"修改说明", "unresolved":"未解决事项"}。\n'
+            + json.dumps({'request': message, 'draft': old_draft,
+                          'evidence': article.get('evidence_pack') or {}, 'review': suggestions}, ensure_ascii=False))
+        if not isinstance(result, dict) or not isinstance(result.get('draft'), str) or not result['draft'].strip():
+            raise ValueError('修改结果不完整，原正文已保留，请重试。')
+        revised = result['draft'].strip()
+        if revised == old_draft.strip():
+            history.append({'role':'assistant', 'content':'本次没有可安全应用的正文修改，原文已保留。' + str(result.get('unresolved') or '')[:300]})
+            state.update(last_action='answer', billing_action='answer', billing_points=0,
+                         last_node='', reply_options=['查看复核与来源', '补充修改要求'])
+            return state
+        guarded, guard = runtime.guard_revision({'draft': old_draft}, {'revised_draft': revised})
+        if 'revised_draft' not in guarded:
+            raise ValueError('本次修改改动过大或遗漏原文事实，原正文已保留。请说明需要修改的段落后重试。')
+        record_version(state, '修改前')
+        article['draft'] = revised
+        reset_from(article, 'review')
+        record_version(state, '按要求修改')
+        state.update(last_action='revise', billing_action='revise', billing_points=REVISE_POINTS,
+                     last_node='draft', next_node='review', reply_options=['继续复核', '继续修改正文'])
+        note = str(result.get('summary') or '已生成修改版本，请查看；正文需要重新复核。')[:400]
+        unresolved = str(result.get('unresolved') or '').strip()
+        if unresolved:
+            note += ' 尚待处理：' + unresolved[:400]
+        history.append({'role':'assistant', 'content':note})
+        return state
+
     # Explicit redo resets the named node and everything downstream.
     redo = REDO_PATTERN.search(message)
     redo_node = REDO_NODES.get(redo.group(1)) if redo else None
+    if (article.get('draft') and layout_request and not edit_request
+            and article.get('nodes', {}).get('review', {}).get('status') == 'passed'):
+        redo_node = 'delivery'
     rerun_draft = False
     if redo_node:
         reset_from(article, redo_node)
@@ -289,6 +354,8 @@ def _execute_step(state, message, generate, *, output_dir, progress,
                                note='' if node == 'intent' else message,
                                diagnostics=diagnostics if node == 'review' else None,
                                guard_out=guard)
+        if node == 'strategy' and (state.get('selected_topic') or {}).get('title'):
+            article['selected_title'] = state['selected_topic']['title']
         state['article_state'] = article
         status = article['nodes'][node]['status']
         if status == 'awaiting_host':
@@ -408,9 +475,13 @@ def _render_delivery(state, article, message, generate, *, output_dir,
     request = str(message or '')
     fresh = (not state.get('layout_theme')
              or any(word in request for word in ('换', '重做', '重新', '再来', '不同')))
-    theme = layout.choose(request,
+    appearance = request
+    if not state.get('layout_theme') and not any(name in request for name in layout.STYLE_OPTIONS):
+        appearance += ' 信号绿' if any(word in original_draft.lower() for word in ('ai', '科技', '技术', '工具')) else ' 墨金质感'
+    theme = layout.choose(appearance,
                           state.get('layout_theme') or state.get('layout_previous_theme'),
                           fresh=fresh, content=original_draft)
+    theme['user_request'] = request
     render_trace = {}
     formatted = layout.render(original_draft, theme, trace=render_trace,
                               generate=generate, check_cancelled=check_cancelled,
@@ -427,11 +498,11 @@ def _render_delivery(state, article, message, generate, *, output_dir,
     state['layout_capability'] = {
         'style': theme.get('style_name') or theme['name'],
         'style_options': list(layout.STYLE_OPTIONS),
-        'module_count': len(theme.get('modules') or []),
-        'modules': [item['name'] for item in theme.get('modules') or []],
+        'module_count': len(render_trace.get('modules') or []),
+        'modules': render_trace.get('modules') or [],
         'library_size': layout.MODULE_COUNT,
         'variant': theme.get('variant', ''),
-        'mode': render_trace.get('mode', 'skill-native-dsl'),
+        'mode': render_trace.get('mode', 'skill-components-a'),
         'native_modules': render_trace.get('modules') or [],
         'components': render_trace.get('components') or [],
         'decoration_budget': render_trace.get('decoration_budget', 0),
@@ -439,8 +510,7 @@ def _render_delivery(state, article, message, generate, *, output_dir,
     }
     capability = state['layout_capability']
     style_note = f"「{capability['style']}」" if capability['style'] else f"「{theme['name']}」"
-    module_note = (f"，本版启用 {capability['module_count']} 个排版模块"
-                   if capability['module_count'] else '')
+    module_note = ''
     reply = (f"已按{style_note}{module_note}生成排版，预览在右侧。"
              '可以直接点一个视觉风格，也可以说出想调整的颜色或标题样式。')
     if warnings:

@@ -207,11 +207,14 @@ def repair_portable_styles(fragment: str) -> tuple[str, list[str]]:
     return str(soup), sorted(changes)
 
 
-def check_skill_gates(fragment: str, source: str, skill_root: Path, check_path: Path) -> tuple[dict, dict, dict]:
+def check_skill_gates(fragment: str, source: str, skill_root: Path, check_path: Path, *, allow_remote_images: bool = False) -> tuple[dict, dict, dict]:
     """Run both real Skill checks; report only rule codes and safe guidance."""
     check_path.write_text(fragment, encoding='utf-8')
     allowances = ['--strict', '--allow', 'div_tag']
     allowance_info = {}
+    if allow_remote_images:
+        allowances += ['--allow', 'image_host_not_wechat']
+        allowance_info['image_host_not_wechat'] = 'Remote images may require upload to WeChat.'
     if code_wrap_allowance(fragment, source):
         allowances += ['--allow', 'css_white_space_pre']
         allowance_info['css_white_space_pre'] = 'Only pre-wrap on unchanged source code blocks.'
@@ -219,7 +222,7 @@ def check_skill_gates(fragment: str, source: str, skill_root: Path, check_path: 
     for script, args, key in [('layout_quality_check.py', [], 'layout'),
                               ('wechat_compliance_check.py', allowances, 'compliance')]:
         try:
-            checked = subprocess.run([sys.executable, str(skill_root / 'scripts' / script),
+            checked = subprocess.run([sys.executable, '-X', 'utf8', str(skill_root / 'scripts' / script),
                                       str(check_path), '--format', 'json', *args],
                                      capture_output=True, text=True, encoding='utf-8', timeout=60)
         except subprocess.TimeoutExpired as exc:
@@ -232,12 +235,14 @@ def check_skill_gates(fragment: str, source: str, skill_root: Path, check_path: 
         if checked.returncode:
             findings = report if isinstance(report, list) else report.get('findings', [])
             waived = set(report.get('waived', [])) if isinstance(report, dict) else set()
-            blocked = [f for f in findings if f.get('code') not in waived and (
+            accepted = {'image_host_not_wechat'} if allow_remote_images and key == 'compliance' else set()
+            blocked = [f for f in findings if f.get('code') not in waived | accepted and (
                 f.get('severity') in {'error', 'warn_blocking'} or
                 (key == 'compliance' and f.get('severity') == 'warn_allowable'))]
-            guidance = '; '.join(f"{f.get('code', 'unknown')}: {str(f.get('suggestion', ''))[:180]}"
-                                 for f in blocked[:8])
-            raise ValueError('Skill 排版检查未通过：' + (guidance or script))
+            if blocked or not findings:
+                guidance = '; '.join(f"{f.get('code', 'unknown')}: {str(f.get('suggestion', ''))[:180]}"
+                                     for f in blocked[:8])
+                raise ValueError('Skill 排版检查未通过：' + (guidance or script))
     return reports['layout'], reports['compliance'], allowance_info
 
 
@@ -248,10 +253,11 @@ def render(session, *, skill_root: Path, output_dir: Path, source_markdown: str,
     source = markdown.markdown(body, extensions=['tables', 'fenced_code'])
     source_soup = BeautifulSoup(source, 'html.parser')
     assets = {}
+    allow_remote_images = bool(session.get('allow_remote_images'))
     for index, image in enumerate(source_soup.find_all('img'), 1):
         # Source problems cannot be repaired by the layout model; stop before
         # charging time or sending any requests, with a clear explanation.
-        validate_image_source(image.get('src', ''))
+        validate_image_source(image.get('src', ''), allow_remote_images=allow_remote_images)
         token = f'PUBLISHER_ASSET_{index}'
         assets[token] = image.get('src', '')
         image['src'] = token
@@ -285,18 +291,18 @@ def render(session, *, skill_root: Path, output_dir: Path, source_markdown: str,
             fragment = fragment.replace(token, src)
         try:
             fragment, local_changes = repair_portable_styles(fragment)
-            fragment = validate_fragment(fragment, source)
+            fragment = validate_fragment(fragment, source, allow_remote_images=allow_remote_images)
             wrapper = wrapper_module.LeafWrapper()
             wrapper.feed(fragment)
             wrapper.close()
-            fragment = validate_fragment(wrapper.result(), source)
+            fragment = validate_fragment(wrapper.result(), source, allow_remote_images=allow_remote_images)
             previous_hash = session.get('previous_layout_hash')
             if previous_hash and hashlib.sha256(fragment.encode()).hexdigest() == previous_hash:
                 raise ValueError('重新排版与上一版完全相同，请调整标题、组件或间距')
             if progress:
                 progress('generating', {'label': '正在检查正文完整性和公众号兼容性'})
             layout_report, compliance_report, allowances = check_skill_gates(
-                fragment, source, skill_root, output_dir / 'article.html')
+                fragment, source, skill_root, output_dir / 'article.html', allow_remote_images=allow_remote_images)
             session['layout_check'] = layout_report
             session['compliance_check'] = compliance_report
             session['compliance_allowances'] = allowances

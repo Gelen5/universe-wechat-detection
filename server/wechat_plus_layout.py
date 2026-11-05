@@ -165,21 +165,13 @@ def _safe_source(draft: str) -> str:
 def render(draft: str, theme: dict, *, trace: dict | None = None,
            generate=None, check_cancelled=None, passthrough=(),
            work_dir=None) -> str:
-    """Render through the installed Skill's native Markdown + :::module DSL.
-
-    The model only returns a layout decision (``layout_plan``); the manuscript
-    stays Markdown and the Skill's own ``MarkdownConverter`` renders it via
-    ``server/skill_preview.py``.  Both Skill gates run before delivery.
-    Failures raise -- there is no silent fallback to a local template -- so the
-    caller can keep the user's existing preview and show the real reason.
-    """
+    """Run the publisher Skill component layout with fidelity and safety gates."""
     # Unsafe source HTML is a hard error, never a silent layout fallback.
     _safe_source(draft)
     from . import wechat_plus_skill_layout as native
-    return native.render_native(draft, theme, generate=generate,
-                                check_cancelled=check_cancelled,
-                                passthrough=tuple(passthrough or ()),
-                                work_dir=work_dir, trace=trace)
+    return native.render_fine(draft, theme, generate=generate,
+                              check_cancelled=check_cancelled,
+                              work_dir=work_dir, trace=trace)
 
 
 @lru_cache(maxsize=8)

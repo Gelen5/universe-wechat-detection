@@ -3,7 +3,7 @@ from pathlib import Path
 from unittest.mock import patch
 from bs4 import BeautifulSoup
 import pytest
-from server import wechat_plus_layout as layout, wechat_plus_service as service, workbench
+from server import wechat_plus_layout as layout, wechat_plus_service as service, wechat_plus_skill_layout as skill_layout, workbench
 from tests import test_wechat_plus_service as plus_tests
 
 LAYOUT_PLAN = {'first_screen': '标题与首段', 'components': ['callout'],
@@ -31,7 +31,7 @@ def test_native_render_keeps_text_links_images_and_code():
     # contract is fidelity + a real native render, not colour variation.
     with patch.object(workbench, 'SKILL_DIR', Path(__file__).resolve().parents[1] / 'vendor/skills/weChat-autoCreate'):
         trace = {}
-        html = layout.render(DRAFT, dict(layout.THEMES['clean'], id='clean'), trace=trace)
+        html = skill_layout.render_native(DRAFT, dict(layout.THEMES['clean'], id='clean'), trace=trace)
     assert trace['mode'] == 'skill-native-dsl'
     assert trace['renderer'] == 'toolkit.converter.MarkdownConverter'
     assert trace['gates']['layout']['returncode'] == 0
@@ -101,7 +101,7 @@ def test_format_preserves_draft_even_if_review_proposes_edits(tmp_path):
         assert state2['layout_theme']['heading_align']=='center'
         # The Skill owns typography now; Plus records the request but does not
         # inject its own text-align into the Skill-rendered fragment.
-        assert state2['layout_capability']['mode'] == 'skill-native-dsl'
+        assert state2['layout_capability']['mode'] == 'skill-components-a'
         assert '先区分讨论与决定' in Path(state2['article_state']['formatted_output']).read_text(encoding='utf-8')
         state2['last_action']='review'
         state3=case.run_turn(state2, '沉稳编辑', [{'action':'answer','reply':'好的'}, LAYOUT_PLAN])
@@ -112,7 +112,7 @@ def test_format_preserves_draft_even_if_review_proposes_edits(tmp_path):
 
 def test_external_image_is_kept_and_its_limitation_is_visible():
     with patch.object(workbench, 'SKILL_DIR', Path(__file__).resolve().parents[1] / 'vendor/skills/weChat-autoCreate'):
-        html = layout.render(DRAFT, dict(layout.THEMES['clean'],id='clean'))
+        html = skill_layout.render_native(DRAFT, dict(layout.THEMES['clean'],id='clean'))
         warnings = layout.check(html)
     assert 'https://example.com/picture.png' in html
     assert any('外部图片' in warning for warning in warnings)
