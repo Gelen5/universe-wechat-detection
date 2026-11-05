@@ -13,6 +13,8 @@
     $('#copy').onclick=async()=>{try{await navigator.clipboard.writeText($('#link').value);$('#status').textContent='链接已复制'}catch{$('#link').select();$('#status').textContent='请手动复制链接'}};
     $('#prev').onclick=()=>{if(page>1){page--;loadOrders().catch(e=>$('#orders').textContent=e.message)}};
     $('#next').onclick=()=>{if(page*50<total){page++;loadOrders().catch(e=>$('#orders').textContent=e.message)}};
+    const balanceResponse=await fetch('/api/agent/balance',{cache:'no-store'});if(!balanceResponse.ok)throw Error('无法加载结算信息');const b=await balanceResponse.json();
+    const yuan=c=>(c/100).toFixed(2);$('#pending').textContent=b.pending_cents<0?'待抵扣 ¥'+yuan(-b.pending_cents):'¥'+yuan(b.pending_cents);$('#earnings-meta').textContent=`累计预估收益 ¥${yuan(b.earned_cents)} · 已记录结算 ¥${yuan(b.settled_cents)}`;
     await loadOrders();
   }catch(e){$('#status').textContent=e.message;$('#orders').textContent=e.message}
 })();

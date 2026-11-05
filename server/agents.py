@@ -2,6 +2,7 @@
 import logging
 import secrets
 import sqlite3
+import uuid
 from decimal import Decimal
 from datetime import date, timedelta
 from pathlib import Path
@@ -11,7 +12,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.exc import IntegrityError
 
-from . import accounts
+from . import accounts, database
 from .owner_revenue import require_owner
 
 router = APIRouter()
@@ -23,6 +24,12 @@ class AgentPayload(BaseModel):
 
 class ActivePayload(BaseModel):
     active: bool
+
+class SettlementPayload(BaseModel):
+    amount_cents: int = Field(gt=0, le=1000000000)
+    request_key: str = Field(pattern=r'^[a-f0-9]{32}$')
+    note: str = Field(default='', max_length=300)
+    transfer_ref: str = Field(min_length=1, max_length=120)
 
 
 def bind_signup(user_id: str, code: str):
@@ -186,3 +193,66 @@ def settlement_estimate(user_id: str, request: Request, day: str, rate_bps: int)
     estimate = (net * rate_bps + 5000) // 10000
     return {'day': day, 'rate_bps': rate_bps, 'orders': len(rows), 'missing_paid_time': missing_time, 'order_cents': gross,
             'refunded_cents': refunded, 'net_cents': net, 'estimate_cents': estimate}
+
+
+def _balance(c, user_id):
+    rows = c.execute("""SELECT o.total_amount,o.refunded_amount FROM agent_customers a
+        JOIN alipay_recharges r ON r.user_id=a.customer_id
+        JOIN alipay_orders o ON o.out_trade_no=r.out_trade_no
+        WHERE a.agent_id=? AND r.status='CREDITED'
+        AND o.status IN ('PAID','PARTIAL_REFUNDED','REFUNDED')""", (user_id,)).fetchall()
+    def cents(value):
+        amount = Decimal(str(value or '0')) * 100
+        if amount < 0 or amount != amount.to_integral_value():
+            raise HTTPException(500, '订单金额异常，请联系管理员核对')
+        return int(amount)
+    net=sum(cents(row['total_amount'])-cents(row['refunded_amount']) for row in rows)
+    if net < 0: raise HTTPException(500, '订单退款异常，请联系管理员核对')
+    earned=(net*4000+5000)//10000
+    paid=c.execute('SELECT COALESCE(SUM(amount_cents),0) FROM agent_settlements WHERE agent_id=?',(user_id,)).fetchone()[0]
+    return {'earned_cents':earned,'settled_cents':int(paid),'pending_cents':earned-int(paid),'rate_bps':4000}
+
+
+@router.get('/api/agent/balance')
+def my_balance(request: Request):
+    user=accounts.require_user(request)
+    with accounts._connect() as c:
+        if not c.execute('SELECT user_id FROM agent_profiles WHERE user_id=?',(user['id'],)).fetchone():
+            raise HTTPException(403, '仅代理可访问')
+        return _balance(c,user['id'])
+
+
+@router.get('/api/admin/agents/{user_id}/settlements')
+def get_settlements(user_id: str, request: Request):
+    require_owner(request)
+    with accounts._connect() as c:
+        if not c.execute('SELECT user_id FROM agent_profiles WHERE user_id=?',(user_id,)).fetchone():
+            raise HTTPException(404,'代理不存在')
+        balance=_balance(c,user_id)
+        rows=c.execute('SELECT id,amount_cents,operator_id,note,transfer_ref,created_at FROM agent_settlements WHERE agent_id=? ORDER BY created_at DESC LIMIT 100',(user_id,)).fetchall()
+    return {'balance':balance,'settlements':[dict(row) for row in rows]}
+
+
+@router.post('/api/admin/agents/{user_id}/settlements')
+def record_settlement(user_id: str, payload: SettlementPayload, request: Request):
+    operator=require_owner(request)
+    ref=payload.transfer_ref.strip()
+    if not ref: raise HTTPException(422,'请填写转账凭证号')
+    with accounts._connect() as c:
+        c.execute('BEGIN IMMEDIATE')
+        lock=' FOR UPDATE' if database.ENGINE.dialect.name=='postgresql' else ''
+        if not c.execute('SELECT user_id FROM agent_profiles WHERE user_id=?'+lock,(user_id,)).fetchone():
+            raise HTTPException(404,'代理不存在')
+        previous=c.execute('SELECT agent_id,amount_cents,note,transfer_ref FROM agent_settlements WHERE request_key=?',(payload.request_key,)).fetchone()
+        if previous:
+            if previous['agent_id']!=user_id or previous['amount_cents']!=payload.amount_cents or previous['note']!=payload.note.strip() or previous['transfer_ref']!=ref:
+                raise HTTPException(409,'结算请求编号已用于其他记录')
+            return {'status':'already_recorded','balance':_balance(c,user_id)}
+        if c.execute('SELECT 1 FROM agent_settlements WHERE agent_id=? AND transfer_ref=?',(user_id,ref)).fetchone():
+            raise HTTPException(409,'该转账凭证号已记录，请勿重复结算')
+        balance=_balance(c,user_id)
+        if payload.amount_cents > balance['pending_cents']:
+            raise HTTPException(409,'结算金额超过当前预估待结算金额，请刷新后核对')
+        c.execute('INSERT INTO agent_settlements(id,request_key,agent_id,amount_cents,operator_id,note,transfer_ref,created_at) VALUES(?,?,?,?,?,?,?,?)',
+            (uuid.uuid4().hex,payload.request_key,user_id,payload.amount_cents,operator['id'],payload.note.strip(),ref,accounts.utc_now()))
+        return {'status':'recorded','balance':_balance(c,user_id)}

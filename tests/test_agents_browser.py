@@ -11,12 +11,18 @@ ROOT=Path(__file__).resolve().parents[1]
 @pytest.mark.parametrize('width',[390,1440])
 def test_agent_admin_page(browser,width):
     page=browser.new_page(viewport={'width':width,'height':900})
-    errors=[]
+    errors=[]; transfers=[]
     page.on('pageerror', lambda error: errors.append(str(error)))
     def serve(route):
         path=urlparse(route.request.url).path
         if path=='/api/admin/agents':
             route.fulfill(json={'agents':[{'user_id':'a','email':'agent@example.com','customers':2,'active':True}]})
+        elif path=='/api/admin/agents/a/settlements':
+            if route.request.method=='POST':
+                transfers.append(route.request.post_data_json)
+                route.fulfill(json={'status':'recorded'})
+            else:
+                route.fulfill(json={'balance':{'earned_cents':796,'settled_cents':0,'pending_cents':796},'settlements':[]})
         elif path=='/api/admin/agents/a/estimate':
             route.fulfill(json={'day':'2026-11-05','orders':1,'order_cents':1990,'refunded_cents':0,'estimate_cents':796})
         elif path=='/api/admin/agents/a/orders':
@@ -33,6 +39,13 @@ def test_agent_admin_page(browser,width):
     page.locator('#settlement-day').fill('2026-11-05')
     page.get_by_role('button',name='计算',exact=True).click()
     expect(page.locator('#estimate-result')).to_contain_text('预估应结 ¥7.96')
+    page.locator('#settlement-amount').fill('7.96')
+    page.locator('#settlement-ref').fill('test-ref')
+    page.on('dialog', lambda dialog:dialog.accept())
+    page.get_by_role('button',name='记录已转账').click()
+    expect(page.locator('#message')).to_have_text('线下转账已记录')
+    assert transfers[0]['amount_cents']==796
+    assert transfers[0]['transfer_ref']=='test-ref'
     assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
     assert not errors
     page.close()
@@ -45,6 +58,8 @@ def test_agent_link_page(browser):
         path=urlparse(route.request.url).path
         if path=='/api/agent/me':
             route.fulfill(json={'code':'ABCDEF0123456789ABCDEF01','active':True})
+        elif path=='/api/agent/balance':
+            route.fulfill(json={'earned_cents':796,'settled_cents':0,'pending_cents':796})
         elif path=='/api/agent/orders':
             route.fulfill(json={'orders':[{'email':'b***@example.com','out_trade_no':'paid','total_amount':'19.90','refunded_amount':'0.00','status':'PAID','paid_at':'2026-11-05'}],'total':1,'paid_customers':1,'order_total':'19.90','refunded_total':'0.00'})
         else:
@@ -54,6 +69,7 @@ def test_agent_link_page(browser):
     page.goto('http://ui.test/agent')
     expect(page.locator('#link')).to_have_value('http://ui.test/?agent=ABCDEF0123456789ABCDEF01')
     expect(page.locator('#orders')).to_contain_text('b***@example.com')
+    expect(page.locator('#pending')).to_have_text('¥7.96')
     page.get_by_role('button',name='复制链接').click()
     expect(page.locator('#status')).not_to_be_empty()
     assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
