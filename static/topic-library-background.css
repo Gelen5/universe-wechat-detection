@@ -3,3 +3,7 @@ html, body, body.embedded {
   background: linear-gradient(120deg, #bfe1cb, #dcebdc);
   background-attachment: fixed;
 }
+html { scrollbar-color: #8bb39b #dcebdc; }
+html::-webkit-scrollbar { width: 10px; }
+html::-webkit-scrollbar-track { background: #dcebdc; }
+html::-webkit-scrollbar-thumb { background: #8bb39b; border: 2px solid #dcebdc; border-radius: 10px; }
