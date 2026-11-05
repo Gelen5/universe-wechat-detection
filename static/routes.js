@@ -48,12 +48,12 @@ window.APP_NAV = (() => {
     {group: '创作', href: '/tie-tu', view: 'tie-tu', label: '贴图号',
      icon: svg('<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>' +
                '<rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>')},
-    {group: '创作', href: '/viral-remix', view: 'viral-remix', label: '爆款贴图复刻',
+    {group: '创作', href: '/viral-remix', view: 'viral-remix', label: '爆款贴图复刻', short: '爆图复刻',
      icon: svg('<rect x="3" y="3" width="18" height="18" rx="3"/><path d="m8 15 3-3 2 2 3-4 2 3"/>' +
                '<circle cx="8.5" cy="8.5" r="1.2"/><path d="M16 3v4M14 5h4"/>')},
     // 文章配图：应用内视图（SPA section #article-visual），点击不跳页。
     // index.html 的 .app-tabs 里有静态 <a data-view> 节点，app.js 才能绑上监听器。
-    {group: '创作', href: '/article-visual', view: 'article-visual', label: '爆文转贴图', short: '转贴图',
+    {group: '创作', href: '/article-visual', view: 'article-visual', label: '爆文转贴图',
      fallback: true,
      icon: svg('<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="1.6"/>' +
                '<path d="m4 17 5-5 4 4 3-3 4 4"/>')},
