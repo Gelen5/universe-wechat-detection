@@ -18,6 +18,8 @@ def test_article_visual_keeps_original_frame_and_requests_ratio(monkeypatch):
     monkeypatch.setattr(providers, 'OpenAICompatibleProvider', MagicMock())
     monkeypatch.setattr(providers, 'ModelService', lambda *args, **kwargs: service)
     monkeypatch.setattr(article_visual.workbench, '_setting', lambda *args, **kwargs: 'test')
+    from contextlib import nullcontext
+    monkeypatch.setattr(article_visual.workbench, 'provider_overrides', lambda **kwargs: nullcontext())
     result = article_visual.generate_slot_image('测试正文')
     assert result == original
     assert Image.open(io.BytesIO(result)).size == (400, 200)
@@ -258,3 +260,8 @@ def test_sticker_format_is_not_fetched_twice(monkeypatch):
     with pytest.raises(ValueError, match='这是贴图号图文'):
         article_visual.extract_article('https://mp.weixin.qq.com/s/sticker-example')
     assert len(calls) == 1
+
+
+def test_parse_js_content_single_quoted_html():
+    html = "<html><div id='js_content'><p>这是一段正常文章正文。</p></div></html>"
+    assert '这是一段正常文章正文' in article_visual.parse_article_html(html)['markdown']

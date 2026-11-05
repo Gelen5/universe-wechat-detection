@@ -16,13 +16,18 @@ LANE = 'text'
 
 def public(job):
     result = json.loads(job.get('result_json') or '{}')
-    return {'id': job['id'], 'status': job['status'], 'progress': result.get('progress') or {},
+    billing = None
+    if job.get('usage_id'):
+        with accounts._connect() as connection:
+            row = connection.execute('SELECT status FROM usage_records WHERE request_id=?', (job['usage_id'],)).fetchone()
+            billing = row['status'] if row else None
+    return {'id': job['id'], 'status': job['status'], 'billing_status': billing, 'progress': result.get('progress') or {},
             'result': result.get('plan_result'), 'error': job.get('error') or '',
             'created_at': job.get('created_at'), 'resume_available': has_checkpoint(job)}
 
 
 def has_checkpoint(job):
-    return (job.get('status') == 'failed' and '复核暂不可用' in (job.get('error') or '')
+    return (job.get('status') == 'failed'
             and (article_visual._job_dir(job['id']) / 'plan-checkpoint.json').is_file())
 
 
@@ -51,6 +56,9 @@ def run(self, job_id):
         options = {'progress': progress, 'job_id': job_id}
         if payload.get('resume_task_id'):
             options['resume_id'] = payload['resume_task_id']
+        if payload.get('source_text'):
+            options['source_text'] = payload['source_text']
+            options['source_title'] = payload.get('source_title', '')
         result = article_visual.create_plan_for_user(payload['url'], job['user_id'], **options)
     except Exception as exc:
         logging.getLogger(__name__).warning('article_visual task_failed job_id=%s kind=%s', job_id, type(exc).__name__)
@@ -60,7 +68,8 @@ def run(self, job_id):
         except (TypeError, ValueError):
             stage = 'unknown'
         log_event('article_visual.task_failed', job_id=job_id, stage=stage, error_type=type(exc).__name__)
-        error = getattr(exc, 'detail', None) or '拆解未完成，请稍后重试；本次积分已退回'
+        detail = getattr(exc, 'detail', None)
+        error = str(detail) if isinstance(detail, str) else '拆解服务内部异常，未能完成本次任务。请稍后重试；如反复出现，请联系客服并提供任务编号。'
         accounts.fail_job(job_id, str(error)[:300])
         if job.get('usage_id'):
             accounts.refund_usage(job['usage_id'], 500, int((time.monotonic() - started) * 1000))

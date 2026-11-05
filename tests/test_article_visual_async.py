@@ -86,7 +86,7 @@ def test_one_valid_direction_survives_bad_other_direction(monkeypatch):
     assert result['alternatives'][0]['angle_label'] == '有效方向'
 
 
-def test_unavailable_review_can_resume_without_generating_again(user, monkeypatch, tmp_path):
+def test_unavailable_review_delivers_warning_without_claiming_verified(user, monkeypatch, tmp_path):
     monkeypatch.setattr(tasks, 'dispatch', lambda job_id: None)
     monkeypatch.setattr(av, 'JOBS_DIR', tmp_path)
     monkeypatch.setattr(accounts, 'provider_settings', lambda include_secrets=True: {})
@@ -100,19 +100,11 @@ def test_unavailable_review_can_resume_without_generating_again(user, monkeypatc
     def unavailable(*args): raise ValueError('文章内容复核暂不可用，请稍后重新拆解')
     monkeypatch.setattr(av, 'verify_plan_semantics', unavailable)
     payload = av.PlanTaskBody(url=article['url'], idempotency_key=uuid.uuid4().hex)
-    first = av.start_plan_task(payload, request(user))['job']
-    assert tasks.run.run(first['id'])['status'] == 'failed'
-    assert av.get_plan_task(first['id'], request(user))['job']['resume_available']
-    assert accounts.wallet_summary(user['id'])['balance'] == 2
-    monkeypatch.setattr(av, 'verify_plan_semantics', lambda *args: None)
-    def no_regeneration(*args, **kwargs): raise AssertionError('unexpected generation')
-    monkeypatch.setattr(av, '_text_with_deadline', no_regeneration)
-    resumed = av.PlanTaskBody(url=article['url'], idempotency_key=uuid.uuid4().hex, resume_task_id=first['id'])
-    second = av.start_plan_task(resumed, request(user))['job']
-    assert tasks.run.run(second['id'])['status'] == 'succeeded'
+    job = av.start_plan_task(payload, request(user))['job']
+    assert tasks.run.run(job['id'])['status'] == 'succeeded'
+    result = av.get_plan_task(job['id'], request(user))['job']['result']
+    assert '尚未核实' in result['plan']['alternatives'][0]['review_notice']
     assert accounts.wallet_summary(user['id'])['balance'] == 0
-    result = av.get_plan_task(second['id'], request(user))['job']['result']
-    assert len(result['plan']['alternatives']) == 1
 
 
 def test_invalid_evidence_is_repaired_and_verified(monkeypatch):
@@ -202,3 +194,54 @@ def test_orphan_reservation_is_refunded_after_crash(user, monkeypatch):
     tasks.recover.run()
     tasks.recover.run()
     assert accounts.wallet_summary(user['id'])['balance'] == 2
+
+
+def test_manual_article_checkpoint_resume_keeps_source_and_refunds(user, monkeypatch, tmp_path):
+    monkeypatch.setattr(tasks, 'dispatch', lambda job_id: None)
+    monkeypatch.setattr(av, 'JOBS_DIR', tmp_path)
+    body = '这是一段由用户提供的文章原文，完整保留用于测试续接与文章来源。' * 3
+    def fail(article, **kwargs):
+        assert article['markdown'] == body and article['source_kind'] == 'user_text'
+        raise ValueError('拆解模型未返回内容')
+    monkeypatch.setattr(av, 'build_plan', fail)
+    payload = av.PlanTaskBody(source_text=body, source_title='用户标题', idempotency_key=uuid.uuid4().hex)
+    first = av.start_plan_task(payload, request(user))['job']
+    assert tasks.run.run(first['id'])['status'] == 'failed'
+    result = av.get_plan_task(first['id'], request(user))['job']
+    assert result['resume_available'] and result['billing_status'] == 'refunded'
+    assert accounts.wallet_summary(user['id'])['balance'] == 2
+    assert av.recent_plan_tasks(request(user))['jobs'][0]['manual_source']
+    other = av.PlanTaskBody(url='', idempotency_key=uuid.uuid4().hex, resume_task_id=first['id'])
+    second = av.start_plan_task(other, request(user))['job']
+    assert tasks.run.run(second['id'])['status'] == 'failed'
+    assert av.get_plan_task(second['id'], request(user))['job']['resume_available']
+    assert accounts.wallet_summary(user['id'])['balance'] == 2
+
+
+def test_invalid_manual_body_fails_before_reservation(user, monkeypatch):
+    monkeypatch.setattr(tasks, 'dispatch', lambda job_id: None)
+    with pytest.raises(HTTPException):
+        av.start_plan_task(av.PlanTaskBody(source_text='短文', idempotency_key=uuid.uuid4().hex), request(user))
+    assert accounts.wallet_summary(user['id'])['balance'] == 2
+
+
+def test_semantic_rejection_stays_blocked_and_reports_reason(monkeypatch):
+    article = {'title':'标题','account':'','markdown':'这是一段可以用来验证的完整文章原文。'}
+    candidate = {'article_type':'story','slots':[{'id':'cover' if i == 0 else f'body-{i}', 'form':'cover' if i == 0 else 'quote', 'headline':'真实内容','source_quote':article['markdown']} for i in range(4)]}
+    monkeypatch.setattr(accounts, 'provider_settings', lambda include_secrets=True: {})
+    monkeypatch.setattr(workbench, 'provider_overrides', lambda **kwargs: nullcontext())
+    monkeypatch.setattr(av, '_text_with_deadline', lambda *args, **kwargs: json.dumps({'plans':[candidate]}, ensure_ascii=False))
+    def reject(*args): raise ValueError('图位内容未通过文章事实复核：人物身份不符')
+    monkeypatch.setattr(av, 'verify_plan_semantics', reject)
+    with pytest.raises(ValueError, match='人物身份不符'):
+        av.build_plan(article)
+
+
+def test_http_access_failure_explains_observed_status_without_claiming_cause(monkeypatch):
+    import requests
+    response = requests.Response(); response.status_code = 403
+    error = requests.HTTPError(response=response)
+    def fail(*args, **kwargs): raise error
+    monkeypatch.setattr(av.requests, 'get', fail)
+    with pytest.raises(ValueError, match='HTTP 403.*无法确定'):
+        av.extract_article('https://mp.weixin.qq.com/s/access-test-403')

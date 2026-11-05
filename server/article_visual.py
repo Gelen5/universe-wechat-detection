@@ -104,12 +104,23 @@ def extract_article(url: str) -> dict[str, Any]:
             last_error = exc
     if isinstance(last_error, ValueError):
         raise last_error
-    raise last_error or ValueError("抓取失败")
+    if isinstance(last_error, requests.HTTPError) and last_error.response is not None:
+        status = last_error.response.status_code
+        if status in (401, 403, 429):
+            raise ValueError(f'读取文章时对方服务器返回 HTTP {status}，当前访问未获通过；无法确定是权限限制还是访问频率限制。可在微信中确认链接，或粘贴正文。') from last_error
+        if status == 404:
+            raise ValueError('读取文章时对方服务器返回 HTTP 404，文章页面未找到。请确认链接完整，或粘贴正文。') from last_error
+        if status >= 500:
+            raise ValueError(f'读取文章时对方服务器返回 HTTP {status}；暂时无法判断故障原因。可稍后重试或粘贴正文。') from last_error
+    raise last_error or ValueError("读取文章时没有获得有效响应；可稍后重试或粘贴正文。")
 
 
 def parse_article_html(html: str, url: str = "") -> dict[str, Any]:
     """纯解析：给一段公众号 HTML，返回结构化文章。"""
-    if 'id="js_content"' not in html:
+    from bs4 import BeautifulSoup
+    soup = BeautifulSoup(html, "html.parser")
+    content = soup.find(id="js_content")
+    if content is None:
         for reason in ("环境异常", "参数错误", "该内容已被发布者删除", "此内容因违规无法查看"):
             if reason in html:
                 hint = ""
@@ -127,13 +138,6 @@ def parse_article_html(html: str, url: str = "") -> dict[str, Any]:
                 sticker_images = True
             if sticker_images:
                 raise ValueError(STICKER_ARTICLE_ERROR)
-        raise ValueError("暂时无法读取文章正文。请先在微信中确认文章可以打开，并重新复制完整链接；如果仍无法读取，请稍后再试。")
-
-    from bs4 import BeautifulSoup
-
-    soup = BeautifulSoup(html, "html.parser")
-    content = soup.find(id="js_content")
-    if content is None:
         raise ValueError("暂时无法读取文章正文。请先在微信中确认文章可以打开，并重新复制完整链接；如果仍无法读取，请稍后再试。")
 
     title = ""
@@ -183,6 +187,8 @@ def parse_article_html(html: str, url: str = "") -> dict[str, Any]:
         publish = (stamp.astimezone().strftime("%Y-%m-%d %H:%M"))
 
     body = "\n\n".join(blocks)
+    if not body.strip():
+        raise ValueError('文章页面已打开，但未提取到文字正文；页面可能以图片为主或内容尚未返回。可粘贴正文重试。')
     return {
         "url": url.strip(),
         "title": title,
@@ -407,9 +413,16 @@ def _text_with_deadline(prompt: str, *, model: str, reasoning: str, timeout: flo
     # ContextVar 不会自动带进新线程，必须把 provider_overrides 的上下文复制过去，
     # 否则线程里读到空 base_url，会去连 api.openai.com 直接失败。
     context = contextvars.copy_context()
-    future = _PLAN_POOL.submit(
-        context.run, workbench._text, prompt, model=model, reasoning=reasoning
-    )
+    from .providers import call_context
+    parent = dict(call_context.current())
+    deadline = min(parent.get('deadline') or float('inf'), time.monotonic() + timeout)
+    def invoke():
+        with call_context.bind(run_id=parent.get('run_id'), user_id=parent.get('user_id'),
+                job_id=parent.get('job_id'), usage_recorder=parent.get('usage_recorder'),
+                cost_policy=parent.get('cost_policy'), idempotency_key=parent.get('idempotency_key'),
+                deadline=deadline, is_cancelled=parent.get('is_cancelled')):
+            return workbench._text(prompt, model=model, reasoning=reasoning)
+    future = _PLAN_POOL.submit(context.run, invoke)
     try:
         return future.result(timeout=timeout)
     except FutureTimeoutError as exc:
@@ -482,8 +495,12 @@ def verify_plan_semantics(raw: dict[str, Any], article: dict[str, Any]) -> None:
         result = _extract_json(_text_with_deadline(instruction, model=plan_model(), reasoning="low", timeout=90))
     except Exception as exc:
         raise ValueError("文章内容复核暂不可用，请稍后重新拆解") from exc
-    if not isinstance(result, dict) or result.get("passed") is not True:
-        raise ValueError("图位内容未通过文章事实复核，请重新拆解")
+    if not isinstance(result, dict) or result.get('passed') not in (True, False):
+        raise ValueError('文章内容复核暂不可用，请稍后重新拆解')
+    if result['passed'] is not True:
+        reason = re.sub(r'\s+', ' ', str(result.get('reason') or '')).strip()[:160]
+        reason = re.sub(r'(?i)(?:sk-|bearer\s+)[a-z0-9_\-]+', '[已隐藏]', reason)
+        raise ValueError('图位内容未通过文章事实复核' + ('：' + reason if reason else '：未给出具体原因'))
 
 
 
@@ -543,8 +560,8 @@ def build_plan(article: dict[str, Any], progress=None, initial_raw: str = '', sa
                         progress('retrying', 0, 0)
                     continue
                 if isinstance(exc, TimeoutError):
-                    raise ValueError("拆解超时，请稍后重试；本次失败会退还积分") from exc
-                raise ValueError("拆解服务暂时不可用，请稍后重试；本次失败会退还积分") from exc
+                    raise ValueError('策划服务在规定时间内未完成，可能因排队、模型响应慢或网络波动，具体原因暂无法确认；可继续上次拆解。') from exc
+                raise ValueError('策划模型请求未成功，可能是模型服务或网络异常，具体原因暂无法确认；可继续上次拆解。') from exc
     if not raw_text:
         raise ValueError("拆解模型未返回内容，请稍后重试；本次失败会退还积分")
     try:
@@ -565,9 +582,11 @@ def build_plan(article: dict[str, Any], progress=None, initial_raw: str = '', sa
         if save_checkpoint:
             save_checkpoint(json.dumps(result, ensure_ascii=False))
         verified = []
+        failure_codes = set()
+        review_details = []
         review_unavailable = False
         for index, candidate in enumerate(candidates[:3]):
-            if verified and time.monotonic() - pipeline_started > 420:
+            if verified and time.monotonic() - pipeline_started > 120:
                 log_event('article_visual.remaining_skipped', trace_id=trace_id, reason='time_budget', verified=len(verified))
                 break
             if progress:
@@ -585,14 +604,15 @@ def build_plan(article: dict[str, Any], progress=None, initial_raw: str = '', sa
                         slot['id'] = ident
                     seen.add(ident)
             structurally_valid = False
-            for repair_attempt in range(3):
+            for repair_attempt in range(1 if verified else 3):
                 try:
                     validate_plan(candidate, article)
                     structurally_valid = True
                     break
                 except (ValueError, TypeError, KeyError) as failure:
+                    failure_codes.add(_plan_error_code(failure))
                     logger.warning('article_visual candidate_invalid stage=structure index=%d code=%s', index, _plan_error_code(failure))
-                    if repair_attempt >= 2:
+                    if verified or repair_attempt >= 2:
                         break
                     repair_count += 1
                     slot_index = getattr(failure, 'slot_index', None)
@@ -624,7 +644,8 @@ def build_plan(article: dict[str, Any], progress=None, initial_raw: str = '', sa
             if not structurally_valid:
                 continue
             accepted = False
-            for attempt in range(2):
+            review_notice = ''
+            for attempt in range(1 if verified else 2):
                 try:
                     if progress:
                         progress('reviewing', index + 1, min(3, len(candidates)))
@@ -634,11 +655,18 @@ def build_plan(article: dict[str, Any], progress=None, initial_raw: str = '', sa
                     break
                 except (ValueError, TypeError, KeyError) as review_error:
                     code = _plan_error_code(review_error)
+                    failure_codes.add(code)
+                    if code == 'review_rejected' and '：' in str(review_error):
+                        review_details.append(str(review_error).split('：', 1)[1][:160])
                     if code == 'review_unavailable':
                         review_unavailable = True
+                        log_event('article_visual.stage_failed', trace_id=trace_id, stage='review', code='review_unavailable', candidate=index + 1, attempt=attempt + 1)
+                        review_notice = '事实复核服务暂不可用：原文引用和数字已作基础检查，但内容含义尚未核实。请逐条对照原文后再选择。'
+                        accepted = True
+                        break
                     logger.warning('article_visual candidate_rejected stage=review index=%d code=%s attempt=%d', index, code, attempt + 1)
                     log_event('article_visual.stage_failed', trace_id=trace_id, stage='review', code=code, candidate=index + 1, attempt=attempt + 1)
-                    if attempt or code == 'review_unavailable':
+                    if attempt or verified or code == 'review_unavailable':
                         continue
                     try:
                         repair_count += 1
@@ -656,25 +684,35 @@ def build_plan(article: dict[str, Any], progress=None, initial_raw: str = '', sa
                         logger.warning('article_visual candidate_repair_failed stage=review index=%d code=%s', index, _plan_error_code(repair_error))
                         break
             if accepted:
+                if review_notice:
+                    candidate['_review_notice'] = review_notice
                 verified.append(candidate)
         if not verified:
             if review_unavailable:
                 raise PlanReviewUnavailable('事实复核暂不可用，已保留方案，可稍后继续复核；本次积分已退回')
-            raise ValueError('所有方案均未通过原文校验或事实复核暂不可用')
+            descriptions = {'missing_slots':'图位数量或文章类型不完整', 'slot_structure':'图位结构不符合要求', 'source_quote':'图位原文引用未匹配', 'unsupported_number':'部分数字未在原文找到', 'review_rejected':'事实复核认为部分内容缺少原文支持', 'slot_id':'图位编号异常'}
+            reasons = [descriptions[code] for code in sorted(failure_codes) if code in descriptions]
+            if review_details:
+                reasons.append('复核模型提示：' + review_details[0])
+            raise ValueError('方案检查未通过：' + ('；'.join(reasons) if reasons else '候选方案结构或内容不完整'))
         parsed = verified[0]
     except PlanReviewUnavailable:
         log_event('article_visual.plan_failed', trace_id=trace_id, code='review_unavailable')
         raise
     except (ValueError, TypeError, KeyError, json.JSONDecodeError) as exc:
-        logger.warning("article_visual plan invalid: code=%s response_chars=%d", _plan_error_code(exc), len(raw_text))
-        log_event('article_visual.plan_failed', trace_id=trace_id, code=_plan_error_code(exc))
-        raise ValueError("文章已读取，但本次配图方案未通过系统检查。失败积分将自动退回，请稍后重试；如多次失败，请联系客服。") from exc
+        code = _plan_error_code(exc)
+        logger.warning("article_visual plan invalid: code=%s response_chars=%d", code, len(raw_text))
+        log_event('article_visual.plan_failed', trace_id=trace_id, code=code)
+        reason = str(exc) if str(exc).startswith('方案检查未通过：') else '方案数据格式不完整或解析失败'
+        raise ValueError('文章正文已读取，但' + reason + '。系统无法安全交付；可继续上次方案或重新拆解。') from exc
     plan = _normalize_plan(parsed, article)
     plan["source"] = "model"
     plan["article_digest"] = article_digest(article)
     plan["alternatives"] = [_normalize_plan(candidate, article) for candidate in verified]
+    for normalized, candidate in zip(plan['alternatives'], verified):
+        normalized['review_notice'] = candidate.get('_review_notice', '')
     plan['available_directions'] = len(verified)
-    log_event('article_visual.plan_complete', trace_id=trace_id, candidates=min(3, len(candidates)), verified=len(verified), repair_attempts=repair_count)
+    log_event('article_visual.plan_complete', trace_id=trace_id, candidates=min(3, len(candidates)), verified=sum(not x.get('_review_notice') for x in verified), review_pending=sum(bool(x.get('_review_notice')) for x in verified), repair_attempts=repair_count)
     return plan
 
 
@@ -1084,7 +1122,9 @@ router = APIRouter(prefix="/api/article-visual", tags=["article-visual"])
 
 
 class PlanBody(BaseModel):
-    url: str = Field(min_length=10, max_length=2000)
+    url: str = Field(default='', max_length=2000)
+    source_text: str = Field(default='', max_length=100000)
+    source_title: str = Field(default='', max_length=240)
 
 
 class PlanTaskBody(PlanBody):
@@ -1110,7 +1150,7 @@ def _start_plan_task(payload: PlanTaskBody, user: dict[str, Any], article_visual
     if row:
         job = dict(row)
         prior = json.loads(job['payload_json'] or '{}')
-        if job['type'] != 'article_visual.plan' or prior.get('url') != payload.url or prior.get('resume_task_id') != payload.resume_task_id:
+        if job['type'] != 'article_visual.plan' or prior.get('url') != payload.url or prior.get('resume_task_id') != payload.resume_task_id or prior.get('source_text', '') != payload.source_text or prior.get('source_title', '') != payload.source_title:
             raise HTTPException(status_code=409, detail='任务编号与文章不匹配')
         if job['status'] == 'queued':
             try: article_visual_tasks.dispatch(job['id'])
@@ -1120,12 +1160,18 @@ def _start_plan_task(payload: PlanTaskBody, user: dict[str, Any], article_visual
         previous = accounts.job(payload.resume_task_id, user['id'])
         if not previous or previous['type'] != 'article_visual.plan' or previous['status'] != 'failed' or json.loads(previous['payload_json'] or '{}').get('url') != payload.url or not article_visual_tasks.has_checkpoint(previous):
             raise HTTPException(status_code=404, detail='没有可继续复核的任务')
+    if not payload.resume_task_id and not payload.source_text.strip() and not payload.url.strip():
+        raise HTTPException(status_code=400, detail='请填写公众号链接，或粘贴文章正文。')
+    if not payload.resume_task_id and not payload.source_text.strip() and not re.search(r'https?://mp\.weixin\.qq\.com/[^\s\u3000]+', payload.url):
+        raise HTTPException(status_code=400, detail='链接格式不正确，请填写完整的公众号文章链接，或粘贴正文。')
+    if payload.source_text and len(payload.source_text.strip()) < 40:
+        raise HTTPException(status_code=400, detail='粘贴的正文少于40字，无法准确拆解；请补充完整正文。')
     rule = accounts.pricing_rule('POST', '/api/article-visual/plan')
     if not rule:
         raise HTTPException(status_code=503, detail='拆解服务暂不可用')
     usage_id = accounts.reserve_points(user['id'], rule, 'POST', '/api/article-visual/tasks/start')
     try:
-        job = accounts.create_job(user['id'], 'article_visual.plan', 'text', key, usage_id, {'url': payload.url, 'resume_task_id': payload.resume_task_id})
+        job = accounts.create_job(user['id'], 'article_visual.plan', 'text', key, usage_id, {'url': payload.url, 'source_text': payload.source_text, 'source_title': payload.source_title, 'resume_task_id': payload.resume_task_id})
     except Exception:
         accounts.refund_usage(usage_id, 500, 0)
         raise
@@ -1157,6 +1203,7 @@ def recent_plan_tasks(request: Request):
             superseded.add(payload['resume_task_id'])
         public = article_visual_tasks.public(job)
         public['url'] = payload.get('url', '')
+        public['manual_source'] = bool(payload.get('source_text'))
         entries.append(public)
     return {'jobs': [job for job in entries if job['id'] not in superseded and (job['status'] in ('queued', 'running') or job['resume_available'])]}
 
@@ -1204,10 +1251,10 @@ class GenerateBody(BaseModel):
 
 @router.post("/plan", status_code=201)
 def create_plan(payload: PlanBody, request: Request):
-    return create_plan_for_user(payload.url, accounts.require_user(request)['id'])
+    return create_plan_for_user(payload.url, accounts.require_user(request)['id'], source_text=payload.source_text, source_title=payload.source_title)
 
 
-def create_plan_for_user(url: str, user_id: str, progress=None, job_id: str | None = None, resume_id: str | None = None):
+def create_plan_for_user(url: str, user_id: str, progress=None, job_id: str | None = None, resume_id: str | None = None, source_text: str = '', source_title: str = ''):
     started = time.perf_counter()
     if progress:
         progress('extracting')
@@ -1223,11 +1270,21 @@ def create_plan_for_user(url: str, user_id: str, progress=None, job_id: str | No
         except (ValueError, KeyError, TypeError, OSError) as exc:
             raise HTTPException(status_code=409, detail='保留的方案不可用，请重新拆解') from exc
     try:
-        article = checkpoint['article'] if checkpoint else extract_article(url)
+        if checkpoint:
+            article = checkpoint['article']
+        elif source_text.strip():
+            body = source_text.strip()
+            article = {'url': url, 'title': source_title.strip() or body.splitlines()[0][:100],
+                       'account': '', 'author': '', 'publish_time': '', 'chars': len(body),
+                       'markdown': body, 'images': [], 'source_kind': 'user_text'}
+        else:
+            article = extract_article(url)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except requests.Timeout as exc:
+        raise HTTPException(status_code=504, detail='读取文章时连接超时；无法确认是微信限制还是网络故障。请稍后重试，或粘贴正文。') from exc
     except requests.RequestException as exc:
-        raise HTTPException(status_code=502, detail=f"抓取失败：{exc}") from exc
+        raise HTTPException(status_code=502, detail='读取文章时网络请求失败；目前无法确定是微信侧还是网络故障。可稍后重试，或粘贴正文。') from exc
 
     def save_checkpoint(raw):
         if not job_id:
@@ -1238,6 +1295,11 @@ def create_plan_for_user(url: str, user_id: str, progress=None, job_id: str | No
         tmp = directory / 'plan-checkpoint.json.tmp'
         tmp.write_text(json.dumps({'user_id': user_id, 'url': url, 'article': article, 'digest': article_digest(article), 'raw': raw}, ensure_ascii=False), encoding='utf-8')
         tmp.replace(target)
+
+    if job_id and not checkpoint:
+        save_checkpoint('')
+    elif job_id and checkpoint:
+        save_checkpoint(checkpoint.get('raw', ''))
 
     try:
         if progress:
@@ -1358,8 +1420,18 @@ def generate_one(payload: GenerateBody, request: Request):
     prompt = build_image_prompt(slot, cover_style=payload.cover_style or "compare")
     try:
         raw = generate_slot_image(prompt)
-    except Exception as exc:  # noqa: BLE001 - 前端需要可读的失败原因
-        raise HTTPException(status_code=502, detail=f"生成失败：{exc}") from exc
+    except Exception as exc:  # Do not expose provider keys, URLs, or upstream response bodies.
+        message = str(exc).lower()
+        logger.warning('article_visual image_failed error_type=%s', type(exc).__name__)
+        if isinstance(exc, (TimeoutError, requests.Timeout)) or 'timeout' in message or '超时' in message:
+            detail = '图片生成在规定时间内未完成，可能是模型响应慢或网络异常，具体原因暂无法确认。请稍后重试。'
+        elif 'api key' in message or 'api_key' in message or '401' in message or '403' in message:
+            detail = '图片服务认证或访问失败，请联系客服检查平台配置；本次图片未生成。'
+        elif '400' in message:
+            detail = '图片服务拒绝了本次生成请求（HTTP 400），可能是参数或模型能力不匹配；请联系客服排查。'
+        else:
+            detail = '图片生成服务未能完成请求，可能是模型服务、网络或平台处理异常，具体原因暂无法确认；请稍后重试。'
+        raise HTTPException(status_code=502, detail=detail) from exc
     filename = f"{slot['id']}.png"
     path = _job_dir(job_id) / filename
     with JOB_LOCK:

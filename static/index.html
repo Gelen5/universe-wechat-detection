@@ -74,7 +74,7 @@
 <link rel="stylesheet" href="/static/viral-remix.css?v=20261104-remove-frame">
 <link rel="stylesheet" href="/static/sticker-extract.css?v=20261103-glass-4">
 <link rel="stylesheet" href="/static/xhs-extract.css?v=20261031-workspace-5">
-<link rel="stylesheet" href="/static/article-visual.css?v=20261104-sticker-guidance-1">
+<link rel="stylesheet" href="/static/article-visual.css?v=20261105-reliability-1">
 <link rel="stylesheet" href="/static/douyin-extract.css?v=20261031-workspace-3">
 <link rel="stylesheet" href="/static/review-studio.css?v=20261031-mint-1">
 <link rel="stylesheet" href="/static/referrals.css?v=20261031-invite-1">
@@ -421,9 +421,16 @@
                 <input id="av-url" type="url" placeholder="https://mp.weixin.qq.com/s/..." autocomplete="off" />
                 <button id="av-analyze" class="av-btn av-btn-primary" type="button">拆解文章</button>
               </div>
+              <details id="av-text-entry"><summary>链接读取不了？粘贴文章正文</summary>
+                <p>填写正文后将优先使用粘贴内容；链接仅作为来源记录，不会核实正文是否一致。请粘贴有权使用的内容。</p>
+                <label class="av-field" for="av-text-title">文章标题（选填）</label>
+                <input id="av-text-title" type="text" maxlength="240" placeholder="输入标题" />
+                <label class="av-field" for="av-source-text">文章正文</label>
+                <textarea id="av-source-text" rows="8" maxlength="100000" placeholder="粘贴完整文章正文（至少 40 字）"></textarea>
+              </details>
               <p class="av-hint" id="av-hint">支持公开公众号文章 · 拆解包含策划与原文核对</p>
               <button type="button" id="av-go-sticker-extract" class="av-btn av-btn-ghost av-sticker-link" hidden>前往贴图号内容提取 →</button>
-              <button id="av-resume-review" class="av-btn av-btn-ghost" type="button" hidden>继续复核上次方案</button>
+              <button id="av-resume-review" class="av-btn av-btn-ghost" type="button" hidden>继续上次拆解（重新预扣积分）</button>
               <div class="av-note-line">拆解后先选传播角度，确认图位，再生成封面。</div>
             </section>
 
@@ -1134,7 +1141,7 @@
     <script src="/static/notion-workspace.js?v=20261103-plus-only-1"></script>
     <script src="/static/sticker-extract.js?v=20261104-board-handoff"></script>
     <script src="/static/xhs-extract.js?v=20261104-guest-input-1"></script>
-    <script src="/static/article-visual.js?v=20261104-sticker-guidance-1"></script>
+    <script src="/static/article-visual.js?v=20261105-reliability-1"></script>
     <script src="/static/douyin-extract.js?v=20261104-guest-input-1"></script>
     <script>
       // CDN/embedded clients may retain an older sidebar builder. Keep these

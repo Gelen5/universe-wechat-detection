@@ -22,6 +22,8 @@
   const $ = (id) => document.getElementById(id);
   const els = {
     url: $("av-url"),
+    sourceText: $("av-source-text"),
+    sourceTitle: $("av-text-title"),
     analyze: $("av-analyze"),
     hint: $("av-hint"),
     stickerLink: $("av-go-sticker-extract"),
@@ -176,7 +178,7 @@
     const done = slots.filter((s) => s.status === "done").length;
 
     els.title.textContent = state.job.article.title || "未命名文章";
-    els.meta.textContent = [state.job.article.account, state.job.article.publish_time, `${state.job.article.chars} 字`]
+    els.meta.textContent = [state.job.article.source_kind === "user_text" ? "用户提供正文 · 未独立核实" : "", state.job.article.account, state.job.article.publish_time, `${state.job.article.chars} 字`]
       .filter(Boolean).join(" · ");
     els.thesis.textContent = state.job.plan.thesis ? `核心：${state.job.plan.thesis}` : "";
     els.planTitle.textContent = `这篇文章可以拆成 ${slots.length} 张图`;
@@ -264,9 +266,11 @@
       headline.textContent = choice.slots?.[0]?.headline || "封面方向";
       const reason = document.createElement("span");
       reason.textContent = choice.angle_reason || "基于文章内容提炼";
+
       const quote = document.createElement("small");
       quote.textContent = `原文依据：${choice.slots?.[0]?.source_quote || "暂无"}`;
       button.append(label, headline, reason, quote);
+      if (choice.review_notice) { const warning = document.createElement("span"); warning.className = "av-review-warning"; warning.textContent = choice.review_notice; button.appendChild(warning); }
       button.addEventListener("click", async () => {
         if (state.busy) return;
         state.busy = true;
@@ -426,7 +430,11 @@
 
   async function analyze() {
     const url = els.url.value.trim();
-    if (!url) { els.url.focus(); return; }
+    const sourceText = els.sourceText.value.trim();
+    const sourceTitle = els.sourceTitle.value.trim();
+    let pending = null; try { pending = JSON.parse(localStorage.getItem(`article-visual-pending:${currentAccount?.id}`) || 'null'); } catch {}
+    if (!url && !sourceText && !pending?.resumeFrom) { els.url.focus(); els.hint.textContent = '请填写链接，或展开下方输入文章正文。'; return; }
+    if (sourceText && sourceText.length < 40) { els.hint.textContent = '粘贴的正文少于 40 字，请补充完整正文。'; els.sourceText.focus(); return; }
     await initialAccountReady;
     if (!currentAccount?.id) { showAuth(true); return; }
     if (state.busy) return;
@@ -437,7 +445,7 @@
     els.empty.hidden = false;
     history.replaceState(null, "", "/article-visual");
     state.busy = true;
-    els.url.readOnly = true;
+    els.url.readOnly = true; els.sourceText.readOnly = true; els.sourceTitle.readOnly = true;
     els.analyze.disabled = true;
     els.analyze.textContent = "拆解中…";
     els.hint.classList.remove("is-error");
@@ -451,7 +459,7 @@
       if (record && record.url !== url) throw new Error('上一项拆解仍待确认，请先等待或刷新页面恢复');
       record = record || {url, key:newIdempotencyKey(), owner};
       localStorage.setItem(`article-visual-pending:${owner}`, JSON.stringify(record));
-      const job = await waitForPlan(record);
+      const job = await waitForPlan(record, {sourceText, sourceTitle});
       state.job = job;
       state.activeId = job.slots[0] ? job.slots[0].id : null;
       els.articlePanel.hidden = false;
@@ -459,10 +467,11 @@
       render();
       setTab("plan");
       const cost = job.elapsed_ms ? seconds(job.elapsed_ms) : "";
-      els.hint.textContent = `拆解完成${cost ? `，用时 ${cost}` : ""}。已通过校验的方向：${job.plan?.alternatives?.length || 0} 个，请选择传播角度。`;
+      els.hint.textContent = `拆解完成${cost ? `，用时 ${cost}` : ""}。可选择方向：${job.plan?.alternatives?.length || 0} 个，请留意各方向的核对提示，请选择传播角度。`;
     } catch (error) {
       els.hint.classList.add("is-error");
       els.hint.textContent = error.message;
+      if (error.message.includes("正文") || error.message.includes("读取文章")) $("av-text-entry").open = true;
       els.stickerLink.hidden = !error.message.startsWith('这是贴图号图文');
       if (!state.job) {
         els.articlePanel.hidden = true;
@@ -471,18 +480,18 @@
       }
     } finally {
       state.busy = false;
-      els.url.readOnly = false;
+      els.url.readOnly = false; els.sourceText.readOnly = false; els.sourceTitle.readOnly = false;
       els.analyze.disabled = false;
       els.analyze.textContent = "拆解文章";
       if (state.job) renderAngles();
     }
   }
 
-  async function waitForPlan(record) {
+  async function waitForPlan(record, source = {}) {
     const storageKey = `article-visual-pending:${record.owner}`;
     if (!record.id) {
       let created;
-      try { created = await api('/api/article-visual/tasks/start', {method:'POST',body:JSON.stringify({url:record.url,idempotency_key:record.key,resume_task_id:record.resumeFrom || null})}); }
+      try { created = await api('/api/article-visual/tasks/start', {method:'POST',body:JSON.stringify({url:record.url,idempotency_key:record.key,resume_task_id:record.resumeFrom || null,source_text:source.sourceText || '',source_title:source.sourceTitle || ''})}); }
       catch (error) { if (error.status >= 400 && error.status < 500 && error.status !== 429) localStorage.removeItem(storageKey); throw error; }
       if (currentAccount?.id !== record.owner) throw new Error('账号已切换，任务仍在后台执行');
       record.id = created.job.id; localStorage.setItem(storageKey, JSON.stringify(record));
@@ -496,7 +505,9 @@
       if (['failed','canceled'].includes(job.status)) {
         localStorage.removeItem(storageKey);
         if (job.resume_available) { localStorage.setItem(`article-visual-review:${record.owner}`, JSON.stringify({id:job.id,url:record.url,owner:record.owner})); $('av-resume-review').hidden = false; }
-        throw new Error(job.error || '拆解未完成，积分已退回');
+        const refund = job.billing_status === 'refunded' ? '积分已退回。' : job.billing_status === 'reserved' ? '积分退款处理中，请稍后查看。' : '';
+        const detail = (job.error || '拆解服务未完成，请稍后重试。').replace(/本次(?:失败)?积分(?:将自动退回|已退回|会退还积分)[；。，]?/g, '').replace(/失败积分将自动退回[；。，]?/g, '');
+        throw new Error(`${detail} ${refund} 任务编号：${job.id}`.trim());
       }
       await new Promise(resolve => setTimeout(resolve, 2000));
     }
@@ -512,8 +523,8 @@
       try {
         const recent = await api('/api/article-visual/tasks/recent');
         if (currentAccount?.id !== owner || state.busy) return;
-        const active = (recent.jobs || []).find(job => ['queued', 'running'].includes(job.status) && job.url);
-        const review = (recent.jobs || []).find(job => job.resume_available && job.url);
+        const active = (recent.jobs || []).find(job => ['queued', 'running'].includes(job.status) && (job.url || job.manual_source));
+        const review = (recent.jobs || []).find(job => job.resume_available && (job.url || job.manual_source));
         if (review && !active) { localStorage.setItem(`article-visual-review:${owner}`, JSON.stringify({id:review.id,url:review.url,owner})); $('av-resume-review').hidden = false; }
         if (active) { record = {id:active.id,url:active.url,owner}; localStorage.setItem(`article-visual-pending:${owner}`, JSON.stringify(record)); }
       } catch { /* 网络不可用时保留现有页面，稍后可重试 */ }
@@ -525,7 +536,7 @@
       const job = await waitForPlan(record);
       state.job = job; state.activeId = job.slots[0]?.id || null; els.articlePanel.hidden = false;
       history.replaceState(null, '', `/article-visual?job=${encodeURIComponent(job.id)}`);
-      render(); setTab('plan'); els.hint.textContent = `已恢复拆解结果，${job.plan?.alternatives?.length || 0} 个方向通过校验。`;
+      render(); setTab('plan'); els.hint.textContent = `已恢复拆解结果，可选择 ${job.plan?.alternatives?.length || 0} 个方向，请留意各方向的核对提示。`;
     } catch (error) { els.hint.textContent = error.message; els.hint.classList.add('is-error'); els.stickerLink.hidden = !error.message.startsWith('这是贴图号图文'); }
     finally { state.busy = false; els.analyze.disabled = false; els.url.readOnly = false; if (state.job) renderAngles(); }
   }
@@ -668,7 +679,7 @@
     els.articlePanel.hidden = true;
     els.empty.hidden = false;
     els.plan.hidden = true;
-    els.url.value = "";
+    els.url.value = ""; els.sourceText.value = ""; els.sourceTitle.value = "";
     history.replaceState(null, "", "/article-visual");
     els.hint.textContent = "支持公开公众号文章 · 拆解包含策划与原文核对";
     els.hint.classList.remove("is-error");
@@ -702,6 +713,7 @@
 
   // SPA 内嵌视图：切到这个 tab 时才初始化一次（保留 URL 里的 job 续接）。
   let booted = false;
+  let inputOwner = null;
   window.ArticleVisual = {
     ensureLoaded() {
       if (booted) return;
@@ -710,6 +722,7 @@
       (async () => {
         await initialAccountReady;
         const owner = currentAccount?.id;
+        inputOwner = owner || null;
         let pending = false; try { pending = !!(owner && JSON.parse(localStorage.getItem(`article-visual-pending:${owner}`) || 'null')); } catch {}
         if (pending) await resumePending();
         else { if (jobId) await loadJob(jobId); await resumePending(); }
@@ -717,7 +730,16 @@
       els.url.focus();
     },
   };
-  window.addEventListener('account-changed', () => { if (booted) resumePending(); });
+  window.addEventListener('account-changed', () => {
+    const owner = currentAccount?.id || null;
+    if (inputOwner && inputOwner !== owner) {
+      els.sourceText.value = ''; els.sourceTitle.value = ''; els.url.value = '';
+      state.job = null; state.activeId = null;
+      els.articlePanel.hidden = true; els.plan.hidden = true; els.empty.hidden = false;
+    }
+    inputOwner = owner;
+    if (booted) resumePending();
+  });
 
   // 直接打开 /article-visual 时 app.js 可能早于本脚本初始化，补一次首屏初始化。
   if (location.pathname.replace(/\/+$/, "") === "/article-visual") {
