@@ -19,6 +19,13 @@ router = APIRouter()
 log = logging.getLogger(__name__)
 STATIC = Path(__file__).resolve().parent.parent / 'static'
 
+# One row per payment order even if a malformed order appears in both sources.
+ORDER_BASE = '''FROM agent_customers a JOIN users u ON u.id=a.customer_id
+    JOIN alipay_orders o ON (
+        EXISTS (SELECT 1 FROM alipay_recharges r WHERE r.out_trade_no=o.out_trade_no AND r.user_id=a.customer_id AND r.status='CREDITED')
+        OR EXISTS (SELECT 1 FROM viral_insights_membership_orders m WHERE m.out_trade_no=o.out_trade_no AND m.user_id=a.customer_id AND m.package_id='month' AND m.status IN ('PAID','REFUNDED'))
+    ) WHERE a.agent_id=? AND o.status IN ('PAID','PARTIAL_REFUNDED','REFUNDED')'''
+
 class AgentPayload(BaseModel):
     email: str = Field(min_length=5, max_length=254)
 
@@ -129,16 +136,10 @@ def _orders(user_id: str, page: int, mask_email: bool):
         profile = c.execute('SELECT user_id FROM agent_profiles WHERE user_id=?', (user_id,)).fetchone()
         if not profile:
             raise HTTPException(403 if mask_email else 404, '仅代理可访问' if mask_email else '代理不存在')
-        summary_rows = c.execute("""SELECT o.total_amount,o.refunded_amount,r.user_id FROM agent_customers a JOIN alipay_recharges r ON r.user_id=a.customer_id JOIN alipay_orders o ON o.out_trade_no=r.out_trade_no WHERE a.agent_id=? AND o.status IN ('PAID','PARTIAL_REFUNDED','REFUNDED') AND r.status='CREDITED'""", (user_id,)).fetchall()
-        total = c.execute('''SELECT COUNT(*) FROM agent_customers a JOIN alipay_recharges r ON r.user_id=a.customer_id
-            JOIN alipay_orders o ON o.out_trade_no=r.out_trade_no
-            WHERE a.agent_id=? AND o.status IN ('PAID','PARTIAL_REFUNDED','REFUNDED') AND r.status='CREDITED' ''', (user_id,)).fetchone()[0]
-        rows = c.execute('''SELECT o.out_trade_no,o.total_amount,o.refunded_amount,o.status,o.paid_at,
-            u.email FROM agent_customers a JOIN users u ON u.id=a.customer_id
-            JOIN alipay_recharges r ON r.user_id=a.customer_id
-            JOIN alipay_orders o ON o.out_trade_no=r.out_trade_no
-            WHERE a.agent_id=? AND o.status IN ('PAID','PARTIAL_REFUNDED','REFUNDED') AND r.status='CREDITED'
-            ORDER BY o.created_at DESC LIMIT ? OFFSET ?''', (user_id, 50, (page-1)*50)).fetchall()
+        summary_rows = c.execute('SELECT o.total_amount,o.refunded_amount,a.customer_id AS user_id ' + ORDER_BASE, (user_id,)).fetchall()
+        total = c.execute('SELECT COUNT(*) ' + ORDER_BASE, (user_id,)).fetchone()[0]
+        rows = c.execute('''SELECT o.out_trade_no,o.total_amount,o.refunded_amount,o.status,o.paid_at,u.email,
+            CASE WHEN EXISTS (SELECT 1 FROM viral_insights_membership_orders m WHERE m.out_trade_no=o.out_trade_no AND m.user_id=a.customer_id AND m.package_id='month') THEN '月卡' ELSE '积分充值' END AS order_type ''' + ORDER_BASE + ' ORDER BY o.created_at DESC LIMIT ? OFFSET ?', (user_id, 50, (page-1)*50)).fetchall()
     gross = sum((Decimal(row['total_amount']) for row in summary_rows), Decimal('0'))
     refunded = sum((Decimal(row['refunded_amount']) for row in summary_rows), Decimal('0'))
     orders = [dict(r) for r in rows]
@@ -168,18 +169,8 @@ def settlement_estimate(user_id: str, request: Request, day: str, rate_bps: int)
     with accounts._connect() as c:
         if not c.execute('SELECT user_id FROM agent_profiles WHERE user_id=?', (user_id,)).fetchone():
             raise HTTPException(404, '代理不存在')
-        rows = c.execute('''SELECT o.total_amount,o.refunded_amount FROM agent_customers a
-            JOIN alipay_recharges r ON r.user_id=a.customer_id
-            JOIN alipay_orders o ON o.out_trade_no=r.out_trade_no
-            WHERE a.agent_id=? AND r.status='CREDITED'
-              AND o.status IN ('PAID','PARTIAL_REFUNDED','REFUNDED')
-              AND o.paid_at>=? AND o.paid_at<?''', (user_id, start, end)).fetchall()
-        missing_time = c.execute('''SELECT COUNT(*) FROM agent_customers a
-            JOIN alipay_recharges r ON r.user_id=a.customer_id
-            JOIN alipay_orders o ON o.out_trade_no=r.out_trade_no
-            WHERE a.agent_id=? AND r.status='CREDITED'
-              AND o.status IN ('PAID','PARTIAL_REFUNDED','REFUNDED')
-              AND (o.paid_at IS NULL OR o.paid_at='')''', (user_id,)).fetchone()[0]
+        rows = c.execute('SELECT o.total_amount,o.refunded_amount ' + ORDER_BASE + ' AND o.paid_at>=? AND o.paid_at<?', (user_id, start, end)).fetchall()
+        missing_time = c.execute('SELECT COUNT(*) ' + ORDER_BASE + " AND (o.paid_at IS NULL OR o.paid_at='')", (user_id,)).fetchone()[0]
     def cents(value):
         amount = Decimal(str(value or '0')) * 100
         if amount != amount.to_integral_value() or amount < 0:
@@ -196,11 +187,7 @@ def settlement_estimate(user_id: str, request: Request, day: str, rate_bps: int)
 
 
 def _balance(c, user_id):
-    rows = c.execute("""SELECT o.total_amount,o.refunded_amount FROM agent_customers a
-        JOIN alipay_recharges r ON r.user_id=a.customer_id
-        JOIN alipay_orders o ON o.out_trade_no=r.out_trade_no
-        WHERE a.agent_id=? AND r.status='CREDITED'
-        AND o.status IN ('PAID','PARTIAL_REFUNDED','REFUNDED')""", (user_id,)).fetchall()
+    rows = c.execute('SELECT o.total_amount,o.refunded_amount ' + ORDER_BASE, (user_id,)).fetchall()
     def cents(value):
         amount = Decimal(str(value or '0')) * 100
         if amount < 0 or amount != amount.to_integral_value():

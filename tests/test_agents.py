@@ -22,6 +22,7 @@ class AgentTests(unittest.TestCase):
             CREATE TABLE agent_settlements(id TEXT PRIMARY KEY,request_key TEXT UNIQUE,agent_id TEXT,amount_cents INTEGER,operator_id TEXT,note TEXT,transfer_ref TEXT,created_at TEXT,UNIQUE(agent_id,transfer_ref));
             CREATE TABLE alipay_orders(out_trade_no TEXT PRIMARY KEY,total_amount TEXT,refunded_amount TEXT,status TEXT,paid_at TEXT,created_at TEXT);
             CREATE TABLE alipay_recharges(out_trade_no TEXT PRIMARY KEY,user_id TEXT,status TEXT);
+            CREATE TABLE viral_insights_membership_orders(out_trade_no TEXT PRIMARY KEY,user_id TEXT,package_id TEXT,status TEXT);
             INSERT INTO users VALUES('a','agent@example.com','active','Agent'),('b','buyer@example.com','active','Buyer'),('x','other@example.com','active','Other');
             INSERT INTO agent_profiles VALUES('a','ABC',1,'2026-01-01'),('x','STOP',0,'2026-01-01');''')
             c.commit()
@@ -126,5 +127,25 @@ class AgentTests(unittest.TestCase):
     def test_admin_permission_is_required(self):
         with patch.object(agents, 'require_owner', side_effect=agents.HTTPException(403)):
             with self.assertRaises(agents.HTTPException): agents.list_agents(None)
+
+    def test_month_orders_and_refund_are_included_once(self):
+        agents.bind_signup('b','ABC')
+        with closing(sqlite3.connect(accounts.DB_PATH)) as c:
+            c.executescript("""INSERT INTO alipay_orders VALUES
+              ('month','29.90','5.00','PARTIAL_REFUNDED','2026-11-05 10:00:00','2026-11-05'),
+              ('pending','29.90','0.00','CREATED',NULL,'2026-11-05'),
+              ('week','9.90','0.00','PAID','2026-11-05 10:00:00','2026-11-05');
+              INSERT INTO viral_insights_membership_orders VALUES
+              ('month','b','month','REFUNDED'),('pending','b','month','PENDING_PAYMENT'),('week','b','week','PAID');
+              INSERT INTO alipay_recharges VALUES('month','b','CREDITED');""")
+            c.commit()
+        with patch.object(agents,'require_owner'):
+            result=agents.agent_orders('a',None)
+            estimate=agents.settlement_estimate('a',None,'2026-11-05',4000)
+        self.assertEqual(result['total'],1)
+        self.assertEqual(result['orders'][0]['order_type'],'月卡')
+        self.assertEqual(estimate['estimate_cents'],996)
+        with patch.object(agents.accounts,'require_user',return_value={'id':'a'}):
+            self.assertEqual(agents.my_balance(None)['pending_cents'],996)
 
 if __name__ == '__main__': unittest.main()

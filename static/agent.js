@@ -4,7 +4,7 @@
   async function loadOrders(){
     const r=await fetch('/api/agent/orders?page='+page,{cache:'no-store'});if(!r.ok)throw Error('无法加载充值记录');const d=await r.json();total=d.total;
     $('#summary').textContent=`付费客户 ${d.paid_customers} 人 · 订单金额 ¥${d.order_total} · 累计退款 ¥${d.refunded_total}`;
-    $('#orders').innerHTML=d.orders.length?'<table><thead><tr><th>客户</th><th>订单号</th><th>订单金额</th><th>累计退款</th><th>状态</th><th>支付时间</th></tr></thead><tbody>'+d.orders.map(o=>`<tr><td>${esc(o.email)}</td><td>${esc(o.out_trade_no)}</td><td>¥${esc(o.total_amount)}</td><td>¥${esc(o.refunded_amount)}</td><td>${esc(o.status)}</td><td>${esc(o.paid_at||'未知')}</td></tr>`).join('')+'</tbody></table>':'暂无已入账充值';
+    $('#orders').innerHTML=d.orders.length?'<table><thead><tr><th>客户</th><th>类型</th><th>订单号</th><th>订单金额</th><th>累计退款</th><th>状态</th><th>支付时间</th></tr></thead><tbody>'+d.orders.map(o=>`<tr><td>${esc(o.email)}</td><td>${esc(o.order_type)}</td><td>${esc(o.out_trade_no)}</td><td>¥${esc(o.total_amount)}</td><td>¥${esc(o.refunded_amount)}</td><td>${esc(o.status)}</td><td>${esc(o.paid_at||'未知')}</td></tr>`).join('')+'</tbody></table>':'暂无符合条件的订单';
     $('#page').textContent=`第 ${page} 页，共 ${total} 笔`;$('#prev').disabled=page<=1;$('#next').disabled=page*50>=total;
   }
   try{
