@@ -61,6 +61,20 @@ class BehaviorTests(unittest.TestCase):
   with analytics.database.ENGINE.connect() as db:
    after=db.execute(select(func.count()).select_from(analytics.events).where(analytics.events.c.event=='signup_confirmed')).scalar()
   self.assertEqual(before,after)
+ def test_periods_and_full_action_totals(self):
+  visitor=uuid.uuid4().hex
+  for event in ('membership_view','membership_view','membership_month'):
+   self.assertEqual(self.client.post('/api/behavior',json={'visitor':visitor,'page':'lowfans','event':event,'seconds':0,'device':'desktop'}).status_code,204)
+  self.login()
+  with patch.object(accounts,'require_admin',return_value={'email':'gelen5@163.com','role':'admin'}):
+   today=self.client.get('/api/owner-behavior?days=1&period=today').json()
+   all_time=self.client.get('/api/owner-behavior?days=1&period=all').json()
+   self.assertGreaterEqual(today['action_totals']['membership_view'],2)
+   self.assertGreaterEqual(all_time['summary']['sessions'],today['summary']['sessions'])
+   self.assertEqual(self.client.get('/api/owner-behavior?period=invalid').status_code,422)
+ def test_wallet_page_includes_observer(self):
+  self.login()
+  self.assertIn('behavior-observer.js',self.client.get('/wallet').text)
  def test_report_and_html_are_owner_only(self):
   self.assertIn(self.client.get('/owner-behavior').status_code,(401,403))
   self.assertIn(self.client.get('/api/owner-behavior').status_code,(401,403))

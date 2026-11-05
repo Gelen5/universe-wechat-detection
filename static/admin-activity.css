@@ -5,3 +5,6 @@
 
 body.registration-sharing>main{visibility:hidden}
 .admin-link{display:inline-flex;align-items:center;justify-content:center;min-height:42px;margin-right:8px;padding:9px 17px;border:1px solid #286c51;border-radius:12px;background:#286c51;color:#fff;text-decoration:none;font-size:14px;font-weight:600;box-shadow:0 5px 14px #286c5126}.admin-link:hover{background:#205b44;color:#fff}.admin-link:focus-visible{outline:3px solid #7db79a;outline-offset:2px}
+
+#traffic-ranges button[aria-pressed="true"],#conversion-ranges button[aria-pressed="true"]{background:#286c51;color:#fff;border-color:#286c51}
+#traffic-ranges,#conversion-ranges{display:flex;flex-wrap:wrap;gap:6px}

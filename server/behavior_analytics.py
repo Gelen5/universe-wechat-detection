@@ -20,7 +20,7 @@ events = Table('behavior_events', meta,
     Column('event', String(40), nullable=False), Column('seconds', Integer, nullable=False),
     Column('device', String(12), nullable=False), Column('created_at', String(40), nullable=False))
 Index('ix_behavior_time', events.c.created_at)
-PAGES = {'home','workbench','wechat-plus','one-click-writing','qihaoshou','hotspots','lowfans','image-board','xiaohongshu','tie-tu','viral-remix','article-visual','sticker-extract','xhs-extract','douyin-extract','bookshelf','market','pricing','pay','wallet'}
+PAGES = {'home','workbench','wechat-plus','one-click-writing','qihaoshou','hotspots','lowfans','image-board','xiaohongshu','tie-tu','viral-remix','article-visual','sticker-extract','xhs-extract','douyin-extract','morning-generator','bookshelf','market','pricing','pay','wallet'}
 EVENTS = {'page_view','active_time','open_pricing','choose_starter','choose_pro','choose_master','checkout_submit','remix_analyze','remix_generate','remix_save','article_analyze','article_download','sticker_extract','xhs_extract','douyin_extract','plus_send','plus_copy','welcome_browse','auth_login','auth_register','register_success','membership_view','membership_filter','membership_week','membership_month','membership_year','trial_click','trial_success','membership_order'}
 class Observation(BaseModel):
     visitor: str = Field(pattern=r'^[a-f0-9]{32}$')
@@ -64,10 +64,13 @@ def behavior_page(request: Request):
     return FileResponse(Path(__file__).resolve().parent.parent/'static'/'owner-behavior.html', headers={'Cache-Control':'no-store'})
 
 @router.get('/api/owner-behavior')
-def behavior_report(request: Request, days: int = 7):
+def behavior_report(request: Request, days: int = 7, period: str = "rolling"):
     require_owner(request)
     if days not in (1,7,30): raise HTTPException(422, 'invalid period')
-    since = (datetime.now(timezone.utc)-timedelta(days=days)).isoformat()
+    if period not in ('rolling', 'today', 'all'): raise HTTPException(422, 'invalid period')
+    now = datetime.now(timezone.utc)
+    beijing = timezone(timedelta(hours=8))
+    since = ((now.astimezone(beijing).replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc)) if period == 'today' else datetime(1970, 1, 1, tzinfo=timezone.utc) if period == 'all' else now-timedelta(days=days)).isoformat()
     # Earlier sessions have no confirmed-signup event and cannot form a valid denominator.
     conversion_since = max(since, '2026-11-05T05:14:20+00:00')
     guest = case((events.c.user_id.is_(None), events.c.visitor), else_=None)
@@ -99,5 +102,6 @@ def behavior_report(request: Request, days: int = 7):
             cohort.join(signup, signup.c.visitor == cohort.c.visitor)).where(
             signup.c.event == 'signup_confirmed', signup.c.created_at >= cohort.c.first_guest,
             signup.c.created_at >= since)).scalar() or 0
+        action_totals = db.execute(select(events.c.event, func.count().label('count')).where(events.c.created_at >= since, events.c.event.not_in(['active_time','page_view'])).group_by(events.c.event)).mappings().all()
         earliest = db.execute(select(func.min(events.c.created_at))).scalar()
-    return {'days':days,'since':since,'started_at':earliest,'summary':dict(summary), 'conversion': {'guest_sessions': cohort_count, 'registered_sessions': converted, 'since': conversion_since, 'rate_percent': round(100 * converted / cohort_count, 1) if cohort_count else None}, 'pages':[dict(x) for x in pages], 'actions':[dict(x) for x in actions]}
+    return {'days':days,'period':period,'since':since,'until':now.isoformat(),'started_at':earliest,'action_totals':{x['event']:x['count'] for x in action_totals},'summary':dict(summary), 'conversion': {'guest_sessions': cohort_count, 'registered_sessions': converted, 'since': conversion_since, 'rate_percent': round(100 * converted / cohort_count, 1) if cohort_count else None}, 'pages':[dict(x) for x in pages], 'actions':[dict(x) for x in actions]}

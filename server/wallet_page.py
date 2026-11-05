@@ -109,7 +109,7 @@ def _page(title: str, body: str) -> str:
         '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
         f"<title>{title}</title>{SITE_ICONS}<style>{_STYLE}</style></head><body>"
-        f'<div class="wx-wrap">{body}</div></body></html>'
+        f'<div class="wx-wrap">{body}</div><script src="/static/behavior-observer.js?v=20261105-events-1" defer></script></body></html>'
     )
 
 
