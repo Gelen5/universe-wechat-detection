@@ -11,6 +11,7 @@
 """
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
 import time
@@ -42,6 +43,11 @@ OTHER_LABEL = "其他"
 PUBLIC_FIELDS = (
     "sn", "wx_biz", "wx_type", "title", "art_url", "pic_url", "pub_time", "read_num",
     "like_num", "look_num", "share_num", "word_num", "image_num", "video_num", "stat_date",
+)
+# The board never renders more than a 120-character excerpt, so the pool query
+# reads a 200-character slice instead of the full content column (up to 4k).
+POOL_COLUMNS = tuple(getattr(ImageBoardItem, name) for name in PUBLIC_FIELDS) + (
+    func.substr(ImageBoardItem.content, 1, 200).label("content_excerpt"),
 )
 
 
@@ -279,7 +285,9 @@ def image_board_page():
 # 微信图片有防盗链：浏览器直连 mmbiz.qpic.cn 会拿到 403 或空图，页面只剩灰块。
 # 由服务端带 Referer 取一次字节再回给前端，顺带避开用户侧跨域限制。
 COVER_HOSTS = ("mmbiz.qpic.cn", "mmecoa.qpic.cn", "mmbiz.qlogo.cn")
-COVER_CACHE: dict[str, tuple[float, bytes, str]] = {}
+# Keyed by (sn, pic_url): an upstream picture change must not be served from a
+# stale in-process entry even when the article sn stays the same.
+COVER_CACHE: dict[tuple[str, str], tuple[float, bytes, str]] = {}
 COVER_TTL = 6 * 3600
 COVER_MAX_ENTRIES = 400
 
@@ -318,29 +326,43 @@ def cover(request: Request, sn: str = Query(..., min_length=1, max_length=64)):
     return _serve_cover(sn, url)
 
 
+def _cover_version(url: str) -> str:
+    """Stable short version for a picture URL, used to bust browser caches."""
+    return hashlib.sha1((url or "").encode("utf-8")).hexdigest()[:8]
+
+
+def _cover_cache_control() -> str:
+    # `private` keeps the image out of shared/CDN caches while the paywall is
+    # on; the browser may still reuse it for a day.  Never `no-store` here:
+    # cover bytes are immutable per URL and the URL carries a version.
+    return "private, max-age=86400" if membership.enabled() else "public, max-age=86400"
+
+
 def _serve_cover(sn: str, url: str):
     now = time.time()
-    cached = COVER_CACHE.get(sn)
+    key = (sn, url)
+    cached = COVER_CACHE.get(key)
     if cached and now - cached[0] < COVER_TTL:
         return Response(cached[1], media_type=cached[2],
-                        headers={"Cache-Control": "private, no-store" if membership.enabled() else "public, max-age=86400"})
+                        headers={"Cache-Control": _cover_cache_control()})
     fetched = _cover_fetch(url)
     if fetched is None:
         raise HTTPException(status_code=502, detail="封面获取失败")
     payload, content_type = fetched
     if len(COVER_CACHE) >= COVER_MAX_ENTRIES:
-        oldest = min(COVER_CACHE, key=lambda key: COVER_CACHE[key][0])
+        oldest = min(COVER_CACHE, key=lambda item: COVER_CACHE[item][0])
         COVER_CACHE.pop(oldest, None)
-    COVER_CACHE[sn] = (now, payload, content_type)
+    COVER_CACHE[key] = (now, payload, content_type)
     return Response(payload, media_type=content_type,
-                    headers={"Cache-Control": "private, no-store" if membership.enabled() else "public, max-age=86400"})
+                    headers={"Cache-Control": _cover_cache_control()})
 
 
-def _board_pool(session, stat_date: str) -> list[ImageBoardItem]:
-    candidates = session.execute(select(ImageBoardItem)
+def _board_pool(session, stat_date: str) -> list:
+    """All snapshots up to the selected date, deduped by sn, without full content."""
+    candidates = session.execute(select(*POOL_COLUMNS)
         .where(ImageBoardItem.stat_date <= stat_date)
         .order_by(ImageBoardItem.stat_date.desc(), ImageBoardItem.read_num.desc(),
-                  ImageBoardItem.sn.asc())).scalars()
+                  ImageBoardItem.sn.asc())).all()
     rows, seen = [], set()
     for row in candidates:
         if row.sn in seen:
@@ -379,6 +401,8 @@ def list_items(
     sort: str = Query(default="read", pattern="^(read|time|share)$"),
     scope: str = Query(default="all", pattern="^(image|all|lowfans)$"),
     date: str = Query(default="", max_length=10),
+    limit: int = Query(default=40, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
 ):
     accessible = not membership.enabled() or membership.has_access(
         (getattr(request.state, "user", None) or {}).get("id"))
@@ -387,7 +411,8 @@ def list_items(
     with database.session_scope() as session:
         stat_date = date.strip() or _latest_date(session)
         if not stat_date:
-            return {"items": [], "total": 0, "stat_date": "", "categories": [], "counts": {},
+            return {"items": [], "total": 0, "limit": limit, "offset": offset,
+                    "has_more": False, "stat_date": "", "categories": [], "counts": {},
                     "degraded": True, "reason": "尚未采集任何贴图数据"}
         # Combine the selected date and earlier snapshots without a 200-item
         # cutoff. Repeated articles use their newest available snapshot.
@@ -435,19 +460,25 @@ def list_items(
                 "freshness": fresh, "degraded": fresh["stale"],
                 "primary_count": primary_count, "fallback_count": fallback_count,
                 "reason": "榜单未更新至最近日期，当前展示最近可用数据" if fresh["stale"] else ""}
+    total = len(rows)
+    page_rows = rows[offset:offset + limit]
     items: list[dict[str, Any]] = []
-    for rank, row in enumerate(rows, 1):
+    for rank, row in enumerate(page_rows, offset + 1):
         payload = {field: getattr(row, field) for field in PUBLIC_FIELDS}
         payload["wx_type"] = row.wx_type or OTHER_LABEL
         payload["rank_no"] = rank
         payload["is_fallback"] = row.stat_date != stat_date
         payload["image_first"] = is_image_first(row)
-        payload["excerpt"] = (row.content or "").strip()[:120]
-        payload["cover_url"] = f"/api/image-board/cover?sn={row.sn}" if row.pic_url else ""
+        payload["excerpt"] = (row.content_excerpt or "").strip()[:120]
+        payload["cover_url"] = (
+            f"/api/image-board/cover?sn={row.sn}&v={_cover_version(row.pic_url)}"
+            if row.pic_url else "")
         payload["lowfans"] = matches.get(row.sn)
         items.append(payload)
     return {
-        "items": items, "total": len(items), "stat_date": stat_date, "dates": list(dates),
+        "items": items, "total": total, "limit": limit, "offset": offset,
+        "has_more": offset + len(page_rows) < total,
+        "stat_date": stat_date, "dates": list(dates),
         "primary_count": primary_count, "fallback_count": fallback_count,
         "counts": counts, "image_first_max_words": IMAGE_FIRST_MAX_WORDS,
         "categories": [{"name": k, "count": v} for k, v in

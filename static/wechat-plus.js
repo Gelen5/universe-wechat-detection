@@ -312,6 +312,17 @@
       const styleOptions = Array.isArray(capability.style_options) ? capability.style_options : [];
       const styleName = capability.style || theme.style_name || theme.name || '';
       const mode = layoutMode(capability);
+      // 原生排版链路新增的能力字段：只进 title，不碰主标签文案格式。
+      const nativeModules = (Array.isArray(capability.native_modules) ? capability.native_modules : []).filter(Boolean);
+      const components = (Array.isArray(capability.components) ? capability.components : []).filter(Boolean);
+      const budget = Number(capability.decoration_budget);
+      const gateLabels = {layout:'排版', compliance:'合规'};
+      const gates = capability.gates && typeof capability.gates === 'object' && !Array.isArray(capability.gates)
+        ? Object.entries(capability.gates) : [];
+      const gateText = gates.map(([name, info]) => {
+        const passed = typeof info?.passed === 'boolean' ? info.passed : info?.returncode === 0;
+        return `${gateLabels[name] || name} ${passed ? '通过' : '未通过'}`;
+      }).join(' / ');
       // 兼容旧 state / 既有浏览器测试：没有 layout_capability 时，标签文字必须逐字
       // 保持「排版 · 简约清爽」，不追加后缀、不追加子节点。
       themeLabel.hidden = !nextPreview || (!theme.name && !styleName && !legacyPreview);
@@ -321,6 +332,10 @@
       themeLabel.title = [
         theme.name ? `基础主题 · ${theme.name}` : '',
         mode ? `排版模式 · ${mode}${modeNote(capability)}` : '',
+        nativeModules.length ? `原生模块 · ${nativeModules.join(' · ')}` : '',
+        components.length ? `组件 · ${components.join(' · ')}` : '',
+        Number.isFinite(budget) ? `装饰预算 · ${budget}` : '',
+        gateText ? `门禁 · ${gateText}` : '',
         capability.style ? `视觉风格 · ${capability.style}` : '',
         styleOptions.length ? `可选风格 · ${styleOptions.join(' / ')}` : '',
         library ? `组件库 · ${library} 个` : '',

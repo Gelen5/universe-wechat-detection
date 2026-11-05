@@ -5,7 +5,13 @@
   const root = document.querySelector('#image-board');
   if (!root) return;
 
-  const state = { scope: 'all', type: '', q: '', sort: 'read', date: '', loaded: false, loading: false, reloadPending: false };
+  /* 分批加载：offset 是已消费条数（不是页码），hasMore 由后端给出；
+     loadingMore / seq / controller 用来防止重复请求和旧响应覆盖新筛选。 */
+  const PAGE_SIZE = 40;
+  const state = {
+    scope: 'all', type: '', q: '', sort: 'read', date: '', loaded: false, loading: false, reloadPending: false,
+    offset: 0, hasMore: true, loadingMore: false, seq: 0, controller: null, moreController: null, observer: null,
+  };
   const $ = (sel) => root.querySelector(sel);
 
   const esc = (value) => String(value ?? '').replace(/[&<>"']/g,
@@ -30,7 +36,8 @@
   }
 
   function cardHtml(item, index) {
-    const rank = index + 1;
+    // rank_no 是后端给的全量排名（第 2 页是 41-80），不能按页内序号重排。
+    const rank = Number(item.rank_no) || (index + 1);
     const cover = item.cover_url
       ? `<img src="${esc(item.cover_url)}" alt="" loading="lazy" decoding="async"
              data-fallback="${esc((item.title || '图').slice(0, 2))}">`
@@ -118,6 +125,75 @@
     });
   }
 
+  /* ---- 分批加载 ---------------------------------------------------------
+     首屏 40 条一次性渲染；接近底部时按 offset 追加下一页。追加只对新节点跑
+     setupCovers，已加载的封面不会重建、不会闪。sentinel 放在 .ib-grid 外面，
+     避免成为 grid 的一个格子。 */
+  function sentinelNode() { return $('#ib-grid [data-ib-more]'); }
+
+  function setSentinel(html) {
+    const node = sentinelNode();
+    if (node) node.innerHTML = html;
+    return node;
+  }
+
+  function moreButton(label) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = label;
+    button.style.cssText = 'min-height:44px;padding:0 20px;border:1px solid #cfe0d5;border-radius:999px;'
+      + 'background:#fff;color:#286146;font-size:13px;cursor:pointer;';
+    button.addEventListener('click', () => loadMore());
+    return button;
+  }
+
+  function watchSentinel() {
+    const node = sentinelNode();
+    if (!node) return;
+    if (!('IntersectionObserver' in window)) {
+      // 老浏览器兜底：给一个手动按钮，不至于永远只看到首屏。
+      if (!node.querySelector('button')) node.append(moreButton('加载更多'));
+      return;
+    }
+    if (!state.observer) {
+      state.observer = new IntersectionObserver((entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) loadMore();
+      }, { rootMargin: '600px 0px' });
+    }
+    // 追加后重新 observe：sentinel 可能仍在视口内，需要再触发一次才能继续填满。
+    state.observer.disconnect();
+    state.observer.observe(node);
+  }
+
+  function armSentinel() {
+    const host = $('#ib-grid');
+    if (!host || state.preview || !state.hasMore) return;
+    let node = host.querySelector('[data-ib-more]');
+    if (!node) {
+      node = document.createElement('div');
+      node.className = 'ib-more';
+      node.setAttribute('data-ib-more', '');
+      node.style.cssText = 'padding:18px 0 6px;text-align:center;color:#5b7466;font-size:13px;';
+      host.append(node);
+    }
+    watchSentinel();
+  }
+
+  function hideSentinel() {
+    state.observer?.disconnect();
+    sentinelNode()?.remove();
+  }
+
+  function appendItems(items) {
+    const grid = $('#ib-grid .ib-grid');
+    if (!grid || !items.length) return;
+    const host = document.createElement('div');
+    host.innerHTML = items.map((item, index) => cardHtml(item, state.offset + index)).join('');
+    const added = [...host.children];
+    grid.append(...added);
+    added.forEach((node) => setupCovers(node));
+  }
+
   function renderMeta(data) {
     const sync = data.last_sync || {};
     $('#ib-stamp').innerHTML = data.stat_date
@@ -145,23 +221,46 @@
       + '</div></div>').join('')}</div>`;
   }
 
-  async function load() {
-    if (state.loading) { state.reloadPending = true; return; }
-    state.loading = true;
-    skeleton();
+  function boardParams() {
     const params = new URLSearchParams({ scope: state.scope, sort: state.sort });
     if (state.type) params.set('wx_type', state.type);
     if (state.q) params.set('q', state.q);
     if (state.date) params.set('date', state.date);
+    return params;
+  }
+
+  /* 首屏 / 切筛选：offset 归零、重建 grid，并作废在途的 loadMore。 */
+  async function load() {
+    if (state.loading) { state.reloadPending = true; return; }
+    state.loading = true;
+    const seq = ++state.seq;
+    state.controller?.abort();
+    state.moreController?.abort();
+    const controller = new AbortController();
+    state.controller = controller;
+    state.offset = 0;
+    state.hasMore = true;
+    state.loadingMore = false;
+    hideSentinel();
+    skeleton();
+    const params = boardParams();
+    params.set('limit', String(PAGE_SIZE));
+    params.set('offset', '0');
     try {
-      const response = await fetch('/api/image-board?' + params.toString(), { credentials: 'same-origin' });
+      const response = await fetch('/api/image-board?' + params.toString(), { credentials: 'same-origin', signal: controller.signal });
       if (!response.ok) throw new Error('HTTP ' + response.status);
       const data = await response.json();
+      if (seq !== state.seq) return;
       state.preview = !!data.preview;
       root.querySelectorAll('#ib-search, #ib-sort, #ib-date').forEach(el => { el.disabled = false; });
       renderMeta(data);
       renderList(data);
       if (state.preview) window.ViralInsightsMembership?.promptPreview();
+      const items = data.items || [];
+      state.offset = (Number(data.offset) || 0) + items.length;
+      // 预览态不分页；has_more 缺失（老响应）按 false 处理，避免无限请求。
+      state.hasMore = Boolean(data.has_more) && !state.preview && items.length > 0;
+      if (!state.preview) armSentinel();
       state.loaded = true;
       if (data.degraded) {
         const age = data.freshness?.last_success_at
@@ -171,13 +270,46 @@
         if (data.reason) $('#ib-tail').textContent += ` · ${data.reason}`;
       }
     } catch (error) {
+      if (error?.name === 'AbortError' || seq !== state.seq) return;
       $('#ib-grid').className = '';
       $('#ib-grid').innerHTML = `<div class="ib-empty"><strong>榜单读取失败</strong>
         <p>${esc(error.message)}，请稍后重试。</p></div>`;
       $('#ib-stamp').innerHTML = '<span>读取失败</span>';
     } finally {
-      state.loading = false;
+      if (seq === state.seq) state.loading = false;
       if (state.reloadPending) { state.reloadPending = false; load(); }
+    }
+  }
+
+  /* 触底追加：只追加新分片，不重建列表；失败在 sentinel 处给「重试」。 */
+  async function loadMore() {
+    if (state.loading || state.loadingMore || !state.hasMore || state.preview || !state.loaded) return;
+    state.loadingMore = true;
+    const seq = state.seq;
+    state.moreController?.abort();
+    const controller = new AbortController();
+    state.moreController = controller;
+    setSentinel('<span role="status">加载中…</span>');
+    const params = boardParams();
+    params.set('limit', String(PAGE_SIZE));
+    params.set('offset', String(state.offset));
+    try {
+      const response = await fetch('/api/image-board?' + params.toString(), { credentials: 'same-origin', signal: controller.signal });
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      const data = await response.json();
+      if (seq !== state.seq) return;
+      const items = data.items || [];
+      appendItems(items);
+      state.offset = (Number(data.offset) || 0) + items.length;
+      state.hasMore = Boolean(data.has_more) && items.length > 0;
+      if (state.hasMore) { setSentinel(''); watchSentinel(); }
+      else hideSentinel();
+    } catch (error) {
+      if (error?.name === 'AbortError' || seq !== state.seq) return;
+      const node = setSentinel('');
+      if (node) node.append(moreButton('重试'));
+    } finally {
+      if (seq === state.seq) state.loadingMore = false;
     }
   }
 

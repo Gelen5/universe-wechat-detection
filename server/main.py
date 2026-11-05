@@ -172,9 +172,18 @@ async def disable_frontend_cache(request, call_next):
     if os.getenv("APP_ENV", "").lower() in {"production", "prod"}:
         response.headers["Strict-Transport-Security"] = "max-age=31536000"
     is_html = response.headers.get("content-type", "").split(";", 1)[0].strip() == "text/html"
+    # Cover bytes are immutable per versioned URL and the handler already sets
+    # `private, max-age=86400` (or `public` without the paywall).  Keep that
+    # header for successful cover responses only; errors still fall through to
+    # the global no-store rule.  Membership checks happen in the handler.
+    cacheable_cover = (request.url.path in {'/api/image-board/cover',
+                                            '/api/image-board/preview-cover'}
+                       and response.status_code == 200)
     if is_html:
         response.headers["Cache-Control"] = "no-store, max-age=0"
         response.headers["Pragma"] = "no-cache"
+    elif cacheable_cover:
+        pass
     elif request.url.path.startswith('/api/'):
         response.headers['Cache-Control'] = (
             'private, no-store, no-transform, max-age=0'
