@@ -34,6 +34,15 @@
 #article-visual .av-input-row input::placeholder { color:#9db3a6; }
 #article-visual .av-hint { margin:9px 0 0; font-size:11px; color:#9ab3a5; }
 #article-visual .av-hint.is-error { color:#b04a3a; }
+#article-visual .av-progress { margin-top:16px;padding:16px;border:1px solid #cce7d7;border-radius:16px;background:linear-gradient(135deg,#edf9f2,#fff);color:#235c43 }
+#article-visual .av-progress[hidden] { display:none }
+#article-visual .av-progress-head { display:flex;justify-content:space-between;gap:10px;align-items:center;font-size:14px }
+#article-visual .av-progress-head span,#article-visual .av-progress p { font-size:12px;color:#688b78 }
+#article-visual .av-progress p { margin:8px 0 12px;line-height:1.5 }
+#article-visual .av-progress-steps { display:flex;flex-wrap:wrap;gap:7px;font-size:11px;color:#8aa69a }
+#article-visual .av-progress-steps span { padding:5px 8px;border-radius:8px;background:#f4faf6 }
+#article-visual .av-progress-steps .is-current { background:#d7f0e1;color:#167047;font-weight:700 }
+#article-visual .av-progress-steps .is-done { color:#39845f }
 #article-visual .av-sticker-link { margin-top:10px; }
 #article-visual .av-sticker-link[hidden] { display:none !important; }
 #article-visual .av-note-line { margin-top:16px; padding-top:13px; border-top:1px dashed #d9e9de; font-size:11.5px; color:#8aa796; line-height:1.7; }

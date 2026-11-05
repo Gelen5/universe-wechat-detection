@@ -517,6 +517,19 @@
 
   async function waitForPlan(record, source = {}) {
     const storageKey = `article-visual-pending:${record.owner}`;
+    const progressBox = $('av-progress'), started = Date.now();
+    const stages = {preflight:['extract','检查文章链接','正在确认文章是否可以读取。'],extracting:['extract','读取文章内容','正在提取文章标题与正文。'],planning:['plan','策划传播方向','正在根据文章构思配图方案，模型响应可能需要一些时间。'],retrying:['plan','正在重试','服务响应异常，正在自动重试，请稍候。'],checking:['review','检查方案','正在检查图位和原文引用。'],repairing:['review','完善方案','正在调整方案中的问题。'],reviewing:['review','核对文章事实','正在核对方案与原文，完成后即可选择方向。']};
+    function showProgress(stage, current, total) {
+      const item = stages[stage] || ['extract','等待任务开始','任务已提交，正在等待处理。'];
+      progressBox.hidden = false;
+      $('av-progress-title').textContent = item[1] + (total ? ` · ${current}/${total}` : '');
+      $('av-progress-detail').textContent = item[2];
+      $('av-progress-time').textContent = `已等待 ${Math.floor((Date.now()-started)/1000)} 秒`;
+      const order = ['extract','plan','review'], active = order.indexOf(item[0]);
+      progressBox.querySelectorAll('[data-step]').forEach((step, index) => { step.classList.toggle('is-current', index === active); step.classList.toggle('is-done', index < active); });
+    }
+    showProgress('preflight');
+    try {
     if (!record.id) {
       if (!record.resumeFrom && !source.sourceText && !record.preflightId) {
         els.hint.textContent = '正在检查文章链接与内容类型，本步骤不扣积分…';
@@ -538,6 +551,7 @@
     while (currentAccount?.id === record.owner) {
       const data = await api(`/api/article-visual/tasks/${encodeURIComponent(record.id)}`);
       const job = data.job, stage = job.progress?.stage;
+      showProgress(stage, job.progress?.current, job.progress?.total);
       els.hint.textContent = (labels[stage] || '任务排队中') + (job.progress?.total ? ` · ${job.progress.current}/${job.progress.total}` : '');
       if (job.status === 'succeeded') { localStorage.removeItem(storageKey); localStorage.removeItem(`article-visual-review:${record.owner}`); $('av-resume-review').hidden = true; return job.result; }
       if (['failed','canceled'].includes(job.status)) {
@@ -550,6 +564,7 @@
       await new Promise(resolve => setTimeout(resolve, 2000));
     }
     throw new Error('账号已切换，任务仍在后台执行');
+    } finally { progressBox.hidden = true; }
   }
 
   async function resumePending() {
