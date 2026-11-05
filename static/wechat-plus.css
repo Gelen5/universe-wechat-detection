@@ -39,6 +39,10 @@
 #wechat-plus .wp-composer small{font-size:10px;color:var(--wp-muted)}
 #wechat-plus [data-wp-send],#wechat-plus [data-wp-save]{background:#24734f;color:white;border-color:#24734f}
 #wechat-plus [data-wp-send]:hover:not(:disabled),#wechat-plus [data-wp-save]:hover:not(:disabled){background:#1a5c3e}
+@media(max-width:760px){
+  #wechat-plus .wp-composer>div{flex-direction:column;align-items:stretch;gap:10px}
+  #wechat-plus [data-wp-send]{width:100%;min-height:48px;white-space:nowrap;writing-mode:horizontal-tb}
+}
 #wechat-plus .wp-document{display:flex;flex-direction:column;background:rgba(255,255,255,.85)}
 #wechat-plus .wp-doc-toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 20px;border-bottom:1px solid var(--wp-line)}
 #wechat-plus .wp-tabs{display:flex;gap:4px}

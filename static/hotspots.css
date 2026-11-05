@@ -64,6 +64,7 @@
 #hotspots .hs-mini:hover { background:#dceade !important; }
 #hotspots .hs-star { min-width:30px !important;font-size:16px !important; }
 #hotspots .hs-star.is-on { color:#537438 !important;background:#e4edda !important; }
+@media(max-width:760px){#hotspots .hs-mini,#hotspots .hs-go{min-width:44px!important;min-height:44px!important;height:auto!important;display:inline-flex!important;align-items:center;justify-content:center}}
 #hotspots .hs-go { color:#2e6340 !important;background:#e0ede0 !important; }
 #hotspots .hs-go:hover { background:#cce2d0 !important; }
 #hotspots .hs-card-foot { display:flex !important;align-items:center !important;justify-content:space-between !important;flex-wrap:wrap !important;gap:8px !important;padding:10px 18px 16px !important;font-size:12px !important;line-height:1.6 !important;color:var(--hs-ink-3) !important; }
@@ -94,7 +95,7 @@
  #hotspots .hs-updated { margin-left:0 !important; }
  #hotspots .hs-platforms { flex-wrap:nowrap !important;overflow-x:auto !important;padding:3px 2px 8px !important;scrollbar-width:thin !important; }
  #hotspots .hs-card { border-radius:20px !important; }
- #hotspots .hs-mini,#hotspots .hs-go { min-height:36px !important; }
+ #hotspots .hs-mini,#hotspots .hs-go { min-height:44px !important; }
 }
 @supports not (backdrop-filter:blur(12px)) { #hotspots .hs-card,#hotspots .hs-head { background:#f3fbf5 !important; } }
 @media(prefers-reduced-transparency:reduce) { #hotspots .hs-card,#hotspots .hs-head { background:#f3fbf5 !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important; } }

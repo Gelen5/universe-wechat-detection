@@ -500,6 +500,9 @@
       history.replaceState(null, "", `/article-visual?job=${job.id}`);
       render();
       setTab("plan");
+      if (window.matchMedia('(max-width: 760px)').matches) {
+        els.plan.scrollIntoView({behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start'});
+      }
       const cost = job.elapsed_ms ? seconds(job.elapsed_ms) : "";
       els.hint.textContent = `拆解完成${cost ? `，用时 ${cost}` : ""}。推荐图位已展开，点击图卡查看；请留意核对提示。`;
     } catch (error) {
