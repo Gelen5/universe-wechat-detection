@@ -153,6 +153,9 @@ def _execute_step(state, message, generate, *, output_dir, progress,
                   check_cancelled, search):
     """One message, one Skill node: run it, then stop (``article step``)."""
     state = deepcopy(state)
+    # The browser needs to know the turn semantics: step mode's "options" are
+    # node actions (继续复核 / 改一下正文), not legacy layout-style choices.
+    state['step_mode'] = True
     state.pop('_blocked', None)
     history = state.setdefault('messages', [])
     history.append({'role': 'user', 'content': message})
@@ -398,6 +401,8 @@ def _render_delivery(state, article, message, generate, *, output_dir,
 def _execute_actions(state, message, generate, *, output_dir, progress,
                      check_cancelled, search):
     state = deepcopy(state)
+    # Rollback path: keep the legacy layout-style option UI when the switch is off.
+    state['step_mode'] = False
     state.pop('_blocked', None)
     history = state.setdefault('messages', [])
     history.append({'role': 'user', 'content': message})

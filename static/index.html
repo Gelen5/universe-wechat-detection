@@ -683,7 +683,7 @@
     <article class="wp-document" aria-label="文章工作区">
       <div class="wp-doc-toolbar"><div class="wp-tabs" role="tablist" aria-label="文章视图"><button type="button" role="tab" aria-selected="true" data-wp-tab="draft">正文</button><button type="button" role="tab" aria-selected="false" data-wp-tab="preview">排版预览</button><button type="button" role="tab" aria-selected="false" data-wp-tab="review">复核与来源</button></div><div class="wp-toolbar-meta"><span data-wp-layout-theme class="wp-layout-theme" hidden></span><span data-wp-save-state></span></div></div>
       <div data-wp-panel="draft" class="wp-draft-panel" role="tabpanel"><div data-wp-empty class="wp-empty"><span class="wp-paper-icon" aria-hidden="true">✎</span><h2>好文章，从一个具体想法开始</h2><p>在左侧聊想法、选角度，正文会出现在这里。<br>你也可以带着已有文章来修改。</p><div class="wp-starters"><button type="button" data-wp-prompt="我想写一篇关于普通人使用 AI 提高工作效率的公众号文章，先帮我推荐几个选题。">帮我找到值得写的角度 ↗</button><button type="button" data-wp-import>我有文章，想继续打磨 ↗</button></div></div><textarea data-wp-editor aria-label="文章 Markdown 正文" spellcheck="false" hidden></textarea></div>
-      <div data-wp-panel="preview" class="wp-preview-panel" role="tabpanel" hidden><p data-wp-preview-empty>成稿后，告诉我“排版看看”，即可生成预览。</p><iframe data-wp-preview title="公众号文章排版预览" sandbox hidden></iframe></div>
+      <div data-wp-panel="preview" class="wp-preview-panel" role="tabpanel" hidden><p data-wp-preview-empty>正文排版完成后，会显示在这里。</p><iframe data-wp-preview title="公众号文章排版预览" sandbox hidden></iframe></div>
       <details data-wp-legacy-images class="wp-legacy-images" hidden><summary>查看历史文章配图</summary><div data-wp-legacy-image-list></div></details>
       <div data-wp-panel="review" class="wp-review-panel" role="tabpanel" hidden></div>
       <footer class="wp-doc-footer"><label>版本 <select data-wp-versions aria-label="查看历史版本"><option value="">尚无正文</option></select></label><div><button type="button" data-wp-copy disabled>复制正文</button><button type="button" data-wp-copy-html disabled>复制排版</button><button type="button" data-wp-download disabled>下载 Markdown</button><button type="button" data-wp-save disabled>保存修改</button></div></footer>
@@ -1129,7 +1129,7 @@
     <script src="/static/vendor/lucide.min.js"></script>
     <script src="/static/market.js?v=20261026-loading-1" defer></script>
     <script src="/static/auth-challenge.js?v=20261104-retry-1"></script>
-    <script src="/static/wechat-plus.js?v=20261105-sticker-guidance"></script>
+    <script src="/static/wechat-plus.js?v=20261105-step-copy"></script>
     <dialog id="creation-history-dialog" class="remix-history-dialog"><div class="remix-history-header"><div><h2>历史创作</h2><p>选择一条记录继续查看。</p></div><button type="button" id="creation-history-close" aria-label="关闭">×</button></div><div data-history-content aria-live="polite"></div></dialog>
     <script src="/static/creation-history.js?v=20261101-1"></script>
     <script src="/static/remix-publication.js?v=20261105-sticker-copy-placement"></script>

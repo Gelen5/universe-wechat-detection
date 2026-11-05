@@ -474,6 +474,8 @@ class StepModeTests(unittest.TestCase):
                   if item['status'] == 'passed']
         assert passed == ['intent']
         assert state['reply_options'] == ['继续']
+        # The browser renders reply_options as node actions, not layout styles.
+        assert state['step_mode'] is True
 
         state = self.run_turn(state, '继续')
         assert state['last_node'] == 'topic'

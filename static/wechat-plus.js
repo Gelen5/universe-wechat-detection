@@ -248,9 +248,20 @@
       messageRoot.append(button);
     });
     $('options').replaceChildren();
-    const layoutOptions = ['write', 'format'].includes(state.last_action) && (state.reply_options || []).length;
+    // 分步模式下每次只推进一个 Skill 节点，选项是「继续复核 / 改一下正文」这类动作，
+    // 不是排版风格；把它们伪装成风格选项会让左侧提示与右侧文档状态对不上。
+    // 旧会话没有 step_mode 字段，用 next_node（只有分步模式会写）兜底识别。
+    const stepMode = state.step_mode === undefined ? Boolean(state.next_node) : Boolean(state.step_mode);
+    const layoutOptions = !stepMode && ['write', 'format'].includes(state.last_action) && (state.reply_options || []).length;
     $('options').classList.toggle('wp-layout-options', Boolean(layoutOptions));
     if (layoutOptions) $('options').append(text('span', state.last_action === 'write' ? '选择排版风格，或在下方描述你的想法' : '继续调整排版', 'wp-layout-options-label'));
+    const previewEmpty = $('preview-empty');
+    if (previewEmpty) {
+      previewEmpty.textContent = stepMode
+        ? (article.draft ? '正文已生成。继续推进复核，再点「生成排版预览」，排版结果会显示在这里。'
+          : '正文生成后，完成复核并生成排版，这里会显示成稿预览。')
+        : '成稿后，告诉我“排版看看”，即可生成预览。';
+    }
     (state.reply_options || []).forEach(option => {
       const button = text('button', option); button.type = 'button'; button.onclick = () => send(option); $('options').append(button);
     });
@@ -333,7 +344,9 @@
         capabilityChipEl.hidden = true; capabilityChipEl.style.display = 'none';
       }
     }
-    $('input').placeholder = article.draft ? '告诉我排版风格，例如：蓝色科技感、标题醒目…' : '想写的方向、已有素材，或者直接粘贴文章…';
+    $('input').placeholder = stepMode
+      ? (article.draft ? '说「继续」推进复核，或说「重做正文 / 重做排版」…' : '想写的方向、已有素材，或者直接粘贴文章…')
+      : (article.draft ? '告诉我排版风格，例如：蓝色科技感、标题醒目…' : '想写的方向、已有素材，或者直接粘贴文章…');
     updateBusy();
     if (nearBottom) messageRoot.scrollTop = messageRoot.scrollHeight;
   }
