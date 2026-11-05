@@ -39,6 +39,9 @@ let currentAccount = null;
 let emailVerificationRequired = false;
 let authDismissed = false;
 let initialAccountChecked = false;
+const agentCodeKey = 'universe.agent.code';
+const agentFromUrl = new URLSearchParams(location.search).get('agent');
+if (agentFromUrl && /^[A-F0-9]{24}$/.test(agentFromUrl)) { try { localStorage.setItem(agentCodeKey, agentFromUrl); } catch {} }
 const welcomeSeenKey = 'universe.guest-welcome-seen';
 function rememberWelcome() { try { localStorage.setItem(welcomeSeenKey, '1'); } catch {} }
 let registrationToken = '';
@@ -122,6 +125,10 @@ function syncAdminVisibility() {
   const isAdmin = currentAccount?.role === 'admin' && currentAccount?.email?.toLowerCase() === 'gelen5@163.com';
   if (apiSettingsButton) apiSettingsButton.hidden = !isAdmin;
   if (adminUsersButton) adminUsersButton.hidden = !isAdmin;
+  const agentAdminButton = document.querySelector('#agent-admin-button');
+  if (agentAdminButton) agentAdminButton.hidden = !isAdmin;
+  const agentButton = document.querySelector('#agent-center-button');
+  if (agentButton) { const accountId = currentAccount?.id; agentButton.hidden = true; if (accountId) fetch('/api/agent/me').then(r => { if (r.ok && currentAccount?.id === accountId) agentButton.hidden = false; }).catch(() => {}); }
   // 账单页含平台经营收入，只对站长本人（gelen5@163.com 且为管理员）开放入口。
   // 后端 /bill 另有独立拦截，这里只负责不给其他人看到这个按钮。
   if (billSettingsButton) billSettingsButton.hidden = !isAdmin;
@@ -413,7 +420,7 @@ document.querySelector('#auth-form')?.addEventListener('submit', async event => 
         email: document.querySelector('#auth-email').value.trim(),
         password: document.querySelector('#auth-password').value,
         display_name: document.querySelector('#auth-display-name').value.trim(),
-        ...(mode === 'register' ? {behavior_visitor: (() => { try { return sessionStorage.getItem('behavior-visitor') || ''; } catch { return ''; } })(), ref: document.querySelector('#auth-invite-code').value.trim(), email_code: document.querySelector('#auth-email-code').value.trim(), ...(registrationToken ? {registration_token: registrationToken} : {})} : {}),
+        ...(mode === 'register' ? {agent: (() => { try { return localStorage.getItem(agentCodeKey) || ''; } catch { return ''; } })(), behavior_visitor: (() => { try { return sessionStorage.getItem('behavior-visitor') || ''; } catch { return ''; } })(), ref: document.querySelector('#auth-invite-code').value.trim(), email_code: document.querySelector('#auth-email-code').value.trim(), ...(registrationToken ? {registration_token: registrationToken} : {})} : {}),
         ...(challenge ? {turnstile_token: challenge} : {}),
       }),
     });
@@ -429,7 +436,8 @@ document.querySelector('#auth-form')?.addEventListener('submit', async event => 
     hideAuth();
     registrationToken = '';
     rememberInviteCode('');
-    showToast(inviteToast(mode, data.referral));
+    if (mode === 'register') { try { localStorage.removeItem(agentCodeKey); } catch {} }
+    showToast(data.agent_attribution === 'error' ? '注册成功，推广归属未记录，请联系管理员核对。' : inviteToast(mode, data.referral));
     // 新注册的人是活动最强的传播源：当场把邀请码摆到他面前，而不是等他去翻设置。
     if (mode === 'register') { window.trackWorkbenchBehavior?.('register_success'); guideToInvite(); }
   } catch (exception) {
@@ -1694,3 +1702,6 @@ refreshConfigStatus();
 loadAccount();
 if (new URLSearchParams(location.search).has('register')) showAuth(true);
 window.lucide?.createIcons({ attrs: { 'stroke-width': 1.8 } });
+
+document.querySelector('#agent-admin-button')?.addEventListener('click', () => { location.href='/admin/agents'; });
+document.querySelector('#agent-center-button')?.addEventListener('click', () => { location.href='/agent'; });
