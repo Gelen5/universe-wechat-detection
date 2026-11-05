@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import time
 
 from .celery_app import celery_app
@@ -10,6 +11,37 @@ from . import accounts, creator_tools
 from . import viral_remix_jobs as jobs
 from . import workbench
 from .providers import call_context
+
+
+def _retry_wrong_language(image, report, idea, page, index, total, directory, job_id, existing_images):
+    """Retry once only for an explicit language mismatch; keep the original on any failure."""
+    issues = '；'.join(report.get('issues') or [])
+    if (report.get('passed') or not re.search(r'英文|英语|英語|english|拉丁字母', issues, re.I)
+            or not creator_tools.remix_chinese_text_required(idea, page, index)):
+        return image, report, False
+    from . import remix_quality
+    retry_dir = directory / f'language-retry-{index:02d}'
+    retry_dir.mkdir(parents=True, exist_ok=True)
+    instruction = ('请保留中文核心问题和完整中文标题、副标题，不要翻译成英文；合同、文件等背景道具不要出现英文或虚构条款。'
+                   '保留方案视觉层次与原有事实，不增加事实或数字。')
+    try:
+        accounts.progress_job(job_id, done=len(existing_images), total=total, stage='repairing', images=existing_images)
+        retry = creator_tools.generate_remix_card(idea, {**page, 'repair_instruction': instruction}, index, total, retry_dir)
+        retry_file = retry_dir / f'remix-{index:02d}.jpg'
+        checked = remix_quality.inspect_image(retry_file, idea, {**page, 'page_index': index})
+        if checked['passed']:
+            retry_file.replace(directory / f'remix-{index:02d}.jpg')
+            retry_case = retry_dir / f'case-{index:02d}.json'
+            try:
+                if retry_case.exists():
+                    retry_case.replace(directory / f'case-{index:02d}.json')
+            except OSError:
+                logging.getLogger(__name__).exception('remix language repair audit update failed: %s', job_id)
+            retry['url'] = image['url']
+            return retry, checked, True
+    except Exception:
+        logging.getLogger(__name__).exception('remix language repair failed: %s', job_id)
+    return image, report, True
 
 
 def dispatch(job_id: str) -> str:
@@ -55,10 +87,11 @@ def run(self, job_id: str):
                         file = directory / f'remix-{index:02d}.jpg'
                         try:
                             report = remix_quality.inspect_image(file, idea, {**page, 'page_index': index})
+                            image, report, retried = _retry_wrong_language(image, report, idea, page, index, total, directory, job_id, images)
                             image['acceptance'] = report
                             image['check_passed'] = report['passed']
                             if not report['passed']:
-                                image['review_notice'] = '检查发现可能的问题，请核对：' + '；'.join(report['issues'])
+                                image['review_notice'] = ('自动修复后仍需核对：' if retried else '检查发现可能的问题，请核对：') + '；'.join(report['issues'])
                         except Exception:  # 检查服务故障不影响已生成图片交付
                             logging.getLogger(__name__).exception('remix image review failed: %s', job_id)
                             image['review_notice'] = '自动检查暂不可用，请自行核对图片中的文字、数字和关键信息。'

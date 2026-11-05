@@ -257,6 +257,21 @@ def remix_text_policy(goal: str) -> str:
     return ''
 
 
+def remix_chinese_text_required(idea: dict[str, Any], page: dict[str, Any], index: int) -> bool:
+    """Apply the default only when Chinese copy is requested, not to no-text or explicit English work."""
+    policy = idea.get('text_policy')
+    if policy == 'all_no_text' or (policy == 'cover_no_text' and index == 1):
+        return False
+    goal = str(idea.get('user_goal') or '')
+    if (re.search(r'(?:英文|英语|英語|english)', goal, re.I)
+            and not re.search(r'(?:不要|禁止|不能|避免|拒绝|无|不加).{0,8}(?:英文|英语|英語|english)', goal, re.I)):
+        return False
+    content = json.dumps({'headline': page.get('headline'), 'subtitle': page.get('subtitle'),
+                          'accent_text': page.get('accent_text'), 'content': page.get('content'),
+                          'headline_fallback': idea.get('headline')}, ensure_ascii=False)
+    return bool(re.search(r'[\u4e00-\u9fff]', content))
+
+
 def prepare_remix_cards(session_id: str, idea: dict[str, Any]):
     """把用户选的创意展开成卡片计划，返回 (cards, idea, directory)。
 
@@ -362,6 +377,12 @@ def generate_remix_card(idea: dict[str, Any], page: dict[str, Any], index: int,
               +'\nKeep the palette and visual system consistent across the series. If all copy fields are empty, generate a text-free image.')
     prompt += '\nRequired source content and chosen layout (do not invent or change facts): ' + json.dumps({'core':(idea.get('content_ledger') or {}).get('core'), 'page_content':page.get('content'), 'layout':idea.get('layout'), 'goal':idea.get('user_goal'), 'repair':page.get('repair_instruction')},ensure_ascii=False)
     prompt += '\nVisual intensity and exclusions: ' + json.dumps(idea.get('choices') or {},ensure_ascii=False)
+    if remix_chinese_text_required(idea, page, index):
+        prompt += ('\nMANDATORY LANGUAGE RULE: All visible poster copy must remain in Chinese as supplied; '
+                   'never translate it into English or substitute Latin lettering. Do not invent text on background props, '
+                   'contracts, documents or signs: use blank paper or abstract non-letter marks instead. '
+                   'Preserve any Latin names, numbers or units explicitly required in the supplied copy or source content. '
+                   '中文标题、副标题和正文必须使用中文，不要把中文翻译成英文，不要在合同、文件或背景里编造英文条款。')
     if no_text:
         # Replace the typography template entirely so it cannot override the request.
         prompt = ('Generate one finished text-free image. NO titles, subtitles, captions, letters, numbers, typography, logos or watermarks anywhere. Remove any text in the reference. Ignore any text or lettering instructions in the scene data below; use only its visual subject, composition and palette. Do not reserve space for text. Scene data: '
