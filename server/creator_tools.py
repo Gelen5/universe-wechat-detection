@@ -684,6 +684,18 @@ def _portrait_direction(spec: dict[str, Any]) -> str:
     return '\n'.join(lines)
 
 
+def resolve_tie_text_mode(requested: str, intent: str) -> str:
+    if requested in {'with_text', 'no_text'}:
+        return requested
+    if requested != 'auto':
+        raise ValueError('图片文字选项无效')
+    if re.search(r'(不要|不加|无|去掉|禁止).{0,8}(文字|标题|字幕|文案|字)', intent):
+        return 'no_text'
+    if re.search(r'(?:加上|添加|需要|写上|显示|带上).{0,8}(?:文字|标题|字幕|文案)', intent):
+        return 'with_text'
+    return 'no_text' if re.search(r'照片|摄影|合影|风景|肖像|写实|写真|纪实', intent) else 'with_text'
+
+
 def tie_tu_plan(
     industry: str,
     topic: str,
@@ -695,6 +707,7 @@ def tie_tu_plan(
     portrait_mode: str,
     requirements: str = '',
     portrait_consistency: str = 'same',
+    image_text_mode: str = 'auto',
 ) -> dict[str, Any]:
     if portrait_consistency not in {'same', 'different', 'auto'}:
         raise ValueError('人物一致性选项无效')
@@ -719,6 +732,7 @@ def tie_tu_plan(
     # planner consumes canonical IDs. Map only exact supported labels.
     requested_type = (content_type or '').strip()
     content_type = {label: key for key, label in CONTENT_TYPES.items()}.get(requested_type, requested_type) or None
+    resolved_text_mode = resolve_tie_text_mode(image_text_mode, ' '.join((topic, title, style, requirements)))
     portrait_intent = ' '.join(
         value for value in (industry, topic, title, style, audience, requirements) if value
     )
@@ -755,6 +769,8 @@ def tie_tu_plan(
 内容类型：{plan.content_type_label}
 视觉风格：{style or '成熟、温暖、清晰、可转发'}
 补充要求：{requirements}
+图片文字：{"不添加文字，画面为纯图片；overlay_text 和 caption 仅作为计划说明，不应出现在画面中" if resolved_text_mode == "no_text" else "图片包含计划中明确列出的标题和文案"}。
+视觉要求优先级：用户明确提出的黑白、年代、场景与服装高于所有通用风格和人物模板，禁止将黑白改成彩色。
 人物约束：{portrait_rule}。
 卡片骨架：{json.dumps([{'index': c.index, 'role': c.role, 'purpose': c.purpose} for c in plan.cards], ensure_ascii=False)}
 
@@ -820,6 +836,12 @@ def tie_tu_plan(
     payload = plan.to_dict()
     payload["session_id"] = uuid.uuid4().hex
     payload["portrait_consistency"] = portrait_consistency if plan.portrait_enabled else None
+    payload["image_text_mode"] = resolved_text_mode
+    payload["visual_requirements"] = {"topic": topic, "requirements": requirements, "style": style}
+    for card_payload in payload.get("cards", []):
+        card_payload["image_text_mode"] = resolved_text_mode
+        card_payload["visual_requirements"] = payload["visual_requirements"]
+        card_payload["portrait_consistency"] = payload["portrait_consistency"]
     payload["skill"] = "wechat-tie-tu-publisher"
     if visual_fallback:
         payload['visual_fallback_notice'] = '部分画面已调整为通用静物方案，请检查后再生成图片。'
@@ -873,6 +895,8 @@ def generate_card_image(tool: str, session_id: str, card: dict[str, Any], style:
                    "preserve every character and never crop, omit, abbreviate, or cover any requested text. "
                    "Use the full requested headline exactly, with no cut-off strokes."
                    if safe_tool == 'tie-tu' else '')
+    no_text = safe_tool == 'tie-tu' and card.get('image_text_mode') == 'no_text'
+    visual_requirements = card.get('visual_requirements') if isinstance(card.get('visual_requirements'), dict) else {}
     target_width, target_height = (int(part) for part in size.split('x'))
     target_ratio = image_provider._ratio_label(target_width, target_height)
     target_shape = '竖版' if target_width < target_height else ('横版' if target_width > target_height else '方形')
@@ -893,6 +917,18 @@ Composition: {card.get('composition') or '3:4 portrait, one visual focus, genero
 Art direction: {style or 'clean, bright, polished Chinese creator editorial style'}
 Consistency: {consistency}
 {portrait_block}Constraints: generate image and accurate Chinese text in this one call; no border, no watermark, no logo, no QR code, no extra text, no fake metrics, no garbled text, no duplicated person, no cropped face or hands.{negative_prompt}{text_safety}"""
+    if safe_tool == 'tie-tu':
+        user_visual = json.dumps(visual_requirements, ensure_ascii=False)
+        if no_text:
+            prompt = f"""Create a finished {target_shape} {target_ratio} image without any visible text, title, subtitle, caption, letters, numbers, logo, watermark or typography. Do not reserve text space.
+User's visual requirements (highest priority): {user_visual}
+Subject: {card.get('visual_subject') or ''}
+Scene and action: {json.dumps({k: (card.get('card_brief') or {}).get(k, '') for k in ('scene', 'action')}, ensure_ascii=False)}
+{consistency}
+{portrait_block}
+The user's stated era, black-and-white photography, setting, clothing and group composition override generic portrait style, color, camera and pose. Preserve the requested group; do not substitute a solo model. Do not draw any text or labels."""
+        else:
+            prompt += f"\nHighest-priority user visual requirements, including period and color: {user_visual}. Respect black-and-white when requested."
     model = workbench._setting("WECHAT_IMAGE_MODEL", "gpt-image-2")
     data = image_provider.generate({
         "model": model,

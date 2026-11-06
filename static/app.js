@@ -931,7 +931,7 @@ async function postCreator(path, payload, signal, onAccepted) {
   };
   if (taskTypes[path]) {
     const taskPayload = path === '/api/xiaohongshu/package' ? { topic: payload.topic, account: payload.account, audience: payload.audience, goal: payload.goal, evidence: payload.evidence, content_type: payload.contentType }
-      : path === '/api/tie-tu/plan' ? { industry: payload.industry, topic: payload.topic, title: payload.title || '', content_type: payload.contentType || null, image_count: payload.imageCount, style: payload.style, audience: payload.audience, portrait_mode: payload.portraitMode, requirements: payload.requirements || '', portrait_consistency: payload.portraitConsistency || 'same' }
+      : path === '/api/tie-tu/plan' ? { industry: payload.industry, topic: payload.topic, title: payload.title || '', content_type: payload.contentType || null, image_count: payload.imageCount, style: payload.style, audience: payload.audience, portrait_mode: payload.portraitMode, requirements: payload.requirements || '', portrait_consistency: payload.portraitConsistency || 'same', image_text_mode: payload.imageTextMode || 'auto' }
       : path === '/api/hit-detector/analyze' ? { title: payload.title, body: payload.body, track: payload.track, fans: payload.fans, open_rate: payload.openRate }
       : path === '/api/hit-detector/rewrite' ? { title: payload.title, body: payload.body, detector_result: payload.detectorResult }
       : { tool: payload.tool, session_id: payload.sessionId, card: payload.card, style: payload.style };
@@ -1082,7 +1082,7 @@ function renderTiePlan(plan) {
   const buttonLabel = () => pilotDone ? `确认试图并生成剩余 ${remaining().length} 张` : '确认计划并生成第 1 张试图';
   root.innerHTML = `<div class="output-head"><div><span class="result-status pending">${cards.length && !remaining().length ? '图片已生成' : pilotDone ? '试图待确认' : '计划待确认'}</span><h2>${esc(plan.title)}</h2><p>${esc(plan.content_type_label)} · ${esc(plan.angle)}</p></div><button id="tie-images" class="primary-action compact" type="button">${buttonLabel()}</button></div>
     ${plan.visual_fallback_notice ? `<p class="tie-mode-hint" role="status">${esc(plan.visual_fallback_notice)}</p>` : ''}
-    <button type="button" id="tie-edit-people" class="secondary-action">修改人物设定</button><div class="plan-summary"><div><span>画幅</span><strong>${esc(plan.ratio)}</strong></div><div><span>图片</span><strong>${cards.length} 张</strong></div><div><span>人物安排</span><strong>${plan.portrait_enabled ? ({same:'包含人物 · 保持同一人物',different:'包含人物 · 可以不同',auto:'包含人物 · 自行判断'}[plan.portrait_consistency] || '包含人物') : '不包含人物'}</strong></div></div>
+    <button type="button" id="tie-edit-people" class="secondary-action">修改人物设定</button><div class="plan-summary"><div><span>画幅</span><strong>${esc(plan.ratio)}</strong></div><div><span>图片</span><strong>${cards.length} 张</strong></div><div><span>图片文字</span><strong>${plan.image_text_mode === 'no_text' ? '不添加' : '添加标题及文案'}</strong></div><div><span>人物安排</span><strong>${plan.portrait_enabled ? ({same:'包含人物 · 保持同一人物',different:'包含人物 · 可以不同',auto:'包含人物 · 自行判断'}[plan.portrait_consistency] || '包含人物') : '不包含人物'}</strong></div></div>
     <section class="result-section"><div class="result-section-title"><strong>卡片计划</strong><span>先检查标题和画面，再确认生成</span></div><div class="creator-card-grid">${cards.map((card, position) => `<article class="creator-output-card" data-card-index="${Number(card.index)}"><div class="card-image-slot"><span>${String(card.index).padStart(2, '0')}</span><small>${position === 0 ? '首张试图 · 等待生成' : '等待生成'}</small></div><div class="creator-card-copy"><span>${position === 0 ? '封面 · 首张试图' : `内容卡片 ${String(card.index).padStart(2, '0')}`}</span><strong>${esc(card.overlay_text)}</strong><p><b>画面</b> ${esc(card.visual_subject)}</p><small>${esc([card.card_brief?.scene, card.card_brief?.action].filter(Boolean).join(' · '))}</small></div></article>`).join('')}</div></section>
     `;
   root.querySelector('#tie-edit-people').addEventListener('click', () => { document.querySelector('#tie-portrait').focus(); document.querySelector('#tie-form').scrollIntoView({behavior:'smooth',block:'start'}); });
@@ -1102,7 +1102,7 @@ function renderTiePlan(plan) {
     button.setAttribute('aria-busy', 'true');
     button.textContent = '正在生成图片…';
     try {
-    await generateSkillImages('tie-tu', plan.session_id, selected.map(card => ({...card, portrait_enabled: plan.portrait_enabled, portrait_consistency: plan.portrait_consistency})), document.querySelector('#tie-style').value.trim(), root.querySelector('.creator-card-grid'), image => completed.add(Number(image.index)));
+    await generateSkillImages('tie-tu', plan.session_id, selected.map(card => ({...card, portrait_enabled: plan.portrait_enabled, portrait_consistency: plan.portrait_consistency, image_text_mode: plan.image_text_mode, visual_requirements: plan.visual_requirements})), document.querySelector('#tie-style').value.trim(), root.querySelector('.creator-card-grid'), image => completed.add(Number(image.index)));
     } finally { button.disabled = false; button.removeAttribute('aria-busy'); button.textContent = buttonLabel(); }
     if (completed.size) {
       pilotDone = completed.has(Number(cards[0].index));
@@ -1142,6 +1142,7 @@ document.querySelector('#tie-form')?.addEventListener('submit', async event => {
       style: document.querySelector('#tie-style').value.trim(),
       portraitMode: document.querySelector('#tie-portrait').value,
       portraitConsistency: document.querySelector('#tie-consistency').value,
+      imageTextMode: document.querySelector('#tie-text-mode').value,
       requirements: document.querySelector('#tie-requirements')?.value.trim() || '',
     });
     renderTiePlan(data.plan);

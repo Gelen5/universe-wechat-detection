@@ -40,6 +40,23 @@ class CreatorToolsTests(unittest.TestCase):
         self.assertEqual(plan['portrait_consistency'], 'different')
         self.assertIn('各张可根据内容使用不同虚构成年人', model.call_args.args[0])
 
+    def test_photo_text_mode_defaults_to_none_and_explicit_override(self):
+        self.assertEqual(creator_tools.resolve_tie_text_mode('auto', '四五十年代黑白老照片合影'), 'no_text')
+        self.assertEqual(creator_tools.resolve_tie_text_mode('auto', '五个收纳技巧清单'), 'with_text')
+        self.assertEqual(creator_tools.resolve_tie_text_mode('with_text', '黑白照片'), 'with_text')
+        self.assertEqual(creator_tools.resolve_tie_text_mode('no_text', '技巧清单'), 'no_text')
+
+    def test_no_text_image_keeps_original_visual_intent(self):
+        png = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=')
+        card = {'index': 1, 'overlay_text': '不应出现在画面', 'caption': '也不应出现', 'visual_subject': '一群女学生合影', 'image_text_mode': 'no_text', 'visual_requirements': {'topic': '四五十年代黑白老照片', 'requirements': '每个人长相不同'}, 'portrait_enabled': True}
+        with tempfile.TemporaryDirectory() as folder, patch.object(creator_tools, 'OUTPUT_DIR', Path(folder)), patch.object(image_provider, 'generate', return_value={'data':[{'b64_json':base64.b64encode(png).decode()}]}) as generate:
+            creator_tools.generate_card_image('tie-tu', 's1', card)
+        prompt=generate.call_args.args[0]['prompt']
+        self.assertIn('without any visible text', prompt)
+        self.assertIn('四五十年代黑白老照片', prompt)
+        self.assertNotIn('不应出现在画面', prompt)
+        self.assertIn('do not substitute a solo model', prompt)
+
     def test_tie_tu_plan_preserves_count_and_contract(self):
         enriched = {
             "angle": "从生活场景切入",

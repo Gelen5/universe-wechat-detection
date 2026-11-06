@@ -16,7 +16,7 @@ class FeedbackRequest(BaseModel):
     contact:str=Field(default='',max_length=200)
 @router.get('/api/community')
 def community():
-    return {'group_url':os.getenv('COMMUNITY_GROUP_URL',''),'updates':[{'date':'2026-11-06','title':'贴图号人物设置','items':['贴图号创作支持选择是否使用人物及多张图的人物一致性，生成前可查看并调整。']},{'date':'2026-11-05','title':'选题灵感库上线','items':['新增按分类和赛道查找选题，支持搜索和账号收藏。']},{'date':'2026-11-05','title':'公众号创作升级','items':['公众号创作新增多种排版样式和文章表达优化，让成稿与排版更方便。']},{'date':'2026-11-04','title':'近期更新','items':['优化推荐选题与爆文转贴图的液态玻璃界面，打通热点直达公众号创作 Plus，新增模型失败自动降级与详细错误记录，并优化积分流水顺序及扣退分状态说明。']},{'date':'2026-10-31','title':'快点我，上线了','items':['集中提交问题和功能建议','群聊入口与更新记录统一收录']},{'date':'2026-10-31','title':'近期工作台更新','items':['贴图复刻支持最多8张参考图','文字与画面由图片模型一体生成','发布前复核统一薄荷绿主题']}]}
+    return {'group_url':os.getenv('COMMUNITY_GROUP_URL',''),'updates':[{'date':'2026-11-06','title':'贴图号图片设置','items':['贴图号创作新增图片文字选择，照片类可自动生成无字画面，并更重视你填写的画面风格要求。']},{'date':'2026-11-06','title':'贴图号人物设置','items':['贴图号创作支持选择是否使用人物及多张图的人物一致性，生成前可查看并调整。']},{'date':'2026-11-05','title':'选题灵感库上线','items':['新增按分类和赛道查找选题，支持搜索和账号收藏。']},{'date':'2026-11-05','title':'公众号创作升级','items':['公众号创作新增多种排版样式和文章表达优化，让成稿与排版更方便。']},{'date':'2026-11-04','title':'近期更新','items':['优化推荐选题与爆文转贴图的液态玻璃界面，打通热点直达公众号创作 Plus，新增模型失败自动降级与详细错误记录，并优化积分流水顺序及扣退分状态说明。']},{'date':'2026-10-31','title':'快点我，上线了','items':['集中提交问题和功能建议','群聊入口与更新记录统一收录']},{'date':'2026-10-31','title':'近期工作台更新','items':['贴图复刻支持最多8张参考图','文字与画面由图片模型一体生成','发布前复核统一薄荷绿主题']}]}
 @router.post('/api/community/feedback')
 def submit(payload:FeedbackRequest,request:Request):
     user=accounts.require_user(request)
