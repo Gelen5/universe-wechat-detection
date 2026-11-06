@@ -59,7 +59,7 @@ def _image_measurement(raw: bytes) -> dict[str, Any]:
     }
 
 
-def _remix_vision(body: dict[str, Any], *, require_ideas: bool = True, deadline=None):
+def _remix_vision(body: dict[str, Any], *, require_ideas: bool = True, deadline=None, request_id: str | None = None):
     """Bound the primary call and retain the same reference in one fallback."""
     import time
     from .observability import event
@@ -75,25 +75,46 @@ def _remix_vision(body: dict[str, Any], *, require_ideas: bool = True, deadline=
             remaining=deadline-time.monotonic()-10
             if remaining<=1:raise workbench.ProviderError('拆解处理超时，请稍后重试；参考图无需重新选择')
             read_timeout=min(read_timeout,remaining)
+        stage='request'; response=None; finish_reason=None; upstream_request_id=None
         try:
             response=requests.post(workbench._api_url('text','/chat/completions'),headers=workbench._headers('text'),
                 json=request,timeout=(10,read_timeout),verify=workbench._verify_ssl())
+            stage='http_status'
+            raw_id = response.headers.get('x-request-id', '') if isinstance(response.headers, dict) or hasattr(response.headers, 'get') else ''
+            upstream_request_id = raw_id if isinstance(raw_id, str) and re.fullmatch(r'[A-Za-z0-9_-]{6,128}', raw_id) else None
             response.raise_for_status()
-            content=response.json()['choices'][0]['message']['content']
+            stage='response_json'
+            response_data=response.json()
+            stage='response_shape'
+            choice=response_data['choices'][0]
+            reason=choice.get('finish_reason')
+            finish_reason=reason if reason in ('stop','length','content_filter','tool_calls') else None
+            content=choice['message']['content']
             if not isinstance(content,str):raise ValueError('invalid_content')
+            stage='content_json'
             data=workbench._salvage_json(content)
             if not isinstance(data,dict):raise ValueError('invalid_json')
             if require_ideas:
+                stage='plan_validation'
                 ideas=data.get('ideas')
                 if not isinstance(ideas,list) or [idea.get('id') for idea in ideas if isinstance(idea,dict)]!=['A','B','C']:
                     raise ValueError('incomplete_ideas')
                 if not isinstance(data.get('visual_contract'),dict) or not data['visual_contract'].get('asset_type'):
                     raise ValueError('missing_visual_contract')
-            event('remix.vision_completed',model=model,fallback=index>0,latency_ms=round((time.perf_counter()-started)*1000))
+            event('remix.vision_completed',model=model,fallback=index>0,request_id=request_id,upstream_request_id=upstream_request_id,finish_reason=finish_reason,latency_ms=round((time.perf_counter()-started)*1000))
             return data,model
         except (requests.RequestException,KeyError,IndexError,TypeError,ValueError) as exc:
             status=getattr(getattr(exc,'response',None),'status_code',None)
+            if not isinstance(status, int):
+                status=getattr(response, 'status_code', None)
+            if not isinstance(status, int): status=None
+            reason_code = str(exc) if type(exc) is ValueError and str(exc) in {'invalid_content','invalid_json','incomplete_ideas','missing_visual_contract'} else None
+            if isinstance(exc, requests.ConnectTimeout): reason_code='connect_timeout'
+            elif isinstance(exc, requests.ReadTimeout): reason_code='read_timeout'
+            elif isinstance(exc, requests.Timeout): reason_code='timeout'
             event('remix.vision_failed',model=model,status=status,error_type=type(exc).__name__,attempt=index+1,
+                stage=stage,reason_code=reason_code,request_id=request_id,upstream_request_id=upstream_request_id,
+                finish_reason=finish_reason,timeout_seconds=round(read_timeout,2),
                 latency_ms=round((time.perf_counter()-started)*1000))
             if index+1<len(models):
                 event('remix.vision_fallback',primary=model,fallback=models[index+1])
@@ -101,7 +122,7 @@ def _remix_vision(body: dict[str, Any], *, require_ideas: bool = True, deadline=
             raise workbench.ProviderError('主模型和备用视觉服务均未完成拆解，请稍后重试；参考图无需重新选择') from exc
 
 
-def viral_remix_analysis(image_data_url: str | list[str], goal: str = "") -> dict[str, Any]:
+def viral_remix_analysis(image_data_url: str | list[str], goal: str = "", *, request_id: str | None = None) -> dict[str, Any]:
     """Analyse a user-owned reference with a vision-capable text model.
 
     The reference remains in request memory only. The returned brief deliberately
@@ -173,7 +194,7 @@ A延续构图换实质素材；B换布局但保留视觉层次；C补同目的�
     }
     vision_started=time.perf_counter()
     vision_deadline=time.monotonic()+155
-    data,used_model=_remix_vision(body,deadline=vision_deadline)
+    data,used_model=_remix_vision(body,deadline=vision_deadline,request_id=request_id)
     timings['vision_seconds']=round(time.perf_counter()-vision_started,1)
     data['vision_model']=used_model
     ideas = data.get("ideas") if isinstance(data, dict) else None
@@ -188,7 +209,7 @@ A延续构图换实质素材；B换布局但保留视觉层次；C补同目的�
             {'type':'text','text':'仅做数据图转录，不做设计、不核实来源真假。返回JSON对象data_contract的内容：kind=table,title,unit,period,source_text,complete,rows=[{label,value}]。完整转录图中每一行名称及数值，保留顺序与小数。complete只表示文字可读且所有行已转录，不表示数据已证实。可读则true；确实看不清的行标明missing并complete=false。年份、数量与率不可混淆。来源声明照录，不补充。不要输出创意方案。'},
             *[{'type':'image_url','image_url':{'url':source,'detail':'high'}} for source in images]]}]}
         ocr_body['model']=used_model
-        recovered,_=_remix_vision(ocr_body,require_ideas=False,deadline=vision_deadline)
+        recovered,_=_remix_vision(ocr_body,require_ideas=False,deadline=vision_deadline,request_id=request_id)
         if isinstance(recovered,dict):
             dataset=recovered.get('data_contract',recovered)
             data['data_contract']=dataset

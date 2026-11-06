@@ -49,3 +49,24 @@ def test_invalid_plan_falls_back_instead_of_delivering_partial_results(monkeypat
     post=Mock(side_effect=[response({'ideas':[{'id':'A'}]}),response(valid)])
     monkeypatch.setattr(tools.requests,'post',post)
     assert tools._remix_vision({'model':'gpt-6.1-terra','messages':[]})==(valid,'gpt-6.1-sol')
+
+
+def test_diagnostics_record_safe_validation_reason_and_request_ids(monkeypatch):
+    from server import observability
+    events=[]
+    monkeypatch.setattr(observability,'event',lambda name, **fields: events.append((name,fields)))
+    monkeypatch.setattr(tools.workbench,'_api_url',lambda *args:'https://test.invalid')
+    monkeypatch.setattr(tools.workbench,'_headers',lambda *args:{})
+    invalid=response({'ideas':[{'id':'A'}], 'secret':'private-reference'})
+    invalid.headers={'x-request-id':'upstream-123456'}
+    invalid.status_code=200
+    valid=response({'ideas':[{'id':x} for x in 'ABC'],'visual_contract':{'asset_type':'poster'}})
+    valid.headers={}
+    monkeypatch.setattr(tools.requests,'post',Mock(side_effect=[invalid,valid]))
+    tools._remix_vision({'model':'gpt-6.1-terra','messages':[{'secret':'private-reference'}]},request_id='request-123456')
+    failure=next(fields for name,fields in events if name=='remix.vision_failed')
+    assert failure['stage']=='plan_validation'
+    assert failure['reason_code']=='incomplete_ideas'
+    assert failure['request_id']=='request-123456' and failure['upstream_request_id']=='upstream-123456'
+    assert failure['status']==200
+    assert 'private-reference' not in repr(events)

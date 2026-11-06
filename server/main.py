@@ -1202,7 +1202,9 @@ def create_tie_tu_plan(payload: TieTuPlanRequest):
 def analyze_viral_remix(payload: ViralRemixAnalyzeRequest, request: Request):
     try:
         with workbench.provider_overrides():
-            result = creator_tools.viral_remix_analysis(payload.imageData, payload.goal)
+            request_id = getattr(request.state, "request_id", "")
+            request_id = request_id if re.fullmatch(r"[A-Za-z0-9_-]{6,128}", request_id) else None
+            result = creator_tools.viral_remix_analysis(payload.imageData, payload.goal, request_id=request_id)
         from . import remix_contract
         ledger = remix_contract.build(result, payload.goal, payload.preservePerson)
         result['content_type'] = ledger['category']
