@@ -42,6 +42,7 @@ from .seo import router as seo_router
 from . import agents
 from . import wechat_plus_repository
 from . import wechat_plus_billing
+from . import content_factory
 from .workflow_events import redis_ready
 from .observability import event as log_event
 from .auth_rate_limit import check_auth_attempt, record_auth_result, client_ip
@@ -105,6 +106,7 @@ app.include_router(owner_revenue_router)
 wechat_plus_repository.init_schema()
 wechat_plus_billing.init_schema()
 app.include_router(wechat_plus_router)
+app.include_router(content_factory.router)
 app.include_router(seo_router)
 
 
@@ -233,7 +235,9 @@ async def account_and_points_gate(request: Request, call_next):
     # Logout also clears expired/revoked cookies. Requiring an active session
     # prevents a stale browser from ever completing that cleanup.
     public_behavior = request.method == "POST" and path == "/api/behavior"
-    public_api = path in {"/api/auth/register", "/api/auth/login", "/api/auth/logout", "/api/auth/config", "/api/auth/email-code", "/api/auth/registration-link", "/api/auth/challenge-diagnostic"} or public_market or public_refresh or public_pay or public_lowfans or public_behavior or path in {"/api/viral-insights/membership", "/api/viral-insights/packages"}
+    public_factory = request.method == "GET" and (path == "/api/content-factory/products" or
+        bool(re.fullmatch(r"/api/content-factory/products/[a-f0-9]{32}/preview-image", path)))
+    public_api = path in {"/api/auth/register", "/api/auth/login", "/api/auth/logout", "/api/auth/config", "/api/auth/email-code", "/api/auth/registration-link", "/api/auth/challenge-diagnostic"} or public_market or public_refresh or public_pay or public_lowfans or public_behavior or public_factory or path in {"/api/viral-insights/membership", "/api/viral-insights/packages"}
     try:
         user = accounts.user_from_request(request)
     except HTTPException as exc:
@@ -275,6 +279,7 @@ async def account_and_points_gate(request: Request, call_next):
     # 中间件在这里结算时模型还没跑。它的预扣与结算都在 wechat_plus_api / tasks 里。
     billable = user and path not in {"/api/workbench/sessions", "/api/qihaoshou/generate"} \
         and not path.startswith("/api/wechat-plus/") \
+        and not path.startswith("/api/content-factory/") \
         and not path.startswith("/api/viral-remix/image") and not public_pay
     rule = accounts.pricing_rule(request.method, path) if billable else None
     usage_id = None
@@ -1690,6 +1695,11 @@ TAB_PAGES = {"wechat-plus", "diagnose", "xiaohongshu", "tie-tu", "viral-remix", 
 @app.get("/favicon.ico", include_in_schema=False)
 def favicon():
     return FileResponse(STATIC_DIR / "favicon.ico", media_type="image/x-icon")
+
+
+@app.get("/content-factory", include_in_schema=False)
+def content_factory_page():
+    return FileResponse(STATIC_DIR / "content-factory.html")
 
 
 @app.get("/{tab}", include_in_schema=False)

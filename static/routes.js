@@ -24,6 +24,8 @@ window.APP_NAV = (() => {
   // 捕获阶段已经 preventDefault，看到 data-view 又交还给应用 —— 结果是点击
   // 完全无响应。低粉爆文第一次上线就踩了这个坑。
   const items = [
+    {group: '资源', href: '/content-factory', label: '爆款成品库', page: true, fallback: true,
+     icon: svg('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h10M7 13h7"/>')},
     {group: '选题灵感', href: '/hotspots', view: 'hotspots', label: '热点广场', short: '热点',
      fallback: true,
      icon: svg('<path d="M3 17l5-5 4 3 5-7 4 5"/><path d="M3 21h18"/>')},
