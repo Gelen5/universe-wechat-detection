@@ -150,11 +150,9 @@
   function watchSentinel() {
     const node = sentinelNode();
     if (!node) return;
-    if (!('IntersectionObserver' in window)) {
-      // 老浏览器兜底：给一个手动按钮，不至于永远只看到首屏。
-      if (!node.querySelector('button')) node.append(moreButton('加载更多'));
-      return;
-    }
+    // 自动加载之外始终保留手动入口，避免浏览器观察器未触发时卡在列表底部。
+    if (!node.querySelector('button')) node.append(moreButton('加载更多'));
+    if (!('IntersectionObserver' in window)) return;
     if (!state.observer) {
       state.observer = new IntersectionObserver((entries) => {
         if (entries.some((entry) => entry.isIntersecting)) loadMore();
@@ -306,7 +304,8 @@
       else hideSentinel();
     } catch (error) {
       if (error?.name === 'AbortError' || seq !== state.seq) return;
-      const node = setSentinel('');
+      state.observer?.disconnect();
+      const node = setSentinel('<span role="status">加载失败，请重试。 </span>');
       if (node) node.append(moreButton('重试'));
     } finally {
       if (seq === state.seq) state.loadingMore = false;
