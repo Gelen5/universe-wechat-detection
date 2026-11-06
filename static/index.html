@@ -160,6 +160,7 @@
           -->
           <a data-library-link href="/bookshelf"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h6a3 3 0 0 1 2 1 3 3 0 0 1 2-1h6v15h-6a3 3 0 0 0-2 1 3 3 0 0 0-2-1H4z"/><path d="M12 5v15"/></svg><span>AI 书架</span></a><a data-view="market" href="/market"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h18l-1.4 12.1a2 2 0 0 1-2 1.9H6.4a2 2 0 0 1-2-1.9z"/><path d="M8 7V5.5a4 4 0 0 1 8 0V7"/></svg><span>AI 超市</span></a><a href="/pricing"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="13" rx="2.5"/><path d="M2 10h20"/><path d="M6 15h4"/></svg><span>积分套餐</span></a>
         </nav>
+        <section class="daily-checkin daily-checkin-sidebar" data-checkin aria-label="每日签到"><span class="daily-checkin-icon" aria-hidden="true">✓</span><div class="daily-checkin-copy"><strong>每日签到</strong><small data-checkin-detail>每天领取 5 积分</small></div><button type="button" data-checkin-button>签到领 5 分</button><span class="daily-checkin-message" data-checkin-message role="status" aria-live="polite"></span></section>
         <div class="right">
           <a class="stat" href="/pricing" title="购买积分套餐" style="text-decoration:none;color:inherit"><i class="dot-live"></i><strong id="nav-wallet"><b id="wallet-balance">—</b></strong> 积分</a>
           <span class="menu-wrap" id="nav-menu-wrap">
@@ -220,6 +221,7 @@
             <button id="wallet-close" class="icon-command" type="button" aria-label="关闭"><i data-lucide="x"></i></button>
           </div>
           <div class="wallet-total"><span>当前可用</span><strong><b id="wallet-modal-balance">0</b> 积分</strong><small>1 积分基础价值 0.1 元，仅用于平台功能</small></div>
+          <section class="daily-checkin daily-checkin-wallet" data-checkin aria-label="每日签到"><span class="daily-checkin-icon" aria-hidden="true">✓</span><div class="daily-checkin-copy"><strong>每日签到</strong><small data-checkin-detail>每天领取 5 积分</small></div><button type="button" data-checkin-button>签到领 5 分</button><span class="daily-checkin-message" data-checkin-message role="status" aria-live="polite"></span></section>
           <div class="wallet-buckets"><div><span>试用</span><strong id="wallet-trial">0</strong></div><div><span>赠送</span><strong id="wallet-bonus">0</strong></div><div><span>付费</span><strong id="wallet-paid">0</strong></div></div>
           <section id="invite-panel" class="wallet-invite" hidden>
             <div class="wallet-section-title"><strong>邀请好友充值，积分持续返</strong><span id="invite-rule-summary">返奖规则加载中</span></div>
@@ -280,6 +282,7 @@
            TAB 1 · / — 首页（薄荷玻璃 v2）
            ============================================================ -->
       <section id="home" class="home-page home-v2" data-atelier="true"><div class="mobile-site-brand"><a href="/" aria-label="宇宙第一工作台首页"><img src="/static/galaxy-logo.svg?v=20261025-galaxy-1" width="32" height="32" alt="" /><span>宇宙第一工作台<small>Creator OS</small></span></a></div>
+        <section class="daily-checkin daily-checkin-home" data-checkin aria-label="每日签到"><span class="daily-checkin-icon" aria-hidden="true">✓</span><div class="daily-checkin-copy"><strong>每日签到</strong><small data-checkin-detail>每天领取 5 积分</small></div><button type="button" data-checkin-button>签到领 5 分</button><span class="daily-checkin-message" data-checkin-message role="status" aria-live="polite"></span></section>
         <nav class="mobile-inspiration" aria-label="选题灵感"><div><strong>选题灵感</strong><span>不知道写什么？先看看正在火的内容</span></div><div class="mobile-inspiration-links"><a href="/hotspots" data-view="hotspots">热点广场 <span>↗</span></a><a href="/topic-library" data-view="topic-library">选题灵感库 <span>↗</span></a><a href="/lowfans" data-view="lowfans">低粉爆文 <span>↗</span></a><a href="/image-board" data-view="image-board">低粉爆图 <span>↗</span></a></div></nav>
         <section class="home-editorial" aria-label="创作首页">
   <div class="he-main"><div class="he-intro"><span class="he-kicker">一个人的宇宙 / CREATOR OS</span><h1>宇宙第一<br>工作台<span>.</span></h1><p>你的想法，不必止于想想。</p><a class="he-start" href="/wechat-plus">从一个想法开始 ↗</a><div class="he-orbit" aria-hidden="true"><i></i><b></b></div></div>
@@ -1137,12 +1140,14 @@
     <script src="/static/remix-publication.js?v=20261105-sticker-copy-placement"></script>
     <script src="/static/remix-save.js?v=20261101-publication-1"></script>
     <script src="/static/app.js?v=20261105-topic-view-1-20261105-agent-attribution"></script>
+    <script src="/static/daily-checkin.js?v=20261106-1" defer></script>
     <script src="/static/flow.js?v=20261031-hide-diagnose-1"></script>
     <script src="/static/studio-tools.js?v=20261106-xhs-glass"></script>
     <link rel="stylesheet" href="/static/creator-chat.css?v=20260906-conversation-1">
   <link rel="stylesheet" href="/static/tie-tu-studio.css?v=20261105-publication">
     <link rel="stylesheet" href="/static/ui-system.css?v=20261031-no-collapse-4">
     <link rel="stylesheet" href="/static/xhs-glass.css?v=20261106-1">
+    <link rel="stylesheet" href="/static/daily-checkin.css?v=20261106-1">
     <script src="/static/creator-chat.js?v=20261106-xhs-glass"></script>
     <script src="/static/notion-workspace.js?v=20261103-plus-only-1"></script>
     <script src="/static/sticker-extract.js?v=20261104-board-handoff"></script>

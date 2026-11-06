@@ -1,0 +1,21 @@
+.daily-checkin { box-sizing:border-box; display:flex; align-items:center; gap:10px; padding:13px; border:1px solid rgba(255,255,255,.9); border-radius:16px; background:linear-gradient(135deg,rgba(255,255,255,.82),rgba(220,245,227,.82)); color:#1d4b32; box-shadow:0 8px 24px rgba(31,100,59,.07),inset 0 1px rgba(255,255,255,.8); }
+.daily-checkin-icon { display:grid; place-items:center; flex:none; width:34px; height:34px; border-radius:11px; background:#d8f1df; color:#227849; font-size:19px; font-weight:700; }
+.daily-checkin-copy { flex:1; min-width:0; }
+.daily-checkin-copy strong,.daily-checkin-copy small { display:block; }
+.daily-checkin-copy strong { font-size:13px; line-height:1.35; color:#1d4b32; }
+.daily-checkin-copy small { margin-top:3px; font-size:11px; line-height:1.4; color:#65816f; }
+.daily-checkin button { flex:none; min-height:38px; padding:8px 10px; border:1px solid #287d50; border-radius:10px; background:#277d50; color:#fff; font-family:inherit; font-size:12px; font-weight:600; cursor:pointer; }
+.daily-checkin button:disabled { border-color:#c3dfcb; background:#e2f2e6; color:#447958; cursor:default; }
+.daily-checkin button:focus-visible { outline:3px solid #79bc94; outline-offset:3px; }
+.daily-checkin-message:empty { display:none; }
+.daily-checkin-message { flex-basis:100%; color:#32744d; font-size:12px; }
+.daily-checkin-sidebar { flex-wrap:wrap; flex-shrink:0; margin:0 2px -12px; }
+.daily-checkin-sidebar .daily-checkin-icon { width:28px; height:28px; }
+.daily-checkin-sidebar button { padding:7px 8px; font-size:11px; }
+.daily-checkin-home { display:none; }
+.daily-checkin-wallet { margin:14px 0; flex-wrap:wrap; }
+@media(max-width:1100px) { .daily-checkin-sidebar { display:none !important; } }
+@media(max-width:1100px) { .daily-checkin-home { display:flex; flex-wrap:wrap; margin:12px 0 16px; } .daily-checkin-home button,.daily-checkin-wallet button { min-height:44px; padding:10px 15px; } }
+.daily-checkin-sidebar { gap:7px; padding:10px; }
+.daily-checkin-sidebar .daily-checkin-copy small { font-size:10px; white-space:nowrap; }
+.daily-checkin-sidebar button { min-height:38px; padding:7px; }

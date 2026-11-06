@@ -1310,6 +1310,42 @@ def credit_bucket(
     return True
 
 
+CHECKIN_POINTS = 5
+BEIJING_TZ = timezone(timedelta(hours=8))
+
+
+def checkin_day(now: datetime | None = None) -> str:
+    current = now or datetime.now(timezone.utc)
+    if current.tzinfo is None:
+        raise ValueError('check-in time must be timezone-aware')
+    return current.astimezone(BEIJING_TZ).date().isoformat()
+
+
+def checkin_status(user_id: str, *, now: datetime | None = None) -> dict[str, Any]:
+    day = checkin_day(now)
+    key = f'daily-checkin:{user_id}:{day}'
+    with DB_LOCK, _connect() as connection:
+        row = connection.execute('SELECT 1 FROM point_transactions WHERE request_id=? AND user_id=?',
+                                 (key, user_id)).fetchone()
+    return {'day': day, 'checked_in': bool(row), 'points': CHECKIN_POINTS}
+
+
+def daily_checkin(user_id: str, *, now: datetime | None = None) -> dict[str, Any]:
+    day = checkin_day(now)
+    key = f'daily-checkin:{user_id}:{day}'
+    # Serialize per wallet across web workers before checking the ledger. Both
+    # ledger and balance updates commit together; retries do not double-credit.
+    with DB_LOCK, _connect() as connection:
+        connection.execute('BEGIN IMMEDIATE')
+        if not _locked_wallet(connection, user_id):
+            raise HTTPException(status_code=404, detail='积分钱包不存在')
+        credited = credit_bucket(connection, user_id, CHECKIN_POINTS, 'bonus',
+            request_id=key, source='daily_checkin', feature='每日签到', note=f'{day} 签到赠送')
+        connection.execute('COMMIT')
+    return {'day':day, 'checked_in':True, 'points':CHECKIN_POINTS,
+            'credited':credited, 'wallet':wallet_summary(user_id)}
+
+
 def recharge(operator_id: str, user_id: str, points: int, bucket: str, note: str) -> dict[str, Any]:
     if points <= 0 or points > 1_000_000:
         raise HTTPException(status_code=422, detail="单次充值积分需要在 1—1,000,000 之间")

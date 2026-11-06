@@ -108,7 +108,7 @@ def _page(title: str, body: str) -> str:
     return (
         '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
-        f"<title>{title}</title>{SITE_ICONS}<style>{_STYLE}</style></head><body>"
+        f"<title>{title}</title>{SITE_ICONS}<style>{_STYLE}</style><link rel=\"stylesheet\" href=\"/static/daily-checkin.css?v=20261106-1\"></head><body>"
         f'<div class="wx-wrap">{body}</div><script src="/static/behavior-observer.js?v=20261105-events-1" defer></script></body></html>'
     )
 
@@ -267,6 +267,8 @@ def wallet_page(request: Request) -> HTMLResponse:
         "</header>"
         + hero
         + composition
+        + '<section class="daily-checkin daily-checkin-wallet" data-checkin aria-label="每日签到"><span class="daily-checkin-icon" aria-hidden="true">✓</span><div class="daily-checkin-copy"><strong>每日签到</strong><small data-checkin-detail>每天领取 5 积分</small></div><button type="button" data-checkin-button>签到领 5 分</button><span class="daily-checkin-message" data-checkin-message role="status" aria-live="polite"></span></section>'
+        + '<script src="/static/daily-checkin.js?v=20261106-1" defer></script>'
         + invite_card
         + admin_block
         + f'<section class="wx-history">{toolbar}<div id="wx-list"></div></section>'
@@ -333,7 +335,7 @@ _SCRIPT = """
       const sign = amount > 0 ? '+' : '';
       const order = orderOf(item);
       const title = item.feature || item.note || (amount > 0 ? '积分入账' : '功能消费');
-      const meta = [timeOf(item.created_at), kind === 'refund' ? '退款冲正' : kind === 'recharge' ? '充值' : '消费'];
+      const meta = [timeOf(item.created_at), item.source === 'daily_checkin' ? '签到赠送' : kind === 'refund' ? '退款冲正' : kind === 'recharge' ? '充值' : '消费'];
       html += `<article class="wx-row">
         <span class="wx-ico ${iconClass}">${kind === 'refund' ? '↩' : amount > 0 ? '+' : '−'}</span>
         <div>

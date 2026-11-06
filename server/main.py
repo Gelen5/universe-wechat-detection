@@ -887,6 +887,18 @@ def get_wallet(request: Request):
     }
 
 
+@app.get('/api/checkin')
+def get_checkin(request: Request):
+    user = accounts.require_user(request)
+    return accounts.checkin_status(user['id'])
+
+
+@app.post('/api/checkin')
+def post_checkin(request: Request):
+    user = accounts.require_user(request)
+    return accounts.daily_checkin(user['id'])
+
+
 @app.get("/api/pricing")
 def get_pricing(request: Request):
     accounts.require_user(request)
