@@ -148,6 +148,104 @@ class CreatorToolsTests(unittest.TestCase):
         self.assertIn('Do not depict people', prompt)
         self.assertNotIn('Keep the same fictional adult person', prompt)
 
+    def test_resolve_portrait_mode_reads_the_users_own_wording(self):
+        cases = [
+            ('', '图片中要有人物', 'required'),
+            ('auto', '中老年人如何安排退休生活，图片中要有人物', 'required'),
+            ('auto', '要有真人出镜', 'required'),
+            ('auto', '人物', 'required'),
+            ('auto', '画面里不要出现人物', 'off'),
+            ('auto', '不需要任何人物，纯静物', 'off'),
+            ('auto', '要有人物，不要静物', 'required'),
+            ('auto', '退休生活', 'auto'),
+            ('auto', '无聊的时候做什么', 'auto'),
+            # An explicit dropdown choice is never overridden by free text.
+            ('off', '图片中要有人物', 'off'),
+            ('required', '退休生活', 'required'),
+        ]
+        for requested, text, expected in cases:
+            with self.subTest(requested=requested, text=text):
+                self.assertEqual(creator_tools.resolve_portrait_mode(requested, intent=text), expected)
+
+    def test_tie_tu_auto_detects_people_from_the_requirement_field(self):
+        captured = {}
+
+        def enrich(prompt, *args, **kwargs):
+            captured['prompt'] = prompt
+            return {'angle': '生活视角', 'copy': '文案', 'cta': '收藏', 'cards': [
+                {'index': index, 'overlay_text': f'标题{index}', 'caption': '短句',
+                 'visual_subject': '中年女性在客厅整理书架', 'composition': '3:4 留白',
+                 'scene': f'居家场景{index}', 'action': '伸手放书'} for index in (1, 2)]}
+
+        with patch.object(creator_tools.workbench, '_json_text', side_effect=enrich):
+            result = creator_tools.tie_tu_plan('生活方式', '退休生活怎么安排', '', None, 2,
+                                               '温暖', '50岁', 'auto', '图片中要有人物')
+        self.assertTrue(result['portrait_enabled'])
+        self.assertEqual(result['portrait_route'], 'clean-lifestyle')
+        self.assertTrue(result['cards'][0]['portrait_spec'].get('negative_prompt'))
+        self.assertIn('画面必须出现人物', captured['prompt'])
+        self.assertIn('自然生活感', captured['prompt'])
+        self.assertNotIn('画面不能出现人物', captured['prompt'])
+
+    def test_tie_tu_auto_respects_an_explicit_no_people_requirement(self):
+        enriched = {'cards': [{'index': 1, 'overlay_text': '封面', 'caption': '短句',
+                              'visual_subject': '窗边的书桌', 'composition': '3:4', 'scene': '书房',
+                              'action': '阳光落在桌面上'}]}
+        with patch.object(creator_tools.workbench, '_json_text', return_value=enriched) as model:
+            result = creator_tools.tie_tu_plan('生活方式', '安静地读完一本书', '', 'list', 1,
+                                               '', '', 'auto', '画面不要出现人物')
+        self.assertFalse(result['portrait_enabled'])
+        self.assertEqual(model.call_count, 1)
+        self.assertEqual(result['cards'][0]['portrait_spec'], {})
+
+    def test_tie_tu_image_prompt_carries_the_skill_portrait_spec(self):
+        png = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=")
+        card = {
+            'index': 1, 'overlay_text': '退休后先做这三件事', 'caption': '从一张日程表开始',
+            'composition': '3:4 留白', 'scene': '居家客厅', 'action': '整理书架',
+            'portrait_enabled': True,
+            'portrait_spec': {
+                'subject': 'fictional clearly adult East Asian woman',
+                'direction': 'natural lifestyle portrait, soft daylight',
+                'pose': 'three-quarter body direction',
+                'camera': '3:4 vertical portrait, 50mm',
+                'lighting': 'motivated natural light',
+                'texture': 'natural skin pores',
+                'model_bible': {'continuity': 'same fictional adult model across all portrait cards'},
+                'negative_prompt': 'plastic skin, deformed hands, child, minor',
+            },
+        }
+        with tempfile.TemporaryDirectory() as folder, patch.object(creator_tools, 'OUTPUT_DIR', Path(folder)), patch.object(
+            image_provider, 'generate',
+            return_value={'data': [{'b64_json': base64.b64encode(png).decode('ascii')}]}
+        ) as generate:
+            creator_tools.generate_card_image('tie-tu', 'session', card)
+        prompt = generate.call_args.args[0]['prompt']
+        for expected in ('Portrait subject: fictional clearly adult East Asian woman',
+                         'Visual direction: natural lifestyle portrait',
+                         'Pose and action: three-quarter body direction',
+                         'Camera: 3:4 vertical portrait, 50mm',
+                         'Continuity: same fictional adult model',
+                         'Avoid (portrait quality): plastic skin, deformed hands, child, minor'):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, prompt)
+        self.assertNotIn('Do not depict people', prompt)
+
+    def test_tie_tu_image_prompt_hides_portrait_spec_when_people_are_off(self):
+        png = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=")
+        card = {'index': 1, 'overlay_text': '安静', 'portrait_enabled': False,
+                'portrait_spec': {'subject': 'fictional clearly adult East Asian woman',
+                                  'negative_prompt': 'plastic skin'}}
+        with tempfile.TemporaryDirectory() as folder, patch.object(creator_tools, 'OUTPUT_DIR', Path(folder)), patch.object(
+            image_provider, 'generate',
+            return_value={'data': [{'b64_json': base64.b64encode(png).decode('ascii')}]}
+        ) as generate:
+            creator_tools.generate_card_image('tie-tu', 'session', card)
+        prompt = generate.call_args.args[0]['prompt']
+        self.assertIn('Do not depict people', prompt)
+        self.assertNotIn('Portrait subject', prompt)
+        self.assertNotIn('Avoid (portrait quality)', prompt)
+
     def test_hit_detector_returns_editorial_gate(self):
         body = "退休以后，先记录真实开支，再和家人确认生活计划。\n\n" * 30
         result = creator_tools.detect_article("退休以后，先做这三件事", body)

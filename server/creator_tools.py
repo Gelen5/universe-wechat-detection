@@ -618,6 +618,72 @@ def xiaohongshu_precheck(title: str, body: str) -> dict[str, Any]:
     return {"status": status, "issues": issues[:3], "checked_by": "xiaohongshu-creator-skill"}
 
 
+# The Skill's own auto detection only understands a narrow "beauty portrait"
+# vocabulary (人像 / 美女 / 模特 / 写真 ...), so an explicit instruction such as
+# “图片中要有人物” never reached the portrait layer and the plan was built as a
+# no-people plan. These patterns read the user's own wording first.
+PORTRAIT_OFF_PATTERN = re.compile(
+    r'(?:无|不含|不要|不需要|不用|没有|避免|禁止|排除|去掉|去除|不加|不出|避开)\s*'
+    r'(?:任何|真实|真人|多余的)?\s*(?:出现|包含|带有|放|有|需)?\s*'
+    r'(?:人物|人像|人体|人脸|人群|人影|真人|模特|手部|手掌|手指)'
+)
+PORTRAIT_ON_PATTERN = re.compile(
+    r'人物|人像|真人|出镜|露脸|肖像|写真|模特|背影|人群|美女|女性形象|人物故事'
+)
+
+# The Skill keeps route ids in English for prompts; the planning prompt is
+# Chinese, so spell the route out instead of leaking an id into the copy model.
+PORTRAIT_ROUTE_LABELS = {
+    'retro-hongkong': '复古港风胶片',
+    'urban-fashion': '都市时尚街拍',
+    'ecommerce-tryon': '服装展示模特',
+    'gufeng-xianxia': '古风仙侠',
+    'new-chinese': '新中式东方美学',
+    'ultra-close-real-face': '超近景真实皮肤',
+    'low-key-cinematic-photography': '电影感暗调',
+    'clean-lifestyle': '自然生活感',
+}
+
+
+def resolve_portrait_mode(requested: str, *, intent: str) -> str:
+    """Resolve 人物模式 from the form choice plus the user's own wording.
+
+    An explicit 「保持同一人物」/「不使用人物」 choice always wins. 「自动判断」
+    then reads the user's text before falling back to the Skill keyword table,
+    because the keyword table has no plain 「人物」 entry.
+    """
+    requested = (requested or '').strip()
+    if requested in {'required', 'off'}:
+        return requested
+    text = intent or ''
+    if PORTRAIT_OFF_PATTERN.search(text):
+        return 'off'
+    if PORTRAIT_ON_PATTERN.search(text):
+        return 'required'
+    return 'auto'
+
+
+def _portrait_direction(spec: dict[str, Any]) -> str:
+    """Flatten the Skill's portrait spec into prompt lines the image model obeys."""
+    if not isinstance(spec, dict) or not spec:
+        return ''
+    lines = []
+    subject = str(spec.get('subject') or '').strip()
+    if subject:
+        lines.append(f'Portrait subject: {subject}, unmistakably adult and fictional')
+    for key, label in (('direction', 'Visual direction'), ('pose', 'Pose and action'),
+                       ('camera', 'Camera'), ('lighting', 'Lighting'),
+                       ('texture', 'Texture and realism')):
+        value = str(spec.get(key) or '').strip()
+        if value:
+            lines.append(f'{label}: {value}')
+    bible = spec.get('model_bible') if isinstance(spec.get('model_bible'), dict) else {}
+    continuity = str(bible.get('continuity') or '').strip()
+    if continuity:
+        lines.append(f'Continuity: {continuity}')
+    return '\n'.join(lines)
+
+
 def tie_tu_plan(
     industry: str,
     topic: str,
@@ -646,7 +712,10 @@ def tie_tu_plan(
     # planner consumes canonical IDs. Map only exact supported labels.
     requested_type = (content_type or '').strip()
     content_type = {label: key for key, label in CONTENT_TYPES.items()}.get(requested_type, requested_type) or None
-    portrait_mode = (portrait_mode or '').strip() or 'auto'
+    portrait_intent = ' '.join(
+        value for value in (industry, topic, title, style, audience, requirements) if value
+    )
+    portrait_mode = resolve_portrait_mode(portrait_mode, intent=portrait_intent)
     plan = build_plan(
         industry=industry,
         topic=topic,
@@ -657,6 +726,18 @@ def tie_tu_plan(
         audience=audience,
         portrait_mode=portrait_mode,
     )
+    if plan.portrait_enabled:
+        route_label = PORTRAIT_ROUTE_LABELS.get(plan.portrait_route, '自然生活感')
+        portrait_rule = (
+            f'画面必须出现人物；统一使用同一虚构成年人，视觉方向 {route_label}，'
+            '每张姿势、动作、服装与场景不雷同，action 描述这个人正在做的事'
+        )
+    else:
+        portrait_rule = (
+            '画面不能出现人物、人体、人脸或人群；使用无人物的物品与环境，'
+            'action 描述物件状态，不描写人物动作'
+        )
+    action_label = '人物动作' if plan.portrait_enabled else '物件、环境或光线状态'
     prompt = f"""{instructions}
 请在不改变卡片数量和角色顺序的前提下完善这份微信贴图号计划。
 
@@ -667,12 +748,12 @@ def tie_tu_plan(
 内容类型：{plan.content_type_label}
 视觉风格：{style or '成熟、温暖、清晰、可转发'}
 补充要求：{requirements}
-人物约束：{'允许按用户要求安排人物并保持一致' if plan.portrait_enabled else '画面不能出现人物、人体、人脸或人群；使用无人物的物品与环境，action 描述物件状态，不描写人物动作'}。
+人物约束：{portrait_rule}。
 卡片骨架：{json.dumps([{'index': c.index, 'role': c.role, 'purpose': c.purpose} for c in plan.cards], ensure_ascii=False)}
 
 要求：每张只保留一个信息重点；封面主标题只保留一个承诺；所有文字适合手机阅读；不编造排名、价格、医疗、收入或效果；{'同一组人物保持一致但姿势、动作、场景不雷同' if plan.portrait_enabled else '场景与物件各有变化，不出现人物'}；完整画面与准确中文标题在同一次图片生成中完成。
 
-只返回合法JSON：{{"angle":"...","copy":"不超过300字的配套短文案","cta":"...","cards":[{{"index":1,"overlay_text":"准确中文标题","caption":"配套短句","visual_subject":"画面主体","composition":"构图与文字安全区","scene":"独立场景","action":"人物动作"}}]}}。cards必须正好{image_count}项。"""
+只返回合法JSON：{{"angle":"...","copy":"不超过300字的配套短文案","cta":"...","cards":[{{"index":1,"overlay_text":"准确中文标题","caption":"配套短句","visual_subject":"画面主体","composition":"构图与文字安全区","scene":"独立场景","action":"{action_label}"}}]}}。cards必须正好{image_count}项。"""
     enriched = workbench._json_text(prompt)
     rows = enriched.get('cards')
     if not isinstance(rows, list) or len(rows) != image_count or any(not isinstance(item, dict) or type(item.get('index')) is not int for item in rows):
@@ -764,6 +845,18 @@ def generate_card_image(tool: str, session_id: str, card: dict[str, Any], style:
     no_people = safe_tool == 'tie-tu' and card.get('portrait_enabled') is False
     consistency = ('Do not depict people, faces, body parts or crowds; use objects and environments only.' if no_people else
                    'Keep the same fictional adult person, face and clothing logic when a person is requested; keep typography and palette consistent.')
+    # The Skill builds a full portrait spec (model bible, route direction, pose,
+    # optics, lighting, texture, negatives). Until now the Web layer threw it
+    # away and fed the image model a single sentence, so "same person" was a
+    # wish rather than a constraint.
+    portrait_spec = card.get('portrait_spec') if isinstance(card.get('portrait_spec'), dict) else {}
+    portrait_direction = ('' if no_people else _portrait_direction(portrait_spec))
+    portrait_block = f'{portrait_direction}\n' if portrait_direction else ''
+    negative_prompt = ''
+    if portrait_direction:
+        negative = str(portrait_spec.get('negative_prompt') or '').strip()
+        if negative:
+            negative_prompt = f'\nAvoid (portrait quality): {negative}.'
     text_safety = ("\nText layout is essential: keep every character completely visible inside the central 80% of the canvas, "
                    "leaving at least 10% clear margin on every side. Never let characters touch or cross the canvas edge. "
                    "If text is long, reduce font size and wrap naturally into multiple balanced lines; "
@@ -789,7 +882,7 @@ Action: {card.get('action') or ''}
 Composition: {card.get('composition') or '3:4 portrait, one visual focus, generous text-safe margins'}
 Art direction: {style or 'clean, bright, polished Chinese creator editorial style'}
 Consistency: {consistency}
-Constraints: generate image and accurate Chinese text in this one call; no border, no watermark, no logo, no QR code, no extra text, no fake metrics, no garbled text, no duplicated person, no cropped face or hands.{text_safety}"""
+{portrait_block}Constraints: generate image and accurate Chinese text in this one call; no border, no watermark, no logo, no QR code, no extra text, no fake metrics, no garbled text, no duplicated person, no cropped face or hands.{negative_prompt}{text_safety}"""
     model = workbench._setting("WECHAT_IMAGE_MODEL", "gpt-image-2")
     data = image_provider.generate({
         "model": model,

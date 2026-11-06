@@ -127,6 +127,13 @@
           ]
         },
         {
+          key: 'requirements',
+          ask: '画面里有什么必须出现，或者必须避开的？',
+          field: '#tie-requirements',
+          placeholder: '例如：每张都要有人物，中年女性居家场景；不要出现文字水印',
+          skippable: true
+        },
+        {
           key: 'style',
           ask: '视觉风格想要什么感觉？',
           field: '#tie-style',

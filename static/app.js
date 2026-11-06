@@ -931,7 +931,7 @@ async function postCreator(path, payload, signal, onAccepted) {
   };
   if (taskTypes[path]) {
     const taskPayload = path === '/api/xiaohongshu/package' ? { topic: payload.topic, account: payload.account, audience: payload.audience, goal: payload.goal, evidence: payload.evidence, content_type: payload.contentType }
-      : path === '/api/tie-tu/plan' ? { industry: payload.industry, topic: payload.topic, title: payload.title || '', content_type: payload.contentType || null, image_count: payload.imageCount, style: payload.style, audience: payload.audience, portrait_mode: payload.portraitMode }
+      : path === '/api/tie-tu/plan' ? { industry: payload.industry, topic: payload.topic, title: payload.title || '', content_type: payload.contentType || null, image_count: payload.imageCount, style: payload.style, audience: payload.audience, portrait_mode: payload.portraitMode, requirements: payload.requirements || '' }
       : path === '/api/hit-detector/analyze' ? { title: payload.title, body: payload.body, track: payload.track, fans: payload.fans, open_rate: payload.openRate }
       : path === '/api/hit-detector/rewrite' ? { title: payload.title, body: payload.body, detector_result: payload.detectorResult }
       : { tool: payload.tool, session_id: payload.sessionId, card: payload.card, style: payload.style };
@@ -1134,6 +1134,7 @@ document.querySelector('#tie-form')?.addEventListener('submit', async event => {
       audience: document.querySelector('#tie-audience').value.trim(),
       style: document.querySelector('#tie-style').value.trim(),
       portraitMode: document.querySelector('#tie-portrait').value,
+      requirements: document.querySelector('#tie-requirements')?.value.trim() || '',
     });
     renderTiePlan(data.plan);
   } catch (error) { showToast(error.message, 'error'); } finally { finish(); }

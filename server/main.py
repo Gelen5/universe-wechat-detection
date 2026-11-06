@@ -423,6 +423,7 @@ class TieTuPlanRequest(BaseModel):
     style: str = Field(default="", max_length=400)
     audience: str = Field(default="", max_length=200)
     portraitMode: str = Field(default="auto", pattern="^(auto|required|off)$")
+    requirements: str = Field(default="", max_length=2000)
     textApiKey: str | None = Field(default=None, max_length=300)
     imageApiKey: str | None = Field(default=None, max_length=300)
     textBaseUrl: str | None = Field(default=None, max_length=300)
@@ -1176,6 +1177,7 @@ def create_tie_tu_plan(payload: TieTuPlanRequest):
                 payload.industry, payload.topic, payload.title,
                 payload.contentType or None, payload.imageCount,
                 payload.style, payload.audience, payload.portraitMode,
+                payload.requirements,
             )
             return {"status": "success", "plan": plan}
     except (ValueError, workbench.ProviderError) as exc:

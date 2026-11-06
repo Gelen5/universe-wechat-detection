@@ -219,6 +219,23 @@ class CreatorApiIntegrationTests(unittest.TestCase):
         self.assertEqual(response.json()["plan"]["ratio"], "3:4")
         self.assert_shared_settings(captured)
 
+    def test_tie_tu_route_forwards_the_requirement_field(self):
+        captured = {}
+
+        def fake_plan(*args, **_kwargs):
+            captured['args'] = args
+            return {"session_id": "tie-session", "cards": [{"index": 1}], "ratio": "3:4"}
+
+        with patch.object(creator_tools, "tie_tu_plan", side_effect=fake_plan):
+            response = self.client.post("/api/tie-tu/plan", json={
+                **SHARED,
+                "topic": "退休生活怎么安排",
+                "imageCount": 1,
+                "requirements": "每一张都要有人物，中年女性居家场景",
+            })
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(captured["args"][8], "每一张都要有人物，中年女性居家场景")
+
     def test_shared_image_settings_reach_card_generation_route(self):
         captured = {}
 
