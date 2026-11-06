@@ -27,6 +27,19 @@ class CreatorToolsTests(unittest.TestCase):
         self.assertEqual(result["evidence_state"], "unknown")
         self.assertEqual(result["skill"], "xiaohongshu-creator-skill")
 
+    def test_tie_tu_conflicting_people_selection_is_rejected_before_model(self):
+        with patch.object(creator_tools.workbench, '_json_text') as model:
+            with self.assertRaisesRegex(ValueError, '人物要求有冲突'):
+                creator_tools.tie_tu_plan('生活', '主题', '', 'list', 2, '', '', 'off', '图片中要有人物')
+            model.assert_not_called()
+
+    def test_tie_tu_different_people_plan_keeps_selected_mode(self):
+        rows = [{'index': i, 'overlay_text': '标题', 'caption': '文字', 'visual_subject': '成年女性', 'composition': '留白'} for i in (1, 2)]
+        with patch.object(creator_tools.workbench, '_json_text', return_value={'cards': rows}) as model:
+            plan = creator_tools.tie_tu_plan('生活', '主题', '', 'list', 2, '', '', 'required', '', 'different')
+        self.assertEqual(plan['portrait_consistency'], 'different')
+        self.assertIn('各张可根据内容使用不同虚构成年人', model.call_args.args[0])
+
     def test_tie_tu_plan_preserves_count_and_contract(self):
         enriched = {
             "angle": "从生活场景切入",

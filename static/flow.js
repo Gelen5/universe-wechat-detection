@@ -117,18 +117,22 @@
         },
         {
           key: 'portrait',
-          ask: '画面里要出现同一个人吗？',
+          ask: '图片中是否需要人物？不确定可以选自动判断。',
           field: '#tie-portrait',
           isSelect: true,
           chips: [
-            { label: '保持同一个人', value: 'required' },
+            { label: '需要人物', value: 'required' },
             { label: '不要人物', value: 'off' },
-            { label: '你来定', value: 'auto' }
+            { label: '自动判断（推荐）', value: 'auto' }
           ]
         },
         {
+          key: 'consistency', ask: '多张图片中的人物如何安排？', field: '#tie-consistency', isSelect: true,
+          chips: [{label:'保持同一人物（推荐）',value:'same'},{label:'可以是不同人物',value:'different'},{label:'自行判断',value:'auto'}]
+        },
+        {
           key: 'requirements',
-          ask: '画面里有什么必须出现，或者必须避开的？',
+          ask: '还有什么想法？人物、场景、风格或颜色都可以说，也可以跳过。',
           field: '#tie-requirements',
           placeholder: '例如：每张都要有人物，中年女性居家场景；不要出现文字水印',
           skippable: true
@@ -151,7 +155,7 @@
       ],
       products: [
         { key: 'plan', n: '01', t: '分镜计划', tag: 'storyboard', note: '每张讲什么先定下来，再批量出图。', lines: [86, 74, 90, 66] },
-        { key: 'cards', n: '02', t: '卡片成图', tag: '3:4 cards', note: '保持同一个人物和视觉系统。', grid: true }
+        { key: 'cards', n: '02', t: '卡片成图', tag: '3:4 cards', note: '人物安排按你的选择执行。', grid: true }
       ]
     },
 
@@ -522,6 +526,7 @@
       step: { key: step.key, label: shortLabel(step) }
     });
     s.step += 1;
+    if (pageId === 'tie-tu' && f.steps[s.step]?.key === 'consistency' && (s.answers.portrait === 'off' || Number(s.answers.count || document.querySelector('#tie-count')?.value || 0) <= 1)) s.step += 1;
 
     if (s.step >= f.steps.length) {
       submitToBackend(pageId);

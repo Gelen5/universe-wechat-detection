@@ -694,7 +694,14 @@ def tie_tu_plan(
     audience: str,
     portrait_mode: str,
     requirements: str = '',
+    portrait_consistency: str = 'same',
 ) -> dict[str, Any]:
+    if portrait_consistency not in {'same', 'different', 'auto'}:
+        raise ValueError('人物一致性选项无效')
+    if portrait_mode == 'off' and PORTRAIT_ON_PATTERN.search(PORTRAIT_OFF_PATTERN.sub('', requirements)):
+        raise ValueError('人物要求有冲突：你选择了不要人物，但补充要求中提到了人物，请修改后继续')
+    if portrait_mode == 'required' and PORTRAIT_OFF_PATTERN.search(requirements):
+        raise ValueError('人物要求有冲突：你选择了需要人物，但补充要求中要求不要人物，请修改后继续')
     instructions, _ = skill_runtime.context(ROOT / 'vendor/skills/wechat_tie_tu')
     if image_count == 0:
         data = workbench._json_text(f'''{instructions}
@@ -729,7 +736,7 @@ def tie_tu_plan(
     if plan.portrait_enabled:
         route_label = PORTRAIT_ROUTE_LABELS.get(plan.portrait_route, '自然生活感')
         portrait_rule = (
-            f'画面必须出现人物；统一使用同一虚构成年人，视觉方向 {route_label}，'
+            f'画面必须出现人物；{"统一使用同一虚构成年人" if portrait_consistency == "same" else "各张可根据内容使用不同虚构成年人" if portrait_consistency == "different" else "根据内容自行决定人物是否相同"}，视觉方向 {route_label}，'
             '每张姿势、动作、服装与场景不雷同，action 描述这个人正在做的事'
         )
     else:
@@ -751,7 +758,7 @@ def tie_tu_plan(
 人物约束：{portrait_rule}。
 卡片骨架：{json.dumps([{'index': c.index, 'role': c.role, 'purpose': c.purpose} for c in plan.cards], ensure_ascii=False)}
 
-要求：每张只保留一个信息重点；封面主标题只保留一个承诺；所有文字适合手机阅读；不编造排名、价格、医疗、收入或效果；{'同一组人物保持一致但姿势、动作、场景不雷同' if plan.portrait_enabled else '场景与物件各有变化，不出现人物'}；完整画面与准确中文标题在同一次图片生成中完成。
+要求：每张只保留一个信息重点；封面主标题只保留一个承诺；所有文字适合手机阅读；不编造排名、价格、医疗、收入或效果；{('同一人物保持一致' if portrait_consistency == 'same' else '人物可不同' if portrait_consistency == 'different' else '按内容决定人物一致性') if plan.portrait_enabled else '场景与物件各有变化，不出现人物'}；完整画面与准确中文标题在同一次图片生成中完成。
 
 只返回合法JSON：{{"angle":"...","copy":"不超过300字的配套短文案","cta":"...","cards":[{{"index":1,"overlay_text":"准确中文标题","caption":"配套短句","visual_subject":"画面主体","composition":"构图与文字安全区","scene":"独立场景","action":"{action_label}"}}]}}。cards必须正好{image_count}项。"""
     enriched = workbench._json_text(prompt)
@@ -812,6 +819,7 @@ def tie_tu_plan(
     plan.cta = str(enriched.get("cta") or "")
     payload = plan.to_dict()
     payload["session_id"] = uuid.uuid4().hex
+    payload["portrait_consistency"] = portrait_consistency if plan.portrait_enabled else None
     payload["skill"] = "wechat-tie-tu-publisher"
     if visual_fallback:
         payload['visual_fallback_notice'] = '部分画面已调整为通用静物方案，请检查后再生成图片。'
@@ -844,12 +852,14 @@ def generate_card_image(tool: str, session_id: str, card: dict[str, Any], style:
     caption = str(card.get("caption") or "").strip() if safe_tool == 'tie-tu' else ""
     no_people = safe_tool == 'tie-tu' and card.get('portrait_enabled') is False
     consistency = ('Do not depict people, faces, body parts or crowds; use objects and environments only.' if no_people else
-                   'Keep the same fictional adult person, face and clothing logic when a person is requested; keep typography and palette consistent.')
+                   ('Use different fictional adult people as appropriate; keep typography and palette consistent.' if card.get('portrait_consistency') == 'different' else 'Decide whether people are the same based on the plan; keep typography and palette consistent.' if card.get('portrait_consistency') == 'auto' else 'Keep the same fictional adult person, face and clothing logic when a person is requested; keep typography and palette consistent.'))
     # The Skill builds a full portrait spec (model bible, route direction, pose,
     # optics, lighting, texture, negatives). Until now the Web layer threw it
     # away and fed the image model a single sentence, so "same person" was a
     # wish rather than a constraint.
     portrait_spec = card.get('portrait_spec') if isinstance(card.get('portrait_spec'), dict) else {}
+    if card.get('portrait_consistency') in {'different', 'auto'}:
+        portrait_spec = {**portrait_spec, 'model_bible': {}}
     portrait_direction = ('' if no_people else _portrait_direction(portrait_spec))
     portrait_block = f'{portrait_direction}\n' if portrait_direction else ''
     negative_prompt = ''

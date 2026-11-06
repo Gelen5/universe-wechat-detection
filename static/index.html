@@ -790,7 +790,7 @@
               <div class="form-section">
                 <div class="head"><div class="copy"><strong>填写创作内容</strong><small>只填主题也可以，其他选项可按需调整。</small></div></div>
                 <label class="field-wide">主题（必填）<textarea id="tie-topic" name="topic" autocomplete="off" required placeholder="例如：中老年人如何安排退休生活"></textarea></label>
-                <label class="field-wide">补充要求<input id="tie-requirements" name="requirements" autocomplete="off" placeholder="例如：每一张都要有人物，中年女性居家场景；或：画面不要出现人物"></label>
+                <label class="field-wide">还有什么想法？（选填）<input id="tie-requirements" name="requirements" autocomplete="off" placeholder="例如：画面中有一位穿职业装的女性，整体自然真实"><small>可以写人物、场景、风格或颜色；留空也能生成。</small></label>
                 <div class="field-grid">
                   <label>行业<input id="tie-industry" name="industry" autocomplete="off" value="生活方式"></label>
                   <label>目标读者<input id="tie-audience" name="audience" autocomplete="off" placeholder="例如：40-50 岁用户"></label>
@@ -800,11 +800,12 @@
                   <label>图片数量<input id="tie-count" name="image_count" autocomplete="off" inputmode="numeric" type="number" min="1" max="12" value="5"></label>
                 </div>
                 <div class="field-grid">
-                  <label>人物模式<select id="tie-portrait" name="portrait_mode" autocomplete="off"><option value="auto">自动判断</option><option value="required">保持同一人物</option><option value="off">不使用人物</option></select></label>
+                  <label>图片中是否需要人物？<select id="tie-portrait" name="portrait_mode" autocomplete="off"><option value="auto">自动判断（推荐）</option><option value="required">需要人物</option><option value="off">不要人物</option></select><small>不确定可以选自动判断，也可以在补充要求中描述人物。</small></label>
                   <label>视觉风格<input id="tie-style" name="visual_style" autocomplete="off" placeholder="成熟、温暖、清晰"></label>
                 </div>
               </div>
 
+              <label id="tie-consistency-wrap" class="field-wide">多张图片中的人物<select id="tie-consistency"><option value="same">保持同一人物（推荐）</option><option value="different">可以是不同人物</option><option value="auto">自行判断</option></select><small>系统会尽量保持同一人物的外貌和发型；动作和场景可以变化。</small></label>
               <button id="tie-plan" class="skill-primary" type="submit">
                 生成卡片计划 →
               </button>
@@ -1139,9 +1140,9 @@
     <script src="/static/creation-history.js?v=20261101-1"></script>
     <script src="/static/remix-publication.js?v=20261105-sticker-copy-placement"></script>
     <script src="/static/remix-save.js?v=20261101-publication-1"></script>
-    <script src="/static/app.js?v=20261105-topic-view-1-20261105-agent-attribution"></script>
+    <script src="/static/app.js?v=20261106-tietu-person-controls"></script>
     <script src="/static/daily-checkin.js?v=20261106-1" defer></script>
-    <script src="/static/flow.js?v=20261031-hide-diagnose-1"></script>
+    <script src="/static/flow.js?v=20261106-person-controls"></script>
     <script src="/static/studio-tools.js?v=20261106-xhs-glass"></script>
     <link rel="stylesheet" href="/static/creator-chat.css?v=20260906-conversation-1">
   <link rel="stylesheet" href="/static/tie-tu-studio.css?v=20261105-publication">
