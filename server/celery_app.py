@@ -16,7 +16,7 @@ _beat_only = len(sys.argv) > 1 and "beat" in sys.argv[1:] and "worker" not in sy
 _task_modules = ["server.workflow_tasks", "server.agent_tasks", "server.hotspots",
                  "server.provider_health", "server.wechat_plus_tasks",
                  "server.viral_remix_tasks", "server.lowfans_sync", "server.article_visual_tasks",
-                 "server.image_board"]
+                 "server.image_board", "server.membership_credit_tasks"]
 celery_app = Celery("universe_creator", broker=REDIS_URL, backend=REDIS_URL,
                     include=[] if _beat_only else _task_modules)
 
@@ -48,10 +48,12 @@ celery_app.conf.update(
         "lowfans.sync": {"queue": "text"},
         "image_board.sync": {"queue": "text"},
         "provider.health": {"queue": "text"},
+        "membership.credit_reconcile": {"queue": "text"},
     },
     worker_concurrency=max(1, int(os.getenv("CELERY_WORKER_CONCURRENCY", "4"))),
     beat_schedule={
         "recover-wechat-plus": {"task": "wechat_plus.recover", "schedule": 60.0},
+        "membership-credit-reconcile": {"task": "membership.credit_reconcile", "schedule": 60.0},
         "recover-article-visual": {"task": "article_visual.recover", "schedule": 60.0},
         "recover-stale-workflow-nodes": {
             "task": "workflow.recover_stale", "schedule": 60.0,

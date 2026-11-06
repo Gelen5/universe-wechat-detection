@@ -87,3 +87,6 @@ body.atelier #viral-insights-membership-modal .vi-card {
 #viral-insights-membership-modal .vi-buy { width: 100%; margin-top: 18px; }
 #viral-insights-membership-modal .vi-trial { display: block; width: 100%; margin-top: 10px; padding: 11px; border: 1px solid rgba(39,120,74,.3); border-radius: 999px; background: rgba(255,255,255,.55); color: #246642; font-weight: 700; cursor: pointer; }
 #viral-insights-membership-modal .vi-trial-note { display: block; text-align: center; color: #607e69; margin-top: 6px; }
+
+#viral-insights-membership-modal .vi-packages strong { color:#1b7044; font-size:12px; font-weight:750; line-height:1.35; }
+#viral-insights-membership-modal .vi-benefit-note, #viral-insights-membership-modal .vi-next-credit { padding:12px 14px; border:1px solid rgba(73,143,94,.16); border-radius:12px; background:rgba(255,255,255,.5); color:#456a53; font-size:12px; line-height:1.8; }

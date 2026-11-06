@@ -76,6 +76,9 @@
       const detailNode = el('p', null, '');
       detailNode.id = 'points-notice-detail';
 
+      const memberHint = el('p', 'points-notice-member-hint');
+      memberHint.id = 'points-notice-member-hint';
+      memberHint.hidden = true;
       const packages = el('div', 'points-notice-packages');
       packages.id = 'points-notice-packages';
       packages.append(el('p', 'points-notice-loading', '正在加载套餐…'));
@@ -88,7 +91,7 @@
       later.type = 'button';
       later.textContent = '稍后再说';
 
-      dialog.append(close, symbol, eyebrow, title, detailNode, packages, more, later);
+      dialog.append(close, symbol, eyebrow, title, detailNode, memberHint, packages, more, later);
       document.body.append(dialog);
 
       const dismiss = () => dialog.close();
@@ -109,6 +112,16 @@
     }
 
     dialog.querySelector('#points-notice-detail').textContent = detail;
+    const memberHint = dialog.querySelector('#points-notice-member-hint');
+    memberHint.hidden = true;
+    fetch('/api/viral-insights/membership', {credentials:'same-origin',cache:'no-store'})
+      .then(r => r.ok ? r.json() : null).then(data => {
+        if (data?.enabled && data.status === 'member_active') {
+          const date = data.membership_expires_at ? new Date(data.membership_expires_at).toLocaleDateString('zh-CN') : '';
+          memberHint.textContent = `会员${date ? '至 ' + date + ' 有效' : '仍有效'}，选题权限不受影响。每天签到可领 5 积分，也可充值继续创作。`;
+          memberHint.hidden = false;
+        }
+      }).catch(() => {});
     if (!dialog.open) {
       previousFocus = document.activeElement;
       dialog.showModal();

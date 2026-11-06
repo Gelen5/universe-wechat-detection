@@ -2,6 +2,9 @@
 from __future__ import annotations
 
 import os
+import json
+import logging
+import uuid
 import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -35,10 +38,26 @@ orders = Table("viral_insights_membership_orders", metadata,
 Index("idx_viral_membership_user_status", orders.c.user_id, orders.c.status)
 Index("idx_viral_membership_created", orders.c.status, orders.c.created_at)
 
+# One row per issued installment: payment callbacks and periodic recovery can
+# be retried safely without creating duplicate wallet credits.
+credit_campaign = Table('viral_insights_credit_campaign', metadata,
+    Column('id', Integer, primary_key=True), Column('started_at', String(40), nullable=False))
+credit_grants = Table('viral_insights_credit_grants', metadata,
+    Column('grant_key', String(64), primary_key=True), Column('out_trade_no', String(64), nullable=False, index=True),
+    Column('user_id', String(64), nullable=False, index=True), Column('period', Integer, nullable=False),
+    Column('points', Integer, nullable=False), Column('granted_at', String(40), nullable=False))
+credit_refunds = Table('viral_insights_credit_refunds', metadata,
+    Column('out_trade_no', String(64), primary_key=True), Column('user_id', String(64), nullable=False),
+    Column('granted', Integer, nullable=False), Column('recovered', Integer, nullable=False),
+    Column('shortfall', Integer, nullable=False), Column('created_at', String(40), nullable=False))
+BENEFITS = {'week': (30, 1), 'month': (80, 1), 'year': (80, 12)}
+log = logging.getLogger(__name__)
+
+
 PACKAGES = (
-    {"id": "week", "name": "周卡", "price": "9.90", "days": 7},
-    {"id": "month", "name": "月卡", "price": "29.90", "days": 30},
-    {"id": "year", "name": "年卡", "price": "199.00", "days": 365},
+    {"id": "week", "name": "周卡", "price": "9.90", "days": 7, "credits":30, "periods":1},
+    {"id": "month", "name": "月卡", "price": "29.90", "days": 30, "credits":80, "periods":1},
+    {"id": "year", "name": "年卡", "price": "199.00", "days": 365, "credits":80, "periods":12},
 )
 TRIAL_HOURS = 5
 
@@ -57,6 +76,13 @@ def init_schema() -> None:
     environments that do run migrations.
     """
     metadata.create_all(database.ENGINE, checkfirst=True)
+    with database.ENGINE.begin() as connection:
+        if connection.execute(select(credit_campaign.c.id).where(credit_campaign.c.id == 1)).first() is None:
+            try:
+                with connection.begin_nested():
+                    connection.execute(insert(credit_campaign).values(id=1, started_at=_db_now(connection).isoformat()))
+            except IntegrityError:
+                pass
 
 def _db_now(connection) -> datetime:
     """Database-server UTC time; never the client clock or app process clock."""
@@ -97,7 +123,27 @@ def _state(user_id: str, connection=None) -> dict[str, Any]:
         status = "owner_permanent" if owner else "member_active" if paid_until and paid_until > now else (
             "trial_active" if trial_until and trial_until > now else (
             "member_expired" if ever_purchased else "trial_expired" if trial else "trial_available"))
-        return {"enabled": enabled(), "status": status, "active": active,
+        next_credit = None
+        campaign = _parse(connection.execute(select(credit_campaign.c.started_at).where(credit_campaign.c.id == 1)).scalar_one())
+        for order in paid:
+            if order['package_id'] != 'year' or float(order['amount'] or 0) <= 0 or not order.get('paid_at') or not order.get('started_at') or not order.get('expires_at'):
+                continue
+            paid_at, start_at = _parse(order['paid_at']), _parse(order['started_at'])
+            if _parse(order['expires_at']) <= campaign:
+                continue
+            latest = connection.execute(select(func.max(credit_grants.c.period)).where(
+                credit_grants.c.out_trade_no == order['out_trade_no'])).scalar_one()
+            if latest is None:
+                legacy = paid_at < campaign
+                first = min(11, max(0, int((campaign-start_at).total_seconds() // (30*86400)))) if legacy else 0
+                due = max(campaign, start_at + timedelta(days=30*first)) if legacy else paid_at
+            elif latest < 11:
+                due = (start_at if paid_at < campaign else paid_at) + timedelta(days=30*(latest+1))
+            else:
+                continue
+            if next_credit is None or due < next_credit:
+                next_credit = due
+        return {"credit_next_at": _iso(next_credit), "enabled": enabled(), "status": status, "active": active,
             "trial_activated_at": trial["activated_at"] if trial else None,
             "trial_expires_at": trial["expires_at"] if trial else None,
             "membership_expires_at": _iso(paid_until),
@@ -215,9 +261,12 @@ def _parse(value: str | None) -> datetime | None:
 
 def _lock_user(connection, user_id: str) -> None:
     """Serialize every entitlement write for one user (PostgreSQL row lock)."""
+    from .models import users_table
     if connection.dialect.name == "postgresql":
-        from .models import users_table
         connection.execute(select(users_table.c.id).where(users_table.c.id == user_id).with_for_update()).first()
+    elif connection.dialect.name == 'sqlite':
+        # Obtain SQLite's write lock before checking an order/credit state.
+        connection.execute(update(users_table).where(users_table.c.id == user_id).values(id=user_id))
 
 def _recompute(connection, user_id: str) -> None:
     """Rebuild every paid window in payment order.
@@ -238,6 +287,93 @@ def _recompute(connection, user_id: str) -> None:
         connection.execute(update(orders).where(orders.c.out_trade_no == row["out_trade_no"])
                            .values(started_at=start.isoformat(), expires_at=cursor.isoformat()))
 
+def _grant_installment(connection, row, period: int, now: datetime) -> bool:
+    from .models import Wallet, PointTransaction
+    package = BENEFITS.get(row['package_id'])
+    if not package or not 0 <= period < package[1] or row['status'] != 'PAID':
+        return False
+    key = f"vi-credit:{row['out_trade_no']}:{period}"
+    query = select(Wallet.__table__).where(Wallet.user_id == row['user_id'])
+    if connection.dialect.name == 'postgresql':
+        query = query.with_for_update()
+    wallet = connection.execute(query).mappings().first()
+    if not wallet:
+        raise ValueError('会员积分钱包不存在')
+    if connection.execute(select(credit_grants.c.grant_key).where(credit_grants.c.grant_key == key)).first():
+        return False
+    points = package[0]
+    before = int(wallet['balance']); stamp = now.isoformat()
+    connection.execute(update(Wallet.__table__).where(Wallet.user_id == row['user_id']).values(
+        balance=Wallet.balance + points, bonus_balance=Wallet.bonus_balance + points, updated_at=stamp))
+    connection.execute(insert(PointTransaction.__table__).values(
+        id=uuid.uuid4().hex, user_id=row['user_id'], amount=points, balance_before=before,
+        balance_after=before+points, bucket='bonus', kind='recharge', source='membership_credit',
+        feature='会员创作积分', request_id=key, note=f"{row['package_id']} 会员第 {period+1} 期",
+        allocation_json=json.dumps({'bonus':points}), created_at=stamp))
+    connection.execute(insert(credit_grants).values(grant_key=key, out_trade_no=row['out_trade_no'],
+        user_id=row['user_id'], period=period, points=points, granted_at=stamp))
+    return True
+
+
+def reconcile_credit_grants() -> dict:
+    """Issue due installments, including one current-period grant to legacy members."""
+    with database.ENGINE.connect() as conn:
+        campaign = _parse(conn.execute(select(credit_campaign.c.started_at).where(credit_campaign.c.id == 1)).scalar_one())
+        candidates = conn.execute(select(orders.c.out_trade_no).where(
+            orders.c.status == 'PAID', orders.c.expires_at > campaign.isoformat(),
+            orders.c.package_id.in_(list(BENEFITS)))).scalars().all()
+    issued = 0
+    failed = 0
+    for oid in candidates:
+        try:
+            with database.ENGINE.begin() as conn:
+                row = conn.execute(select(orders).where(orders.c.out_trade_no == oid)).mappings().first()
+                if not row: continue
+                _lock_user(conn, row['user_id'])
+                row = conn.execute(select(orders).where(orders.c.out_trade_no == oid)).mappings().first()
+                if not row or row['status'] != 'PAID' or not row['paid_at'] or not row['started_at']:
+                    continue
+                now = _db_now(conn)
+                paid, start = _parse(row['paid_at']), _parse(row['started_at'])
+                if float(row['amount'] or 0) <= 0:
+                    continue
+                legacy = paid < campaign
+                # Legacy orders only get the current and future periods, never all
+                # past periods. Future queued legacy orders start on entitlement start.
+                if legacy:
+                    if _parse(row['expires_at']) <= campaign or now < start: continue
+                    anchor = start
+                    first = max(0, int((campaign - start).total_seconds() // (30*86400)))
+                    first = min(first, BENEFITS[row['package_id']][1] - 1)
+                else:
+                    anchor, first = paid, 0
+                for period in range(first, BENEFITS[row['package_id']][1]):
+                    if now < anchor + timedelta(days=30 * period): break
+                    issued += int(_grant_installment(conn, row, period, now))
+        except Exception:
+            failed += 1
+            log.exception('会员积分发放失败，等待重试 order=%s', oid)
+    return {'orders_checked':len(candidates), 'issued':issued, 'failed':failed}
+
+
+def _reverse_credits(connection, row, now):
+    """Stop future grants and record issued credits for manual refund review.
+
+    Existing bonus balances combine check-ins, invitations and membership
+    credits, so deducting that balance cannot identify which credits remain.
+    Do not silently take an unrelated reward or a customer's purchased points.
+    """
+    oid = row['out_trade_no']
+    if connection.execute(select(credit_refunds.c.out_trade_no).where(credit_refunds.c.out_trade_no == oid)).first():
+        return
+    total = int(connection.execute(select(func.coalesce(func.sum(credit_grants.c.points), 0))
+                                  .where(credit_grants.c.out_trade_no == oid)).scalar_one())
+    connection.execute(insert(credit_refunds).values(out_trade_no=oid, user_id=row['user_id'],
+        granted=total, recovered=0, shortfall=total, created_at=now.isoformat()))
+    if total:
+        log.warning('会员退款已发积分待人工核对 order=%s points=%s', oid, total)
+
+
 def apply_paid(out_trade_no: str, trade_no: str | None = None) -> bool:
     """Idempotently grant this membership order; called only after Alipay verification."""
     with database.ENGINE.begin() as connection:
@@ -255,6 +391,9 @@ def apply_paid(out_trade_no: str, trade_no: str | None = None) -> bool:
         connection.execute(update(orders).where(orders.c.out_trade_no == out_trade_no)
                            .values(status="PAID", paid_at=now.isoformat()))
         _recompute(connection, row["user_id"])
+        row = connection.execute(select(orders).where(orders.c.out_trade_no == out_trade_no)).mappings().one()
+        if row['package_id'] in BENEFITS and float(row['amount'] or 0) > 0:
+            _grant_installment(connection, row, 0, now)
         from . import alipay_pay
         values = {"status": "PAID", "paid_at": alipay_pay._now(), "updated_at": alipay_pay._now()}
         if trade_no:
@@ -279,6 +418,7 @@ def apply_refund(out_trade_no: str) -> bool:
         current = connection.execute(select(orders.c.status).where(orders.c.out_trade_no == out_trade_no)).scalar()
         if current != "PAID":
             return False
+        _reverse_credits(connection, row, _db_now(connection))
         connection.execute(update(orders).where(orders.c.out_trade_no == out_trade_no).values(
             status="REFUNDED", refunded_at=_db_now(connection).isoformat(), started_at=None, expires_at=None))
         _recompute(connection, row["user_id"])

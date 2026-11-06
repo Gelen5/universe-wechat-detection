@@ -125,6 +125,7 @@
     const contentType = response.headers.get('content-type') || '';
     if (!contentType.includes('application/json')) throw new Error('连接暂时中断，请稍后重试；已保存的内容不会丢失。');
     const result = await response.json();
+    window.PointsNotice?.fromResponse(response, result);
     if (!response.ok) throw new Error(typeof result.detail === 'string' ? result.detail : `请求未完成（${response.status}）`);
     return result;
   }

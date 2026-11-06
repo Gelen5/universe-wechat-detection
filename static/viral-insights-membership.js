@@ -35,8 +35,10 @@
       : d.status === 'logged_out'
       ? '<p>登录后可选择开启一次 5 小时免费试用；不点击不会开始计时，也不会自动扣费。</p><button class="vi-primary" data-vi-login>登录 / 注册</button>'
       : `${d.pending_order ? `<p class="vi-pending">已有订单待支付；支付成功后会员才会生效。</p>` : ''}
-         <p>查看完整榜单，按分类、关键词和阅读量找到内容灵感。</p>
-         <div class="vi-packages">${state.packages.map(p => `<button type="button" data-vi-package="${esc(p.id)}" aria-pressed="false"><b>${esc(p.name)}</b><span>¥${esc(p.price)} / ${esc(p.days)}天</span></button>`).join('')}</div>
+         <p>会员期间查看完整榜单与选题；开通还可获得创作积分，用于写作和图片生成。</p>
+         ${d.credit_next_at ? `<p class="vi-next-credit">年卡下期 80 积分预计 ${esc(fmt(d.credit_next_at))} 到账</p>` : ''}
+         <div class="vi-packages">${state.packages.map(p => `<button type="button" data-vi-package="${esc(p.id)}" aria-pressed="false"><b>${esc(p.name)}</b><span>¥${esc(p.price)} / ${esc(p.days)}天</span><strong>${p.id === 'year' ? '每期 80 分 × 12' : '含 ' + esc(p.credits) + ' 积分'}</strong></button>`).join('')}</div>
+         <p class="vi-benefit-note">周卡 30 分、月卡 80 分开通即到账；年卡首期 80 分即到账，之后每 30 天发放一期，共 12 期。续费按新订单发放。<br>积分用完后，会员期内仍可查看选题；每天签到可领 5 分，也可充值补充。<br>部分或全部退款将终止该订单权益和后续积分发放，已发积分需人工核对处理。</p>
          <button type="button" class="vi-primary vi-buy" data-vi-buy>开通会员</button>
          ${d.status === 'trial_available' ? '<button type="button" class="vi-trial" data-vi-trial>先免费体验 5 小时</button><small class="vi-trial-note">点击开启后开始计时</small>' : ''}`;
     const packageButtons = [...node.querySelectorAll('[data-vi-package]')];

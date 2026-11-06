@@ -38,7 +38,7 @@
       const generate = document.createElement('button'); generate.type = 'button'; generate.textContent = data ? '重新生成标题和配文 · 1积分' : '生成标题和配文 · 1积分'; generate.onclick = async () => {
         if (data && !confirm('重新生成会替换已保存的标题和文案，继续吗？')) return;
         generate.disabled = true; message.textContent = '正在生成标题和文案，请稍候…';
-        try { const response = await fetch(endpoint, options.context ? {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({context:options.context})} : {method:'POST'}); const result = await response.json(); if (!response.ok) throw new Error(result.detail || '生成失败'); data = result.publication; job.publication = data; paint(); if (typeof refreshWallet === 'function') refreshWallet(); } catch(e) { message.textContent = e.message; } finally { generate.disabled = false; }
+        try { const response = await fetch(endpoint, options.context ? {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({context:options.context})} : {method:'POST'}); const result = await response.json(); window.PointsNotice?.fromResponse(response, result); if (!response.ok) throw new Error(result.detail || '生成失败'); data = result.publication; job.publication = data; paint(); if (typeof refreshWallet === 'function') refreshWallet(); } catch(e) { message.textContent = e.message; } finally { generate.disabled = false; }
       }; actions.append(generate); panel.append(actions);
     }
     paint(); return panel;

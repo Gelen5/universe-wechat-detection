@@ -47,7 +47,7 @@ from alipay.aop.api.request.AlipayTradeRefundRequest import AlipayTradeRefundReq
 from alipay.aop.api.util.SignatureUtils import get_sign_content, verify_with_rsa
 
 from .site_icons import SITE_ICONS
-from . import accounts
+from . import accounts, database
 from .database import ENGINE
 
 logger = logging.getLogger(__name__)
@@ -877,11 +877,12 @@ def pricing_page() -> HTMLResponse:
         '<div class="pricing-shell"><a class="pricing-back" href="/">← 返回工作台</a>'
         '<header class="pricing-intro"><div><div class="pricing-kicker"><span></span> CREATOR OS · 积分套餐</div>'
         '<h1>让灵感，<br><em>变成一张张作品。</em></h1>'
-        '<p>从第一张图片，到持续创作。选择适合自己的积分，按需使用。</p></div>'
+        '<p>会员已含创作积分；积分用完后，可在这里按需补充。</p></div>'
         '<div class="pricing-rate"><span>简单透明</span><strong>按需购买</strong><small>积分统一使用，按功能消耗</small></div></header>'
         '<section aria-label="选择积分套餐"><div class="pricing-section"><div><span>CHOOSE YOUR PLAN</span><h2>为创作，选一个刚好的开始</h2></div><p>按所选套餐的积分数量到账</p></div>'
         '<div class="plans">' + ''.join(cards) + '</div></section>'
         f'<div class="pricing-details"><strong>关于图片数量</strong><p>按爆款贴图复刻原创图片 {image_points} 积分 / 张估算，实际张数向下取整。不同图片功能消耗可能不同；拆解、策划和文案等步骤如需积分，将分别计费，具体以功能页面为准。</p>'
+        '<p>会员有效期内可继续查看选题，创作积分不足时可签到或充值补充。 <a href="/lowfans">查看会员权益 →</a></p>'
         '<p>付款成功后积分自动记入当前账号。任务失败按对应功能规则退还积分。</p></div>'
         '<div class="pricing-footer"><span>宇宙第一工作台 · 为每一个创作想法留出空间</span><a href="/">返回工作台 →</a></div></div>'
     )
@@ -1612,6 +1613,14 @@ def pay_result(request: Request, out_trade_no: str = "") -> HTMLResponse:
         member = viral_insights_membership.order_summary(out_trade_no)
         if member:
             rows.append(f"<dt>购买内容</dt><dd>爆款情报会员 · {member['days']} 天</dd>")
+            if paid and member['package_id'] in viral_insights_membership.BENEFITS:
+                with database.ENGINE.connect() as connection:
+                    grant = connection.execute(select(viral_insights_membership.credit_grants.c.points).where(
+                        viral_insights_membership.credit_grants.c.out_trade_no == out_trade_no,
+                        viral_insights_membership.credit_grants.c.period == 0)).scalar()
+                rows.append(f"<dt>创作积分</dt><dd>{str(grant) + ' 积分已到账' if grant is not None else '到账处理中'}</dd>")
+                if member['package_id'] == 'year':
+                    rows.append('<dt>后续发放</dt><dd>每 30 天 80 积分，共 12 期（含首期）</dd>')
             if member.get("expires_at"):
                 expires = datetime.fromisoformat(member['expires_at'].replace('Z', '+00:00'))
                 rows.append(f"<dt>本单权益至</dt><dd>{expires.astimezone(timezone(timedelta(hours=8))).strftime('%Y-%m-%d %H:%M:%S')} 北京时间</dd>")

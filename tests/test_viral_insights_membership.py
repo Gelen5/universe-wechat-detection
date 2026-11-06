@@ -375,7 +375,7 @@ def test_refund_retry_recovers_after_event_recorded(paywall, clock):
     assert not vim.has_access(uid)
 
 
-def test_membership_payment_never_credits_points_or_referral(paywall, clock):
+def test_membership_payment_grants_bonus_without_referral(paywall, clock):
     from server import referrals, referral_recharge as rr
     inviter = accounts.create_user(uuid.uuid4().hex + "@example.test", "testing-pass-123", "a")["id"]
     client, invitee = _client_for_new_user()
@@ -388,7 +388,8 @@ def test_membership_payment_never_credits_points_or_referral(paywall, clock):
         assert _post_notify(TestClient(app), params) == "success"
     assert vim.has_access(invitee) is True
     assert accounts.wallet_summary(inviter) == before_a
-    assert accounts.wallet_summary(invitee)["balance"] == before_b["balance"]
+    assert accounts.wallet_summary(invitee)["balance"] == before_b["balance"] + 80
+    assert accounts.wallet_summary(invitee)["bonus"] == before_b["bonus"] + 80
     with accounts._connect() as connection:
         assert connection.execute("SELECT COUNT(*) AS n FROM alipay_recharges WHERE out_trade_no=?", (oid,)).fetchone()["n"] == 0
 

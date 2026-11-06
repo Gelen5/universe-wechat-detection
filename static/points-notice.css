@@ -29,3 +29,5 @@ text-decoration:underline dotted;margin:0 0 16px}
 html body #points-notice a.points-notice-more:hover{color:#1B7A58}
 #points-notice button:focus-visible{outline:2px solid #5e9973;outline-offset:3px}
 @media(max-width:480px){html body #points-notice{padding:28px 24px;border-radius:24px}}
+
+html body #points-notice .points-notice-member-hint { padding:11px 13px; margin:14px 0; border-radius:12px; background:#e6f5e9; color:#245c38; font-size:13px; line-height:1.7; }

@@ -106,6 +106,7 @@
     }
     let data = null;
     try { data = await response.json(); } catch (_) { /* ignore */ }
+    window.PointsNotice?.fromResponse(response, data);
     if (!response.ok) {
       if (response.status === 401) {
         if (typeof showAuth === 'function') showAuth(true);
