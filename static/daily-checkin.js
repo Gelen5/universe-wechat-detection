@@ -7,9 +7,12 @@
       const button = card.querySelector('[data-checkin-button]');
       const detail = card.querySelector('[data-checkin-detail]');
       const feedback = card.querySelector('[data-checkin-message]');
+      const title = card.querySelector('.daily-checkin-copy strong');
+      const sidebar = card.classList.contains('daily-checkin-sidebar');
       button.disabled = pending || checked;
       button.textContent = pending ? '签到中…' : checked ? '今日已签到' : unavailable ? '重试' : signedIn ? '签到领 5 分' : '登录后签到';
-      detail.textContent = checked ? '明天再来，继续领取' : '每天领取 5 积分';
+      title.textContent = sidebar && checked ? '今日已签到' : '每日签到';
+      detail.textContent = checked ? (sidebar ? '明天可继续领 5 积分' : '明天再来，继续领取') : '每天领取 5 积分';
       feedback.textContent = message;
       card.classList.toggle('is-checked', checked);
     });

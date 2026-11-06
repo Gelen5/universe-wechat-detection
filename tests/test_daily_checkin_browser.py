@@ -4,7 +4,7 @@ import pytest
 from playwright.sync_api import expect
 from tests.test_ui_shell_browser import browser, ui
 
-@pytest.mark.parametrize('width', [390, 1440])
+@pytest.mark.parametrize('width', [390, 1101, 1440, 1920])
 def test_checkin_ui_status_and_duplicate_protection(ui, width):
     page, state = ui
     page.set_viewport_size({'width': width, 'height':900})
@@ -27,7 +27,21 @@ def test_checkin_ui_status_and_duplicate_protection(ui, width):
     button.click()
     expect(button).to_have_text('今日已签到')
     expect(button).to_be_disabled()
+    if width > 1100:
+        expect(button).to_be_hidden()
+        expect(card.locator('.daily-checkin-copy strong')).to_have_text('今日已签到')
+        expect(card.locator('[data-checkin-detail]')).to_have_text('明天可继续领 5 积分')
+        assert card.evaluate('(el) => el.scrollWidth <= el.clientWidth')
     expect(card.locator('[role=status]')).to_have_text('+5 积分已到账')
+    assert issued['posts'] == 1
+    if os.getenv('CHECKIN_SHOTS'):
+        page.screenshot(path=str(Path(os.environ['CHECKIN_SHOTS']) / f'checkin-after-{width}.png'),full_page=True)
+    page.reload()
+    expect(card).to_be_visible()
+    expect(button).to_be_disabled()
+    if width > 1100:
+        expect(button).to_be_hidden()
+        expect(card.locator('.daily-checkin-copy strong')).to_have_text('今日已签到')
     assert issued['posts'] == 1
     if os.getenv('CHECKIN_SHOTS'):
         page.screenshot(path=str(Path(os.environ['CHECKIN_SHOTS']) / f'checkin-after-{width}.png'),full_page=True)

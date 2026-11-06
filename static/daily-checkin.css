@@ -19,3 +19,10 @@
 .daily-checkin-sidebar { gap:7px; padding:10px; }
 .daily-checkin-sidebar .daily-checkin-copy small { font-size:10px; white-space:nowrap; }
 .daily-checkin-sidebar button { min-height:38px; padding:7px; }
+
+/* Keep the completed desktop state readable without a redundant disabled button. */
+.daily-checkin-sidebar.is-checked { min-height:58px; gap:10px; padding:10px 12px; }
+.daily-checkin-sidebar.is-checked button { display:none; }
+.daily-checkin-sidebar.is-checked .daily-checkin-copy strong { font-size:13px; }
+.daily-checkin-sidebar.is-checked .daily-checkin-copy small { font-size:11px; color:#557562; white-space:normal; }
+.daily-checkin-sidebar.is-checked .daily-checkin-message:not(:empty) { padding-left:38px; margin-top:-4px; }
