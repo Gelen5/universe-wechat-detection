@@ -1667,6 +1667,7 @@ function setActiveView(view, updateHash = false) {
   document.body.classList.toggle('market-body', view === 'market');
   document.body.classList.toggle('hotspots-body', view === 'hotspots');
   document.body.classList.toggle('lowfans-body', view === 'lowfans');
+  document.body.classList.toggle('topic-library-body', view === 'topic-library');
   document.body.classList.toggle('image-board-body', view === 'image-board');
   if (view === 'market') window.MarketView?.ensureLoaded?.();
   if (view === 'wechat-plus') window.WechatPlus?.ensureLoaded?.();

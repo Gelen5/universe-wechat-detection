@@ -7,3 +7,6 @@ html { scrollbar-color: #8bb39b #dcebdc; }
 html::-webkit-scrollbar { width: 10px; }
 html::-webkit-scrollbar-track { background: #dcebdc; }
 html::-webkit-scrollbar-thumb { background: #8bb39b; border: 2px solid #dcebdc; border-radius: 10px; }
+
+/* The embedded view shares the workbench background across the sidebar and content. */
+html:has(body.embedded), body.embedded { background: transparent; }
