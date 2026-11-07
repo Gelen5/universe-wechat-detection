@@ -46,6 +46,8 @@ def validate(text: str) -> str:
         raise ValueError("原文至少需要 20 个字符")
     if len(value) > MAX_CHARS:
         raise ValueError(f"单次最多 {MAX_CHARS} 个字符，请分段处理")
+    if re.fullmatch(r"https?://mp\.weixin\.qq\.com/[^\s]+", value, flags=re.I):
+        raise ValueError("去 AI 味需要文章正文，请先提取公众号正文后再提交；不要直接粘贴文章链接")
     return value
 
 

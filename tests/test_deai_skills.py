@@ -67,6 +67,10 @@ class TestDeaiBilling:
         assert deai.points_for("字" * 1001) == 6
         assert deai.points_for("字" * 20000) == 30
 
+    def test_validate_rejects_wechat_article_url(self):
+        with pytest.raises(ValueError, match="需要文章正文"):
+            deai.validate("https://mp.weixin.qq.com/s/alrdVgZ-G8soOLAxrl9dPw")
+
     def test_run_job_marks_all_steps_done(self):
         report = {"gate": "passed", "summary": "完成", "audit": {"status": "success"}}
         with patch.object(workbench, "_review", return_value=("改写后的正文", report)), \

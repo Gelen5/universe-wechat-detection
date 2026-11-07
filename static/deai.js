@@ -131,6 +131,9 @@
     showError("");
     const content = els.content.value.trim();
     if (content.length < 20) return showError("原文至少需要 20 个字符。");
+    if (/^https?:\/\/mp\.weixin\.qq\.com\/\S+$/i.test(content)) {
+      return showError("请先提取公众号正文，再提交去 AI 味；不要直接粘贴文章链接。");
+    }
     els.submit.disabled = true;
     els.submit.textContent = "提交中…";
     els.result.hidden = true;
