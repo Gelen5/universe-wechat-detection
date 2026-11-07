@@ -42,6 +42,7 @@ celery_app.conf.update(
         "wechat_plus.recover": {"queue": "chat"},
         "content_factory.recover": {"queue": "chat"},
         "viral_remix.run": {"queue": "image"},
+        "viral_remix.analyze": {"queue": "text"},
         "article_visual.plan": {"queue": "text"},
         "article_visual.recover": {"queue": "text"},
         "market.sync": {"queue": "text"},

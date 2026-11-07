@@ -119,4 +119,85 @@ def settle(job: dict[str, Any], images: list[dict[str, Any]], elapsed_ms: int) -
         accounts.refund_usage(usage_id, 200, elapsed_ms)
 
 
-__all__ = ['LANE', 'TASK_TYPE', 'count_cards', 'submit', 'public', 'settle', 'creator_tools']
+# ---------------------------------------------------------------- 拆解（视觉分析）
+# 拆解是纯视觉分析，一次 2 积分（规则沿用 POST /api/viral-remix/analyze）。
+# 同步接口在手机上要吊 2 分半长连接，实测会被移动网关吞掉响应，所以改成
+# 「提交 → 轮询」：参考图先进 Redis（见 remix_reference.py），任务只带 token。
+ANALYZE_TASK_TYPE = 'viral_remix.analyze'
+ANALYZE_LANE = 'text'
+ANALYZE_PATH = '/api/viral-remix/analyze'
+ANALYZE_STAGES = {'queued': '排队中', 'running': '正在拆解图片结构'}
+
+
+def analyze_key(session_id: str, token: str, goal: str, preserve_person: bool) -> str:
+    digest = hashlib.sha256(
+        json.dumps(['analysis-v1', session_id, token, goal, bool(preserve_person)],
+                   sort_keys=True, ensure_ascii=False).encode()
+    ).hexdigest()[:40]
+    return 'viral-remix-analyze:' + digest
+
+
+def submit_analyze(user_id: str, session_id: str, token: str, goal: str = '',
+                   preserve_person: bool = False) -> dict[str, Any]:
+    """预扣 2 积分 + 建拆解任务。返回 jobs 表的一行（调用方负责 dispatch）。"""
+    rule = accounts.pricing_rule('POST', ANALYZE_PATH)
+    if not rule:
+        raise RuntimeError('拆解计费规则未启用')
+    usage_id = accounts.reserve_points(user_id, rule, 'POST', ANALYZE_PATH)
+    try:
+        job = accounts.create_job(
+            user_id, ANALYZE_TASK_TYPE, ANALYZE_LANE,
+            analyze_key(session_id, token, goal, preserve_person), usage_id,
+            {'session_id': session_id, 'token': token, 'goal': goal,
+             'preserve_person': bool(preserve_person)})
+    except Exception:
+        accounts.refund_usage(usage_id, 500, 0)
+        raise
+    if not job:
+        accounts.refund_usage(usage_id, 500, 0)
+        raise RuntimeError('任务创建失败')
+    # 幂等重放：同一个 token 重复提交时返回旧行，本次预扣要退掉。
+    if job.get('usage_id') and job['usage_id'] != usage_id:
+        accounts.refund_usage(usage_id, 200, 0)
+    return job
+
+
+def public_analyze(job: dict[str, Any]) -> dict[str, Any]:
+    """jobs 行 → 前端结构；拆解结果放在 result 顶层，与旧同步接口返回一致。"""
+    payload: dict[str, Any] = {}
+    result: dict[str, Any] = {}
+    try:
+        payload = json.loads(job.get('payload_json') or '{}')
+    except Exception:  # noqa: BLE001
+        payload = {}
+    try:
+        result = json.loads(job.get('result_json') or '{}')
+    except Exception:  # noqa: BLE001
+        result = {}
+    status = job.get('status') or 'queued'
+    return {
+        'id': job.get('id'),
+        'status': status,
+        'session_id': payload.get('session_id'),
+        'stage': ANALYZE_STAGES.get(status) or ('拆解完成' if status == 'succeeded' else '正在拆解图片结构'),
+        'result': result.get('result') if status == 'succeeded' else None,
+        'error': job.get('error') or '',
+        'created_at': job.get('created_at'),
+        'finished_at': job.get('finished_at'),
+    }
+
+
+def settle_analyze(job: dict[str, Any], succeeded: bool, elapsed_ms: int) -> None:
+    """拆解只有成/不成两态：成则结算 2 积分，失败全额退回。"""
+    usage_id = job.get('usage_id')
+    if not usage_id:
+        return
+    if succeeded:
+        accounts.settle_usage(usage_id, 200, elapsed_ms)
+    else:
+        accounts.refund_usage(usage_id, 500, elapsed_ms)
+
+
+__all__ = ['LANE', 'TASK_TYPE', 'count_cards', 'submit', 'public', 'settle', 'creator_tools',
+           'ANALYZE_TASK_TYPE', 'ANALYZE_LANE', 'ANALYZE_PATH',
+           'submit_analyze', 'public_analyze', 'settle_analyze']

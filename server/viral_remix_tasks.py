@@ -127,3 +127,61 @@ def run(self, job_id: str):
     accounts.fail_job(job_id, error or '一张图都没有生成成功')
     jobs.settle(job, [], elapsed)
     return {'status': 'failed'}
+
+
+# ---------------------------------------------------------------- 拆解（视觉分析）
+def analyze_dispatch(job_id: str) -> str:
+    return analyze_job.apply_async(args=[job_id], queue=jobs.ANALYZE_LANE).id
+
+
+@celery_app.task(bind=True, name='viral_remix.analyze', acks_late=True,
+                 reject_on_worker_lost=True, soft_time_limit=300, time_limit=330)
+def analyze_job(self, job_id: str):
+    """参考图拆解：Redis 取图 → 视觉分析 → 落 session → 结算。
+
+    参考图只经过 Redis（TTL 到期自动消失），不进 jobs.payload_json：
+    任务负载里只有一个 token，失败重试也不会把用户原图留在数据库里。
+    """
+    job = accounts.claim_job([jobs.ANALYZE_LANE], job_id)
+    if not job:
+        return {'status': 'ignored'}
+    payload = json.loads(job['payload_json'] or '{}')
+    token = payload.get('token') or ''
+    goal = payload.get('goal') or ''
+    session_id = payload.get('session_id') or ''
+    preserve_person = bool(payload.get('preserve_person'))
+    started = time.monotonic()
+    from . import remix_reference, remix_contract
+
+    try:
+        images = remix_reference.load(token)
+        with workbench.provider_overrides(), call_context.bind(job_id=job_id, user_id=job.get('user_id')):
+            result = creator_tools.viral_remix_analysis(images, goal, request_id=job_id)
+        ledger = remix_contract.build(result, goal, preserve_person)
+        result['content_type'] = ledger['category']
+        result['source_fingerprint'] = ledger['fingerprint']
+        if session_id:
+            # 只留归一化后的首图，和旧同步接口保持同样的续作能力，但更小。
+            reference = images[0]
+            accounts.save_workbench_session(job['user_id'], {
+                'id': session_id,
+                'conversation_skill': 'viral-remix',
+                'result': result,
+                'content_ledger': ledger,
+                'goal': goal,
+                'product_reference': reference if ledger['category'] == 'product' else None,
+                'preserve_person': preserve_person,
+                'person_reference': reference if preserve_person else None,
+            })
+        elapsed = int((time.monotonic() - started) * 1000)
+        accounts.finish_job(job_id, {'result': result})
+        jobs.settle_analyze(job, True, elapsed)
+        return {'status': 'succeeded', 'session_id': session_id}
+    except Exception as exc:  # noqa: BLE001 - 失败必须退款并留下可读原因
+        logging.getLogger(__name__).exception('remix analysis failed: %s', job_id)
+        accounts.fail_job(job_id, str(exc)[:300] or '拆解失败')
+        jobs.settle_analyze(job, False, int((time.monotonic() - started) * 1000))
+        return {'status': 'failed'}
+    finally:
+        # 无论成败都清掉参考图；Redis 另有一层 TTL 兜底。
+        remix_reference.drop(token)

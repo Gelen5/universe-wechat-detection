@@ -63,14 +63,20 @@ def _remix_vision(body: dict[str, Any], *, require_ideas: bool = True, deadline=
     """Bound the primary call and retain the same reference in one fallback."""
     import time
     from .observability import event
-    primary=body['model']
+    primary=os.getenv('WECHAT_REMIX_PRIMARY_MODEL','').strip() or body['model']
     fallback=os.getenv('WECHAT_REMIX_FALLBACK_MODEL','gpt-6.1-sol').strip()
     models=list(dict.fromkeys(model for model in (primary,fallback) if model))
+    # 每次尝试的读超时。线上实测 gpt-6.1-terra 连续 6 次 65 秒读超时、0 成功，
+    # 拿它当主模型等于每次先白等 65 秒，因此允许用环境变量换主模型并重排预算：
+    # WECHAT_REMIX_PRIMARY_MODEL=gpt-6.1-sol + WECHAT_REMIX_ATTEMPT_SECONDS=100
+    # 就是「一次尝试、最多 100 秒」，成功路径约 46-70 秒，失败路径 100 秒。
+    budgets=[int(item) for item in os.getenv('WECHAT_REMIX_ATTEMPT_SECONDS','65,80').split(',')
+             if item.strip().isdigit() and int(item) > 0] or [65,80]
     for index,model in enumerate(models):
         request={**body,'model':model}
         if model.lower().startswith('gpt-'):request['reasoning_effort']='low'
         started=time.perf_counter()
-        read_timeout=65 if index==0 else 80
+        read_timeout=budgets[index] if index < len(budgets) else budgets[-1]
         if deadline is not None:
             remaining=deadline-time.monotonic()-10
             if remaining<=1:raise workbench.ProviderError('拆解处理超时，请稍后重试；参考图无需重新选择')
@@ -119,6 +125,8 @@ def _remix_vision(body: dict[str, Any], *, require_ideas: bool = True, deadline=
             if index+1<len(models):
                 event('remix.vision_fallback',primary=model,fallback=models[index+1])
                 continue
+            if len(models)==1:
+                raise workbench.ProviderError('拆解服务超时，请稍后重试；参考图无需重新选择') from exc
             raise workbench.ProviderError('主模型和备用视觉服务均未完成拆解，请稍后重试；参考图无需重新选择') from exc
 
 

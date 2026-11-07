@@ -937,11 +937,14 @@ async function postCreator(path, payload, signal, onAccepted) {
       : { tool: payload.tool, session_id: payload.sessionId, card: payload.card, style: payload.style };
     return submitQueuedTask(taskTypes[path], taskPayload, signal, onAccepted);
   }
+  // 长任务一律走 /api/tasks 或 /api/viral-remix/analysis 的「提交 + 轮询」，
+  // 这里不再给任何接口挂 285 秒硬超时：移动网络会把长连接的响应吞掉，
+  // 用户只会看到 “signal timed out”，看不出服务端其实已经结束。
   const response = await fetch(path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ...sharedApiPayload(), ...payload }),
-    signal: signal || (path === '/api/viral-remix/analyze' ? AbortSignal.timeout(285000) : undefined),
+    signal,
   });
   return readApiResponse(response);
 }
@@ -1557,6 +1560,47 @@ window.addEventListener('account-changed',()=>{
   if(!currentAccount?.id)return;
   try{const draft=JSON.parse(localStorage.getItem(`viral-remix-draft:${currentAccount.id}`)||'null');if(draft?.result&&draft.sessionId)renderViralRemix(draft.result,draft.sessionId);}catch{}
 });
+// 拆解改成「提交 → 轮询」之后，参考图先过一遍浏览器端缩放再上传：
+// 长边 1600、JPEG q85，和服务端原本的归一化参数一致，画质无损但体积小一个量级，
+// 手机上不用再把几 MB 的原图顶上去，任务负载里也只有一个 token。
+const REMIX_MAX_EDGE = 1600;
+function shrinkRemixImage(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('图片读取失败'));
+    reader.onload = () => {
+      const image = new Image();
+      image.onerror = () => reject(new Error('图片无法解码，请换一张'));
+      image.onload = () => {
+        const scale = Math.min(1, REMIX_MAX_EDGE / Math.max(image.width || 1, image.height || 1));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round((image.width || 1) * scale));
+        canvas.height = Math.max(1, Math.round((image.height || 1) * scale));
+        const context = canvas.getContext('2d');
+        if (!context) { reject(new Error('当前浏览器无法处理图片')); return; }
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        try { resolve(canvas.toDataURL('image/jpeg', 0.85)); }
+        catch (error) { reject(new Error('图片无法处理，请换一张')); }
+      };
+      image.src = String(reader.result);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function pollRemixAnalysisJob(jobId, onJob) {
+  const deadline = Date.now() + 8 * 60 * 1000;
+  while (true) {
+    const data = await readApiResponse(await fetch(`/api/viral-remix/analysis/${encodeURIComponent(jobId)}`, { headers: { Accept: 'application/json' } }));
+    const job = data.job;
+    onJob?.(job);
+    if (job.status === 'succeeded') return job;
+    if (['failed', 'canceled'].includes(job.status)) throw new Error(job.error || '拆解没有完成，积分已退回');
+    if (Date.now() > deadline) throw new Error('拆解时间过长，已转后台继续；稍后回到本页可查看结果');
+    await new Promise(resolve => setTimeout(resolve, 2500));
+  }
+}
+
 viralRemixForm?.addEventListener('submit', async event => {
   event.preventDefault();
   if (remixHistoryBusy()) { showToast('当前任务进行中，请等待完成后再开始新的创作', 'error'); return; }
@@ -1565,10 +1609,22 @@ viralRemixForm?.addEventListener('submit', async event => {
   const finish = beginButton(button, '正在拆解图片结构…');
   try {
     await preserveRemixDraft();
-    const imageData = await Promise.all(viralFiles.map(file=>new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = () => reject(new Error('图片读取失败')); reader.readAsDataURL(file); })));
+    const images = await Promise.all(viralFiles.map(shrinkRemixImage));
+    const reference = await readApiResponse(await fetch('/api/viral-remix/reference', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...sharedApiPayload(), images }),
+    }));
     const sessionId = crypto.randomUUID().replaceAll('-', '');
-    const data = await postCreator('/api/viral-remix/analyze', { imageData, sessionId, preservePerson: document.querySelector('#viral-preserve-person')?.checked === true, goal: document.querySelector('#viral-remix-goal').value.trim() });
-    renderViralRemix(data.result, sessionId);
+    const queued = await readApiResponse(await fetch('/api/viral-remix/analysis', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...sharedApiPayload(), token: reference.token, sessionId,
+        preservePerson: document.querySelector('#viral-preserve-person')?.checked === true,
+        goal: document.querySelector('#viral-remix-goal').value.trim(),
+      }),
+    }));
+    const job = await pollRemixAnalysisJob(queued.job.id);
+    renderViralRemix(job.result, sessionId);
   } catch (error) { showToast(error.message, 'error'); } finally { finish(); }
 });
 

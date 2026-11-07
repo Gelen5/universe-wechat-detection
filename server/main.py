@@ -446,6 +446,19 @@ class ViralRemixAnalyzeRequest(BaseModel):
     sessionId: str | None = Field(default=None, min_length=8, max_length=80, pattern=r'^[a-zA-Z0-9_-]+$')
 
 
+class ViralRemixReferenceRequest(BaseModel):
+    """拆解前先把参考图归一化存 Redis，只换回一个一次性 token。"""
+    images: list[str] = Field(min_length=1, max_length=8)
+
+
+class ViralRemixAnalysisRequest(BaseModel):
+    """异步拆解：token 指向 Redis 里的参考图，任务负载不含图片本身。"""
+    token: str = Field(min_length=16, max_length=64)
+    preservePerson: bool = False
+    goal: str = Field(default="", max_length=300)
+    sessionId: str | None = Field(default=None, min_length=8, max_length=80, pattern=r'^[a-zA-Z0-9_-]+$')
+
+
 class ViralRemixImageRequest(BaseModel):
     sessionId: str = Field(min_length=8, max_length=80)
     idea: dict[str, Any]
@@ -1222,6 +1235,54 @@ def analyze_viral_remix(payload: ViralRemixAnalyzeRequest, request: Request):
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except workbench.ProviderError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@app.post('/api/viral-remix/reference')
+def upload_remix_reference(payload: ViralRemixReferenceRequest, request: Request):
+    """参考图归一化后暂存 Redis，换回一次性 token。纯本地处理，不计费。"""
+    accounts.require_user(request)
+    from . import remix_reference
+    try:
+        token = remix_reference.save(payload.images)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001 - Redis 故障要报可读原因，不是 500
+        raise HTTPException(status_code=503, detail='参考图暂存失败，请稍后重试') from exc
+    return {'status': 'success', 'token': token}
+
+
+@app.post('/api/viral-remix/analysis', status_code=202)
+def submit_remix_analysis(payload: ViralRemixAnalysisRequest, request: Request):
+    """提交异步拆解任务；前端轮询 GET /api/viral-remix/analysis/{job_id}。"""
+    user = accounts.require_user(request)
+    from . import remix_reference, viral_remix_jobs, viral_remix_tasks
+    try:
+        # 过期凭证在预扣积分之前就拦住，别让用户为一次跑不起来的任务付费。
+        remix_reference.load(payload.token)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    try:
+        job = viral_remix_jobs.submit_analyze(
+            user['id'], payload.sessionId or '', payload.token, payload.goal, payload.preservePerson)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=503, detail='拆解排队失败，请稍后重试') from exc
+    try:
+        viral_remix_tasks.analyze_dispatch(job['id'])
+    except Exception as exc:  # noqa: BLE001 - 入队失败要立刻退款，不能留一个跑不动的任务
+        accounts.fail_job(job['id'], '拆解任务入队失败')
+        viral_remix_jobs.settle_analyze(job, False, 0)
+        raise HTTPException(status_code=503, detail='拆解排队失败，请稍后重试') from exc
+    return {'status': 'queued', 'job': viral_remix_jobs.public_analyze(job)}
+
+
+@app.get('/api/viral-remix/analysis/{job_id}')
+def remix_analysis_status(job_id: str, request: Request):
+    user = accounts.require_user(request)
+    from . import viral_remix_jobs
+    job = accounts.job(job_id, user['id'])
+    if not job or job.get('type') != viral_remix_jobs.ANALYZE_TASK_TYPE:
+        raise HTTPException(status_code=404, detail='任务不存在或不属于当前用户')
+    return {'status': 'ok', 'job': viral_remix_jobs.public_analyze(job)}
 
 
 class RemixDataCorrection(BaseModel):
