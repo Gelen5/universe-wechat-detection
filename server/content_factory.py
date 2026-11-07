@@ -6,6 +6,7 @@ import re
 import requests
 import uuid
 from datetime import datetime, timezone
+from typing import Literal
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, HTTPException, Request
@@ -102,6 +103,7 @@ class AutomationLimits(BaseModel):
     article_limit: int = Field(ge=0, le=100)
     image_limit: int = Field(ge=0, le=100)
     minimum_score: int = Field(default=70, ge=0, le=100)
+    image_people_mode: Literal['auto', 'required', 'off'] = 'auto'
     tracks: list[str] = Field(max_length=20)
 
 
@@ -191,6 +193,7 @@ def automation_limits(payload: AutomationLimits, request: Request):
             vision_call_bound_micros=payload.vision_call_bound_micros,
             detector_call_bound_micros=payload.detector_call_bound_micros,
             image_limit=payload.image_limit, minimum_score=payload.minimum_score,
+            image_people_mode=payload.image_people_mode,
             tracks_json=json.dumps(tracks, ensure_ascii=False), updated_at=utc_now()))
         return get_settings(connection)
 

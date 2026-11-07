@@ -188,7 +188,7 @@ def test_image_publish_requires_vision_and_stores_audit(engine, monkeypatch):
             automatic_images=True, automatic_image_publish=True,
             daily_budget_micros=1000, title_call_bound_micros=100,
             image_call_bound_micros=300, vision_call_bound_micros=50,
-            image_limit=1, tracks_json='["情感"]'))
+            image_limit=1, image_people_mode='required', tracks_json='["情感"]'))
         from server.content_factory_v3_store import queue_production
         queue_production(connection, run_id=run["id"], day=day)
     stream = io.BytesIO()
@@ -196,9 +196,11 @@ def test_image_publish_requires_vision_and_stores_audit(engine, monkeypatch):
     # normalize it to 3:4 before deterministic text layout.
     Image.new("RGB", (300, 300), "navy").save(stream, format="PNG")
     provider_context = {}
+    prompt = {}
     def generate(payload):
         from server.providers import call_context
         provider_context.update(call_context.current())
+        prompt['value'] = payload['prompt']
         return {"data": [{"b64_json": base64.b64encode(stream.getvalue()).decode()}]}
     monkeypatch.setattr(tasks.image_provider, "generate", generate)
     checks = {name: True for name in ("subject_clear", "single_focus", "colors_coherent",
@@ -218,3 +220,5 @@ def test_image_publish_requires_vision_and_stores_audit(engine, monkeypatch):
     assert product["status"] == "published"
     assert '"vision"' in report["report_json"]
     assert provider_context["idempotency_key"] == f"factory-v3:image:{run['id']}:0"
+    assert "画面必须出现原创虚构成年人物" in prompt["value"]
+    assert "不得出现未成年人" in prompt["value"]

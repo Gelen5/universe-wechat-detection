@@ -79,13 +79,17 @@ def test_title_plan_is_validated_and_stored_by_admin(client):
 
 
 def test_automation_limits_cannot_enable_work_and_require_admin(client):
-    limits = {'daily_budget_micros': 1000000, 'article_limit': 2, 'image_limit': 2, 'tracks': ['情感', '情感']}
+    limits = {'daily_budget_micros': 1000000, 'article_limit': 2, 'image_limit': 2,
+              'image_people_mode': 'required', 'tracks': ['情感', '情感']}
     path = '/api/content-factory/admin/automation/limits'
     assert client.put(path, json=limits).status_code == 403
     response = client.put(path, json=limits, headers={'x-admin':'1'})
     assert response.status_code == 200
     assert response.json()['tracks'] == ['情感']
+    assert response.json()['image_people_mode'] == 'required'
     assert response.json()['emergency_stop'] is True and response.json()['automatic_selection'] is False
+    assert client.put(path, json={**limits, 'image_people_mode': 'invalid'},
+                      headers={'x-admin':'1'}).status_code == 422
     assert client.post('/api/content-factory/admin/automation/emergency-stop', headers={'x-admin':'1'}).json()['stopped']
 
 
