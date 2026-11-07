@@ -18,7 +18,8 @@ _task_modules = ["server.workflow_tasks", "server.agent_tasks", "server.hotspots
                  "server.viral_remix_tasks", "server.lowfans_sync", "server.article_visual_tasks",
                  "server.image_board", "server.membership_credit_tasks",
                  "server.content_factory_tasks", "server.content_factory_v3_tasks",
-                 "server.viral_article_tasks", "server.deai_tasks"]
+                 "server.viral_article_tasks", "server.deai_tasks",
+                 "server.video_factory_tasks"]
 celery_app = Celery("universe_creator", broker=REDIS_URL, backend=REDIS_URL,
                     include=[] if _beat_only else _task_modules)
 
@@ -46,6 +47,8 @@ celery_app.conf.update(
         "content_factory.v3_titles": {"queue": "text"},
         "content_factory.v3_produce": {"queue": "text"},
         "content_factory.v3_schedule": {"queue": "text"},
+        "video_factory.run": {"queue": "video_factory"},
+        "video_factory.recover": {"queue": "text"},
         "viral_remix.run": {"queue": "image"},
         "viral_remix.analyze": {"queue": "text"},
         "viral_article.run": {"queue": "text"},
@@ -68,6 +71,7 @@ celery_app.conf.update(
         # The task is a no-op until the separate database switch is enabled.
         "content-factory-v3-morning": {"task": "content_factory.v3_schedule", "schedule": crontab(hour=0, minute=0)},
         "content-factory-v3-afternoon": {"task": "content_factory.v3_schedule", "schedule": crontab(hour=7, minute=0)},
+        "recover-video-factory": {"task": "video_factory.recover", "schedule": 120.0},
         "recover-article-visual": {"task": "article_visual.recover", "schedule": 60.0},
         "recover-stale-workflow-nodes": {
             "task": "workflow.recover_stale", "schedule": 60.0,

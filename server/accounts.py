@@ -958,6 +958,88 @@ def active_job_count(user_id: str) -> int:
         return int(connection.execute("SELECT COUNT(*) FROM jobs WHERE user_id=? AND status IN ('queued','running')", (user_id,)).fetchone()[0])
 
 
+def acquire_job_slot(slot_name: str, job_id: str, max_slots: int,
+                     lease_seconds: int) -> tuple[str | None, str]:
+    """Acquire one named execution slot across web and worker processes.
+
+    A slot points at the job holding it. Expired leases are reclaimed only when
+    no matching job is still running, so a live long render is not displaced by
+    another worker if its lease renews slightly late.
+    """
+    if max_slots < 1 or lease_seconds < 60 or not slot_name or not job_id:
+        raise ValueError("invalid execution slot")
+    token = uuid.uuid4().hex
+    now = datetime.now(timezone.utc)
+    expires_at = (now + timedelta(seconds=lease_seconds)).isoformat()
+    with DB_LOCK, _connect() as connection:
+        connection.execute(
+            """CREATE TABLE IF NOT EXISTS job_slots (
+               name TEXT PRIMARY KEY,
+               job_id TEXT NOT NULL,
+               token TEXT NOT NULL,
+               expires_at TEXT NOT NULL
+            )"""
+        )
+        connection.execute("BEGIN IMMEDIATE")
+        for row in connection.execute(
+            "SELECT name,job_id,expires_at FROM job_slots ORDER BY name"
+        ).fetchall():
+            active = connection.execute(
+                "SELECT 1 FROM jobs WHERE id=? AND status='running'", (row["job_id"],)
+            ).fetchone()
+            if row["expires_at"] < now.isoformat() and not active:
+                connection.execute(
+                    "DELETE FROM job_slots WHERE name=? AND job_id=?",
+                    (row["name"], row["job_id"]),
+                )
+        held = {
+            row["job_id"] for row in connection.execute(
+                "SELECT job_id FROM job_slots WHERE name LIKE ?", (slot_name + ":%",)
+            ).fetchall()
+        }
+        if job_id in held:
+            connection.execute("COMMIT")
+            return None, "same_job"
+        free = next(
+            (slot_name + ":" + str(index) for index in range(max_slots)
+             if slot_name + ":" + str(index) not in {
+                 item["name"] for item in connection.execute(
+                     "SELECT name FROM job_slots WHERE name LIKE ?", (slot_name + ":%",)
+                 ).fetchall()
+             }),
+            None,
+        )
+        if not free:
+            connection.execute("COMMIT")
+            return None, "full"
+        connection.execute(
+            "INSERT INTO job_slots(name,job_id,token,expires_at) VALUES (?,?,?,?)",
+            (free, job_id, token, expires_at),
+        )
+        connection.execute("COMMIT")
+    return token, "acquired"
+
+
+def renew_job_slot(slot_name: str, job_id: str, token: str, lease_seconds: int) -> bool:
+    if lease_seconds < 60:
+        raise ValueError("invalid execution slot lease")
+    expires_at = (datetime.now(timezone.utc) + timedelta(seconds=lease_seconds)).isoformat()
+    with DB_LOCK, _connect() as connection:
+        changed = connection.execute(
+            """UPDATE job_slots SET expires_at=?
+               WHERE name LIKE ? AND job_id=? AND token=?""",
+            (expires_at, slot_name + ":%", job_id, token),
+        ).rowcount
+    return bool(changed)
+
+
+def release_job_slot(job_id: str, token: str) -> None:
+    with DB_LOCK, _connect() as connection:
+        connection.execute(
+            "DELETE FROM job_slots WHERE job_id=? AND token=?", (job_id, token)
+        )
+
+
 # 只有这些类型由 Web 进程内线程池执行，重启后会随进程一起消失。
 # article_visual.plan、viral_remix.image 由 Celery 托管，不在本进程里跑。
 # 用白名单而非排除列表，将来新增 Celery 类型也不会被误判成中断。

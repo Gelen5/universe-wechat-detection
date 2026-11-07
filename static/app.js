@@ -1685,6 +1685,7 @@ const viewMap = {
   'content-factory': document.querySelector('#content-factory'),
   'remove-ai-flavor': document.querySelector('#remove-ai-flavor'),
   skills: document.querySelector('#skills'),
+  'video-factory': document.querySelector('#video-factory'),
   hotspots: document.querySelector('#hotspots'),
   'topic-library': document.querySelector('#topic-library'),
   lowfans: document.querySelector('#lowfans'),
@@ -1710,6 +1711,7 @@ const viewTitles = {
   'content-factory': '爆款成品库',
   'remove-ai-flavor': '去 AI 味',
   skills: '技能库',
+  'video-factory': 'AI 视频工厂',
   hotspots: '热点广场',
   'topic-library': '选题灵感库',
   lowfans: '低粉爆文',
@@ -1754,6 +1756,10 @@ function setActiveView(view, updateHash = false) {
   if (view === 'content-factory') {
     const frame = document.querySelector('#content-factory-frame');
     if (frame && !frame.hasAttribute('src')) frame.src = '/content-factory-frame?embed=1';
+  }
+  if (view === 'video-factory') {
+    const frame = document.querySelector('#video-factory-frame');
+    if (frame && !frame.hasAttribute('src')) frame.src = '/video-factory-frame?embed=1';
   }
   if (view === 'hotspots') window.HotspotsView?.ensureLoaded?.();
   if (view === 'topic-library') {

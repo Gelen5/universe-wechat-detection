@@ -26,6 +26,10 @@ window.APP_NAV = (() => {
   const items = [
     {group: '资源', href: '/content-factory', view: 'content-factory', label: '爆款成品库', fallback: true,
      icon: svg('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h10M7 13h7"/>')},
+    {group: '创作', href: '/video-factory', view: 'video-factory', label: 'AI 视频工厂',
+     fallback: true,
+     icon: svg('<rect x="3" y="3" width="18" height="18" rx="3"/><path d="m10 8 5 4-5 4z"/>' +
+               '<path d="M7 7h1M16 7h1M7 17h1M16 17h1"/>')},
     {group: '选题灵感', href: '/hotspots', view: 'hotspots', label: '热点广场', short: '热点',
      fallback: true,
      icon: svg('<path d="M3 17l5-5 4 3 5-7 4 5"/><path d="M3 21h18"/>')},

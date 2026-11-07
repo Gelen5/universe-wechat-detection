@@ -8,6 +8,10 @@ services:
         PYTHON_RUNTIME_IMAGE: ${PYTHON_RUNTIME_IMAGE:?verified existing runtime required}
   worker:
     build: *runtime-build
+  video-worker:
+    build: *runtime-build
+  video-tts:
+    build: *runtime-build
   beat:
     build: *runtime-build
   migrate:

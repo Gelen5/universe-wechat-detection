@@ -46,6 +46,7 @@ from . import agents
 from . import wechat_plus_repository
 from . import wechat_plus_billing
 from . import content_factory
+from .video_factory_api import router as video_factory_router
 from .workflow_events import redis_ready
 from .observability import event as log_event
 from .auth_rate_limit import check_auth_attempt, record_auth_result, client_ip
@@ -113,6 +114,7 @@ wechat_plus_repository.init_schema()
 wechat_plus_billing.init_schema()
 app.include_router(wechat_plus_router)
 app.include_router(content_factory.router)
+app.include_router(video_factory_router)
 app.include_router(seo_router)
 
 
@@ -1773,6 +1775,16 @@ def content_factory_page():
 
 @app.get("/content-factory", include_in_schema=False)
 def content_factory_shell():
+    return FileResponse(STATIC_DIR / "index.html", media_type="text/html; charset=utf-8")
+
+
+@app.get("/video-factory-frame", include_in_schema=False)
+def video_factory_page():
+    return FileResponse(STATIC_DIR / "video-factory.html")
+
+
+@app.get("/video-factory", include_in_schema=False)
+def video_factory_shell():
     return FileResponse(STATIC_DIR / "index.html", media_type="text/html; charset=utf-8")
 
 

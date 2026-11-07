@@ -92,6 +92,53 @@ services:
       redis:
         condition: service_healthy
 
+  video-worker:
+    build: .
+    restart: unless-stopped
+    stop_grace_period: 65m
+    env_file: .env
+    environment:
+      <<: *app-env
+      VIDEO_FACTORY_MPT_BASE_URL: http://video-tts:8080
+      VIDEO_FACTORY_MPT_API_KEY: ${VIDEO_TTS_API_KEY}
+    # The queue is separate so the expensive renderer cannot occupy ordinary
+    # image workers. Database slots enforce VIDEO_FACTORY_MAX_CONCURRENT.
+    command: ["celery", "-A", "server.celery_app:celery_app", "worker", "-Q", "video_factory", "--loglevel=INFO", "--concurrency=${VIDEO_FACTORY_WORKER_CONCURRENCY:-1}"]
+    volumes:
+      - ${WORKBENCH_OUTPUT_HOST_PATH:-/opt/universe-data/output}:/app/output
+      - ${VIDEO_FACTORY_MPT_LOCAL_HOST_PATH:-/data/video-factory-mpt}:/data/video-factory-mpt:ro
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A server.celery_app:celery_app inspect ping -d celery@$$HOSTNAME --timeout=5 | grep -q pong"]
+      interval: 20s
+      timeout: 10s
+      retries: 6
+      start_period: 20s
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      video-tts:
+        condition: service_healthy
+
+  video-tts:
+    build: .
+    restart: unless-stopped
+    environment:
+      <<: *app-env
+      VIDEO_TTS_API_KEY: ${VIDEO_TTS_API_KEY}
+      VIDEO_TTS_MAX_CONCURRENT: ${VIDEO_TTS_MAX_CONCURRENT:-2}
+    env_file: .env
+    command: ["uvicorn", "server.video_tts_service:app", "--host", "0.0.0.0", "--port", "8080", "--log-level", "warning"]
+    volumes:
+      - ${WORKBENCH_OUTPUT_HOST_PATH:-/opt/universe-data/output}:/app/output
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3).read()"]
+      interval: 20s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+
   beat:
     build: .
     restart: unless-stopped
