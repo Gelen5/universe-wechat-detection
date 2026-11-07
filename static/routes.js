@@ -24,9 +24,9 @@ window.APP_NAV = (() => {
   // 捕获阶段已经 preventDefault，看到 data-view 又交还给应用 —— 结果是点击
   // 完全无响应。低粉爆文第一次上线就踩了这个坑。
   const items = [
-    {group: '资源', href: '/content-factory', view: 'content-factory', label: '爆款成品库', fallback: true,
+    {group: '内测功能', href: '/content-factory', view: 'content-factory', label: '爆款成品库', fallback: true,
      icon: svg('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h10M7 13h7"/>')},
-    {group: '创作', href: '/video-factory', view: 'video-factory', label: 'AI 视频工厂',
+    {group: '内测功能', href: '/video-factory', view: 'video-factory', label: 'AI 视频工厂',
      fallback: true,
      icon: svg('<rect x="3" y="3" width="18" height="18" rx="3"/><path d="m10 8 5 4-5 4z"/>' +
                '<path d="M7 7h1M16 7h1M7 17h1M16 17h1"/>')},
@@ -55,7 +55,7 @@ window.APP_NAV = (() => {
      fallback: true,
      icon: svg('<path d="M4 4h16v12H9l-5 4z"/><path d="M9 10h6M12 7v6"/>')},
     // 爆文复刻：输入公开文章链接，换角度重写，可选表达层去 AI 味。
-    {group: '创作', href: '/viral-article', view: 'viral-article', label: '爆文复刻',
+    {group: '内测功能', href: '/viral-article', view: 'viral-article', label: '爆文复刻',
      fallback: true,
      icon: svg('<path d="M5 3h10l4 4v14H5z"/><path d="M15 3v5h5"/>' +
                '<path d="M8 12h8M8 16h6"/><path d="m17 16 .8 1.7 1.7.8-1.7.8L17 21l-.8-1.7-1.7-.8 1.7-.8z"/>')},
@@ -74,7 +74,7 @@ window.APP_NAV = (() => {
      fallback: true,
      icon: svg('<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="1.6"/>' +
                '<path d="m4 17 5-5 4 4 3-3 4 4"/>')},
-    {group: '工具', href: '/remove-ai-flavor', view: 'remove-ai-flavor', label: '去 AI 味', fallback: true,
+    {group: '内测功能', href: '/remove-ai-flavor', view: 'remove-ai-flavor', label: '去 AI 味', fallback: true,
      icon: svg('<path d="M4 20h16"/><path d="M6 16 15 7l3 3-9 9z"/><path d="m14 6 4 4"/>' +
                '<path d="M18 3v3M21 5h-3"/>')},
     {group: '工具', href: '/sticker-extract', view: 'sticker-extract', label: '贴图号内容提取', fallback: true,
@@ -136,7 +136,7 @@ window.APP_NAV = (() => {
   ];
 
   // 账户类入口（积分套餐、邀请好友）留在「更多」与右上角菜单里，不再占用侧栏。
-  const groups = ['选题灵感', '创作', '工具', '社区', '资源', '账户'];
+  const groups = ['选题灵感', '创作', '工具', '社区', '资源', '账户', '内测功能'];
   const all = [home, ...items];
   const normalize = (path) => (path || '/').replace(/\/+$/, '') || '/';
   /* 隐藏项不进任何渲染器的菜单，但路由照样能解析（可直接访问 URL、可被
