@@ -2,7 +2,65 @@
 
 状态日期：2026-11-07（Asia/Shanghai）
 
-本记录只证明当前工作树中实现和本地验证的范围。该分支尚未生产迁移、生产部署或真实付费端到端联调。
+生产 release：`938e30b`。上一回滚点：`99a8f85`。生产地址：
+`https://yuzoudiyigongzuotai.cn/content-factory`。
+
+本记录区分已部署的基础设施、真实付费调用、质量门禁结果和仍未通过的交付项；
+测试替身或供应商返回成功都不能替代完整成品验收。
+
+## 生产验收
+
+已验证：
+
+- 发布前数据库备份：`/opt/universe-backups/universe_pre_v3_20261107_153143.dump`。
+- 备份 SHA-256：`0a8c7aff6d7aa69ee0d41d4899693c1bafb8b580011ed29f06c9995ea83ed919`。
+- 备份可由 `pg_restore --list` 读取；隔离副本恢复、增量安装连续执行两次、列和旧商品数据核对均通过，副本已删除。
+- 生产 Alembic 标记仍为 `20261025_0009`；V3 通过只增不删的
+  `python -m scripts.install_content_factory_v3_schema` 安装，当前 7 张表齐全。
+- Web、Worker、Beat、Auth、Postgres、Redis 正常；`/health/ready` 返回
+  `database=true`、`redis=true`、`better_auth=true`。
+- Worker 已注册 `content_factory.v3_titles`、`content_factory.v3_produce` 和
+  `content_factory.v3_schedule`；Beat 注册北京时间 `08:00`、`15:00` 两个 V3 定时项。
+- 匿名访问管理员自动化 API 返回 `401`；成品库页面和 V3 管理脚本均返回 `200`。
+- 最终状态为紧急停止，自动选题、定时、文章/图片生产及自动上架全部关闭。
+
+真实付费调用：
+
+1. 文章 Run `bc3a39015929455bacb23d8194485a88` 已真实生成标题和正文。
+   标题输入/输出为 `1458/475` token，正文为 `18051/3104` token。
+   正文数据库字符数为 `1014`，去掉空白为 `998`，未达到 `1000–1200`
+   门禁，因此没有调用朱雀，Run 和商品均正确保留为 `held` / `draft`。
+2. 图片 Run `da2cf7a0f5224e539ec62ff26d35d737` 使用真实低粉图文来源，
+   标题输入/输出为 `12498/493` token；图片供应商调用成功返回约 `2.96 MB`，
+   记录 1 张生成图。后续确定性排版/交付阶段失败，Run 为
+   `held` / `production_failed`，没有生成可购买商品。
+3. 两条 Run 都没有触发自动上架。当前生产成品仍无新增发布记录。
+
+图片来源：
+
+- 修复后从 200 个近期图片候选中识别出 30 条
+  `verified_lowfans_image`。此前“0 条”是候选先截断再分类造成的分页缺陷。
+- 图片联调来源为“礼簿写成这样太丢脸了！”：2026-11-04，阅读 `78,535`，
+  账号基线 `809`，爆发倍数约 `97.08`。
+- 该来源严格机会分为 `50.52`，低于配置的最低分 `60`；这是一次受控联调记录，
+  不代表来源已通过最终选题评分。
+
+费用口径：
+
+- 当前 `cost_micros` 是预算预留上限，不是供应商已结算账单。
+- 三条文章预留和三条图片预留均仍为 `reserved`，`actual_micros` 为空。
+- 新增 `content_factory_v3_provider_calls` 持久化标题、文章、图片和视觉调用的
+  token、图片数量和延迟；现阶段仍不写猜测价格，实际账单核对应作为后续操作。
+- 图片交付失败发生在供应商成功返回之后，不能声称没有产生图片费用。
+
+仍未完成：
+
+- 没有获得一张通过全部质量门禁并成功保存为商品草稿的 V3 图片。
+- 因没有合格图片商品，本轮没有完整走通“质量通过 → 自动上架 → 管理员可见”。
+- 本地管理页浏览器自动化受当前代理/Chrome 网络路径阻塞；已通过生产只读 API、
+  release 文件、数据库和匿名权限边界完成替代核对，仍缺一次真实登录后的截图复核。
+- 图片失败 Run 的记录早于阶段诊断上线，因此历史记录只有
+  `production_failed`；新版本会把失败阶段写入异常池。
 
 ## 实现范围
 
@@ -40,7 +98,9 @@ node --check static/content-factory-v3.js
 
 测试覆盖：选题匹配与来源时效、标题合同、质量门禁、朱雀结果归一化、图片技术检查和全布尔视觉门禁、预算预留、每日名额、自动上架前置条件、紧急停止、最多两次人工重试、旧草稿复用、重复执行、Provider 尝试幂等键、消息队列重派发、超时人工处置、部分表结构补列及 API 权限。
 
-验证结果：`58 passed`，只有既有 Starlette/httpx 和 FastAPI `on_event` 弃用警告。`node --check static/content-factory-v3.js` 通过，`git diff --check` 通过。
+验证结果：`60 passed`，只有既有 Starlette/httpx 和 FastAPI `on_event`
+弃用警告。`node --check static/content-factory-v3.js` 通过，
+`git diff --check` 通过。
 
 前端使用 Mock API 在浏览器验收：
 
@@ -49,16 +109,16 @@ node --check static/content-factory-v3.js
 - 程序化检查未发现横向溢出；
 - 截图位于 `qa-content-factory-v3-desktop.png` 和 `qa-content-factory-v3-mobile.png`。
 
-这些截图不代表真实数据库中的任务、真实 API 或生产部署成功。
+这些截图是部署前的 Mock UI 证据，不替代真实管理员会话截图。
 
 ## 未验证范围
 
 - 未执行 10 篇真实文章和 10 张真实图片的低粉来源端到端联调。
-- 未真实验证文字模型、图片模型、朱雀服务、视觉模型的稳定性和费用；联调会产生真实费用，需要单独授权。
-- 未核对当前供应商计价，因此不能填写 `cost_bound_verified=true`。预算逻辑使用微单位，所有数字必须来自可核对的最高费用，不能用猜测值。
+- 文字和图片供应商已发生真实调用；朱雀与图片视觉复核尚未在本轮完整成功路径中验证。
+- 生产配置中的费用上限已由管理员填写并标记核实；实际账单仍未回填，因此不能把预留额当作结算额。
 - 生产路径只按预留上限占额；`settle_budget()` 有单元测试，但尚未接供应商实际账单。当前 `cost_micros` 是预留占额，不是已结算账单。
-- 未验证 Alembic 历史标记与生产实际表结构一致；正式迁移前必须备份、审计版本和表结构。
-- 未在生产 PostgreSQL、Redis、Celery Worker 和 Beat 环境运行 V3，也未做多 Worker 竞争、Worker 强杀和 Redis 故障演练。
+- Alembic 历史标记仍与生产实际表结构不一致，本轮已通过备份后增量安装避开整链升级；该历史漂移仍需单独治理。
+- 已在生产 PostgreSQL、Redis、Celery Worker 和 Beat 运行 V3，但未做多 Worker 竞争、Worker 强杀和 Redis 故障演练。
 - 未验证被标记异常的旧 Worker 是否仍能完成远端调用；人工重试前应结合 Worker 日志、供应商账单或幂等响应判断。系统不会用时间阈值宣称旧任务已经结束。
 
 ## API
@@ -109,7 +169,7 @@ node --check static/content-factory-v3.js
 
 ## 数据库迁移
 
-新表全部在独立 `content_factory_v3_*` 命名空间中：
+新表全部在独立 `content_factory_v3_*` 命名空间中，当前共 7 张：
 
 - `content_factory_v3_settings`
 - `content_factory_v3_runs`
@@ -117,6 +177,7 @@ node --check static/content-factory-v3.js
 - `content_factory_v3_budget_reservations`
 - `content_factory_v3_product_details`
 - `content_factory_v3_quality_reports`
+- `content_factory_v3_provider_calls`
 
 迁移文件为 `db/alembic/versions/20261107_0018_content_factory_v3.py`；它只创建新表，并补齐已知新增列 `vision_call_bound_micros` 和 `attempt`，不删除表、不重写购买记录。
 
@@ -172,8 +233,9 @@ Web 控制页的“紧急停止”或 `POST /api/content-factory/admin/automatio
 
 ## 验收结论
 
-本分支可进行本地开发和代码审查，不能仅凭本记录宣称“已完成真实上线”。下一步需要用户明确授权：
+生产部署、数据库备份与增量安装、Web/Worker/Beat、健康检查、匿名权限边界、
+文章生成失败门禁、图片供应商调用和异常池失败路径已验证。
 
-- 先做预算有上限的真实联调（建议先 1 篇文章、1 张图片，再扩大到 10 + 10）；
-- 完成生产备份、迁移副本演练和迁移版本核对；
-- 部署后做健康检查、管理员鉴权、任务派发、异常池和人工上架验收。
+本轮不能宣称“1 篇文章 + 1 张图片全部验收成功”：文章是质量门禁正确拦截，
+图片是供应商已返回但后续交付失败；两者都没有自动发布。继续扩大真实调用前，
+应先完成一次受控图片成功路径和真实登录后的管理员页面复核。
