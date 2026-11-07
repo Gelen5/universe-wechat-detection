@@ -55,70 +55,29 @@ window.ContentFactoryAutomation = (() => {
     let state;
     try { state = await api('/admin/automation'); }
     catch { box.append(node('p', '自动化尚未安装或数据库迁移未完成；手动商品功能不受影响。')); return; }
-    const status = node('div'); status.className = `automation-status ${state.emergency_stop ? 'stopped' : 'running'}`;
-    status.append(node('strong', state.emergency_stop ? '自动生成已停止' : '自动生成正在运行'));
-    status.append(node('p', state.emergency_stop
-      ? '现在不会自动选题、生成或上架。设置好以后点下面的绿色按钮启动。'
-      : '系统会按你的设置自动选题；满足质量要求的内容会自动上架。'));
-    box.append(status);
-
-    const form = node('form'); box.append(form);
-    const check = (label, checked) => {
-      const field = node('label'); field.className = 'automation-check';
-      const input = node('input'); input.type = 'checkbox'; input.checked = checked;
-      input.style.width = 'auto'; field.append(input, document.createTextNode(' ' + label));
-      return {field, input};
-    };
-    const number = (name, label, value, min = 0) => {
-      const field = node('label', label);
-      const input = node('input'); input.type = 'number'; input.min = String(min); input.name = name;
-      input.value = String(value ?? 0); field.append(input); return input;
-    };
-
-    const basic = node('fieldset'); basic.append(node('legend', '1. 生成什么'));
-    const articleChoice = check('自动生成文章', !!state.automatic_articles);
-    const imageChoice = check('自动生成图片', !!state.automatic_images);
-    basic.append(articleChoice.field, imageChoice.field);
-    const peopleLabel = node('label', '图片里要不要人物');
-    const people = node('select'); people.name = 'image_people_mode';
-    for (const [value, text] of [['auto','自动判断'],['required','一定要有人物'],['off','不要人物']]) {
-      const option = node('option', text); option.value = value;
-      option.selected = (state.image_people_mode || 'auto') === value;
-      people.append(option);
-    }
-    peopleLabel.append(people); basic.append(peopleLabel);
-    const counts = node('div'); counts.className = 'automation-grid';
-    const articleLimit = number('article_limit', '每天几篇文章', state.article_limit);
-    const imageLimit = number('image_limit', '每天几张图片', state.image_limit);
-    counts.append(articleLimit.parentElement, imageLimit.parentElement); basic.append(counts);
-    form.append(basic);
-
-    const publish = node('fieldset'); publish.append(node('legend', '2. 生成后怎么办'));
-    const autoPublish = check('质量通过后自动放进成品库', !!state.automatic_article_publish || !!state.automatic_image_publish);
-    const schedule = check('每天早晚自动运行（北京时间 08:00 和 15:00）', !!state.scheduled_selection);
-    publish.append(autoPublish.field, schedule.field); form.append(publish);
-
-    const advanced = node('details'); advanced.append(node('summary', '高级设置：预算、赛道和最低分'));
-    const costFields = [
-      ['daily_budget_micros','每天最多花多少（微单位）'],['title_call_bound_micros','单次标题最高费用'],
-      ['article_call_bound_micros','单次文章最高费用'],['image_call_bound_micros','单次图片最高费用'],
-      ['detector_call_bound_micros','单次朱雀检测最高费用'],['vision_call_bound_micros','单次视觉复核最高费用']
+    box.append(node('p', state.emergency_stop ? '状态：已紧急停止'
+      : `状态：选题${state.automatic_selection ? '开启' : '关闭'} · 定时${state.scheduled_selection ? '开启' : '关闭'} · 文章自动上架${state.automatic_article_publish ? '开启' : '关闭'} · 图片自动上架${state.automatic_image_publish ? '开启' : '关闭'}`));
+    box.append(node('p', '费用使用统一币种的微单位；仅在核实每次调用的最高费用后填写。未知费用的预留不会自动释放。朱雀和视觉复核不可用时，文章或图片都不会自动上架。'));
+    const fields = [
+      ['daily_budget_micros','每日预算'],['title_call_bound_micros','标题单次费用上限'],
+      ['article_call_bound_micros','文章单次费用上限'],['image_call_bound_micros','图片单次费用上限'],
+      ['detector_call_bound_micros','朱雀单次费用上限'],['vision_call_bound_micros','视觉复核单次费用上限'],
+      ['article_limit','每日文章数量'],['image_limit','每日图片数量'],['minimum_score','最低机会分']
     ];
-    const costs = node('div'); costs.className = 'automation-grid';
-    for (const [name, label] of costFields) costs.append(number(name, label, state[name]).parentElement);
-    advanced.append(costs);
-    const minimumScore = number('minimum_score', '选题最低分（越高越少）', state.minimum_score);
-    advanced.append(minimumScore.parentElement);
+    const form = node('form'); box.append(form);
+    for (const [name, label] of fields) {
+      const field = node('label', label);
+      const input = node('input'); input.type = 'number'; input.min = '0'; input.name = name;
+      input.value = String(state[name] ?? 0); field.append(input); form.append(field);
+    }
     const tracksLabel = node('label', '启用赛道（逗号分隔）');
     const tracks = node('input'); tracks.name = 'tracks'; tracks.value = (state.tracks || []).join(',');
-    tracksLabel.append(tracks); advanced.append(tracksLabel);
+    tracksLabel.append(tracks); form.append(tracksLabel);
     const confirmLabel = node('label');
     const verified = node('input'); verified.type = 'checkbox'; verified.name = 'verified';
     verified.style.width = 'auto'; verified.checked = !!state.cost_bound_verified;
     confirmLabel.append(verified, document.createTextNode(' 我已核实供应商计价与各项调用费用上限'));
-    advanced.append(confirmLabel); form.append(advanced);
-    advanced.open = !state.cost_bound_verified;
-
+    form.append(confirmLabel);
     const message = node('p'); message.setAttribute('role', 'status'); box.append(message);
     const actions = node('div'); actions.className = 'stack'; box.append(actions);
     const refresh = async () => { box.remove(); await render(parent, api); };
@@ -127,34 +86,33 @@ window.ContentFactoryAutomation = (() => {
       try { await handler(); await refresh(); }
       catch (error) { message.textContent = error.message; }
     });
-    const saveSettings = async () => {
-      const names = [...costFields.map(([name]) => name), 'article_limit', 'image_limit', 'minimum_score'];
-      const values = Object.fromEntries(names.map(name => [name, Number(form.elements[name].value)]));
+    actions.append(action('保存预算与赛道', async () => {
+      const values = Object.fromEntries(fields.map(([name]) => [name, Number(form.elements[name].value)]));
       values.tracks = tracks.value.split(/[,，]/).map(value => value.trim()).filter(Boolean);
-      values.image_people_mode = people.value;
       values.cost_bound_verified = verified.checked;
       await api('/admin/automation/limits', json('PUT', values));
-    };
-    actions.append(action('只保存设置', saveSettings));
-    actions.append(action('保存并启动全自动', async () => {
-      if (!articleChoice.input.checked && !imageChoice.input.checked) {
-        throw Error('请先选择要自动生成文章还是图片');
-      }
-      await saveSettings();
-      await api('/admin/automation/enable-title-planning', {method:'POST'});
-      await api('/admin/automation/enable-production', json('POST', {
-        articles: articleChoice.input.checked, images: imageChoice.input.checked
-      }));
-      await api(
-      '/admin/automation/enable-publishing',
-        json('POST', {
-          articles: articleChoice.input.checked && autoPublish.input.checked,
-          images: imageChoice.input.checked && autoPublish.input.checked
-        })
-      );
-      await api('/admin/automation/schedule', json('PUT', {enabled: schedule.input.checked}));
     }));
-    actions.append(action('立即全部停止', () => api('/admin/automation/emergency-stop', {method:'POST'})));
+    actions.append(action('启用标题规划', () => api('/admin/automation/enable-title-planning', {method:'POST'})));
+    actions.append(action(state.automatic_articles ? '关闭文章生产' : '启用文章生产', () => api(
+      '/admin/automation/enable-production',
+      json('POST', {articles: !state.automatic_articles, images: !!state.automatic_images})
+    ), state.automatic_articles));
+    actions.append(action(state.automatic_images ? '关闭图片生产' : '启用图片生产', () => api(
+      '/admin/automation/enable-production',
+      json('POST', {articles: !!state.automatic_articles, images: !state.automatic_images})
+    ), state.automatic_images));
+    actions.append(action(state.automatic_article_publish ? '关闭文章自动上架' : '开启文章自动上架', () => api(
+      '/admin/automation/enable-publishing',
+      json('POST', {articles: !state.automatic_article_publish, images: !!state.automatic_image_publish})
+    ), state.automatic_article_publish));
+    actions.append(action(state.automatic_image_publish ? '关闭图片自动上架' : '开启图片自动上架', () => api(
+      '/admin/automation/enable-publishing',
+      json('POST', {articles: !!state.automatic_article_publish, images: !state.automatic_image_publish})
+    ), state.automatic_image_publish));
+    actions.append(action(state.scheduled_selection ? '关闭定时选题' : '开启定时选题', () => api(
+      '/admin/automation/schedule', json('PUT', {enabled: !state.scheduled_selection})
+    ), state.scheduled_selection));
+    actions.append(action('紧急停止', () => api('/admin/automation/emergency-stop', {method:'POST'})));
 
     try {
       const metrics = await api('/admin/automation/metrics');

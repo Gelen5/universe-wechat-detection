@@ -7,7 +7,6 @@ from server.content_factory_v3_store import metadata
 KNOWN_ADDITIVE_COLUMNS = {
     "content_factory_v3_settings": {
         "vision_call_bound_micros": "INTEGER NOT NULL DEFAULT 0",
-        "image_people_mode": "VARCHAR(16) NOT NULL DEFAULT 'auto'",
     },
     "content_factory_v3_runs": {
         "attempt": "INTEGER NOT NULL DEFAULT 0",

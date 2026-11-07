@@ -17,8 +17,6 @@ def upgrade():
         'content_factory_v3_settings': {
             'vision_call_bound_micros': sa.Column(
                 'vision_call_bound_micros', sa.Integer(), nullable=False, server_default='0'),
-            'image_people_mode': sa.Column(
-                'image_people_mode', sa.String(16), nullable=False, server_default='auto'),
         },
         'content_factory_v3_runs': {
             'attempt': sa.Column(

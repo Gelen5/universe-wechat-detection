@@ -31,7 +31,6 @@ settings = Table('content_factory_v3_settings', metadata,
     Column('article_limit', Integer, nullable=False, server_default='0'),
     Column('image_limit', Integer, nullable=False, server_default='0'),
     Column('minimum_score', Integer, nullable=False, server_default='70'),
-    Column('image_people_mode', String(16), nullable=False, server_default='auto'),
     Column('tracks_json', Text, nullable=False, server_default='[]'),
     Column('updated_at', Text, nullable=False),
     CheckConstraint('id = 1', name='ck_factory_v3_settings_singleton'),
@@ -127,8 +126,7 @@ def get_settings(connection):
             'daily_budget_micros': 0, 'title_call_bound_micros': 0, 'article_call_bound_micros': 0,
             'image_call_bound_micros': 0, 'vision_call_bound_micros': 0,
             'detector_call_bound_micros': 0, 'cost_bound_verified': False,
-            'article_limit': 0, 'image_limit': 0, 'minimum_score': 70,
-            'image_people_mode': 'auto', 'tracks': [], 'updated_at': None}
+            'article_limit': 0, 'image_limit': 0, 'minimum_score': 70, 'tracks': [], 'updated_at': None}
 
 
 def ensure_settings(connection):
