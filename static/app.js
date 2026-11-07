@@ -1624,6 +1624,7 @@ const viewMap = {
   report: reportRoot,
   market: document.querySelector('#market'),
   bookshelf: document.querySelector('#bookshelf'),
+  'content-factory': document.querySelector('#content-factory'),
   hotspots: document.querySelector('#hotspots'),
   'topic-library': document.querySelector('#topic-library'),
   lowfans: document.querySelector('#lowfans'),
@@ -1645,11 +1646,21 @@ const viewTitles = {
   report: '诊断报告',
   market: 'AI 超市',
   bookshelf: 'AI 书架',
+  'content-factory': '爆款成品库',
   hotspots: '热点广场',
   'topic-library': '选题灵感库',
   lowfans: '低粉爆文',
   'image-board': '低粉爆图',
 };
+
+let factoryOwner = null;
+window.addEventListener('account-changed', () => {
+  const owner = currentAccount?.id || null;
+  if (owner === factoryOwner) return;
+  factoryOwner = owner;
+  const frame = document.querySelector('#content-factory-frame');
+  if (frame?.hasAttribute('src')) frame.src = '/content-factory-frame?embed=1';
+});
 
 function pathToView(path) {
   const p = String(path || '').replace(/^\/+|\/+$/g, '');
@@ -1675,6 +1686,10 @@ function setActiveView(view, updateHash = false) {
   if (view === 'bookshelf') {
     const frame=document.querySelector('#bookshelf-frame');
     if(frame && !frame.hasAttribute('src'))frame.src='/bookshelf?embed=1';
+  }
+  if (view === 'content-factory') {
+    const frame = document.querySelector('#content-factory-frame');
+    if (frame && !frame.hasAttribute('src')) frame.src = '/content-factory-frame?embed=1';
   }
   if (view === 'hotspots') window.HotspotsView?.ensureLoaded?.();
   if (view === 'topic-library') {

@@ -1697,9 +1697,14 @@ def favicon():
     return FileResponse(STATIC_DIR / "favicon.ico", media_type="image/x-icon")
 
 
-@app.get("/content-factory", include_in_schema=False)
+@app.get("/content-factory-frame", include_in_schema=False)
 def content_factory_page():
     return FileResponse(STATIC_DIR / "content-factory.html")
+
+
+@app.get("/content-factory", include_in_schema=False)
+def content_factory_shell():
+    return FileResponse(STATIC_DIR / "index.html", media_type="text/html; charset=utf-8")
 
 
 @app.get("/{tab}", include_in_schema=False)

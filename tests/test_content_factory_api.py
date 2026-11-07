@@ -13,6 +13,11 @@ from server.models import LowfansArticle, PointTransaction, Wallet
 
 @pytest.fixture
 def client(tmp_path, monkeypatch):
+    monkeypatch.setenv('MAKERS_MODELS_KEY', 'test')
+    class Detector:
+        def raise_for_status(self): pass
+        def json(self): return {'status':'success','labels_ratio':{'0':0.9}}
+    monkeypatch.setattr(content_factory.requests, 'post', lambda *a, **kw: Detector())
     engine = create_engine(f"sqlite:///{(tmp_path / 'api.db').as_posix()}", connect_args={"check_same_thread": False})
     metadata.create_all(engine)
     for table in (LowfansArticle.__table__, Wallet.__table__, PointTransaction.__table__):
@@ -30,7 +35,7 @@ def client(tmp_path, monkeypatch):
 
 def test_exclusive_sale_and_content_authorization(client):
     admin = {"x-admin": "1"}
-    payload = {"source_row_id": 1, "product_type": "article", "title": "原创文章", "track": "情感", "preview": "节选", "content": "只给买家看的完整文章", "price_points": 5}
+    payload = {"source_row_id": 1, "product_type": "article", "title": "原创文章", "track": "情感", "preview": "节选", "content": "只给买家看的完整文章" * 100, "price_points": 5}
     result = client.post('/api/content-factory/admin/products', json=payload, headers=admin)
     assert result.status_code == 200
     product_id = result.json()['id']
@@ -54,12 +59,26 @@ def test_unverified_source_cannot_be_published(client):
     assert client.post('/api/content-factory/admin/products', json=payload).status_code == 403
 
 
+def test_article_gate_rejects_short_and_low_human_ratio(client, monkeypatch):
+    admin = {'x-admin': '1'}
+    payload = {'source_row_id': 1, 'product_type': 'article', 'title': '文章', 'content': '短文', 'price_points': 10}
+    ident = client.post('/api/content-factory/admin/products', json=payload, headers=admin).json()['id']
+    assert client.post(f'/api/content-factory/admin/products/{ident}/publish', headers=admin).status_code == 400
+    payload['content'] = '文' * 1000
+    assert client.put(f'/api/content-factory/admin/products/{ident}', json=payload, headers=admin).status_code == 200
+    class Low:
+        def raise_for_status(self): pass
+        def json(self): return {'status': 'success', 'labels_ratio': {'0': 0.79}}
+    monkeypatch.setattr(content_factory.requests, 'post', lambda *a, **kw: Low())
+    assert client.post(f'/api/content-factory/admin/products/{ident}/publish', headers=admin).status_code == 400
+
+
 def test_same_article_cannot_be_listed_twice(client):
-    payload = {"source_row_id": 1, "product_type": "article", "title": "文章", "content": "同一 篇文章", "price_points": 5}
+    payload = {"source_row_id": 1, "product_type": "article", "title": "文章", "content": "同一 篇文章" * 200, "price_points": 5}
     admin = {'x-admin':'1'}
     first = client.post('/api/content-factory/admin/products', json=payload, headers=admin).json()['id']
     assert client.post(f'/api/content-factory/admin/products/{first}/publish', headers=admin).status_code == 200
-    payload['content'] = '同一篇文章'
+    payload['content'] = '同一篇文章' * 200
     second = client.post('/api/content-factory/admin/products', json=payload, headers=admin).json()['id']
     assert client.post(f'/api/content-factory/admin/products/{second}/publish', headers=admin).status_code == 409
 

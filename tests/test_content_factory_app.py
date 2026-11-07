@@ -10,7 +10,13 @@ from server.main import app
 from server.models import LowfansArticle
 
 
-def test_app_purchase_flow():
+def test_app_purchase_flow(monkeypatch):
+    from server import content_factory
+    monkeypatch.setenv('MAKERS_MODELS_KEY','test')
+    class Detector:
+        def raise_for_status(self): pass
+        def json(self): return {'status':'success','labels_ratio':{'0':0.9}}
+    monkeypatch.setattr(content_factory.requests,'post',lambda *a,**k:Detector())
     metadata.create_all(database.ENGINE)
     with database.ENGINE.begin() as connection:
         connection.execute(LowfansArticle.__table__.insert().values(
@@ -24,7 +30,7 @@ def test_app_purchase_flow():
     assert admin.post('/api/admin/recharge', json={'user_id':user['id'],'points':10,'bucket':'trial','note':'test'}).status_code == 200
     assert buyer.get('/content-factory').status_code == 200
     response = admin.post('/api/content-factory/admin/products', json={
-        'source_row_id': row_id, 'product_type':'article', 'title':'文章', 'content':'付费内容', 'price_points':5})
+        'source_row_id': row_id, 'product_type':'article', 'title':'文章', 'content':'付费内容'*250, 'price_points':5})
     assert response.status_code == 200, response.text
     ident = response.json()['id']
     assert admin.post(f'/api/content-factory/admin/products/{ident}/publish').status_code == 200
@@ -38,5 +44,5 @@ def test_app_purchase_flow():
     assert buyer.get('/api/content-factory/products').json()[0]['owned'] is True
     assert guest.get('/api/content-factory/products').json()[0]['status'] == 'sold'
     assert guest.get('/api/content-factory/products').json()[0]['owned'] is False
-    assert buyer.get(f'/api/content-factory/products/{ident}/content').json()['content'] == '付费内容'
+    assert buyer.get(f'/api/content-factory/products/{ident}/content').json()['content'] == '付费内容'*250
     assert admin.get(f'/api/content-factory/products/{ident}/content').status_code == 404

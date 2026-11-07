@@ -4,6 +4,8 @@ from __future__ import annotations
 import json
 import hashlib
 import re
+import os
+import requests
 import uuid
 from datetime import datetime, timezone
 from urllib.parse import urlparse
@@ -218,11 +220,37 @@ def admin_image(product_id: str, request: Request):
 @router.post("/admin/products/{product_id}/publish")
 def publish(product_id: str, request: Request):
     admin(request)
+    with database.ENGINE.connect() as connection:
+        candidate = connection.execute(select(products.c.content, products.c.product_type).where(products.c.id == product_id)).mappings().first()
+    if not candidate:
+        raise HTTPException(404, '商品不存在')
+    if candidate and candidate['product_type'] == 'article':
+        article = candidate['content'].strip()
+        count = len(re.sub(r'\s+', '', article))
+        if not 1000 <= count <= 1200:
+            raise HTTPException(400, f'文章字数须为1000至1200字（不计空白），当前 {count} 字')
+        key = os.getenv('MAKERS_MODELS_KEY', '').strip()
+        if not key:
+            raise HTTPException(503, '朱雀检测未配置，暂不能上架文章')
+        try:
+            response = requests.post('https://ai-gateway.edgeone.link/v1/providers/zhuque-text/classify',
+                headers={'Authorization': 'Bearer ' + key}, json={'text': article, 'is_merge': True}, timeout=45)
+            response.raise_for_status()
+            result = response.json()
+            human = float(result['labels_ratio']['0'])
+            if result.get('status') != 'success' or not 0 <= human <= 1:
+                raise ValueError('invalid detector result')
+        except (requests.RequestException, ValueError, KeyError, TypeError) as exc:
+            raise HTTPException(503, '朱雀检测失败，请稍后重试') from exc
+        if human < 0.8:
+            raise HTTPException(400, f'朱雀人工内容占比 {human * 100:.1f}%，需达到80%')
     try:
         with database.ENGINE.begin() as connection:
             row = connection.execute(select(products).where(products.c.id == product_id).with_for_update()).mappings().first()
             if not row or row["status"] != "draft" or not row["source_url"] or not row["source_title"]:
                 raise HTTPException(409, "商品或来源不完整")
+            if row['product_type'] != candidate['product_type'] or (row['product_type'] == 'article' and row['content'].strip() != article):
+                raise HTTPException(409, '文章已修改，请重新检测')
             if connection.execute(select(jobs.c.id).where(jobs.c.product_id == product_id,
                     jobs.c.status.in_(["queued", "running"]))).first():
                 raise HTTPException(409, "生成任务尚未完成")
