@@ -239,6 +239,14 @@ def test_article_types_are_supported():
         article_visual.validate_plan(raw, article)
 
 
+def test_plan_accepts_a_single_cover_without_body_slots():
+    article = {"title":"短篇报道标题", "markdown":"这是文章中用于验证的连续原文片段。"}
+    raw = {"article_type":"event", "slots":[{"id":"cover", "form":"cover", "headline":"短篇报道标题", "source_quote":article["markdown"]}]}
+    article_visual.validate_plan(raw, article)
+    plan = article_visual._normalize_plan(raw, article)
+    assert len(plan["slots"]) == 1
+
+
 def test_direction_choices_keep_independent_slots_and_evidence():
     article = {"title":"演员转行程序员", "account":"", "markdown":"她退役后学习编程并使用 AI 写程序。"}
     choices = []
