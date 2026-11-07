@@ -723,10 +723,12 @@ def run_job(job_id: str, payload: dict[str, Any]) -> dict[str, Any]:
     if not result.get("facts"):
         warnings.append("成稿未提供结构化事实账本，请人工复核关键事实")
     result["warnings"] = list(dict.fromkeys(warnings + result.get("warnings", [])))
-    result["steps"] = _step_payload(steps)
     result["results"] = [{"content": result["content"]}]
     result["progress"] = 100
     update("output", "done", f"成稿已完成，共 {len(result['content'])} 字", 100)
+    # Snapshot after the final update: capturing earlier froze "output" as
+    # running, and finish_job overwrote the corrected progress column.
+    result["steps"] = _step_payload(steps)
     return result
 
 
@@ -793,6 +795,15 @@ def public(job: dict[str, Any]) -> dict[str, Any]:
     status = job.get("status") or "queued"
     progress = result.get("progress") if isinstance(result.get("progress"), dict) else {}
     steps = progress.get("steps") or result.get("steps") or []
+    # Jobs finished before the snapshot-order fix persisted the final step as
+    # running; a succeeded job is reported as fully done regardless.
+    if status == "succeeded" and steps:
+        steps = [
+            {**step, "status": 2}
+            if isinstance(step, dict) and step.get("status") == 1
+            else step
+            for step in steps
+        ]
     if status == "succeeded":
         percent = 100
     elif status == "canceled":

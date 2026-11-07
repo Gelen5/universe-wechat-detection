@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import contextlib
+import json
 import uuid
 from unittest.mock import patch
 
@@ -184,6 +185,42 @@ class TestPipeline:
         assert [step["key"] for step in result["steps"]] == [
             "fetch", "images", "rewrite", "output",
         ]
+        # The final snapshot must not freeze the last step as running.
+        assert [step["status"] for step in result["steps"]] == [2, 2, 2, 2]
+
+    def test_succeeded_job_reports_legacy_running_step_as_done(self):
+        """Jobs created before the snapshot fix still render as completed."""
+        legacy = {
+            "id": "job-legacy",
+            "status": "succeeded",
+            "payload_json": "{}",
+            "result_json": json.dumps({
+                "title": "旧任务",
+                "content": "正文",
+                "results": [{"content": "正文"}],
+                "progress": {"percent": 100, "steps": [
+                    {"key": "fetch", "name": "分析内容", "status": 2},
+                    {"key": "output", "name": "输出成稿", "status": 1},
+                ]},
+            }),
+        }
+        public = viral_article.public(legacy)
+        assert public["progress"] == 100
+        assert [step["status"] for step in public["steps"]] == [2, 2]
+
+    def test_running_job_keeps_running_step(self):
+        running = {
+            "id": "job-running",
+            "status": "running",
+            "payload_json": "{}",
+            "result_json": json.dumps({
+                "progress": {"percent": 62, "steps": [
+                    {"key": "output", "name": "输出成稿", "status": 1},
+                ]},
+            }),
+        }
+        public = viral_article.public(running)
+        assert public["steps"][0]["status"] == 1
 
     def test_all_fetches_failing_raises_and_does_not_rewrite(self):
         with patch.object(viral_article, "fetch_article", side_effect=ValueError("blocked")), \
