@@ -50,6 +50,11 @@ window.APP_NAV = (() => {
      hidden: true,
      fallback: true,
      icon: svg('<path d="M4 4h16v12H9l-5 4z"/><path d="M9 10h6M12 7v6"/>')},
+    // 爆文复刻：输入公开文章链接，换角度重写，可选表达层去 AI 味。
+    {group: '创作', href: '/viral-article', view: 'viral-article', label: '爆文复刻',
+     fallback: true,
+     icon: svg('<path d="M5 3h10l4 4v14H5z"/><path d="M15 3v5h5"/>' +
+               '<path d="M8 12h8M8 16h6"/><path d="m17 16 .8 1.7 1.7.8-1.7.8L17 21l-.8-1.7-1.7-.8 1.7-.8z"/>')},
     {group: '创作', href: '/xiaohongshu', view: 'xiaohongshu', label: '小红书',
      icon: svg('<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/>' +
                '<polyline points="2 12 12 17 22 12"/>')},
@@ -86,7 +91,7 @@ window.APP_NAV = (() => {
                '<path d="m19.07 4.93-1.41 1.41"/>')},
     // 账号诊断入口暂时隐藏：上游数据源（Redfox）额度用尽，任何查询都会失败，
     // 先不让人点进去。路由与 #diagnose 章节都保留，恢复时删掉 hidden: true，
-    // 再把 index.html / bookshelf.html / market.html / qihaoshou.html 里注释掉
+    // 再把 index.html / bookshelf.html / market.html 里注释掉
     // 的导航节点放开即可。
     {group: '分析', href: '/diagnose', view: 'diagnose', label: '账号诊断',
      hidden: true,
@@ -104,7 +109,7 @@ window.APP_NAV = (() => {
                '<path d="M8 7V5.5a4 4 0 0 1 8 0V7"/>')},
     // 独立页面（服务端渲染），不是应用内视图：不能带 view，
     // 否则 app-navigation.js 会拦下点击、SPA 把内容区清空 → 白屏。
-    {group: '资源', href: '/bookshelf', view: 'bookshelf', label: 'AI 书架',
+    {group: '资源', href: '/bookshelf', view: 'bookshelf', label: 'AI 书架', fallback: true,
      icon: svg('<path d="M4 4h6a3 3 0 0 1 2 1 3 3 0 0 1 2-1h6v15h-6a3 3 0 0 0-2 1 3 3 0 0 0-2-1H4z"/>' +
                '<path d="M12 5v15"/>')},
     {group: '账户', href: '/pricing', label: '积分套餐', page: true,

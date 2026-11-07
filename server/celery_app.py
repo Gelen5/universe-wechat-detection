@@ -16,7 +16,9 @@ _beat_only = len(sys.argv) > 1 and "beat" in sys.argv[1:] and "worker" not in sy
 _task_modules = ["server.workflow_tasks", "server.agent_tasks", "server.hotspots",
                  "server.provider_health", "server.wechat_plus_tasks",
                  "server.viral_remix_tasks", "server.lowfans_sync", "server.article_visual_tasks",
-                 "server.image_board", "server.membership_credit_tasks", "server.content_factory_tasks", "server.content_factory_v3_tasks"]
+                 "server.image_board", "server.membership_credit_tasks",
+                 "server.content_factory_tasks", "server.content_factory_v3_tasks",
+                 "server.viral_article_tasks"]
 celery_app = Celery("universe_creator", broker=REDIS_URL, backend=REDIS_URL,
                     include=[] if _beat_only else _task_modules)
 
@@ -46,6 +48,7 @@ celery_app.conf.update(
         "content_factory.v3_schedule": {"queue": "text"},
         "viral_remix.run": {"queue": "image"},
         "viral_remix.analyze": {"queue": "text"},
+        "viral_article.run": {"queue": "text"},
         "article_visual.plan": {"queue": "text"},
         "article_visual.recover": {"queue": "text"},
         "market.sync": {"queue": "text"},

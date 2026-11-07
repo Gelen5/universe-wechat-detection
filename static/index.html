@@ -75,6 +75,7 @@
 <link rel="stylesheet" href="/static/sticker-extract.css?v=20261103-glass-4">
 <link rel="stylesheet" href="/static/xhs-extract.css?v=20261031-workspace-5">
 <link rel="stylesheet" href="/static/article-visual.css?v=20261106-progress-1">
+<link rel="stylesheet" href="/static/viral-article.css?v=20261107-pricing-2">
 <link rel="stylesheet" href="/static/douyin-extract.css?v=20261107-link-guide">
 <link rel="stylesheet" href="/static/review-studio.css?v=20261031-mint-1">
 <link rel="stylesheet" href="/static/referrals.css?v=20261031-invite-1">
@@ -123,6 +124,10 @@
             <span>公众号创作</span>
           </a> -->
 
+          <a data-view="viral-article" href="/viral-article">
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h10l4 4v14H5z"/><path d="M15 3v5h5"/><path d="M8 12h8M8 16h6"/><path d="m17 16 .8 1.7 1.7.8-1.7.8L17 21l-.8-1.7-1.7-.8 1.7-.8z"/></svg>
+            <span>爆文复刻</span>
+          </a>
           <a data-view="xiaohongshu" href="/xiaohongshu">
             <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
             <span>小红书</span>
@@ -699,6 +704,70 @@
     </article>
   </div>
 </section>
+      <section id="viral-article" class="skill-page viral-article" hidden>
+        <div class="v3-meta">
+          <span class="l"><span class="line"></span><span>CREATOR WORKSPACE / VIRAL ARTICLE</span></span>
+          <span class="r"><i></i>爆文复刻</span>
+        </div>
+        <div class="va-layout">
+          <section class="va-panel va-input-panel" aria-labelledby="va-title">
+            <span class="va-kicker"><span></span><span>一稿多源 · 换角度重写</span></span>
+            <h1 id="va-title">把一篇爆文，<br><span>换个角度重写。</span></h1>
+            <p class="va-lead">粘贴公开文章链接，提取事实后换一个叙事角度；可单独选择是否做表达层去 AI 味。</p>
+            <form id="va-form" class="va-form">
+              <label for="va-urls">文章链接</label>
+              <textarea id="va-urls" rows="6" maxlength="20000" placeholder="每行一条公开文章链接，最多 10 条"></textarea>
+              <div class="va-url-meta"><span id="va-url-count">0 / 10</span><span id="va-url-hint">自动去重</span></div>
+              <label for="va-angle">新角度（选填）</label>
+              <input id="va-angle" maxlength="300" placeholder="例如：从普通读者成本切入">
+              <div class="va-options">
+                <label class="va-switch" for="va-deai">
+                  <input id="va-deai" type="checkbox" checked>
+                  <span aria-hidden="true"></span>
+                  <b>去 AI 味</b>
+                </label>
+                <label class="va-chars" for="va-chars">目标字数
+                  <input id="va-chars" type="number" min="200" max="10000" inputmode="numeric" placeholder="自动">
+                </label>
+              </div>
+              <p class="va-cost">本次预扣 <strong id="va-cost">13</strong> 积分；失败自动退回。</p>
+              <p class="va-price-hint">不开启去 AI 味 10 积分，开启后 13 积分。</p>
+              <button id="va-submit" class="va-submit" type="submit">开始复刻</button>
+              <p id="va-error" class="va-error" role="alert" hidden></p>
+            </form>
+          </section>
+
+          <section class="va-panel va-progress-panel" aria-labelledby="va-progress-title">
+            <div class="va-panel-head">
+              <div><span class="va-kicker"><span></span><span>任务进度</span></span><h2 id="va-progress-title">等待提交</h2></div>
+              <strong id="va-percent">0%</strong>
+            </div>
+            <div class="va-progress-track" aria-hidden="true"><i id="va-progress-bar"></i></div>
+            <ol id="va-steps" class="va-steps"></ol>
+            <div id="va-warnings" class="va-warnings" hidden>
+              <h3>需要留意</h3><ul id="va-warning-list"></ul>
+            </div>
+            <button id="va-cancel" class="va-cancel" type="button" hidden>取消任务</button>
+          </section>
+
+          <section id="va-result" class="va-panel va-result-panel" hidden>
+            <div class="va-result-head">
+              <div><span class="va-kicker"><span></span><span>成稿</span></span><h2 id="va-result-title"></h2></div>
+              <div class="va-result-actions">
+                <button id="va-copy-title" type="button">复制标题</button>
+                <button id="va-copy-content" type="button">复制正文</button>
+                <button id="va-download" type="button">下载 Markdown</button>
+              </div>
+            </div>
+            <pre id="va-result-content" class="va-result-content"></pre>
+            <details id="va-evidence" class="va-evidence">
+              <summary>来源与事实账本</summary>
+              <div id="va-evidence-body"></div>
+            </details>
+          </section>
+        </div>
+      </section>
+
       <section id="xiaohongshu" class="skill-page" hidden>
         <div class="v3-meta">
           <span class="l"><span class="line"></span><span>Workspace X/03 · Xiaohongshu</span></span>
@@ -1161,6 +1230,7 @@
     <script src="/static/sticker-extract.js?v=20261104-board-handoff"></script>
     <script src="/static/xhs-extract.js?v=20261104-guest-input-1"></script>
     <script src="/static/article-visual.js?v=20261106-member-benefits"></script>
+    <script src="/static/viral-article.js?v=20261107-pricing-1"></script>
     <script src="/static/douyin-extract.js?v=20261107-link-guide"></script>
     <script>
       // CDN/embedded clients may retain an older sidebar builder. Keep these

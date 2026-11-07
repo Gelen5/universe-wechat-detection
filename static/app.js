@@ -28,6 +28,7 @@ const tieTuPage = document.querySelector('#tie-tu');
 const viralRemixPage = document.querySelector('#viral-remix');
 const xhsExtractPage = document.querySelector('#xhs-extract');
 const articleVisualPage = document.querySelector('#article-visual');
+const viralArticlePage = document.querySelector('#viral-article');
 const douyinExtractPage = document.querySelector('#douyin-extract');
 const hitDetectorPage = document.querySelector('#hit-detector');
 const authModal = document.querySelector('#auth-modal');
@@ -1674,6 +1675,7 @@ const viewMap = {
   'sticker-extract': document.querySelector('#sticker-extract'),
   'xhs-extract': xhsExtractPage,
   'article-visual': articleVisualPage,
+  'viral-article': viralArticlePage,
   'douyin-extract': douyinExtractPage,
   'hit-detector': hitDetectorPage,
   morning: morningGenerator,
@@ -1696,6 +1698,7 @@ const viewTitles = {
   'sticker-extract': '贴图号内容提取',
   'xhs-extract': '小红书内容提取',
   'article-visual': '爆文转贴图',
+  'viral-article': '爆文复刻',
   'douyin-extract': '抖音内容提取',
   'hit-detector': '爆文检测',
   morning: '早安祝福',
@@ -1739,6 +1742,7 @@ function setActiveView(view, updateHash = false) {
   if (view === 'market') window.MarketView?.ensureLoaded?.();
   if (view === 'wechat-plus') window.WechatPlus?.ensureLoaded?.();
   if (view === 'article-visual') window.ArticleVisual?.ensureLoaded?.();
+  if (view === 'viral-article') window.ViralArticle?.ensureLoaded?.();
   if (view === 'bookshelf') {
     const frame=document.querySelector('#bookshelf-frame');
     if(frame && !frame.hasAttribute('src'))frame.src='/bookshelf?embed=1';
