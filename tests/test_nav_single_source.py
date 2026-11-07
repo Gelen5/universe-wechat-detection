@@ -134,6 +134,9 @@ class SingleSourceTests(unittest.TestCase):
         self.assertIn("skills: document.querySelector('#skills')", app)
         self.assertIn("'remove-ai-flavor': '去 AI 味'", app)
         self.assertIn("skills: '技能库'", app)
+        index = (STATIC / 'index.html').read_text(encoding='utf-8')
+        self.assertIn('/static/deai-skills-bootstrap.js?v=20261107-1', index)
+        self.assertTrue((STATIC / 'deai-skills-bootstrap.js').is_file())
 
     def test_page_links_stay_in_the_menu(self):
         hrefs = [route[0] for route in self.data['shell']]
