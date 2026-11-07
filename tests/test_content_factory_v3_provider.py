@@ -93,3 +93,15 @@ def test_vision_review_reports_success_only_with_every_boolean(monkeypatch):
         run_id="run-one", attempt=1, post=post)
     assert result["status"] == "success"
     assert captured["Idempotency-Key"] == "factory-v3:vision:run-one:1"
+
+
+def test_vision_configuration_error_is_an_explicit_failure(monkeypatch):
+    monkeypatch.setattr(content_factory_vision.workbench, "_setting",
+                        lambda *args, **kwargs: "vision-model")
+    monkeypatch.setattr(content_factory_vision.workbench, "_headers",
+                        lambda *args, **kwargs: (_ for _ in ()).throw(
+                            content_factory_vision.workbench.ProviderError("not configured")))
+    result = content_factory_vision.review(
+        b"image", title="标题", image_text="主文案", caption="配文",
+        run_id="run-one", attempt=0)
+    assert result == {"status": "failed", "error": "visual_review_failed"}
