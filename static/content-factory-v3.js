@@ -125,11 +125,16 @@ window.ContentFactoryAutomation = (() => {
       const rows = await api('/admin/automation/exceptions');
       if (!rows.length) list.append(node('p', '暂无暂缓或失败任务'));
       for (const row of rows.slice(0, 30)) {
-        let reasons = [];
-        try { reasons = JSON.parse(row.quality_json || '{}').reasons || []; } catch {}
+        let quality = {};
+        try { quality = JSON.parse(row.quality_json || '{}') || {}; } catch {}
+        const reasons = quality.reasons || [];
         const item = node('div'); item.className = 'card stack';
         item.append(node('p', `${row.track || '未分类'} · ${row.product_type === 'article' ? '文章' : '图片'} · ${row.status} · ${row.error || '无错误码'}`));
         if (reasons.length) item.append(node('p', '原因：' + reasons.map(reasonLabel).join('、'), 'muted'));
+        const length = quality.details && quality.details.article && quality.details.article.non_whitespace_chars;
+        if (Number.isFinite(length) && reasons.includes('article_length')) {
+          item.append(node('p', `正文 ${length} 字（要求 1000–1200，不含空白）`, 'muted'));
+        }
         if (['held', 'failed'].includes(row.status)) {
           item.append(action('手动重试（最多 2 次）', async () => {
             await api(`/admin/automation/runs/${row.id}/retry`, {method:'POST'});
@@ -149,8 +154,9 @@ window.ContentFactoryAutomation = (() => {
       const rows = await api('/admin/automation/runs');
       if (!rows.length) recent.append(node('p', '暂无任务'));
       for (const row of rows.slice(0, 30)) {
-        let reasons = [];
-        try { reasons = JSON.parse(row.quality_json || '{}').reasons || []; } catch {}
+        let quality = {};
+        try { quality = JSON.parse(row.quality_json || '{}') || {}; } catch {}
+        const reasons = quality.reasons || [];
         const item = node('div'); item.className = 'stack';
         item.append(node('p', `${row.track || '未分类'} · ${row.product_type === 'article' ? '文章' : '图片'} · 尝试 ${row.attempt || 0} · ${row.status}${row.error ? ' · ' + reasonLabel(row.error) : ''}${reasons.length ? ' · ' + reasons.map(reasonLabel).join('、') : ''}`));
         if (['title_queued', 'production_queued'].includes(row.status)) {

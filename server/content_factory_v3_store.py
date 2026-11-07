@@ -94,6 +94,21 @@ quality_reports = Table('content_factory_v3_quality_reports', metadata,
     Column('created_at', Text, nullable=False),
     UniqueConstraint('run_id', 'attempt', name='uq_factory_v3_quality_attempt'))
 
+provider_calls = Table('content_factory_v3_provider_calls', metadata,
+    Column('id', String(64), primary_key=True),
+    Column('run_id', String(64), nullable=False, index=True),
+    Column('attempt', Integer, nullable=False, server_default='0'),
+    Column('step', String(24), nullable=False),
+    Column('provider', String(80), nullable=False),
+    Column('model', String(160), nullable=False),
+    Column('input_tokens', Integer, nullable=False, server_default='0'),
+    Column('output_tokens', Integer, nullable=False, server_default='0'),
+    Column('image_count', Integer, nullable=False, server_default='0'),
+    Column('latency_ms', Integer),
+    Column('created_at', Text, nullable=False),
+    CheckConstraint('input_tokens >= 0 AND output_tokens >= 0 AND image_count >= 0',
+                    name='ck_factory_v3_usage_nonnegative'))
+
 
 def utc_now():
     return datetime.now(timezone.utc).isoformat()
@@ -197,6 +212,30 @@ def record_detection(connection, *, run_id, content, result):
         usage_tokens=result.get('makers_tokens') if state == 'success' else None,
         error=result.get('error') if state != 'success' else None, created_at=utc_now()))
     return ident
+
+
+def record_provider_usage(connection, *, run_id, step, attempt=0, provider, model,
+                          input_tokens=0, output_tokens=0, image_count=0,
+                          latency_ms=None):
+    """Persist measured provider usage; cost settlement stays explicitly unpaid.
+
+    V3 never fabricates a price: ``estimated_cost`` is not stored here, so the
+    budget reservation remains the only numeric cost until a verified supplier
+    bill is reconciled.
+    """
+    if not isinstance(run_id, str) or not run_id:
+        raise ValueError('run required')
+    if step not in ('title', 'article', 'image', 'vision'):
+        raise ValueError('unknown step')
+    values = (input_tokens, output_tokens, image_count)
+    if any(not isinstance(value, int) or isinstance(value, bool) or value < 0 for value in values):
+        raise ValueError('invalid usage')
+    connection.execute(insert(provider_calls).values(
+        id=uuid.uuid4().hex, run_id=run_id, attempt=int(attempt or 0), step=step,
+        provider=str(provider)[:80], model=str(model)[:160],
+        input_tokens=input_tokens, output_tokens=output_tokens, image_count=image_count,
+        latency_ms=None if latency_ms is None else max(0, int(latency_ms)),
+        created_at=utc_now()))
 
 
 def reserve_budget(connection, *, day, idempotency_key, maximum_micros):

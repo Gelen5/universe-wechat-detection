@@ -47,3 +47,25 @@ def test_image_evidence_and_expired_hotspot_are_not_misclassified():
         images = opportunities.classify_image_evidence(session)
         assert images[0]['classification'] == 'ordinary_image'
         assert opportunities.find_hotspots(session, '示例', as_of=datetime(2026, 11, 7, tzinfo=timezone.utc)) == []
+
+
+def test_verified_image_is_not_hidden_behind_a_page_of_ordinary_rows():
+    engine = create_engine('sqlite:///:memory:')
+    for table in (LowfansArticle.__table__, ImageBoardItem.__table__):
+        table.create(engine)
+    with Session(engine) as session:
+        # Older ordinary rows sort first by date/id; the one verified low-fan
+        # image must still survive a small result window.
+        for index in range(210):
+            session.add(ImageBoardItem(stat_date='2026-11-06', sn=f'ordinary-{index:03d}',
+                title='普通图文', art_url='https://example.com/o', image_num=1,
+                word_num=20, video_num=0, read_num=1000))
+        session.add(ImageBoardItem(stat_date='2026-11-05', sn='verified', title='低粉图文',
+            art_url='https://example.com/v', image_num=2, word_num=30, video_num=0,
+            read_num=100001, wx_type='其他'))
+        session.add(LowfansArticle(stat_date='2026-11-06', art_id='verified', wx_type='其他',
+            account_read_base=300, boost_ratio=40, read_num=100001))
+        session.commit()
+        images = opportunities.classify_image_evidence(session, limit=1)
+    assert [item['id'] for item in images] == ['verified']
+    assert images[0]['classification'] == 'verified_lowfans_image'

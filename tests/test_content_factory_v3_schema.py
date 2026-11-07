@@ -55,3 +55,4 @@ def test_v3_install_repairs_known_columns_on_a_partial_schema(tmp_path):
         item['name'] for item in inspector.get_columns('content_factory_v3_settings')}
     assert 'attempt' in {
         item['name'] for item in inspector.get_columns('content_factory_v3_runs')}
+    assert 'content_factory_v3_provider_calls' in set(inspector.get_table_names())

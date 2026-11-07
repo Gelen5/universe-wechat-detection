@@ -74,7 +74,12 @@ def review(image, *, title, image_text, caption, run_id, attempt=0, post=None):
         issues = result.get("issues")
         if not isinstance(issues, list):
             issues = []
+        usage = payload.get("usage") if isinstance(payload.get("usage"), dict) else {}
+        input_tokens = usage.get("prompt_tokens", usage.get("input_tokens", 0))
+        output_tokens = usage.get("completion_tokens", usage.get("output_tokens", 0))
         return {"status": "success", "model": model, "checks": {name: checks[name] for name in CHECK_FIELDS},
-                "issues": [str(item)[:160] for item in issues[:5] if isinstance(item, (str, int, float))]}
+                "issues": [str(item)[:160] for item in issues[:5] if isinstance(item, (str, int, float))],
+                "input_tokens": int(input_tokens or 0) if not isinstance(input_tokens, bool) else 0,
+                "output_tokens": int(output_tokens or 0) if not isinstance(output_tokens, bool) else 0}
     except (requests.RequestException, ValueError, TypeError, KeyError, AttributeError):
         return {"status": "failed", "error": "visual_review_failed"}

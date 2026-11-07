@@ -144,4 +144,10 @@ def classify_image_evidence(session, *, limit=100):
                     'classification': 'verified_lowfans_image' if image_first and is_lowfans else
                         'ordinary_image' if image_first else 'not_image_first',
                     'lowfans_observation': match if is_lowfans else None})
+    # Recent ordinary rows can fill a small result window before the matcher is
+    # consulted, which hid every verified low-fan image behind them. Rank the
+    # verified evidence first, then bound the response.
+    priority = {'verified_lowfans_image': 0, 'ordinary_image': 1, 'not_image_first': 2}
+    out.sort(key=lambda item: (priority[item['classification']], -(item['read_num'] or 0),
+                               item['observed_at'] or '', item['id']))
     return out[:max(0, min(limit, 200))]

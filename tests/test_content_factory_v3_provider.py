@@ -47,6 +47,22 @@ def test_retry_attempt_uses_a_new_provider_idempotency_key(monkeypatch):
     assert keys == ["factory-v3:article:abc:2"]
 
 
+def test_measured_tokens_are_written_to_the_v3_call_log(monkeypatch, tmp_path):
+    import sqlalchemy as sa
+    from server.content_factory_v3_store import metadata, provider_calls
+    engine = sa.create_engine(f"sqlite:///{(tmp_path / 'usage.db').as_posix()}")
+    metadata.create_all(engine)
+    monkeypatch.setattr(tasks.database, 'ENGINE', engine)
+    monkeypatch.setattr(ModelService, "create_response",
+                        lambda self, messages, **kwargs: SimpleNamespace(
+                            text='{"title":"ok"}', input_tokens=120, output_tokens=30))
+    tasks._single_json_call("hello", run_id="run-usage", step="title")
+    with engine.connect() as connection:
+        row = connection.execute(provider_calls.select()).mappings().one()
+    assert (row['run_id'], row['step'], row['input_tokens'], row['output_tokens']) == (
+        'run-usage', 'title', 120, 30)
+
+
 def test_vision_review_reports_success_only_with_every_boolean(monkeypatch):
     captured = {}
     checks = {name: True for name in content_factory_vision.CHECK_FIELDS}
