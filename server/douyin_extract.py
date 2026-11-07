@@ -26,7 +26,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import logging
 import os
 import re
 import threading
@@ -42,8 +41,10 @@ from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from .douyin_signing import ABogus, encode_pairs, pick_uifid, websign
-
-logger = logging.getLogger(__name__)
+# 必须用 observability 的 logger：裸 logging.getLogger 在 web 容器里没有 handler，
+# effective level 是 WARNING，所有 .info 会被静默丢弃 —— 线上排查时只剩状态码，
+# 看不出用户到底粘了什么、短链为什么没解析出来。
+from .observability import event, logger
 
 router = APIRouter()
 
@@ -94,6 +95,35 @@ SHORT_LINK = re.compile(r"(?:https?://)?v\.douyin\.com/[A-Za-z0-9_\-]+")
 ANY_URL = re.compile(r"https?://[^\s\"'<>，。；！？、【】《》]+")
 BARE_ID = re.compile(r"(?<!\d)(7\d{17,23})(?!\d)")
 CONTROL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+
+# 抖音站内「不是作品页」的路径。命中这些时错误文案要说清楚是哪一种，
+# 否则用户看着「没识别到抖音作品链接」只会以为是自己复制错了。
+DOUYIN_PAGE_LABELS = (
+    ("/share/user/", "主页"),
+    ("/user/", "主页"),
+    ("/live/", "直播间"),
+    ("/search/", "搜索页"),
+    ("/collection/", "合集"),
+    ("/mix/", "合集"),
+    ("/hashtag/", "话题页"),
+    ("/music/", "音乐页"),
+    ("/jingxuan", "精选页"),
+)
+
+# 别家平台的域名后缀 → 平台名。用户在不同提取页之间来回切时，
+# 最常见的就是把上一家的链接粘到这一家。
+FOREIGN_HOSTS = (
+    ("xiaohongshu.com", "小红书"),
+    ("xhslink.com", "小红书"),
+    ("kuaishou.com", "快手"),
+    ("weibo.com", "微博"),
+    ("weibo.cn", "微博"),
+    ("bilibili.com", "B站"),
+    ("b23.tv", "B站"),
+    ("pipix.com", "皮皮虾"),
+    ("ixigua.com", "西瓜视频"),
+    ("douyinpic.com", "图片链接"),
+)
 
 BEIJING = timezone(timedelta(hours=8))
 
@@ -293,14 +323,78 @@ def _credential_error(error: MissingCredential) -> HTTPException:
 
 
 # ---------------------------------------------------------------- 链接归一化
+def _reject(reason: str, text: str, url: str = "") -> HTTPException:
+    """记一条可检索的拒绝日志，并把 HTTPException 还给调用方。
+
+    只记域名和路径，不记原始文本：抖音链接的 query 里带签名和过期时间，
+    整串落日志既没用也不安全；host + path 足够区分「主页 / 直播 / 别家平台」。
+    """
+    host = ""
+    path = ""
+    candidate = url or (ANY_URL.search(text or "").group(0) if ANY_URL.search(text or "") else "")
+    if candidate:
+        parsed = urlparse(candidate)
+        host = (parsed.hostname or "")[:80]
+        path = (parsed.path or "")[:80]
+    event(
+        "douyin.link_rejected",
+        reason=reason,
+        host=host or None,
+        path=path or None,
+        length=len(text or ""),
+    )
+    return HTTPException(400, _reject_message(reason, host, path))
+
+
+def _douyin_path_label(path: str) -> str:
+    for prefix, label in DOUYIN_PAGE_LABELS:
+        if path.startswith(prefix):
+            return label
+    return ""
+
+
+def _foreign_label(host: str) -> str:
+    for suffix, label in FOREIGN_HOSTS:
+        if host.endswith(suffix):
+            return label
+    return ""
+
+
+def _reject_message(reason: str, host: str, path: str) -> str:
+    """一句话说清「你粘的是什么」+「接下来该怎么做」。"""
+    if reason == "empty":
+        return "请先粘贴抖音作品链接"
+    if reason == "short_link_failed":
+        return "这个抖音短链没解析出作品，可能已经失效。请在浏览器打开作品页，复制地址栏里的完整链接再试"
+    if reason == "douyin_page":
+        label = _douyin_path_label(path)
+        if label:
+            return f"这是抖音{label}链接，里面没有具体作品。请在抖音打开一条作品，点「分享」→「复制链接」再贴过来"
+        if host.startswith("live."):
+            return "这是抖音直播间链接，直播间没有作品内容。请打开一条作品视频，点「分享」→「复制链接」"
+        return "这个抖音链接里没有作品 ID。请在作品播放页复制地址栏的完整链接（形如 douyin.com/video/7…）"
+    if reason == "foreign":
+        label = _foreign_label(host)
+        if label == "小红书":
+            return "这是小红书的链接。请改用左侧「小红书提取」页面，那边专门处理小红书笔记"
+        if label == "图片链接":
+            return "这是抖音作品里的图片地址，不是作品页。请回到作品页，点「分享」→「复制链接」"
+        if label:
+            return f"这是{label}的链接，抖音提取只认抖音作品。请换成抖音作品的分享链接"
+        return "这个链接不是抖音的。请粘贴抖音作品的分享链接"
+    return "没有识别到链接。请在抖音作品页点「分享」→「复制链接」，粘过来就能提取"
+
+
 def normalize_link(raw: str) -> tuple[str, str]:
     """把用户粘贴的内容收敛成 (aweme_id, 规范链接)。
 
     用户会粘分享文案（带一堆说明文字）、短链、App 分享链接，或者只粘 ID。
+    认不出来的情况要分开说：主页/直播/搜索页是抖音链接但不是作品，
+    别家平台的链接则要直接点名，让用户知道该换哪个页面。
     """
     text = (raw or "").strip()
     if not text:
-        raise HTTPException(400, "请先粘贴抖音作品链接")
+        raise _reject("empty", text)
 
     # 1) 直接能从 URL 里看出 aweme_id
     for candidate in ANY_URL.findall(text):
@@ -321,7 +415,7 @@ def normalize_link(raw: str) -> tuple[str, str]:
         resolved = _resolve_short_link(link)
         if resolved:
             return resolved
-        raise HTTPException(400, "短链解析失败，请在浏览器打开作品页后复制地址栏链接")
+        raise _reject("short_link_failed", text)
 
     # 3) 只粘了 ID
     bare = BARE_ID.search(text)
@@ -329,7 +423,18 @@ def normalize_link(raw: str) -> tuple[str, str]:
         aweme_id = bare.group(1)
         return aweme_id, f"https://www.douyin.com/video/{aweme_id}"
 
-    raise HTTPException(400, "没有识别到抖音作品链接，请复制作品页地址栏的完整链接")
+    # 4) 真的认不出来 —— 分清楚是「抖音但不是作品」还是「别家平台」
+    for candidate in ANY_URL.findall(text):
+        parsed = urlparse(candidate)
+        host = (parsed.hostname or "").lower()
+        if host.endswith(("douyin.com", "iesdouyin.com")):
+            raise _reject("douyin_page", text, candidate)
+    for candidate in ANY_URL.findall(text):
+        host = (urlparse(candidate).hostname or "").lower()
+        if _foreign_label(host):
+            raise _reject("foreign", text, candidate)
+
+    raise _reject("no_url", text)
 
 
 def _resolve_short_link(link: str) -> tuple[str, str] | None:
@@ -602,12 +707,19 @@ def api_extract(payload: ExtractRequest):
     只读公开信息。图片会落盘（不是正文搬运）—— 这是必要的：源站签名几十分钟
     就失效，不留一份就无法在用户点开时还出得来。
     """
+    started = time.monotonic()
     aweme_id, link = normalize_link(payload.url)
     detail = _signed_request(aweme_id)
     note = build_note(detail, aweme_id, link)
     warm_media_async([image["url"] for image in note["images"]])
-    logger.info(
-        "douyin.extract id=%s kind=%s images=%s", note["id"], note["kind"], note["imageCount"]
+    # 一条结构化日志盖住「解析到的是什么 + 花了多久」：只凭 HTTP 状态码
+    # 分不清是链接不对、抖音限流还是签名失败，这几项在排查时必须能分开。
+    event(
+        "douyin.extract_ok",
+        id=note["id"],
+        kind=note["kind"],
+        images=note["imageCount"],
+        elapsed_ms=int((time.monotonic() - started) * 1000),
     )
     return {"status": "success", "note": note}
 

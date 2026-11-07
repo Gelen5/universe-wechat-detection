@@ -51,7 +51,11 @@
     node.textContent = message;
     document.body.appendChild(node);
     requestAnimationFrame(() => node.classList.add('visible'));
-    setTimeout(() => { node.classList.remove('visible'); setTimeout(() => node.remove(), 220); }, 2600);
+    // 失败提示是整句引导（「这是抖音主页链接，请点分享→复制链接」），
+    // 固定 2.6 秒读不完；按字数给时间，最长 9 秒。
+    const text = String(message || '');
+    const ms = Math.min(9000, Math.max(2600, text.length * 200));
+    setTimeout(() => { node.classList.remove('visible'); setTimeout(() => node.remove(), 220); }, ms);
   }
 
   function showError(html) {
@@ -258,7 +262,13 @@
     }
     const data = await response.json();
     window.PointsNotice?.fromResponse?.(response, data);
-    if (!response.ok) throw new Error(data.detail || '提取失败');
+    if (!response.ok) {
+      // 把状态码带出去：400 是「链接不对」，可以给固定操作路径；
+      // 5xx 是抖音那边的问题，给了路径反而误导。
+      const error = new Error(data.detail || '提取失败');
+      error.status = response.status;
+      throw error;
+    }
     const charged = response.headers.get('X-Points-Charged');
     if (charged && charged !== '0') {
       const balance = response.headers.get('X-Points-Balance');
@@ -283,7 +293,11 @@
       try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ url, id: note.id, at: Date.now() })); } catch {}
     } catch (error) {
       reset();
-      showError(`<b>没提取成功：</b>${esc(error.message)}`);
+      // 400 基本都是「粘错了东西」，配一条固定的操作路径，用户不用猜。
+      const hint = error.status === 400
+        ? '<small class="dy-error-hint">正确路径：抖音 App 打开作品 → 右下角「分享」→「复制链接」；电脑上直接复制地址栏里的 <code>douyin.com/video/…</code></small>'
+        : '';
+      showError(`<b>没提取成功：</b>${esc(error.message)}${hint}`);
       toast(error.message, 'error');
     } finally {
       submit.disabled = false;
