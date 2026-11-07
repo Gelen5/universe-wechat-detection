@@ -192,7 +192,9 @@ def test_image_publish_requires_vision_and_stores_audit(engine, monkeypatch):
         from server.content_factory_v3_store import queue_production
         queue_production(connection, run_id=run["id"], day=day)
     stream = io.BytesIO()
-    Image.new("RGB", (300, 400), "navy").save(stream, format="PNG")
+    # The provider may return an auto-composed square. The pipeline must
+    # normalize it to 3:4 before deterministic text layout.
+    Image.new("RGB", (300, 300), "navy").save(stream, format="PNG")
     provider_context = {}
     def generate(payload):
         from server.providers import call_context
