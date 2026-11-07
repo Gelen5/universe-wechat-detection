@@ -294,3 +294,32 @@ def test_sticker_format_is_not_fetched_twice(monkeypatch):
 def test_parse_js_content_single_quoted_html():
     html = "<html><div id='js_content'><p>这是一段正常文章正文。</p></div></html>"
     assert '这是一段正常文章正文' in article_visual.parse_article_html(html)['markdown']
+
+
+def test_extract_json_repairs_unescaped_quotes_inside_model_strings():
+    # 线上 2026-11-07 的真实失败形态：模型把原文里的 "老同学" 原样塞进
+    # source_quote，裸引号提前结束 JSON 字符串，整份方案解析失败。
+    raw = '''```json
+{"plans": [{"article_type": "opinion", "slots": [
+  {"id": "cover", "form": "cover",
+   "headline": "一声小猴紫，观众想起了不同作品",
+   "source_quote": "一句"老同学"，一声"小猴紫"，杨紫生日时收到的祝福，把观众的记忆带回了不同的作品",
+   "items": ["从"小雪"到不同角色，称呼记录职业轨迹", "角色印记比社交热度更能说明演员轨迹"],
+   "brief": "成年女演员在片场工作的场景"}
+]}]}
+```'''
+    result = article_visual._extract_json(raw)
+    slot = result['plans'][0]['slots'][0]
+    assert slot['source_quote'].startswith('一句"老同学"，一声"小猴紫"')
+    assert slot['items'][0] == '从"小雪"到不同角色，称呼记录职业轨迹'
+
+
+def test_extract_json_keeps_valid_json_and_literal_brackets_intact():
+    assert article_visual._extract_json('{"a": "x\\"y"}') == {'a': 'x"y'}
+    assert article_visual._extract_json('{"a": "x,}"}') == {'a': 'x,}'}
+
+
+def test_extract_json_drops_trailing_comma_from_model_output():
+    assert article_visual._extract_json('{"plans": [{"slots": [1, 2,],}],}') == {
+        'plans': [{'slots': [1, 2]}]
+    }

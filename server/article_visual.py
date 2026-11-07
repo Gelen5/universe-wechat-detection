@@ -244,6 +244,7 @@ C. 读者只看这组图，能不能复述出文章的核心？
 10. 正文 form 只能取：compare（问题 vs 解法、前后差异）、layers（机制/结构/流程）、data（一组关键数字）、timeline（有先后顺序）、clients（并列清单）、quote（全篇最值得记住的一句）。
 11. 每个图位必须给 visual 字段，取值只能是 photo（实景摄影）、light（浅色杂志）、paper（纸张笔记）、iso（3D 等距）、dark（深色海报）。一套图至少用 3 种，dark 最多 2 张，禁止全部深色。
 12. 每张图必须有具体视觉主体（实物、场景、界面、产品），禁止"纯色底板 + 大字"这种只有文字的海报。
+13. 字符串值里引用原文词句时，把英文双引号改写成「」，不要让未转义的英文双引号出现在字符串内部；输出必须能被标准 JSON 解析器读取。
 
 输出结构：
 {
@@ -311,11 +312,53 @@ def _clip(text: str, limit: int) -> str:
     return text if len(text) <= limit else text[:limit].rstrip() + "…"
 
 
+def _repair_json_syntax(text: str) -> str:
+    """Repair the two defects models actually produce when quoting article text.
+
+    A phrase like "老同学" copied into a string value without escaping closes
+    the JSON string early and makes the whole plan unparsable. Inside a string
+    a quote is a real terminator only when the next non-space character starts
+    a new syntax element; anything else is treated as literal text.
+    """
+    out: list[str] = []
+    in_string = False
+    escaped = False
+    for index, char in enumerate(text):
+        if not in_string:
+            if char == "," and text[index + 1:].lstrip()[:1] in ("}", "]"):
+                continue  # trailing comma before a closing bracket
+            out.append(char)
+            if char == '"':
+                in_string = True
+            continue
+        if escaped:
+            out.append(char)
+            escaped = False
+            continue
+        if char == "\\":
+            out.append(char)
+            escaped = True
+            continue
+        if char == '"':
+            if text[index + 1:].lstrip()[:1] in ("", ",", "}", "]", ":"):
+                in_string = False
+                out.append(char)
+            else:
+                out.append('\\"')
+            continue
+        out.append(char)
+    return "".join(out)
+
+
 def _extract_json(raw: str) -> dict[str, Any]:
     start, end = raw.find("{"), raw.rfind("}")
     if start < 0 or end <= start:
         raise ValueError("模型没有返回 JSON")
-    return json.loads(raw[start : end + 1])
+    body = raw[start : end + 1]
+    try:
+        return json.loads(body, strict=False)
+    except json.JSONDecodeError:
+        return json.loads(_repair_json_syntax(body), strict=False)
 
 
 def _normalize_plan(raw: dict[str, Any], article: dict[str, Any]) -> dict[str, Any]:
@@ -583,6 +626,10 @@ def build_plan(article: dict[str, Any], progress=None, initial_raw: str = '', sa
                 raise ValueError('策划模型请求未成功，可能是模型服务或网络异常，具体原因暂无法确认；可继续上次拆解。') from exc
     if not raw_text:
         raise ValueError("拆解模型未返回内容，请稍后重试；本次失败会退还积分")
+    if save_checkpoint:
+        # 解析失败时也要保住模型原文，否则「继续上次方案」没有可续的检查点，
+        # 事后也无法核查究竟是格式损坏还是内容不合格。
+        save_checkpoint(raw_text)
     try:
         try:
             result = _extract_json(raw_text)
