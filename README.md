@@ -131,7 +131,6 @@ Compose 会先运行 Alembic，再启动 Web、监听 `chat,text,image,external,
 - `GET /api/auth/me`、`GET /api/wallet`、`GET /api/pricing`
 - `GET /api/admin/users`、`GET /api/admin/overview`、`POST /api/admin/recharge`
 
-火星 API 的 OpenAI 兼容 Base URL 应为 `https://huoxingapi.com/v1`，模型 ID 必须从该账号当前模型广场复制。HTTP 403 通常表示 Key 分组不允许访问所选模型；HTTP 401 表示凭据未通过鉴权。
 
 ## 数据边界
 
