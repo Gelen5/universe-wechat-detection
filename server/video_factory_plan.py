@@ -35,8 +35,9 @@ class VideoProject(BaseModel):
     scenes: list[ScenePlan] = Field(min_length=1,max_length=8)
 
 
-def make_plan(category: Category, topic: str, duration: int, style: str,
-              sources: list[dict[str,str]], generate_json: Callable[[str],dict]) -> VideoProject:
+def _make_plan_once(category: Category, topic: str, duration: int, style: str,
+                    sources: list[dict[str,str]], generate_json: Callable[[str],dict],
+                    retry_context: str = "") -> VideoProject:
     if category not in GUIDANCE: raise ValueError('未知赛道')
     if duration not in (30,45,60): raise ValueError('时长仅支持30、45或60秒')
     if not sources or any(not item.get('url') or not item.get('summary') for item in sources):
@@ -47,6 +48,12 @@ def make_plan(category: Category, topic: str, duration: int, style: str,
             '事实必须有提供的来源，不得编造原文或数据；分镜包含 sequence、narration、duration_target、'
             'visual_prompt、evidence_refs。顶层包含 category、topic、duration_target、visual_style、title、'
             'cover_title、character_reference、scenes。'+GUIDANCE[category]+'\n'+json.dumps(data,ensure_ascii=False))
+    if retry_context:
+        prompt += (
+            '\n上一次计划未通过校验：' + retry_context[-500:] +
+            '。请重新生成完整计划，严格满足旁白约 '
+            f'{duration * 4} 字、每个分镜至少 4 秒且不超过 6 个分镜。'
+        )
     generated = generate_json(prompt)
     if not isinstance(generated, dict):
         raise ValueError('模型未返回有效的视频计划')
@@ -99,3 +106,21 @@ def make_plan(category: Category, topic: str, duration: int, style: str,
     if any(not scene.evidence_refs or not set(scene.evidence_refs).issubset(allowed) for scene in plan.scenes):
         raise ValueError('分镜缺少有效来源')
     return plan
+
+
+def make_plan(category: Category, topic: str, duration: int, style: str,
+              sources: list[dict[str,str]], generate_json: Callable[[str],dict]) -> VideoProject:
+    """Retry one structurally invalid model plan, never an external hard failure."""
+
+    last_error = ''
+    for attempt in range(2):
+        try:
+            return _make_plan_once(
+                category, topic, duration, style, sources, generate_json,
+                retry_context=last_error,
+            )
+        except ValueError as exc:
+            last_error = str(exc)
+            if attempt == 1:
+                raise ValueError(last_error) from exc
+    raise ValueError(last_error or '视频计划生成失败')

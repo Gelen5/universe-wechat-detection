@@ -74,3 +74,24 @@ def test_multiple_sources_still_require_exact_evidence():
          }]}
     with pytest.raises(ValueError, match='来源'):
         make_plan('book','测试',30,'auto',sources,lambda _:obj)
+
+
+def test_invalid_plan_retries_once_with_feedback():
+    source={'url':'https://example.test/source','summary':'经过人工审核的资料'}
+    short={'category':'book','topic':'测试','duration_target':30,'visual_style':'auto',
+           'title':'标题','cover_title':'封面','scenes':[{
+               'sequence':1,'narration':'太短','duration_target':30,
+               'visual_prompt':'场景','evidence_refs':[source['url']],
+           }]}
+    valid={**short,'scenes':[{
+        'sequence':1,'narration':'介绍'*60,'duration_target':30,
+        'visual_prompt':'场景','evidence_refs':[source['url']],
+    }]}
+    prompts=[]
+    def generate(prompt):
+        prompts.append(prompt)
+        return short if len(prompts) == 1 else valid
+    plan=make_plan('book','测试',30,'auto',[source],generate)
+    assert plan.scenes[0].narration == '介绍'*60
+    assert len(prompts) == 2
+    assert '旁白长度' in prompts[1]
