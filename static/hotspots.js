@@ -100,6 +100,10 @@
   function itemHtml(item) {
     const meta = item.hot ? item.hot : `热搜 #${item.rank || 0}`;
     const starred = isFavorite(item) ? ' is-on' : '';
+    // 公众号创作 Plus 暂时隐藏（功能有 bug），「去创作」按钮一并下线：
+    // 它会把热点塞进 #wp-input 再切到 wechat-plus，功能修好之前不该出现。
+    // 恢复时在 .hs-item-tools 里加回：
+    //   <button type="button" class="hs-go" data-create="..." data-url="...">去创作</button>
     return `
       <li class="hs-item">
         <a class="hs-item-title" href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title)}</a>
@@ -107,7 +111,6 @@
         <span class="hs-item-tools">
           <button type="button" class="hs-mini" data-copy="${escapeHtml(item.title)}" title="复制标题" aria-label="复制标题：${escapeHtml(item.title)}">复制</button>
           <button type="button" class="hs-mini hs-star${starred}" data-fav="${escapeHtml(item.url)}" title="${starred ? '取消收藏' : '收藏'}" aria-label="${starred ? '取消收藏' : '收藏'}：${escapeHtml(item.title)}" aria-pressed="${!!starred}">★</button>
-          <button type="button" class="hs-go" data-create="${escapeHtml(item.title)}" data-url="${escapeHtml(item.url)}">去创作</button>
         </span>
       </li>`;
   }

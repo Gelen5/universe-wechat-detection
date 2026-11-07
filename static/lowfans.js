@@ -131,6 +131,10 @@
       const rankCls = item.rank_no <= 3
         ? ` is-top${item.rank_no > 1 ? item.rank_no : ''}` : '';
       const typeCls = type === '其他' ? ' is-other' : '';
+      // 公众号创作 Plus 暂时隐藏（功能有 bug），行尾的「去写这篇」按钮一并下线。
+      // 恢复时在下面的 .lf-actions 里加回这个按钮（data-write 走 /wechat-plus?topic=）：
+      //   <button class="lf-act is-primary" type="button"
+      //     data-write="${esc(item.title)}" data-type="${esc(type)}">去写这篇</button>
       return `<li class="lf-row">
         <span class="lf-rank${rankCls}">${item.rank_no}</span>
         <a class="lf-title" href="${esc(item.art_url)}" target="_blank" rel="noopener noreferrer">${esc(item.title)}</a>
@@ -155,8 +159,6 @@
           </div>
           <div class="lf-actions">
             <a class="lf-act" href="${esc(item.art_url)}" target="_blank" rel="noopener noreferrer">原文</a>
-            <button class="lf-act is-primary" type="button"
-              data-write="${esc(item.title)}" data-type="${esc(type)}">去写这篇</button>
           </div>
         </div>
       </li>`;

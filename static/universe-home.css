@@ -39,3 +39,7 @@ body.atelier #home.home-v2{background:radial-gradient(ellipse at 45% 70%,#e5f2e9
 
 /* Center the existing home stage on tall desktop screens. */
 @media(min-width:801px){body.atelier #home.home-v2{min-height:100dvh!important;box-sizing:border-box;justify-content:safe center}}
+
+/* 公众号创作 Plus 卡片暂时隐藏后，.he-featured 里只剩一张卡。
+   它原本占一行（1fr 1fr 两行栅格），留空会让右侧塌掉；这里让独苗铺满。 */
+.he-featured>:only-child{grid-row:1/-1;grid-column:1/-1}

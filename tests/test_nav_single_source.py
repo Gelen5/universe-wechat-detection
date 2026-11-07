@@ -20,7 +20,6 @@ STATIC = Path(__file__).resolve().parents[1] / 'static'
 # this list, not that the list never changes.
 LEGACY_SHELL_ROUTES = [
     ['/', '首页', '首页'], ['/hotspots', '热点广场', '热点'], ['/lowfans', '低粉爆文'],
-    ['/wechat-plus', '公众号创作 Plus'],
     ['/xiaohongshu', '小红书'], ['/tie-tu', '贴图号'], ['/viral-remix', '爆款贴图复刻'],
     ['/article-visual', '爆文转贴图', '转贴图'],
     ['/xhs-extract', '小红书内容提取'],
@@ -31,7 +30,7 @@ LEGACY_SHELL_ROUTES = [
     ['/invite', '邀请好友'],
 ]
 LEGACY_NOTION_PLAN = [
-    ['创作', ['/hotspots', '/lowfans', '/wechat-plus', '/xiaohongshu', '/tie-tu',
+    ['创作', ['/hotspots', '/lowfans', '/xiaohongshu', '/tie-tu',
               '/viral-remix', '/article-visual']],
     ['工具', ['/xhs-extract', '/douyin-extract']],
     ['资源', ['/market', '/bookshelf']],
@@ -44,6 +43,8 @@ LEGACY_VIEWS = {
     '/xhs-extract': 'xhs-extract',
     '/douyin-extract': 'douyin-extract',
     '/diagnose': 'diagnose', '/hit-detector': 'hit-detector',
+    # 隐藏只影响入口，视图映射必须保留，直链和已存的会话才能照常打开。
+    '/wechat-plus': 'wechat-plus',
     '/morning-generator': 'morning', '/market': 'market', '/hotspots': 'hotspots',
     # 书架现在内嵌在常驻外壳里（section + iframe），所以是应用内视图。
     '/bookshelf': 'bookshelf',
@@ -62,7 +63,7 @@ def _dump():
         "const n = window.APP_NAV;"
         "const views = {};"
         "for (const p of ['/', '/workbench', '/one-click-writing', '/xiaohongshu', '/tie-tu', '/pricing', '/bookshelf',"
-        " '/viral-remix', '/article-visual', '/xhs-extract', '/douyin-extract', '/lowfans', '/diagnose', '/hit-detector', '/morning-generator', '/market', '/hotspots', '/invite'])"
+        " '/viral-remix', '/article-visual', '/xhs-extract', '/douyin-extract', '/lowfans', '/diagnose', '/hit-detector', '/morning-generator', '/market', '/hotspots', '/invite', '/wechat-plus'])"
         " views[p] = n.viewFor(p) ?? null;"
         "process.stdout.write(JSON.stringify({shell: n.shellRoutes, plan: n.notionPlan,"
         " extras: n.extras.map(e => e.href), views}));"
@@ -93,7 +94,7 @@ class SingleSourceTests(unittest.TestCase):
         # Entries absent from the server-rendered HTML declare fallback: true so
         # every renderer can build them instead of silently dropping them.
         self.assertEqual(
-            ['/hotspots', '/lowfans', '/wechat-plus', '/article-visual',
+            ['/hotspots', '/lowfans', '/article-visual',
              '/xhs-extract', '/douyin-extract', '/pricing', '/invite'],
             self.data['extras'],
         )
@@ -158,11 +159,40 @@ class SingleSourceTests(unittest.TestCase):
                 self.assertNotIn('/diagnose', live,
                                  f'{page} still renders a live /diagnose link')
 
-    def test_sidebar_anchor_for_plus_exists_so_it_can_render(self):
-        """公众号创作 Plus 回侧栏后，首页必须有它的锚点给 shell.js 复用。"""
+    def test_wechat_plus_entry_is_hidden_but_the_route_still_opens(self):
+        """公众号创作 Plus 有 bug，先收起入口；路由与视图映射必须留着。
+
+        侧栏锚点是服务端渲染的，shell.js 只复用已有节点，所以只改 routes.js
+        不够 —— index.html 那段 <a data-view="wechat-plus"> 也必须注释掉，
+        否则每个独立页面都会把入口又摆回来。
+        """
+        self.assertNotIn('/wechat-plus', [route[0] for route in self.data['shell']])
+        self.assertNotIn('/wechat-plus', [h for _, hrefs in self.data['plan'] for h in hrefs])
+        self.assertNotIn('/wechat-plus', self.data['extras'])
+        self.assertEqual('wechat-plus', self.data['views'].get('/wechat-plus'))
+
         text = (STATIC / 'index.html').read_text(encoding='utf-8')
         live = re.sub(r'<!--.*?-->', '', text, flags=re.S)
-        self.assertIn('data-view="wechat-plus"', live)
+        self.assertNotIn('data-view="wechat-plus"', live)
+        # 首页那两张卡片和 hero CTA 也是入口，同样不能出现在正文里。
+        self.assertNotIn('href="/wechat-plus"', live)
+        self.assertIn('id="wechat-plus"', live, '章节本身要留着，直链还得能打开')
+
+    def test_wechat_plus_has_no_live_entry_on_other_pages(self):
+        """选题灵感库是独立页面，自带一套侧栏，得单独挡。"""
+        text = (STATIC / 'topic-library.html').read_text(encoding='utf-8')
+        live = re.sub(r'<!--.*?-->', '', text, flags=re.S)
+        self.assertNotIn('href="/wechat-plus"', live)
+
+    def test_lowfans_and_hotspots_no_longer_hand_off_to_the_creator(self):
+        """两个列表页原本各有一个「去创作」按钮，会把内容塞进创作台。"""
+        for name in ('lowfans.js', 'hotspots.js'):
+            js = (STATIC / name).read_text(encoding='utf-8')
+            # 注释里保留着还原说明，只检查真正会渲染出来的标记。
+            code = re.sub(r'//[^\n]*', '', js)
+            with self.subTest(script=name):
+                self.assertNotIn('data-write=', code)
+                self.assertNotIn('data-create=', code)
 
 
 class SidebarCollapseTests(unittest.TestCase):

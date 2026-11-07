@@ -41,7 +41,13 @@ window.APP_NAV = (() => {
      fallback: true,
      icon: svg('<rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.5"/>' +
                '<path d="m4 17 4.5-4.5 3.5 3.5 3-3 5 5"/><path d="M17 2.5l1 2 2 .5-2 .5-1 2-1-2-2-.5 2-.5z"/>')},
+    // 公众号创作 Plus 暂时隐藏：功能本身有 bug，先不让人点进去。
+    // 路由 /wechat-plus 与 #wechat-plus 章节都保留（直链照常打开，便于自测），
+    // 恢复时删掉 hidden: true，再把 index.html 侧栏锚点、首页 he-writing 卡片、
+    // .he-start 的 href、topic-library.html 的导航、lowfans.js 的「去写这篇」
+    // 依次改回来即可。
     {group: '创作', href: '/wechat-plus', view: 'wechat-plus', label: '公众号创作 Plus',
+     hidden: true,
      fallback: true,
      icon: svg('<path d="M4 4h16v12H9l-5 4z"/><path d="M9 10h6M12 7v6"/>')},
     {group: '创作', href: '/xiaohongshu', view: 'xiaohongshu', label: '小红书',
