@@ -67,6 +67,25 @@ def reset_from(article, node):
         article['formatted_output'] = ''
 
 
+def _draft_heading(draft):
+    match = re.match(r'^\s*#\s+([^\n]+)', str(draft or ''))
+    return match.group(1).strip()[:240] if match else ''
+
+
+def _restore_revised_heading(state, article):
+    """Recover sessions where a revision changed the heading but not the saved title."""
+    versions = state.get('versions') or []
+    if len(versions) < 2:
+        return
+    previous, latest = versions[-2:]
+    if latest.get('reason') != '按要求修改' or latest.get('draft') != article.get('draft'):
+        return
+    old_heading = _draft_heading(previous.get('draft'))
+    new_heading = _draft_heading(article.get('draft'))
+    if old_heading and new_heading and old_heading != new_heading and article.get('selected_title') == old_heading:
+        article['selected_title'] = new_heading
+
+
 def record_version(state, reason):
     article = state['article_state']
     draft = article.get('draft', '')
@@ -143,7 +162,9 @@ def execute(state, message, generate, *, output_dir: Path, progress=lambda _: No
         if old_article.get('formatted_output') and old_article.get('draft') == current_article.get('draft'):
             current_article['formatted_output'] = old_article['formatted_output']
         if exc.node in {'review', 'delivery'}:
-            notice = '这一步需要先处理正文复核中的问题。当前内容已保留，详情见“复核与来源”。'
+            findings = ((current_article.get('quality_report') or {}).get('hard_gate') or {}).get('findings') or []
+            details = [str(x.get('message') or '') for x in findings if isinstance(x, dict) and x.get('level') not in ('note', None) and x.get('message')]
+            notice = ('复核发现：' + '；'.join(details[:2]) + '。可点“继续修改正文”，修改后再复核。' if details else '这一步需要先处理正文复核中的问题。当前内容已保留，详情见“复核与来源”。')
             state['last_action'] = 'review'
         else:
             notice = '这次没能完成需求整理或选题，请再试一次；本次不会扣除积分。'
@@ -267,6 +288,9 @@ def _execute_step(state, message, generate, *, output_dir, progress,
             raise ValueError('本次修改改动过大或遗漏原文事实，原正文已保留。请说明需要修改的段落后重试。')
         record_version(state, '修改前')
         article['draft'] = revised
+        old_heading, new_heading = _draft_heading(old_draft), _draft_heading(revised)
+        if new_heading and old_heading and new_heading != old_heading and article.get('selected_title') == old_heading:
+            article['selected_title'] = new_heading
         reset_from(article, 'review')
         record_version(state, '按要求修改')
         state.update(last_action='revise', billing_action='revise', billing_points=REVISE_POINTS,
@@ -312,6 +336,8 @@ def _execute_step(state, message, generate, *, output_dir, progress,
         elif node == 'topic':
             article['angle'] = ''
             article['title_candidates'] = []
+    if node in {'review', 'delivery'}:
+        _restore_revised_heading(state, article)
     state['article_state'] = article
 
     if not node:

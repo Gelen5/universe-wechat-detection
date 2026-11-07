@@ -678,3 +678,16 @@ def test_worker_honours_step_billing_points(tmp_path):
     assert result['status'] == 'completed'
     assert settle.call_args.args[-1] == 2
     assert record.call_args.args[1:] == ('delivery', 2)
+
+
+def test_recover_revised_heading_only_when_original_title_matched():
+    from server.wechat_plus_service import _restore_revised_heading
+    old = '# 旧标题最好\n\n正文'
+    new = '# 新标题\n\n正文'
+    state = {'versions': [{'draft': old, 'reason': '生成初稿'}, {'draft': new, 'reason': '按要求修改'}]}
+    article = {'draft': new, 'selected_title': '旧标题最好'}
+    _restore_revised_heading(state, article)
+    assert article['selected_title'] == '新标题'
+    independently_selected = {'draft': new, 'selected_title': '用户另选的标题'}
+    _restore_revised_heading(state, independently_selected)
+    assert independently_selected['selected_title'] == '用户另选的标题'
