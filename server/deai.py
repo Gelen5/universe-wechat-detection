@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import re
 import uuid
 from typing import Any
 
@@ -60,6 +61,59 @@ def _requirements(mode: str, depth: int, version: str) -> str:
     ).format(mode_label, depth, version_label)
 
 
+_NUMBER_RE = re.compile(r"(?<![0-9A-Za-z_.])\d+(?:\.\d+)?%?")
+_URL_RE = re.compile(r"https?://[^\s<>\"'）】。，；！？]+", re.I)
+_QUOTE_RE = re.compile(r"“([^”]{2,200})”|「([^」]{2,200})」|\"([^\"]{2,200})\"")
+
+
+def _numeric_tokens(text: str) -> set[str]:
+    value = re.sub(r"(?m)^\s*\d+[.)、]\s+", "", text)
+    value = re.sub(r"!\[[^\]]*\]\([^)]+\)", "", value)
+    value = re.sub(r"\[([^\]]*)\]\([^)]+\)", r"\1", value)
+    value = re.sub(r"https?://\S+", "", value, flags=re.I)
+    return set(_NUMBER_RE.findall(value))
+
+
+def _fallback_rewrite(article: str, *, mode: str, depth: int, version: str) -> str:
+    """Full-text rewrite used when the skill cannot anchor a local edit.
+
+    The skill's anchored path is intentionally strict; when a long or heavily
+    paraphrased article defeats its exact-span repair, this fallback preserves
+    the same hard facts while still producing a usable rewrite.
+    """
+    mode_label = "小说" if mode == "novel" else "文章"
+    version_label = "自然表达" if version == "V2" else "综合清理"
+    prompt = (
+        f"你是一名中文编辑，只对下面的{mode_label}做表达层去 AI 味改写。\n"
+        f"改写深度 {depth}/10，版本取向：{version_label}。\n"
+        "必须保留全部事实、数字、人名、机构、时间、地点、因果、立场和段落顺序。\n"
+        "必须逐字保留所有引号内原文、来源链接和 Markdown 结构。\n"
+        "不得新增任何事实、案例、个人经历、对白、数据或结论。\n"
+        "打散模板句、连续排比、空泛总结和机械过渡，让长短句和叙事节奏更自然。\n"
+        "只输出改写后的完整正文，不要解释，不要输出 JSON 或代码围栏。\n\n"
+        f"原文：\n{article}"
+    )
+    rewritten = workbench._text(prompt).strip()
+    if not rewritten:
+        raise ValueError("兜底改写没有返回内容")
+    compact_original = len(re.sub(r"\s+", "", article))
+    compact_rewritten = len(re.sub(r"\s+", "", rewritten))
+    if compact_rewritten < max(30, int(compact_original * 0.5)):
+        raise ValueError("兜底改写结果过短")
+    if compact_rewritten > int(compact_original * 1.8) + 300:
+        raise ValueError("兜底改写结果异常过长")
+    missing_numbers = sorted(_numeric_tokens(article) - _numeric_tokens(rewritten))
+    if missing_numbers:
+        raise ValueError("兜底改写丢失原文数字：" + "、".join(missing_numbers[:8]))
+    missing_urls = [url for url in _URL_RE.findall(article) if url not in rewritten]
+    if missing_urls:
+        raise ValueError("兜底改写丢失原文链接")
+    original_quotes = [next(value for value in groups if value) for groups in _QUOTE_RE.findall(article)]
+    if any(quote not in rewritten for quote in original_quotes):
+        raise ValueError("兜底改写改动了原文引语")
+    return rewritten
+
+
 def run_job(job_id: str, payload: dict[str, Any]) -> dict[str, Any]:
     article = validate(str(payload.get("content") or ""))
     mode = "novel" if str(payload.get("mode")) == "novel" else "article"
@@ -113,7 +167,20 @@ def run_job(job_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         else:
             set_step("rewrite", "running", label, 65)
 
-    revised, report = workbench._review(article, session, progress)
+    fallback_reason = ""
+    try:
+        revised, report = workbench._review(article, session, progress)
+    except Exception as exc:  # anchored review failed; keep a safe full rewrite
+        fallback_reason = str(exc)[:240]
+        revised = _fallback_rewrite(
+            article, mode=mode, depth=depth, version=version
+        )
+        report = {
+            "gate": "fallback_passed",
+            "summary": "技能精确定位未成功，已改用保真全文改写完成",
+            "fallback_reason": fallback_reason,
+            "warnings": ["精确定位失败，已使用全文改写兜底并校验数字、引语和链接"],
+        }
     by_key["scan"]["status"] = "done"
     by_key["scan"]["detail"] = "已完成 AI 痕迹与可读性检测"
     changed = revised != article
@@ -122,7 +189,14 @@ def run_job(job_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         set_step("rewrite", "done", "未发现可安全应用的改动，保留原文", 70)
     else:
         set_step("rewrite", "done", "已完成保真范围内的定向改写", 72)
-    set_step("audit", "done", "已完成保真、完整句和篇幅复核" if gate == "passed" else "复核发现待人工确认项", 90)
+    set_step(
+        "audit",
+        "done",
+        "已完成保真全文改写与数字、引语、链接校验"
+        if fallback_reason
+        else ("已完成保真、完整句和篇幅复核" if gate == "passed" else "复核发现待人工确认项"),
+        90,
+    )
     result = {
         "content": revised,
         "original": article,
@@ -132,7 +206,11 @@ def run_job(job_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         "depth": depth,
         "version": version,
         "summary": str(report.get("summary") or ("已完成改写" if changed else "正文未修改")),
-        "warnings": [str(item.get("reason") or item) for item in (report.get("pending_review_notes") or [])][:8],
+        "warnings": (
+            list(report.get("warnings") or [])
+            + [str(item.get("reason") or item) for item in (report.get("pending_review_notes") or [])]
+        )[:8],
+        "fallback_reason": fallback_reason,
         "report": {
             key: report.get(key)
             for key in ("gate", "summary", "audit", "revision_evidence", "fidelity_gate", "manifest")
@@ -180,7 +258,18 @@ def rewrite_with_skill(
             "content": _requirements(mode, depth, version) + "\n原文：\n" + article,
         }],
     }
-    revised, report = workbench._review(article, session)
+    try:
+        revised, report = workbench._review(article, session)
+    except Exception as exc:
+        revised = _fallback_rewrite(
+            article, mode=mode, depth=depth, version=version
+        )
+        report = {
+            "gate": "fallback_passed",
+            "summary": "技能精确定位未成功，已改用保真全文改写完成",
+            "fallback_reason": str(exc)[:240],
+        }
+        return revised, "精确定位失败，已使用全文改写兜底并完成数字、引语和链接校验", report
     warning = ""
     if revised == article:
         warning = str(report.get("summary") or "未发现可安全应用的改动，已保留原稿")

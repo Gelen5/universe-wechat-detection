@@ -5,6 +5,7 @@ import contextlib
 import uuid
 from unittest.mock import patch
 
+import pytest
 from fastapi.testclient import TestClient
 
 import tests.support  # noqa: F401 - isolate the account database before app import
@@ -79,6 +80,35 @@ class TestDeaiBilling:
         assert result["content"] == "改写后的正文"
         assert result["progress"] == 100
         assert [step["status"] for step in result["steps"]] == [2, 2, 2, 2]
+
+    def test_anchor_failure_falls_back_to_full_rewrite(self):
+        article = "这是一段需要去 AI 味的中文原文，这句话只是用来触发兜底改写流程。"
+        with patch.object(
+            workbench, "_review",
+            side_effect=workbench.ProviderError(
+                "去 AI 复核问题未能定位到当前稿的逐字连续片段，已保留原文"
+            ),
+        ), patch.object(
+            deai, "_fallback_rewrite",
+            return_value="这是一段更自然的中文原文，这句话只是用来验证兜底改写流程。",
+        ), patch.object(accounts, "progress_job"):
+            result = deai.run_job("job-fallback", {
+                "content": article,
+                "mode": "article",
+                "depth": 10,
+                "version": "V2",
+            })
+        assert result["gate"] == "fallback_passed"
+        assert "全文改写" in result["content"] + result["summary"]
+        assert [step["status"] for step in result["steps"]] == [2, 2, 2, 2]
+
+    def test_fallback_rejects_lost_numbers(self):
+        with patch.object(workbench, "_text", return_value="改写后丢了关键数字的正文内容。" * 4):
+            with pytest.raises(ValueError, match="丢失原文数字"):
+                deai._fallback_rewrite(
+                    "原文提到增长 42%，这是一段足够长的测试正文，用于验证数字保护。",
+                    mode="article", depth=8, version="V3.1",
+                )
 
     def test_worker_success_charges_once(self):
         client, user = create_client(points=100)
