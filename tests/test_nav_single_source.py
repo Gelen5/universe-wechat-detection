@@ -128,6 +128,13 @@ class SingleSourceTests(unittest.TestCase):
         self.assertEqual('bookshelf', self.data['views'].get('/bookshelf'))
         self.assertEqual('market', self.data['views'].get('/market'))
 
+    def test_new_views_are_registered_in_app_view_map(self):
+        app = (STATIC / 'app.js').read_text(encoding='utf-8')
+        self.assertIn("'remove-ai-flavor': document.querySelector('#remove-ai-flavor')", app)
+        self.assertIn("skills: document.querySelector('#skills')", app)
+        self.assertIn("'remove-ai-flavor': '去 AI 味'", app)
+        self.assertIn("skills: '技能库'", app)
+
     def test_page_links_stay_in_the_menu(self):
         hrefs = [route[0] for route in self.data['shell']]
         self.assertIn('/pricing', hrefs)
