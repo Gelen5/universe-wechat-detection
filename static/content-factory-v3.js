@@ -41,6 +41,20 @@ window.ContentFactoryAutomation = (() => {
   };
   const json = (method, value) => ({method, headers:{'Content-Type':'application/json'}, body:JSON.stringify(value)});
   const reasonLabel = reason => reasonText[reason] || reason;
+  const statusText = {
+    held:'待处理', failed:'失败', production_failed:'生成失败', quality_held:'质量检查未通过',
+    title_queued:'等待生成标题', title_running:'正在生成标题', title_ready:'标题已生成',
+    production_queued:'等待生成内容', production_running:'正在生成内容', published:'已上架'
+  };
+  const nextAction = (row, reasons) => {
+    if (row.error === 'production_failed') return '建议：先看失败环节；确认配置后再重试，可能再次产生调用费用。';
+    if (reasons.includes('article_length')) return '建议：调整文章长度后重新检查，未通过前不要上架。';
+    if (reasons.some(x => x.includes('source') || x.includes('copyright') || x.includes('facts'))) return '建议：补充或核对来源证据，再进行复核。';
+    if (reasons.some(x => x.includes('visual') || x.includes('image_'))) return '建议：检查图片排版和视觉结果，确认无误后再复核。';
+    if (row.error === 'automatic_publish_disabled') return '建议：质量已通过，可人工审核后上架。';
+    if (row.error === 'automation_stopped') return '建议：先在自动化设置中完成预算和生产开关配置。';
+    return '建议：打开任务详情，确认结果后决定是否重试或上架。';
+  };
   const toggle = (text, on, handler) => {
     const button = node('button', text);
     button.type = 'button';
@@ -51,7 +65,9 @@ window.ContentFactoryAutomation = (() => {
 
   async function render(parent, api) {
     const box = node('section'); box.className = 'card'; parent.append(box);
-    box.append(node('h2', '自动化控制'));
+    const heading = node('div', undefined, 'automation-heading');
+    heading.append(node('h2', '自动化设置'), node('p', '这里只控制后台自动生产；日常审核请看下面的待处理任务。', 'muted'));
+    box.append(heading);
     let state;
     try { state = await api('/admin/automation'); }
     catch { box.append(node('p', '自动化尚未安装或数据库迁移未完成；手动商品功能不受影响。')); return; }
@@ -129,12 +145,13 @@ window.ContentFactoryAutomation = (() => {
         try { quality = JSON.parse(row.quality_json || '{}') || {}; } catch {}
         const reasons = quality.reasons || [];
         const item = node('div'); item.className = 'card stack';
-        item.append(node('p', `${row.track || '未分类'} · ${row.product_type === 'article' ? '文章' : '图片'} · ${row.status} · ${row.error || '无错误码'}`));
+        item.append(node('p', `${row.track || '未分类'} · ${row.product_type === 'article' ? '文章' : '图片'} · ${statusText[row.status] || row.status} · ${reasonLabel(row.error || '无错误码')}`));
         if (reasons.length) item.append(node('p', '原因：' + reasons.map(reasonLabel).join('、'), 'muted'));
         const length = quality.details && quality.details.article && quality.details.article.non_whitespace_chars;
         if (Number.isFinite(length) && reasons.includes('article_length')) {
           item.append(node('p', `正文 ${length} 字（要求 1000–1200，不含空白）`, 'muted'));
         }
+        item.append(node('p', nextAction(row, reasons), 'action-hint'));
         if (['held', 'failed'].includes(row.status)) {
           item.append(action('手动重试（最多 2 次）', async () => {
             await api(`/admin/automation/runs/${row.id}/retry`, {method:'POST'});
@@ -158,7 +175,8 @@ window.ContentFactoryAutomation = (() => {
         try { quality = JSON.parse(row.quality_json || '{}') || {}; } catch {}
         const reasons = quality.reasons || [];
         const item = node('div'); item.className = 'stack';
-        item.append(node('p', `${row.track || '未分类'} · ${row.product_type === 'article' ? '文章' : '图片'} · 尝试 ${row.attempt || 0} · ${row.status}${row.error ? ' · ' + reasonLabel(row.error) : ''}${reasons.length ? ' · ' + reasons.map(reasonLabel).join('、') : ''}`));
+        item.append(node('p', `${row.track || '未分类'} · ${row.product_type === 'article' ? '文章' : '图片'} · 尝试 ${row.attempt || 0} · ${statusText[row.status] || row.status}${row.error ? ' · ' + reasonLabel(row.error) : ''}${reasons.length ? ' · ' + reasons.map(reasonLabel).join('、') : ''}`));
+        if (row.error || reasons.length) item.append(node('p', nextAction(row, reasons), 'action-hint'));
         if (['title_queued', 'production_queued'].includes(row.status)) {
           item.append(action('重新派发', () => api(`/admin/automation/runs/${row.id}/dispatch`, {method:'POST'})));
         }
