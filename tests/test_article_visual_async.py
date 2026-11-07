@@ -86,6 +86,28 @@ def test_one_valid_direction_survives_bad_other_direction(monkeypatch):
     assert result['alternatives'][0]['angle_label'] == '有效方向'
 
 
+def test_resume_accepts_single_plan_checkpoint_at_root(monkeypatch):
+    article = {'title': '标题', 'account': '账号', 'markdown': '这是一段可以用来验证的完整文章原文。'}
+    candidate = {'article_type': 'story', 'angle_label': '单一方向', 'slots': [
+        {'id': 'cover' if i == 0 else f'body-{i}', 'form': 'cover' if i == 0 else 'quote',
+         'headline': '真实内容', 'source_quote': article['markdown']} for i in range(4)]}
+    calls = []
+
+    def model(prompt, **kwargs):
+        calls.append(prompt)
+        assert '独立事实核对' in prompt
+        return '{"passed":true}'
+
+    monkeypatch.setattr(av, '_text_with_deadline', model)
+    monkeypatch.setattr(accounts, 'provider_settings', lambda include_secrets=True: {})
+    monkeypatch.setattr(workbench, 'provider_overrides', lambda **kwargs: nullcontext())
+    result = av.build_plan(article, initial_raw=json.dumps(candidate, ensure_ascii=False), first_only=True)
+
+    assert result['available_directions'] == 1
+    assert result['alternatives'][0]['angle_label'] == '单一方向'
+    assert len(calls) == 1
+
+
 def test_unavailable_review_delivers_warning_without_claiming_verified(user, monkeypatch, tmp_path):
     monkeypatch.setattr(tasks, 'dispatch', lambda job_id: None)
     monkeypatch.setattr(av, 'JOBS_DIR', tmp_path)

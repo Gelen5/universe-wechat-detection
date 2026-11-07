@@ -644,7 +644,14 @@ def build_plan(article: dict[str, Any], progress=None, initial_raw: str = '', sa
             result = _extract_json(fixed)
         candidates = result.get("plans")
         if not isinstance(candidates, list) or not candidates:
-            raise ValueError("传播方向不完整")
+            # Some model responses contain one complete plan at the root even
+            # though the prompt requests a plans array. Accept that equivalent
+            # shape so a valid checkpoint can be resumed without regeneration.
+            if (isinstance(result.get("slots"), list)
+                    and result.get("article_type") in {"story", "event", "knowledge", "opinion", "review", "interview", "mixed"}):
+                candidates = [result]
+            else:
+                raise ValueError("传播方向不完整")
         if save_checkpoint:
             save_checkpoint(json.dumps(result, ensure_ascii=False))
         verified = []
