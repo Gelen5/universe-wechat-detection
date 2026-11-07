@@ -2,7 +2,7 @@
 
 状态日期：2026-11-07（Asia/Shanghai）
 
-生产 release：`7ce3bc0`。上一回滚点：`3922641`。生产地址：
+生产 release：`c534b10`。上一回滚点：`7ce3bc0`。生产地址：
 `https://yuzoudiyigongzuotai.cn/content-factory`。
 
 本记录区分已部署的基础设施、真实付费调用、质量门禁结果和仍未通过的交付项；
