@@ -77,13 +77,20 @@ def _restore_revised_heading(state, article):
     versions = state.get('versions') or []
     if len(versions) < 2:
         return
-    previous, latest = versions[-2:]
+    latest = versions[-1]
     if latest.get('reason') != '按要求修改' or latest.get('draft') != article.get('draft'):
         return
-    old_heading = _draft_heading(previous.get('draft'))
+    selected_title = article.get('selected_title')
     new_heading = _draft_heading(article.get('draft'))
-    if old_heading and new_heading and old_heading != new_heading and article.get('selected_title') == old_heading:
-        article['selected_title'] = new_heading
+    # Walk back through consecutive revisions to the version where the saved
+    # title was the actual heading. Do not overwrite an independently chosen title.
+    for previous in reversed(versions[:-1]):
+        if _draft_heading(previous.get('draft')) == selected_title:
+            if new_heading and new_heading != selected_title:
+                article['selected_title'] = new_heading
+            break
+        if previous.get('reason') != '按要求修改':
+            break
 
 
 def record_version(state, reason):

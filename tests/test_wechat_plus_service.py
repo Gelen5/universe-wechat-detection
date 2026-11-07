@@ -691,3 +691,11 @@ def test_recover_revised_heading_only_when_original_title_matched():
     independently_selected = {'draft': new, 'selected_title': '用户另选的标题'}
     _restore_revised_heading(state, independently_selected)
     assert independently_selected['selected_title'] == '用户另选的标题'
+
+
+def test_recover_heading_after_multiple_revisions():
+    from server.wechat_plus_service import _restore_revised_heading
+    versions = [{'draft': '# 原题\n正文', 'reason': '生成初稿'}, {'draft': '# 修改一\n正文', 'reason': '按要求修改'}, {'draft': '# 修改二\n正文', 'reason': '按要求修改'}]
+    article = {'draft': versions[-1]['draft'], 'selected_title': '原题'}
+    _restore_revised_heading({'versions': versions}, article)
+    assert article['selected_title'] == '修改二'
