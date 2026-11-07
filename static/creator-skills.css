@@ -1,0 +1,104 @@
+/* Standalone de-AI rewrite and skill library. */
+.deai-page, .skills-page { padding: 28px 32px 64px; max-width: 1320px; margin: 0 auto; }
+.deai-layout { display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(320px, .92fr); gap: 20px; align-items: start; }
+.deai-panel { border: 1px solid rgba(15, 118, 110, .14); border-radius: 14px; background: rgba(255,255,255,.82); padding: 24px; box-shadow: 0 12px 34px rgba(15, 60, 56, .06); }
+.deai-kicker { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; letter-spacing: .12em; color: #0f766e; text-transform: uppercase; }
+.deai-kicker span:first-child { width: 7px; height: 7px; border-radius: 50%; background: #14b8a6; }
+.deai-page h1, .skills-page h1 { margin: 14px 0 10px; font-size: clamp(26px, 3vw, 40px); line-height: 1.18; color: #102a2a; font-weight: 650; }
+.deai-page h1 span, .skills-page h1 span { color: #0f766e; }
+.deai-lead { margin: 0 0 20px; color: #4b6360; font-size: 14px; line-height: 1.75; max-width: 52em; }
+.deai-form label { display: block; font-size: 12px; font-weight: 600; color: #33514d; margin-bottom: 7px; }
+.deai-form textarea, .skill-run textarea, .skills-search input {
+  width: 100%; border: 1px solid rgba(15,118,110,.2); border-radius: 10px; background: #fff;
+  color: #17302d; font: inherit; line-height: 1.7; padding: 12px 14px; resize: vertical;
+}
+.deai-form textarea:focus, .skill-run textarea:focus, .skills-search input:focus { outline: 2px solid rgba(20,184,166,.28); border-color: #14b8a6; }
+.deai-meta { display: flex; justify-content: space-between; font-size: 11px; color: #6b8480; margin: 6px 0 16px; }
+.deai-options { display: grid; grid-template-columns: 1fr 1.2fr; gap: 14px; margin-bottom: 16px; }
+.deai-options select { width: 100%; margin-top: 7px; padding: 9px 10px; border-radius: 8px; border: 1px solid rgba(15,118,110,.2); background: #fff; color: #17302d; }
+.deai-depth strong { color: #0f766e; }
+.deai-depth input { width: 100%; margin-top: 10px; accent-color: #0f766e; }
+.deai-versions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+.deai-versions label { border: 1px solid rgba(15,118,110,.16); border-radius: 10px; padding: 12px; cursor: pointer; background: #fbfdfc; }
+.deai-versions label:has(input:checked) { border-color: #14b8a6; background: #effbf8; }
+.deai-versions input { position: absolute; opacity: 0; pointer-events: none; }
+.deai-versions span { display: block; font-size: 13px; color: #17302d; font-weight: 600; }
+.deai-versions small { display: block; margin-top: 4px; font-size: 11px; color: #6b8480; line-height: 1.5; }
+.deai-cost { font-size: 12px; color: #526d68; margin: 0 0 14px; }
+.deai-cost strong { color: #b45309; font-size: 16px; }
+.deai-submit, .skill-run button {
+  width: 100%; border: 0; border-radius: 9px; padding: 12px 18px; background: #0f766e; color: #fff;
+  font: inherit; font-weight: 600; cursor: pointer;
+}
+.deai-submit:disabled, .skill-run button:disabled { opacity: .55; cursor: not-allowed; }
+.deai-error { margin: 12px 0 0; padding: 10px 12px; border-radius: 8px; background: #fff1f1; color: #a02c2c; font-size: 12px; line-height: 1.6; }
+.deai-progress-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.deai-progress-head span, .deai-result-head span { font-size: 11px; letter-spacing: .08em; color: #6b8480; text-transform: uppercase; }
+.deai-progress-head strong { display: block; margin-top: 4px; font-size: 15px; color: #17302d; }
+.deai-percent { font-size: 22px; font-weight: 650; color: #0f766e; }
+.deai-bar { height: 6px; border-radius: 4px; background: #e6f2ef; overflow: hidden; margin: 16px 0 20px; }
+.deai-bar i { display: block; height: 100%; width: 0; background: #14b8a6; transition: width .35s ease; }
+.deai-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.deai-steps li { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 9px; background: #f7fbfa; }
+.deai-steps li i { width: 22px; height: 22px; flex: none; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 11px; background: #e2eeeb; color: #4b6360; }
+.deai-steps li strong { display: block; font-size: 12px; color: #17302d; }
+.deai-steps li small { display: block; margin-top: 3px; font-size: 11px; color: #6b8480; line-height: 1.5; }
+.deai-steps li.is-running { background: #eefaf7; }
+.deai-steps li.is-running i { background: #14b8a6; color: #fff; }
+.deai-steps li.is-done i { background: #0f766e; color: #fff; }
+.deai-actions { margin-top: 16px; }
+.deai-actions button { border: 1px solid rgba(15,118,110,.25); border-radius: 8px; background: #fff; color: #33514d; padding: 7px 12px; cursor: pointer; font: inherit; font-size: 12px; }
+.deai-summary { margin: 14px 0 0; font-size: 12px; color: #4b6360; line-height: 1.7; }
+.deai-result { margin-top: 20px; border: 1px solid rgba(15,118,110,.14); border-radius: 14px; background: rgba(255,255,255,.86); padding: 22px; }
+.deai-result-head { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; margin-bottom: 16px; }
+.deai-result-head strong { display: block; margin-top: 4px; font-size: 16px; color: #17302d; }
+.deai-result-head button { border: 1px solid rgba(15,118,110,.25); background: #fff; color: #0f766e; border-radius: 8px; padding: 7px 12px; cursor: pointer; font: inherit; font-size: 12px; margin-left: 6px; }
+.deai-result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.deai-result-grid article { min-width: 0; border: 1px solid #e6f2ef; border-radius: 10px; padding: 14px; background: #fbfdfc; }
+.deai-result-grid h2 { margin: 0 0 10px; font-size: 12px; color: #0f766e; }
+.deai-text { white-space: pre-wrap; word-break: break-word; font-size: 14px; line-height: 1.85; color: #1d3431; max-height: 68vh; overflow: auto; }
+.deai-warnings { margin-top: 14px; padding: 10px 12px; border-radius: 8px; background: #fffbeb; color: #92400e; font-size: 12px; line-height: 1.7; }
+
+.skills-head { display: flex; justify-content: space-between; gap: 24px; align-items: flex-end; margin-bottom: 18px; }
+.skills-search { width: min(320px, 100%); }
+.skills-groups { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+.skills-groups button { border: 1px solid rgba(15,118,110,.18); background: #fff; color: #4b6360; border-radius: 999px; padding: 7px 13px; font: inherit; font-size: 12px; cursor: pointer; }
+.skills-groups button[aria-selected="true"] { background: #0f766e; border-color: #0f766e; color: #fff; }
+.skills-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.skill-card { display: flex; flex-direction: column; gap: 10px; text-align: left; border: 1px solid rgba(15,118,110,.14); border-radius: 12px; background: #fff; padding: 16px; cursor: pointer; min-height: 168px; box-shadow: 0 8px 22px rgba(15,60,56,.04); }
+.skill-card:hover { border-color: rgba(20,184,166,.55); transform: translateY(-1px); }
+.skill-card-top { display: flex; align-items: center; gap: 10px; }
+.skill-card-icon { width: 36px; height: 36px; border-radius: 9px; object-fit: cover; background: #effbf8; display: grid; place-items: center; color: #0f766e; font-weight: 700; }
+.skill-card h3 { margin: 0; font-size: 14px; color: #17302d; }
+.skill-card small { font-size: 11px; color: #6b8480; }
+.skill-card p { margin: 0; font-size: 12px; line-height: 1.7; color: #4b6360; }
+.skill-card-foot { margin-top: auto; display: flex; justify-content: space-between; font-size: 11px; color: #0f766e; }
+.skills-empty { padding: 32px; text-align: center; color: #6b8480; }
+.skill-dialog { width: min(880px, calc(100vw - 32px)); max-height: 88vh; border: 1px solid rgba(15,118,110,.2); border-radius: 14px; padding: 24px; background: #fff; color: #17302d; }
+.skill-dialog::backdrop { background: rgba(8, 32, 30, .42); }
+.skill-dialog-close { position: absolute; right: 12px; top: 10px; }
+.skill-dialog-close button { border: 0; background: transparent; font-size: 22px; color: #6b8480; cursor: pointer; }
+.skill-dialog-head span#skill-dialog-group { font-size: 11px; color: #0f766e; letter-spacing: .08em; }
+.skill-dialog-head h2 { margin: 6px 0; font-size: 22px; }
+.skill-dialog-head p { margin: 0; color: #4b6360; font-size: 13px; line-height: 1.7; }
+.skill-dialog-tags { display: flex; gap: 8px; margin-top: 10px; }
+.skill-dialog-tags span { border: 1px solid #e0eeeb; border-radius: 999px; padding: 3px 9px; font-size: 11px; color: #6b8480; }
+.skill-prompt { margin: 16px 0; border: 1px solid #e6f2ef; border-radius: 10px; padding: 10px 12px; background: #fbfdfc; }
+.skill-prompt summary { cursor: pointer; font-size: 12px; color: #0f766e; }
+.skill-prompt pre { max-height: 240px; overflow: auto; white-space: pre-wrap; word-break: break-word; font-size: 12px; line-height: 1.7; color: #33514d; }
+.skill-run { margin-top: 14px; }
+.skill-run label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 7px; }
+.skill-run button { margin-top: 10px; }
+.skill-run-result { margin-top: 16px; border-top: 1px solid #e6f2ef; padding-top: 14px; }
+.skill-run-result > div:first-child { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.skill-run-result button { border: 1px solid rgba(15,118,110,.25); background: #fff; color: #0f766e; border-radius: 8px; padding: 6px 11px; cursor: pointer; font: inherit; font-size: 12px; }
+@media (max-width: 980px) {
+  .deai-layout, .deai-result-grid { grid-template-columns: 1fr; }
+  .skills-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .skills-head { flex-direction: column; align-items: stretch; }
+}
+@media (max-width: 640px) {
+  .deai-page, .skills-page { padding: 20px 14px 48px; }
+  .deai-options, .deai-versions, .skills-grid { grid-template-columns: 1fr; }
+  .deai-result-head { flex-direction: column; }
+}

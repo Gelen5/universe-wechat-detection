@@ -584,6 +584,33 @@ def remove_ai_flavor_text(
     sources: list[dict[str, Any]],
     facts: list[dict[str, Any]],
 ) -> tuple[str, str]:
+    # Prefer the vendored universe-delete-ai-skill engine used by WeChat Plus:
+    # it runs local signal checks, targeted rewrites and a fidelity gate before
+    # returning a candidate. The lighter JSON rewrite below remains a fallback
+    # for provider outages or when the skill can make no safe change.
+    skill_warning = ""
+    try:
+        from . import deai
+
+        revised, skill_warning, _report = deai.rewrite_with_skill(
+            content, mode="article", depth=6, version="V3.1"
+        )
+        if revised != content:
+            lost_numbers = sorted(set(_number_tokens(content)) - set(_number_tokens(revised)))
+            lost_urls = [url for url in _URL_TOKEN_RE.findall(content) if url not in revised]
+            original_quotes = [
+                left or right
+                for left, right in _QUOTE_RE.findall(content)
+                if (left or right).strip()
+            ]
+            missing = unsupported_numbers(revised, sources, facts)
+            if not lost_numbers and not lost_urls and not missing and all(
+                quote in revised for quote in original_quotes
+            ):
+                return revised, skill_warning
+            skill_warning = "技能改稿未通过本地数字/链接/引语校验，已尝试轻量改写"
+    except Exception as exc:
+        skill_warning = f"技能去 AI 味未完成，已尝试轻量改写：{str(exc)[:100]}"
     prompt = """你是一名中文编辑，只做表达层改写，把下面的文章改得更像真人写作。
 保留全部事实、人物、机构、时间、数字、引语、来源链接、段落顺序和 Markdown 结构；
 不得新增任何事实、数字、案例或个人经历。长短句交错，多用具体动作和名词，
@@ -617,9 +644,10 @@ def remove_ai_flavor_text(
         missing = unsupported_numbers(rewritten, sources, facts)
         if missing:
             return content, "去 AI 味结果引入了未核实数字，已保留原稿"
-        return rewritten, ""
+        return rewritten, skill_warning
     except Exception as exc:
-        return content, f"去 AI 味未完成，已保留原稿：{str(exc)[:120]}"
+        detail = f"去 AI 味未完成，已保留原稿：{str(exc)[:120]}"
+        return content, "；".join(item for item in (skill_warning, detail) if item)
 
 
 def _step_payload(steps: list[dict[str, Any]]) -> list[dict[str, Any]]:

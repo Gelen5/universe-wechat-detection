@@ -18,7 +18,7 @@ _task_modules = ["server.workflow_tasks", "server.agent_tasks", "server.hotspots
                  "server.viral_remix_tasks", "server.lowfans_sync", "server.article_visual_tasks",
                  "server.image_board", "server.membership_credit_tasks",
                  "server.content_factory_tasks", "server.content_factory_v3_tasks",
-                 "server.viral_article_tasks"]
+                 "server.viral_article_tasks", "server.deai_tasks"]
 celery_app = Celery("universe_creator", broker=REDIS_URL, backend=REDIS_URL,
                     include=[] if _beat_only else _task_modules)
 
@@ -49,6 +49,7 @@ celery_app.conf.update(
         "viral_remix.run": {"queue": "image"},
         "viral_remix.analyze": {"queue": "text"},
         "viral_article.run": {"queue": "text"},
+        "deai.run": {"queue": "text"},
         "article_visual.plan": {"queue": "text"},
         "article_visual.recover": {"queue": "text"},
         "market.sync": {"queue": "text"},

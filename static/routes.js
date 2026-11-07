@@ -70,6 +70,9 @@ window.APP_NAV = (() => {
      fallback: true,
      icon: svg('<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="1.6"/>' +
                '<path d="m4 17 5-5 4 4 3-3 4 4"/>')},
+    {group: '工具', href: '/remove-ai-flavor', view: 'remove-ai-flavor', label: '去 AI 味', fallback: true,
+     icon: svg('<path d="M4 20h16"/><path d="M6 16 15 7l3 3-9 9z"/><path d="m14 6 4 4"/>' +
+               '<path d="M18 3v3M21 5h-3"/>')},
     {group: '工具', href: '/sticker-extract', view: 'sticker-extract', label: '贴图号内容提取', fallback: true,
      icon: svg('<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8" cy="8" r="1.5"/><path d="m4 17 5-5 4 4 3-3 4 4"/>')},
     // 小红书内容提取：应用内视图，静态页面里没有节点，标记 fallback 让渲染器建出来。
@@ -107,6 +110,10 @@ window.APP_NAV = (() => {
     {group: '资源', href: '/market', view: 'market', label: 'AI 超市', short: '超市',
      icon: svg('<path d="M3 7h18l-1.4 12.1a2 2 0 0 1-2 1.9H6.4a2 2 0 0 1-2-1.9z"/>' +
                '<path d="M8 7V5.5a4 4 0 0 1 8 0V7"/>')},
+    {group: '资源', href: '/skills', view: 'skills', label: '技能库', fallback: true,
+     icon: svg('<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>' +
+               '<path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>' +
+               '<path d="M9 7h7M9 11h5"/>')},
     // 独立页面（服务端渲染），不是应用内视图：不能带 view，
     // 否则 app-navigation.js 会拦下点击、SPA 把内容区清空 → 白屏。
     {group: '资源', href: '/bookshelf', view: 'bookshelf', label: 'AI 书架', fallback: true,

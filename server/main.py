@@ -23,6 +23,8 @@ from .workflow_api import router as workflow_router
 from .conversation_api import router as conversation_router
 from .article_visual import router as article_visual_router
 from .viral_article_api import router as viral_article_router
+from .deai_api import router as deai_router
+from .skill_api import router as skill_router
 from .legacy_article_media import router as legacy_article_media_router
 from .bookshelf import router as bookshelf_router
 from .market import router as market_router
@@ -89,6 +91,8 @@ app.include_router(workflow_router)
 app.include_router(conversation_router)
 app.include_router(article_visual_router)
 app.include_router(viral_article_router)
+app.include_router(deai_router)
+app.include_router(skill_router)
 app.include_router(legacy_article_media_router)
 app.include_router(bookshelf_router)
 app.include_router(market_router)
@@ -283,6 +287,7 @@ async def account_and_points_gate(request: Request, call_next):
         and not path.startswith("/api/wechat-plus/") \
         and not path.startswith("/api/content-factory/") \
         and not path.startswith("/api/viral-remix/image") \
+        and not path.startswith("/api/deai/") \
         and not path.startswith("/api/viral-article/") and not public_pay
     rule = accounts.pricing_rule(request.method, path) if billable else None
     usage_id = None
@@ -1753,7 +1758,7 @@ def legacy_creation_redirect(request: Request):
     query = request.url.query
     return RedirectResponse('/wechat-plus' + ('?' + query if query else ''), status_code=307)
 
-TAB_PAGES = {"wechat-plus", "diagnose", "viral-article", "xiaohongshu", "tie-tu", "viral-remix", "xhs-extract", "sticker-extract", "douyin-extract", "article-visual", "hit-detector", "morning-generator", "image-board"}
+TAB_PAGES = {"wechat-plus", "diagnose", "viral-article", "remove-ai-flavor", "skills", "xiaohongshu", "tie-tu", "viral-remix", "xhs-extract", "sticker-extract", "douyin-extract", "article-visual", "hit-detector", "morning-generator", "image-board"}
 
 
 @app.get("/favicon.ico", include_in_schema=False)

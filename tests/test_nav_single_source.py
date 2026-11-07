@@ -26,11 +26,12 @@ LEGACY_SHELL_ROUTES = [
     ['/viral-article', '爆文复刻'],
     ['/xiaohongshu', '小红书'], ['/tie-tu', '贴图号'], ['/viral-remix', '爆款贴图复刻', '爆图复刻'],
     ['/article-visual', '爆文转贴图'],
+    ['/remove-ai-flavor', '去 AI 味'],
     ['/sticker-extract', '贴图号内容提取'],
     ['/xhs-extract', '小红书内容提取'],
     ['/douyin-extract', '抖音内容提取'],
     ['/morning-generator', '早安祝福'],
-    ['/market', 'AI 超市', '超市'], ['/bookshelf', 'AI 书架'],
+    ['/market', 'AI 超市', '超市'], ['/skills', '技能库'], ['/bookshelf', 'AI 书架'],
     ['/pricing', '积分套餐'],
     ['/invite', '邀请好友'],
 ]
@@ -38,13 +39,15 @@ LEGACY_NOTION_PLAN = [
     ['选题灵感', ['/hotspots', '/topic-library', '/lowfans', '/image-board']],
     ['创作', ['/viral-article', '/xiaohongshu', '/tie-tu',
               '/viral-remix', '/article-visual']],
-    ['工具', ['/sticker-extract', '/xhs-extract', '/douyin-extract']],
-    ['资源', ['/content-factory', '/market', '/bookshelf']],
+    ['工具', ['/remove-ai-flavor', '/sticker-extract', '/xhs-extract', '/douyin-extract']],
+    ['资源', ['/content-factory', '/market', '/skills', '/bookshelf']],
     ['账户', ['/pricing', '/invite']],
 ]
 LEGACY_VIEWS = {
     '/': 'home', '/workbench': None, '/one-click-writing': None,
     '/content-factory': 'content-factory',
+    '/skills': 'skills',
+    '/remove-ai-flavor': 'remove-ai-flavor',
     '/wechat-plus': 'wechat-plus',
     '/viral-article': 'viral-article',
     '/xiaohongshu': 'xiaohongshu', '/tie-tu': 'tie-tu', '/viral-remix': 'viral-remix',
@@ -73,7 +76,7 @@ def _dump():
         f"require({json.dumps(str(STATIC / 'routes.js'))});"
         "const n = window.APP_NAV;"
         "const views = {};"
-        "for (const p of ['/', '/workbench', '/one-click-writing', '/wechat-plus', '/viral-article', '/content-factory', '/xiaohongshu', '/tie-tu', '/pricing', '/bookshelf',"
+        "for (const p of ['/', '/workbench', '/one-click-writing', '/wechat-plus', '/viral-article', '/content-factory', '/skills', '/remove-ai-flavor', '/xiaohongshu', '/tie-tu', '/pricing', '/bookshelf',"
         " '/viral-remix', '/article-visual', '/sticker-extract', '/xhs-extract', '/douyin-extract', '/lowfans', '/topic-library', '/image-board', '/diagnose', '/hit-detector', '/morning-generator', '/market', '/hotspots', '/invite'])"
         " views[p] = n.viewFor(p) ?? null;"
         "process.stdout.write(JSON.stringify({shell: n.shellRoutes, plan: n.notionPlan,"
@@ -106,8 +109,8 @@ class SingleSourceTests(unittest.TestCase):
         # every renderer can build them instead of silently dropping them.
         self.assertEqual(
             ['/content-factory', '/hotspots', '/topic-library', '/lowfans', '/image-board',
-             '/viral-article', '/article-visual', '/sticker-extract',
-             '/xhs-extract', '/douyin-extract', '/bookshelf', '/pricing', '/invite'],
+             '/viral-article', '/article-visual', '/remove-ai-flavor', '/sticker-extract',
+             '/xhs-extract', '/douyin-extract', '/skills', '/bookshelf', '/pricing', '/invite'],
             self.data['extras'],
         )
 
