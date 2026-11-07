@@ -16,7 +16,7 @@ _beat_only = len(sys.argv) > 1 and "beat" in sys.argv[1:] and "worker" not in sy
 _task_modules = ["server.workflow_tasks", "server.agent_tasks", "server.hotspots",
                  "server.provider_health", "server.wechat_plus_tasks",
                  "server.viral_remix_tasks", "server.lowfans_sync", "server.article_visual_tasks",
-                 "server.image_board", "server.membership_credit_tasks", "server.content_factory_tasks"]
+                 "server.image_board", "server.membership_credit_tasks", "server.content_factory_tasks", "server.content_factory_v3_tasks"]
 celery_app = Celery("universe_creator", broker=REDIS_URL, backend=REDIS_URL,
                     include=[] if _beat_only else _task_modules)
 
@@ -41,6 +41,9 @@ celery_app.conf.update(
         "wechat_plus.run": {"queue": "chat"},
         "wechat_plus.recover": {"queue": "chat"},
         "content_factory.recover": {"queue": "chat"},
+        "content_factory.v3_titles": {"queue": "text"},
+        "content_factory.v3_produce": {"queue": "text"},
+        "content_factory.v3_schedule": {"queue": "text"},
         "viral_remix.run": {"queue": "image"},
         "viral_remix.analyze": {"queue": "text"},
         "article_visual.plan": {"queue": "text"},
@@ -57,6 +60,10 @@ celery_app.conf.update(
         "recover-wechat-plus": {"task": "wechat_plus.recover", "schedule": 60.0},
         "membership-credit-reconcile": {"task": "membership.credit_reconcile", "schedule": 60.0},
         "recover-content-factory": {"task": "content_factory.recover", "schedule": 120.0},
+        # Celery uses UTC; 00:00/07:00 UTC are 08:00/15:00 Asia/Shanghai.
+        # The task is a no-op until the separate database switch is enabled.
+        "content-factory-v3-morning": {"task": "content_factory.v3_schedule", "schedule": crontab(hour=0, minute=0)},
+        "content-factory-v3-afternoon": {"task": "content_factory.v3_schedule", "schedule": crontab(hour=7, minute=0)},
         "recover-article-visual": {"task": "article_visual.recover", "schedule": 60.0},
         "recover-stale-workflow-nodes": {
             "task": "workflow.recover_stale", "schedule": 60.0,

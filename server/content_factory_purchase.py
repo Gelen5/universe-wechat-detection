@@ -5,6 +5,8 @@ Purchase, wallet update and ledger entry share one database transaction.
 from __future__ import annotations
 
 import json
+import hashlib
+import re
 import uuid
 from datetime import datetime, timezone
 
@@ -73,6 +75,22 @@ class SoldOut(PurchaseError):
 
 class InsufficientPoints(PurchaseError):
     pass
+
+
+def content_fingerprint(product_type, content, image_data=None):
+    """Stable duplicate guard shared by manual and automatic publication."""
+    if product_type not in ("article", "image"):
+        raise ValueError("unsupported product type")
+    if product_type == "image":
+        if not isinstance(image_data, (bytes, bytearray)) or not image_data:
+            raise ValueError("image bytes required")
+        data = bytes(image_data)
+    else:
+        compact = re.sub(r"\s+", "", (content or "").strip())
+        if not compact:
+            raise ValueError("content required")
+        data = compact.encode("utf-8")
+    return hashlib.sha256(product_type.encode("ascii") + b"\0" + data).hexdigest()
 
 
 def purchase(engine, product_id: str, user_id: str) -> dict:
